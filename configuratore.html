@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NG Interior · Configuratore armadi</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Three.js ES modules via importmap (file locali in vendor/) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three/three.module.js",
+      "three/addons/": "./vendor/three/addons/"
+    }
+  }
+  </script>
+
+  <!-- jsPDF (UMD, globale) -->
+  <script src="./vendor/jspdf/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="brand">
+      <a href="./scegli.html" class="back-link" title="Scegli tipo armadio">←</a>
+      <div>
+        <div class="mono">NG INTERIOR</div>
+        <div class="sottotitolo">Configuratore armadi su misura</div>
+      </div>
+    </div>
+    <div class="header-info" id="header-info">Armadio a battente — v1.0</div>
+    <div class="header-strumenti">
+      <label class="switch">
+        <input type="checkbox" id="toggle-ante" />
+        <span>Apri porte</span>
+      </label>
+    </div>
+  </header>
+
+  <main class="app">
+    <aside id="pannello" class="pannello" aria-label="Pannello parametri"></aside>
+
+    <section class="vista">
+      <canvas id="canvas3d"></canvas>
+      <div id="avvisi" class="avvisi" aria-live="polite"></div>
+    </section>
+
+    <aside id="distinta" class="distinta-panel" aria-label="Distinta di taglio"></aside>
+  </main>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

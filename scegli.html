@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NG Interior · Scegli il tipo di armadio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@300;400;500&display=swap">
+<style>
+  :root{
+    --ink:#0a0a0b; --ink-2:#131212;
+    --gold-1:#f6e2a0; --gold-2:#e8c25a; --gold-3:#c8971f;
+    --muted:#8a8470; --bordo:#2a2416;
+    --font-display:"Cormorant Garamond", Georgia, serif;
+    --font-ui:"Jost", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:var(--ink);
+    color:var(--gold-2);
+    font-family:var(--font-ui);
+    -webkit-font-smoothing:antialiased;
+    display:flex; flex-direction:column;
+    min-height:100%;
+  }
+  body::before{
+    content:"";
+    position:fixed; inset:0; z-index:0;
+    background:radial-gradient(130% 100% at 50% 20%, var(--ink-2) 0%, var(--ink) 62%);
+    pointer-events:none;
+  }
+  header{
+    position:relative; z-index:2;
+    padding:22px 28px;
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid var(--bordo);
+  }
+  header::after{
+    content:""; position:absolute; left:0; right:0; bottom:-1px; height:1px;
+    background:linear-gradient(90deg, transparent, var(--gold-2), transparent);
+  }
+  .brand{
+    font-family:var(--font-display); font-weight:700; letter-spacing:2px;
+    font-size:22px;
+    background:linear-gradient(180deg, var(--gold-1), var(--gold-3));
+    -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent; color:transparent;
+  }
+  .back{
+    font-size:12px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--muted); text-decoration:none;
+    transition:color .15s;
+  }
+  .back:hover{color:var(--gold-2);}
+  main{
+    position:relative; z-index:1;
+    flex:1;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    padding:60px 24px;
+  }
+  h1{
+    font-family:var(--font-display); font-weight:500;
+    font-size:clamp(36px,6vw,54px);
+    line-height:1.1;
+    text-align:center; margin:0 0 12px;
+    background:linear-gradient(180deg,#f8e6a6 0%,#e8c25a 52%,#c8971f 100%);
+    -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent; color:transparent;
+  }
+  .sottotitolo{
+    font-size:13px; letter-spacing:4px; text-transform:uppercase;
+    color:var(--muted); text-align:center;
+    margin:0 0 50px;
+  }
+  .scelte{
+    display:grid; gap:28px;
+    grid-template-columns:repeat(2, minmax(0, 320px));
+    width:100%; max-width:720px;
+  }
+  @media (max-width:640px){ .scelte{grid-template-columns:1fr;} }
+  .scelta{
+    position:relative;
+    display:flex; flex-direction:column;
+    padding:38px 28px;
+    background:linear-gradient(180deg, #171310 0%, #0d0b08 100%);
+    border:1px solid var(--bordo);
+    border-radius:3px;
+    text-decoration:none; color:inherit;
+    aspect-ratio:3/4;
+    transition:all .25s ease;
+    overflow:hidden;
+  }
+  .scelta::before{
+    content:""; position:absolute; inset:0;
+    background:linear-gradient(135deg, transparent 50%, rgba(232,194,90,0.06) 100%);
+    pointer-events:none;
+  }
+  .scelta:hover{
+    transform:translateY(-4px);
+    border-color:var(--gold-2);
+    box-shadow:0 20px 60px -20px rgba(232,194,90,0.3);
+  }
+  .scelta svg{
+    width:100%; max-width:120px; height:120px;
+    margin:auto;
+    stroke:var(--gold-2); stroke-width:1.2;
+    fill:none;
+    transition:stroke .25s;
+  }
+  .scelta:hover svg{ stroke:var(--gold-1); }
+  .scelta h2{
+    font-family:var(--font-display); font-weight:600;
+    font-size:28px; margin:0 0 8px; text-align:center;
+    color:var(--gold-1);
+  }
+  .scelta p{
+    font-size:12px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--muted); text-align:center; margin:0;
+  }
+  .scelta .freccia{
+    margin-top:18px; text-align:center;
+    font-size:11px; letter-spacing:3px;
+    color:var(--gold-3); text-transform:uppercase;
+    opacity:0; transition:opacity .25s;
+  }
+  .scelta:hover .freccia{ opacity:1; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">NG INTERIOR</div>
+    <a class="back" href="./index.html">← Home</a>
+  </header>
+  <main>
+    <h1>Scegli il tipo di armadio</h1>
+    <p class="sottotitolo">Progetta su misura</p>
+    <div class="scelte">
+      <!-- BATTENTE -->
+      <a class="scelta" href="./configuratore.html?tipo=battente">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <!-- armadio con 2 ante aperte -->
+          <rect x="12" y="18" width="96" height="92" rx="1"/>
+          <line x1="60" y1="18" x2="60" y2="110"/>
+          <line x1="18" y1="30" x2="54" y2="30"/>
+          <line x1="18" y1="60" x2="54" y2="60"/>
+          <line x1="18" y1="90" x2="54" y2="90"/>
+          <line x1="66" y1="30" x2="102" y2="30"/>
+          <line x1="66" y1="60" x2="102" y2="60"/>
+          <line x1="66" y1="90" x2="102" y2="90"/>
+          <!-- maniglie -->
+          <circle cx="56" cy="64" r="1.5" fill="currentColor"/>
+          <circle cx="64" cy="64" r="1.5" fill="currentColor"/>
+        </svg>
+        <h2>A battente</h2>
+        <p>Ante con cerniere</p>
+        <div class="freccia">Progetta →</div>
+      </a>
+      <!-- SCORREVOLE -->
+      <a class="scelta" href="./configuratore.html?tipo=scorrevole">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <!-- armadio con 2 ante scorrevoli sovrapposte -->
+          <rect x="12" y="18" width="96" height="92" rx="1"/>
+          <!-- binario sopra e sotto -->
+          <line x1="12" y1="26" x2="108" y2="26"/>
+          <line x1="12" y1="102" x2="108" y2="102"/>
+          <!-- due ante leggermente sovrapposte -->
+          <rect x="16" y="28" width="52" height="72"/>
+          <rect x="54" y="28" width="52" height="72"/>
+          <!-- manigliona verticale -->
+          <line x1="63" y1="48" x2="63" y2="80"/>
+        </svg>
+        <h2>Scorrevole</h2>
+        <p>Ante che scorrono</p>
+        <div class="freccia">Progetta →</div>
+      </a>
+    </div>
+  </main>
+</body>
+</html>
