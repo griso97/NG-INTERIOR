@@ -419,14 +419,16 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       creaAnta(xBase, cz, xOffsetAperto);
     } else {
       // N≥2 per modulo: le ante si sovrappongono dentro il modulo,
-      // alternate avanti/dietro; "avanti" scorrono verso destra all'apertura
-      const passo = (W - larAntaSc) / (N - 1) + larAntaSc / 2;
+      // alternate avanti/dietro. Quando apri, l'anta "avanti" scorre
+      // visibilmente (di circa 60% della sua larghezza), così l'effetto
+      // di apertura è chiaramente visibile in 3D.
       const spaziatura = (W - larAntaSc) / Math.max(1, N - 1);
+      const scorreDi = Math.max(spaziatura, larAntaSc * 0.6);
       for (let k = 0; k < N; k++) {
         const xBase = xOffset + larAntaSc / 2 + k * spaziatura;
         const cz = (k % 2 === 0) ? zAvanti : zDietro;
         const siApre = (k % 2 === 0) && k < N - 1;
-        const xOffsetAperto = siApre ? spaziatura : 0;
+        const xOffsetAperto = siApre ? scorreDi : 0;
         creaAnta(xBase, cz, xOffsetAperto);
       }
     }

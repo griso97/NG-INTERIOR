@@ -26,7 +26,8 @@ export function configDefault() {
       { larghezza: 1000, numeroAnte: 2, ripiani: 3, riduzioneRipiano: 0, cassettiere: [] },
     ],
     scorrevole: {
-      anteModulo: 2, // ante per modulo (default: 2, scorrono una davanti all'altra)
+      anteModulo: 1, // 1 anta per modulo (coerente con L/n − 25): tra moduli
+                     // adiacenti si sovrappongono alternate avanti/dietro
       binario: 75,   // 75 default, oppure 85
     },
     cassettiere: [], // lista GLOBALE di cassettiere; ciascuna ha `moduli: [i,...]`
