@@ -124,7 +124,7 @@ export function renderPannello(contenitore, config, onChange) {
         </label>
       </div>
       <p class="hint">Default: 2 ante per modulo, scorrono una davanti all'altra. Il binario non entra nella distinta (è a parte).</p>
-      <p class="hint err" id="sc-note">⚠ La formula delle ante scorrevoli è ancora da definire: nella distinta sono marcate "DA VERIFICARE".</p>
+      <p class="hint">Formula ante: larghezza = <code>Lm − 25</code>, altezza = <code>H − 47</code>.</p>
     </section>
 
     <section>

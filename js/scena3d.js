@@ -363,8 +363,8 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
     }
   }
 
-  // ANTE SCORREVOLI (per modulo) — placeholder in attesa di formula
-  // definitiva. Due casi:
+  // ANTE SCORREVOLI (per modulo) — formula definitiva (sez. 4.5):
+  // larghezza = Lm − 25, altezza = H − 47. Due casi di layout:
   //   N === 1 : 1 anta per modulo, alternata avanti/dietro tra moduli
   //             adiacenti (modulo 0 avanti, modulo 1 dietro, ...).
   //             L'apertura fa scorrere l'anta "avanti" di W a destra,
