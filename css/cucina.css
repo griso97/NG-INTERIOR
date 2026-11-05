@@ -498,3 +498,17 @@
 #cucina-3d { flex: 1; width: 100%; height: 100%; display: block; background: #0a0a0a; }
 #cucina-3d[hidden] { display: none; }
 .step3-pannello .riga-3d { font-size: 13px; color: var(--testo-dim); line-height: 1.6; }
+
+/* ===== Annulla / Rifai (barra sopra la pianta) ===== */
+.storia-azioni { display: flex; gap: 6px; }
+.btn-storia {
+  padding: 5px 10px; font-size: 11px; letter-spacing: 1px;
+  background: var(--bg-3); border: 1px solid var(--bordo); color: var(--testo);
+  border-radius: 2px; cursor: pointer;
+}
+.btn-storia:hover:not(:disabled) { border-color: var(--oro); color: var(--oro-chiaro); }
+.btn-storia:disabled { opacity: .35; cursor: default; }
+
+/* Mobili di un altro livello: bloccati (non toccabili, attenuati) */
+.sv-mob-g.bloccato { opacity: 0.4; }
+.sv-mob-g.bloccato .sv-mob-hit { pointer-events: none; }

@@ -32,7 +32,7 @@ const PASSO_GRIGLIA_MAGG = 1000; // mm (linea più visibile ogni 1 m)
  *  - interattivo: se true i mobili liberi si possono trascinare (Step 2)
  */
 export function renderPianta(svg, progetto, opts = {}) {
-  const { pareteAttivaId = null, pareteSelId = null, mobSelId = null, interattivo = false } = opts;
+  const { pareteAttivaId = null, pareteSelId = null, mobSelId = null, interattivo = false, livelloAttivo = null } = opts;
   const pareti = progetto.piano.pareti || [];
   const vertici = calcolaVertici(pareti);
 
@@ -116,7 +116,9 @@ export function renderPianta(svg, progetto, opts = {}) {
     // Mobili liberi: sopra a muri e quote, così restano sempre toccabili
     const gMob = el('g', { class: 'sv-mobili-liberi' });
     (progetto.mobiliLiberi || []).forEach((m) => {
-      gMob.appendChild(renderMobileLibero(m, m.id === mobSelId, interattivo));
+      const liv = categoriaTipo(m.tipo) === 'pensile' ? 'alto' : 'basso';
+      const bloccato = livelloAttivo !== null && liv !== livelloAttivo;
+      gMob.appendChild(renderMobileLibero(m, m.id === mobSelId, interattivo && !bloccato, bloccato));
     });
     svg.appendChild(gMob);
 
@@ -255,7 +257,7 @@ function renderModuloInPianta(a, b, parete, modulo, conEtichetta = true) {
  * Mobile libero: rettangolo 600 mm di profondità, ruotato di m.rot gradi,
  * con linea centrale per le ante (base con ante) e etichetta nome/misura.
  */
-function renderMobileLibero(m, selezionato, interattivo) {
+function renderMobileLibero(m, selezionato, interattivo, bloccato = false) {
   const categoria = categoriaTipo(m.tipo);
   const dim = dimMobile(m);
   const hw = dim.w / 2, hd = dim.d / 2;
@@ -266,7 +268,7 @@ function renderMobileLibero(m, selezionato, interattivo) {
   const versoSvg = (lx, ly) => { const [x, y] = versoPlan(lx, ly); return [x, -y]; };
 
   const g = el('g', {
-    class: 'sv-mob-g' + (interattivo ? ' interattivo' : ''),
+    class: 'sv-mob-g' + (interattivo ? ' interattivo' : '') + (bloccato ? ' bloccato' : ''),
     'data-mob-id': m.id,
   });
   // Area di tocco invisibile e ingrandita: i mobili piccoli (regletta) o

@@ -10,7 +10,7 @@ import {
   progettoDefault, TIPOLOGIE,
   applicaPreset, aggiungiParete, rimuoviParete,
   TIPI_MODULO_BASE, CATALOGO_MOBILI, LARGHEZZE_BASE, nomeTipo,
-  infoTipo, altezzeTipo, campiMobile, descrizioneMobile,
+  infoTipo, altezzeTipo, campiMobile, descrizioneMobile, categoriaTipo,
   spazioLiberoParete, moduliDiParete,
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
@@ -48,37 +48,69 @@ let trascinamento = null; // { id, dx, dy, mosso } mentre si sposta un mobile
 const palette = document.getElementById('palette');
 const modale = document.getElementById('modale');
 
+// --------- STORIA (Annulla / Rifai) ---------
+let storiaPast = [], storiaFuture = [];
+function registraStoria() {
+  storiaPast.push(JSON.stringify(progetto));
+  if (storiaPast.length > 60) storiaPast.shift();
+  storiaFuture = [];
+}
+function annullaStoria() {
+  if (!storiaPast.length) return;
+  storiaFuture.push(JSON.stringify(progetto));
+  progetto = JSON.parse(storiaPast.pop());
+  step2.mobSelId = null; pareteSelId = null;
+  aggiorna();
+}
+function rifaiStoria() {
+  if (!storiaFuture.length) return;
+  storiaPast.push(JSON.stringify(progetto));
+  progetto = JSON.parse(storiaFuture.pop());
+  step2.mobSelId = null; pareteSelId = null;
+  aggiorna();
+}
+function aggiornaBottoniStoria() {
+  const u = document.getElementById('btn-annulla'), r = document.getElementById('btn-rifai');
+  if (u) u.disabled = storiaPast.length === 0;
+  if (r) r.disabled = storiaFuture.length === 0;
+}
+document.getElementById('btn-annulla')?.addEventListener('click', annullaStoria);
+document.getElementById('btn-rifai')?.addEventListener('click', rifaiStoria);
+
 // --------- DISPATCH principale: sceglie lo step attivo ---------
+// Step 1 Pianta · 2 Moduli bassi · 3 Moduli alti · 4 Rendering 3D
 function renderPannello() {
-  if (progetto.stepCorrente === 3) return renderPannelloStep3();
-  if (progetto.stepCorrente === 2) return renderPannelloStep2();
+  if (progetto.stepCorrente === 4) return renderPannelloStep3d();
+  if (progetto.stepCorrente === 2 || progetto.stepCorrente === 3) return renderPannelloModuli();
   return renderPannelloStep1();
 }
 function renderRiepilogo() {
-  if (progetto.stepCorrente === 3) return renderRiepilogoStep3();
-  if (progetto.stepCorrente === 2) return renderRiepilogoStep2();
+  if (progetto.stepCorrente === 4) return renderRiepilogoStep3d();
+  if (progetto.stepCorrente === 2 || progetto.stepCorrente === 3) return renderRiepilogoModuli();
   return renderRiepilogoStep1();
 }
 const NOMI_STEP = {
   1: 'Pianta: perimetro',
-  2: 'Moduli base',
-  3: 'Vista 3D',
-  4: 'Fronti',
+  2: 'Moduli bassi',
+  3: 'Moduli alti',
+  4: 'Rendering 3D',
 };
+// Livello di mobili attivo nello step corrente ('basso' = a terra, 'alto' = pensili)
+function livelloStep() { return progetto.stepCorrente === 3 ? 'alto' : 'basso'; }
+function livelloMobile(cat) { return cat === 'pensile' ? 'alto' : 'basso'; }
 function step2Disponibile() {
   return progetto.pianoConfermato && progetto.piano.pareti.some((p) => !p.assente);
 }
-function step3Disponibile() {
-  return step2Disponibile() &&
-    ((progetto.mobiliLiberi || []).length > 0 || (progetto.moduliBase || []).length > 0);
+function step4Disponibile() {
+  return step2Disponibile() && (progetto.mobiliLiberi || []).length > 0;
 }
 // Stepper in alto: evidenzia lo step attivo, abilita quelli raggiungibili
 function renderStepper() {
-  if (progetto.stepCorrente === 2 && !step2Disponibile()) progetto.stepCorrente = 1;
-  if (progetto.stepCorrente === 3 && !step3Disponibile()) progetto.stepCorrente = step2Disponibile() ? 2 : 1;
+  if ((progetto.stepCorrente === 2 || progetto.stepCorrente === 3) && !step2Disponibile()) progetto.stepCorrente = 1;
+  if (progetto.stepCorrente === 4 && !step4Disponibile()) progetto.stepCorrente = step2Disponibile() ? 2 : 1;
   document.querySelectorAll('#stepper .step').forEach((btn) => {
     const n = Number(btn.dataset.step);
-    const abilitato = n === 1 || (n === 2 && step2Disponibile()) || (n === 3 && step3Disponibile());
+    const abilitato = n === 1 || ((n === 2 || n === 3) && step2Disponibile()) || (n === 4 && step4Disponibile());
     btn.disabled = !abilitato;
     btn.classList.toggle('disabilitato', !abilitato);
     btn.classList.toggle('attivo', n === progetto.stepCorrente);
@@ -199,9 +231,9 @@ function renderRiepilogoStep1() {
     <div class="riep-riga"><span>Stato</span><strong>${progetto.pianoConfermato ? 'Confermato' : 'In modifica'}</strong></div>
 
     <h3 style="margin-top:20px">Prossimi step</h3>
-    <div class="riep-riga" style="opacity:${step2Disponibile() ? 1 : .5}"><span>Step 2</span><strong>Moduli base</strong></div>
-    <div class="riep-riga" style="opacity:.5"><span>Step 3</span><strong>3D + alti</strong></div>
-    <div class="riep-riga" style="opacity:.5"><span>Step 4</span><strong>Fronti</strong></div>
+    <div class="riep-riga" style="opacity:${step2Disponibile() ? 1 : .5}"><span>Step 2</span><strong>Moduli bassi</strong></div>
+    <div class="riep-riga" style="opacity:.5"><span>Step 3</span><strong>Moduli alti</strong></div>
+    <div class="riep-riga" style="opacity:.5"><span>Step 4</span><strong>Rendering 3D</strong></div>
   `;
 }
 
@@ -210,6 +242,7 @@ function attaccaEventiPannello() {
   // Preset tipologia
   pannello.querySelectorAll('.tipo-card').forEach((btn) => {
     btn.addEventListener('click', () => {
+      registraStoria();
       applicaPreset(progetto, btn.dataset.tipo);
       aggiorna();
     });
@@ -231,6 +264,7 @@ function attaccaEventiPannello() {
       const id = Number(btn.dataset.id);
       const p = progetto.piano.pareti.find((x) => x.id === id);
       if (!p) return;
+      registraStoria();
       p.latoInterno = p.latoInterno === 'interno' ? 'esterno' : 'interno';
       progetto.pianoConfermato = false;
       aggiorna();
@@ -239,14 +273,16 @@ function attaccaEventiPannello() {
   // Rimuovi parete (solo personalizzata)
   pannello.querySelectorAll('.p-togli').forEach((btn) => {
     btn.addEventListener('click', () => {
+      registraStoria();
       const r = toggleParete(progetto, Number(btn.dataset.id));
-      if (!r.ok) alert(r.errore);
+      if (!r.ok) { storiaPast.pop(); alert(r.errore); }
       aggiorna();
     });
   });
   pannello.querySelectorAll('.p-rimuovi').forEach((btn) => {
     btn.addEventListener('click', () => {
       if (!confirm('Eliminare questo muro? Le pareti successive si spostano di conseguenza. Per lasciare un buco usa "togli muro".')) return;
+      registraStoria();
       rimuoviParete(progetto, Number(btn.dataset.id));
       pareteSelId = null;
       aggiorna();
@@ -262,14 +298,15 @@ function attaccaEventiPannello() {
   });
   // Orientamento globale: ruota / specchia
   const btnRsx = document.getElementById('btn-ruota-sx');
-  if (btnRsx) btnRsx.addEventListener('click', () => { ruotaPianta(progetto, 90); aggiorna(); });
+  if (btnRsx) btnRsx.addEventListener('click', () => { registraStoria(); ruotaPianta(progetto, 90); aggiorna(); });
   const btnRdx = document.getElementById('btn-ruota-dx');
-  if (btnRdx) btnRdx.addEventListener('click', () => { ruotaPianta(progetto, -90); aggiorna(); });
+  if (btnRdx) btnRdx.addEventListener('click', () => { registraStoria(); ruotaPianta(progetto, -90); aggiorna(); });
   const btnSpec = document.getElementById('btn-specchia');
-  if (btnSpec) btnSpec.addEventListener('click', () => { specchiaPianta(progetto); aggiorna(); });
+  if (btnSpec) btnSpec.addEventListener('click', () => { registraStoria(); specchiaPianta(progetto); aggiorna(); });
   // Gira il singolo angolo al contrario
   pannello.querySelectorAll('.p-gira').forEach((btn) => {
     btn.addEventListener('click', () => {
+      registraStoria();
       inverteAngolo(progetto, Number(btn.dataset.id));
       aggiorna();
     });
@@ -277,6 +314,7 @@ function attaccaEventiPannello() {
   // Aggiungi parete
   const btnAdd = document.getElementById('btn-aggiungi-parete');
   if (btnAdd) btnAdd.addEventListener('click', () => {
+    registraStoria();
     aggiungiParete(progetto, 2000);
     aggiorna();
   });
@@ -284,7 +322,7 @@ function attaccaEventiPannello() {
   const btnConf = document.getElementById('btn-conferma');
   if (btnConf) btnConf.addEventListener('click', () => {
     progetto.pianoConfermato = !progetto.pianoConfermato;
-    // Appena confermata la pianta si passa direttamente ai moduli base
+    // Appena confermata la pianta si passa direttamente ai moduli bassi
     if (step2Disponibile()) progetto.stepCorrente = 2;
     aggiorna();
   });
@@ -308,7 +346,7 @@ function pareteAttiva() {
   return p;
 }
 
-function renderPannelloStep2() {
+function renderPannelloModuli() {
   const pareti = progetto.piano.pareti;
   const parete = pareteAttiva();
   if (!parete) {
@@ -328,8 +366,10 @@ function renderPannelloStep2() {
   }
   const mods = moduliDiParete(progetto, parete.id);
   const problemi = problemiIngombri(progetto);
-  const haContenuto = (progetto.moduliBase || []).length > 0 ||
-    (progetto.mobiliLiberi || []).length > 0;
+  const haContenuto = (progetto.mobiliLiberi || []).length > 0;
+  const livello = livelloStep();
+  const nMobiliLivello = (progetto.mobiliLiberi || [])
+    .filter((m) => livelloMobile(categoriaTipo(m.tipo)) === livello).length;
 
   pannello.innerHTML = `
     <section>
@@ -351,6 +391,13 @@ function renderPannelloStep2() {
 
     ${blocMobileSelezionato()}
 
+    ${livello === 'alto' ? `
+    <section>
+      <div class="riga-3d">Posiziona i <strong>pensili</strong> dalla barra qui sotto.
+      I mobili bassi sono <strong>bloccati</strong>: non si spostano per errore.</div>
+    </section>` : ''}
+
+    ${livello === 'basso' ? `
     <section>
       <h3>Aggiungi modulo · profondità 600 mm</h3>
       <label>Tipo
@@ -402,7 +449,7 @@ function renderPannelloStep2() {
             </span>
           </div>`).join('')}
       </div>
-    </section>
+    </section>` : ''}
 
     ${problemi.length ? `
       <section>
@@ -411,14 +458,17 @@ function renderPannelloStep2() {
       </section>` : ''}
 
     <section class="actions">
-      <button id="s2-indietro" class="btn-ghost" type="button">← Pianta</button>
-      <button id="s2-vedi3d" class="btn-oro" type="button" style="flex:1"
-        ${haContenuto ? '' : 'disabled'}>Vedi in 3D →</button>
+      <button id="s2-indietro" class="btn-ghost" type="button">← ${livello === 'alto' ? 'Moduli bassi' : 'Pianta'}</button>
+      <button id="s2-avanti" class="btn-oro" type="button" style="flex:1"
+        ${livello === 'alto' && !haContenuto ? 'disabled' : ''}>
+        ${livello === 'basso' ? 'Moduli alti →' : 'Rendering 3D →'}
+      </button>
     </section>
-    <div class="conferma-stato ${haContenuto ? 'ok' : 'non-conf'}">
+    <div class="conferma-stato ${nMobiliLivello > 0 ? 'ok' : 'non-conf'}">
       ${problemi.length ? 'Risolvi gli avvisi evidenziati'
-        : !haContenuto ? 'Aggiungi almeno un mobile o un modulo'
-        : '✓ Pronto — premi "Vedi in 3D" o lo step 3 in alto'}
+        : livello === 'basso'
+          ? (nMobiliLivello > 0 ? '✓ Mobili bassi posati — vai ai moduli alti' : 'Posiziona i mobili bassi dalla barra sotto')
+          : (nMobiliLivello > 0 ? '✓ Pensili posati — vai al rendering' : 'Posiziona i pensili dalla barra sotto')}
     </div>
   `;
   attaccaEventiStep2();
@@ -436,35 +486,44 @@ function attaccaEventiStep2() {
       fatto();
     });
   });
-  document.getElementById('s2-tipo').addEventListener('change', (e) => {
+  const elTipo = document.getElementById('s2-tipo');
+  if (elTipo) elTipo.addEventListener('change', (e) => {
     step2.tipoSelezionato = e.target.value;
     fatto();
   });
-  document.getElementById('s2-larg').addEventListener('change', (e) => {
+  const elLarg = document.getElementById('s2-larg');
+  if (elLarg) elLarg.addEventListener('change', (e) => {
     step2.larghezzaSelezionata = Number(e.target.value);
   });
-  document.getElementById('s2-aggiungi').addEventListener('click', () => {
+  const elAgg = document.getElementById('s2-aggiungi');
+  if (elAgg) elAgg.addEventListener('click', () => {
+    registraStoria();
     fatto(aggiungiModuloBase(progetto, pareteId, step2.tipoSelezionato, step2.larghezzaSelezionata));
   });
   const inpFascia = document.getElementById('s2-fascia');
-  inpFascia.addEventListener('input', (e) => {
+  if (inpFascia) inpFascia.addEventListener('input', (e) => {
     step2.fasciaLarghezza = Math.max(1, Math.floor(Number(e.target.value) || 0));
   });
-  document.getElementById('s2-fascia-add').addEventListener('click', () => {
+  const elFasciaAdd = document.getElementById('s2-fascia-add');
+  if (elFasciaAdd) elFasciaAdd.addEventListener('click', () => {
+    registraStoria();
     fatto(aggiungiFascia(progetto, pareteId, step2.fasciaLarghezza));
   });
-  document.getElementById('s2-fascia-riempi').addEventListener('click', () => {
+  const elFasciaRiempi = document.getElementById('s2-fascia-riempi');
+  if (elFasciaRiempi) elFasciaRiempi.addEventListener('click', () => {
     const libero = spazioLiberoParete(progetto, pareteId).libero;
-    if (libero > 0) fatto(aggiungiFascia(progetto, pareteId, libero));
+    if (libero > 0) { registraStoria(); fatto(aggiungiFascia(progetto, pareteId, libero)); }
   });
   pannello.querySelectorAll('.s2-sposta').forEach((btn) => {
     btn.addEventListener('click', () => {
+      registraStoria();
       spostaModulo(progetto, btn.dataset.cat, Number(btn.dataset.id), Number(btn.dataset.dir));
       fatto();
     });
   });
   pannello.querySelectorAll('.s2-rimuovi').forEach((btn) => {
     btn.addEventListener('click', () => {
+      registraStoria();
       const id = Number(btn.dataset.id);
       if (btn.dataset.cat === 'fascia') rimuoviFascia(progetto, id);
       else rimuoviModuloBase(progetto, id);
@@ -474,6 +533,7 @@ function attaccaEventiStep2() {
   const mobSel = trovaMobileLibero(progetto, step2.mobSelId);
   if (mobSel) {
     document.getElementById('mob-ruota').addEventListener('click', () => {
+      registraStoria();
       ruotaMobileLibero(progetto, mobSel.id);
       riblocca(mobSel.id);
       fatto();
@@ -482,24 +542,31 @@ function attaccaEventiStep2() {
       apriScelta(mobSel.tipo, mobSel.id);
     });
     document.getElementById('mob-elimina').addEventListener('click', () => {
+      registraStoria();
       rimuoviMobileLibero(progetto, mobSel.id);
       step2.mobSelId = null; fatto();
     });
   }
   document.getElementById('s2-indietro').addEventListener('click', () => {
-    progetto.stepCorrente = 1;
+    progetto.stepCorrente = livelloStep() === 'alto' ? 2 : 1;
+    step2.mobSelId = null;
     fatto();
   });
-  const btn3d = document.getElementById('s2-vedi3d');
-  if (btn3d) btn3d.addEventListener('click', () => {
-    progetto.moduliBaseConfermati = true;
-    if (step3Disponibile()) progetto.stepCorrente = 3;
+  const btnAv = document.getElementById('s2-avanti');
+  if (btnAv) btnAv.addEventListener('click', () => {
+    if (livelloStep() === 'basso') {
+      progetto.moduliBaseConfermati = true;
+      progetto.stepCorrente = 3;
+    } else if (step4Disponibile()) {
+      progetto.stepCorrente = 4;
+    }
+    step2.mobSelId = null;
     fatto();
   });
 }
 
 // --------- RENDER RIEPILOGO (destra) — STEP 2 ---------
-function renderRiepilogoStep2() {
+function renderRiepilogoModuli() {
   const pareti = progetto.piano.pareti;
   const conteggio = {};
   for (const m of progetto.moduliBase) {
@@ -537,7 +604,7 @@ const legenda3d = document.querySelector('.vista-strumenti .legenda');
 let scena3dMod = null;      // modulo importato dinamicamente
 let scena3dMontata = false;
 
-function renderPannelloStep3() {
+function renderPannelloStep3d() {
   const n = (progetto.mobiliLiberi || []).length;
   pannello.innerHTML = `
     <section class="step3-pannello">
@@ -557,13 +624,13 @@ function renderPannelloStep3() {
       </div>
     </section>
     <section class="actions">
-      <button id="s3-indietro" class="btn-ghost" type="button" style="flex:1">← Moduli base</button>
+      <button id="s3-indietro" class="btn-ghost" type="button" style="flex:1">← Moduli alti</button>
     </section>`;
   const b = document.getElementById('s3-indietro');
-  if (b) b.addEventListener('click', () => { progetto.stepCorrente = 2; aggiorna(); });
+  if (b) b.addEventListener('click', () => { progetto.stepCorrente = 3; aggiorna(); });
 }
 
-function renderRiepilogoStep3() {
+function renderRiepilogoStep3d() {
   const conta = {};
   for (const m of (progetto.mobiliLiberi || [])) {
     const k = nomeTipo(m.tipo);
@@ -576,14 +643,12 @@ function renderRiepilogoStep3() {
       : Object.entries(conta).map(([k, v]) =>
         `<div class="riep-riga"><span>${k}</span><strong>×${v}</strong></div>`).join('')}
     <div class="riep-riga"><span>Totale pezzi</span><strong>${(progetto.mobiliLiberi || []).length}</strong></div>
-    <h3 style="margin-top:20px">Prossimo step</h3>
-    <div class="riep-riga" style="opacity:.5"><span>Step 4</span><strong>Fronti</strong></div>
   `;
 }
 
 // Mostra/nasconde pianta 2D vs vista 3D e tiene aggiornata la scena
 async function aggiornaVista() {
-  const in3d = progetto.stepCorrente === 3;
+  const in3d = progetto.stepCorrente === 4;
   svg.style.display = in3d ? 'none' : '';
   canvas3d.hidden = !in3d;
   if (legenda3d) legenda3d.textContent = in3d
@@ -606,12 +671,13 @@ async function aggiornaVista() {
 // --------- AGGIORNA (render completo + autosalvataggio) ---------
 function disegna() {
   const st = progetto.stepCorrente;
-  if (st !== 3) {
+  if (st !== 4) {
     renderPianta(svg, progetto, {
       pareteAttivaId: st === 2 ? step2.pareteAttivaId : null,
       pareteSelId: st === 1 ? pareteSelId : null,
       mobSelId: step2.mobSelId,
-      interattivo: st === 2,
+      interattivo: st === 2 || st === 3,
+      livelloAttivo: (st === 2 || st === 3) ? livelloStep() : null,
     });
   }
 }
@@ -622,6 +688,7 @@ function aggiorna() {
   renderPalette();
   disegna();
   aggiornaVista();
+  aggiornaBottoniStoria();
   salvaProgetto(progetto);
 }
 function aggiornaSoloDisegno() {
@@ -647,9 +714,11 @@ function iconaMobile(id) {
 }
 
 function renderPalette() {
-  palette.hidden = progetto.stepCorrente !== 2;
+  palette.hidden = !(progetto.stepCorrente === 2 || progetto.stepCorrente === 3);
   if (palette.hidden) return;
-  palette.innerHTML = CATALOGO_MOBILI.map((t) => `
+  const livello = livelloStep();
+  const voci = CATALOGO_MOBILI.filter((t) => livelloMobile(t.categoria) === livello);
+  palette.innerHTML = voci.map((t) => `
     <button type="button" class="palette-btn" data-tipo="${t.id}">
       ${iconaMobile(t.id)}<span>${t.nome}</span>
     </button>`).join('');
@@ -737,6 +806,7 @@ function apriScelta(tipoId, mobId = null) {
 }
 function confermaScelta() {
   const { tipoId, mobId, valori } = sceltaModale;
+  registraStoria();
   if (mobId) {
     const m = trovaMobileLibero(progetto, mobId);
     if (m) Object.assign(m, valori);
@@ -770,10 +840,14 @@ function puntoMm(e) {
 
 svg.addEventListener('pointerdown', (e) => {
   const mobEl = e.target.closest && e.target.closest('[data-mob-id]');
-  if (mobEl && progetto.stepCorrente === 2) {
+  const inModuli = progetto.stepCorrente === 2 || progetto.stepCorrente === 3;
+  if (mobEl && inModuli) {
     const m = trovaMobileLibero(progetto, Number(mobEl.dataset.mobId));
     if (!m) return;
+    // Solo i mobili del livello attivo sono spostabili: gli altri sono bloccati
+    if (livelloMobile(categoriaTipo(m.tipo)) !== livelloStep()) return;
     const p = puntoMm(e);
+    registraStoria();
     trascinamento = { id: m.id, dx: m.x - p.x, dy: m.y - p.y, mosso: false };
     try { svg.setPointerCapture(e.pointerId); } catch (_) { /* puntatore non attivo */ }
     e.preventDefault();
@@ -808,7 +882,10 @@ svg.addEventListener('pointermove', (e) => {
 });
 const fineTrascinamento = () => {
   if (!trascinamento) return;
+  const mosso = trascinamento.mosso;
   trascinamento = null;
+  // Tap senza spostamento: annullo lo snapshot registrato al pointerdown
+  if (!mosso && storiaPast.length) storiaPast.pop();
   aggiorna();
 };
 svg.addEventListener('pointerup', fineTrascinamento);

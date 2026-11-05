@@ -37,19 +37,19 @@
   <nav class="stepper" id="stepper">
     <button class="step attivo" data-step="1" aria-current="step">
       <span class="step-n">1</span>
-      <span class="step-nome">Pianta — Perimetro</span>
+      <span class="step-nome">Pianta</span>
     </button>
     <button class="step disabilitato" data-step="2" disabled>
       <span class="step-n">2</span>
-      <span class="step-nome">Moduli base</span>
+      <span class="step-nome">Moduli bassi</span>
     </button>
     <button class="step disabilitato" data-step="3" disabled>
       <span class="step-n">3</span>
-      <span class="step-nome">3D + Moduli alti</span>
+      <span class="step-nome">Moduli alti</span>
     </button>
     <button class="step disabilitato" data-step="4" disabled>
       <span class="step-n">4</span>
-      <span class="step-nome">Fronti</span>
+      <span class="step-nome">Rendering 3D</span>
     </button>
   </nav>
 
@@ -61,6 +61,10 @@
     <section class="cucina-vista">
       <div class="vista-strumenti">
         <span class="legenda">Griglia 100 mm · tutte le misure in mm</span>
+        <span class="storia-azioni">
+          <button id="btn-annulla" type="button" class="btn-storia" title="Annulla" disabled>↶ Annulla</button>
+          <button id="btn-rifai" type="button" class="btn-storia" title="Rifai" disabled>Rifai ↷</button>
+        </span>
       </div>
       <svg id="pianta-svg" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"></svg>
       <!-- Vista 3D (solo Step 3) -->
