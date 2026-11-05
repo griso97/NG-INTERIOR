@@ -58,16 +58,12 @@ export function pezziCarcassaModulo(config, modulo, indiceModulo, totaleModuli =
   const pezzi = [];
 
   if (config.tipoArmadio === 'scorrevole') {
-    // Scorrevole: setup unico (top/fondo passanti)
+    // Scorrevole: setup unico (top/fondo passanti).
+    // Top e Fondo sono IDENTICI → un solo pezzo con quantità 2.
     pezzi.push({
-      modulo: nomeModulo, nome: 'Top',
+      modulo: nomeModulo, nome: 'Top / Fondo',
       larghezza: modulo.larghezza, altezza: prof,
-      spessore: config.spessoreCarcassa, materiale: 'carcassa', quantita: 1,
-    });
-    pezzi.push({
-      modulo: nomeModulo, nome: 'Fondo',
-      larghezza: modulo.larghezza, altezza: prof,
-      spessore: config.spessoreCarcassa, materiale: 'carcassa', quantita: 1,
+      spessore: config.spessoreCarcassa, materiale: 'carcassa', quantita: 2,
     });
     const altFianco = config.altezzaEsterna - 2 * config.spessoreCarcassa;
     const profStretto = profonditaFiancoInterno(config);
@@ -93,23 +89,15 @@ export function pezziCarcassaModulo(config, modulo, indiceModulo, totaleModuli =
 
   if (config.setupCarcassa === 1) {
     // Top/fondo passanti → larghezza = larghezza_modulo
+    // Top e Fondo identici → un solo pezzo con quantità 2.
     pezzi.push({
       modulo: nomeModulo,
-      nome: 'Top',
+      nome: 'Top / Fondo',
       larghezza: modulo.larghezza,
       altezza: prof,
       spessore: config.spessoreCarcassa,
       materiale: 'carcassa',
-      quantita: 1,
-    });
-    pezzi.push({
-      modulo: nomeModulo,
-      nome: 'Fondo',
-      larghezza: modulo.larghezza,
-      altezza: prof,
-      spessore: config.spessoreCarcassa,
-      materiale: 'carcassa',
-      quantita: 1,
+      quantita: 2,
     });
     // Fianchi: altezza = altezza_esterna − 2 × spessore_carcassa (stanno in mezzo)
     const altFianco = config.altezzaEsterna - 2 * config.spessoreCarcassa;
@@ -152,24 +140,16 @@ export function pezziCarcassaModulo(config, modulo, indiceModulo, totaleModuli =
       quantita: 1,
     });
     // Top/fondo: larghezza = larghezza_modulo − 2 × spessore_carcassa
+    // Top e Fondo identici → un solo pezzo con quantità 2.
     const larTF = modulo.larghezza - 2 * config.spessoreCarcassa;
     pezzi.push({
       modulo: nomeModulo,
-      nome: 'Top',
+      nome: 'Top / Fondo',
       larghezza: larTF,
       altezza: prof,
       spessore: config.spessoreCarcassa,
       materiale: 'carcassa',
-      quantita: 1,
-    });
-    pezzi.push({
-      modulo: nomeModulo,
-      nome: 'Fondo',
-      larghezza: larTF,
-      altezza: prof,
-      spessore: config.spessoreCarcassa,
-      materiale: 'carcassa',
-      quantita: 1,
+      quantita: 2,
     });
   }
 
@@ -260,12 +240,9 @@ function _pezziCasScorrevole(config, cassettiera, modulo, indiceModulo) {
   const larFronte = larTF - 4;
   const altFronte = (As - (N + 1) * 2) / N;
 
-  pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Top',
+  pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Top / Fondo',
     larghezza: larTF, altezza: profScatolaM,
-    spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura', quantita: 1 });
-  pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fondo',
-    larghezza: larTF, altezza: profScatolaM,
-    spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura', quantita: 1 });
+    spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura', quantita: 2 });
   pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fianco',
     larghezza: profScatolaM, altezza: altFianchi,
     spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura', quantita: 2 });
@@ -301,12 +278,9 @@ function _pezziCasBattente(config, cassettiera, modulo, indiceModulo) {
   const larFronte = larTF - 4;
   const altFronte = (As - (N + 1) * 2) / N;
 
-  pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Top',
+  pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Top / Fondo',
     larghezza: larTF, altezza: Pscatola,
-    spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura', quantita: 1 });
-  pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fondo',
-    larghezza: larTF, altezza: Pscatola,
-    spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura', quantita: 1 });
+    spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura', quantita: 2 });
   pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fianco',
     larghezza: Pscatola, altezza: altFianchi,
     spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura', quantita: 2 });
@@ -385,12 +359,9 @@ export function pezziCassettieraScorrevoleModulo(config, modulo, indiceModulo) {
     const larFronte = larTF - 4;                         // 5.7
     const altFronte = (As - (N + 1) * 2) / N;            // 5.7
 
-    pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Top',
+    pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Top / Fondo',
       larghezza: larTF, altezza: profScatolaM,
-      spessore: sC, materiale: 'carcassa', quantita: 1 });
-    pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fondo',
-      larghezza: larTF, altezza: profScatolaM,
-      spessore: sC, materiale: 'carcassa', quantita: 1 });
+      spessore: sC, materiale: 'carcassa', quantita: 2 });
     pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fianco',
       larghezza: profScatolaM, altezza: altFianchi,
       spessore: sC, materiale: 'carcassa', quantita: 2 });
@@ -440,12 +411,9 @@ export function pezziCassettieraBattenteModulo(config, modulo, indiceModulo) {
     const larFronte = larTF - 4;                         // 5BIS.4
     const altFronte = (As - (N + 1) * 2) / N;            // uguale
 
-    pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Top',
+    pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Top / Fondo',
       larghezza: larTF, altezza: Pscatola,
-      spessore: sC, materiale: 'carcassa', quantita: 1 });
-    pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fondo',
-      larghezza: larTF, altezza: Pscatola,
-      spessore: sC, materiale: 'carcassa', quantita: 1 });
+      spessore: sC, materiale: 'carcassa', quantita: 2 });
     pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fianco',
       larghezza: Pscatola, altezza: altFianchi,
       spessore: sC, materiale: 'carcassa', quantita: 2 });
