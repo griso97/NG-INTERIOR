@@ -10,7 +10,7 @@ import {
   calcolaVertici, bboxPerimetro,
   moduliDiParete, nomeTipo, PROFONDITA_BASE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
-  dimMobile, liberoPareti,
+  dimMobile, liberoPareti, livelloDiMobile,
 } from './modello.js';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -116,8 +116,7 @@ export function renderPianta(svg, progetto, opts = {}) {
     // Mobili liberi: sopra a muri e quote, così restano sempre toccabili
     const gMob = el('g', { class: 'sv-mobili-liberi' });
     (progetto.mobiliLiberi || []).forEach((m) => {
-      const liv = categoriaTipo(m.tipo) === 'pensile' ? 'alto' : 'basso';
-      const bloccato = livelloAttivo !== null && liv !== livelloAttivo;
+      const bloccato = livelloAttivo !== null && livelloDiMobile(m) !== livelloAttivo;
       gMob.appendChild(renderMobileLibero(m, m.id === mobSelId, interattivo && !bloccato, bloccato));
     });
     svg.appendChild(gMob);

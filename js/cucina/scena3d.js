@@ -345,6 +345,10 @@ export function aggiornaScena3d(progetto, reframe = false) {
       const zocc = zoccoloPerAltezza(h);
       aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
       gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, zocc, cz, h, m.rot));
+    } else if (cat === 'costado') {
+      // Fianco di finitura: pannello verticale pieno, da terra alla cima
+      const h = m.altezza_mm || 850;
+      gruppo.add(collocaMobile(corpo(dim.w, h, dim.d, COL.corpo), cx, 0, cz, h, m.rot));
     } else {
       // base / lavello / forno: porta = altezza scelta, zoccolo 150/100, piano sopra
       const porta = m.altezza_mm || 700;

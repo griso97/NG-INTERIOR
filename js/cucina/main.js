@@ -10,7 +10,7 @@ import {
   progettoDefault, TIPOLOGIE,
   applicaPreset, aggiungiParete, rimuoviParete,
   TIPI_MODULO_BASE, CATALOGO_MOBILI, LARGHEZZE_BASE, nomeTipo,
-  infoTipo, altezzeTipo, campiMobile, descrizioneMobile, categoriaTipo,
+  infoTipo, altezzeTipo, campiMobile, descrizioneMobile, categoriaTipo, livelloDiMobile,
   spazioLiberoParete, moduliDiParete,
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
@@ -369,7 +369,7 @@ function renderPannelloModuli() {
   const haContenuto = (progetto.mobiliLiberi || []).length > 0;
   const livello = livelloStep();
   const nMobiliLivello = (progetto.mobiliLiberi || [])
-    .filter((m) => livelloMobile(categoriaTipo(m.tipo)) === livello).length;
+    .filter((m) => livelloDiMobile(m) === livello).length;
 
   pannello.innerHTML = `
     <section>
@@ -709,6 +709,7 @@ function iconaMobile(id) {
     pensile: '<rect x="8" y="14" width="48" height="36"/><line x1="32" y1="14" x2="32" y2="50"/><line x1="26" y1="28" x2="26" y2="36"/><line x1="38" y1="28" x2="38" y2="36"/>',
     colonna: '<rect x="18" y="4" width="28" height="56"/><line x1="18" y1="40" x2="46" y2="40"/><line x1="40" y1="20" x2="40" y2="26"/><line x1="40" y1="48" x2="40" y2="54"/>',
     regletta: '<polyline points="16,8 16,48 56,48" fill="none" stroke-width="7"/><polyline points="16,8 26,8 26,38 56,38 56,48" fill="none"/>',
+    costado: '<rect x="26" y="6" width="12" height="52"/><line x1="20" y1="6" x2="26" y2="10"/><line x1="20" y1="54" x2="26" y2="58"/>',
   };
   return `<svg viewBox="0 0 64 64" aria-hidden="true">${ic[id] || ic['base-ante']}</svg>`;
 }
@@ -717,7 +718,8 @@ function renderPalette() {
   palette.hidden = !(progetto.stepCorrente === 2 || progetto.stepCorrente === 3);
   if (palette.hidden) return;
   const livello = livelloStep();
-  const voci = CATALOGO_MOBILI.filter((t) => livelloMobile(t.categoria) === livello);
+  // Il costado si può aggiungere sia nei bassi che negli alti
+  const voci = CATALOGO_MOBILI.filter((t) => t.categoria === 'costado' || livelloMobile(t.categoria) === livello);
   palette.innerHTML = voci.map((t) => `
     <button type="button" class="palette-btn" data-tipo="${t.id}">
       ${iconaMobile(t.id)}<span>${t.nome}</span>
@@ -756,6 +758,10 @@ function apriScelta(tipoId, mobId = null) {
   const valori = {};
   for (const c of campi) {
     valori[c.campo] = esistente && esistente[c.campo] != null ? esistente[c.campo] : c.default;
+  }
+  // Costado nuovo negli "alti": profondità di default 350 (pensili); nei bassi 600
+  if (tipoId === 'costado' && !esistente && livelloStep() === 'alto') {
+    valori.profondita_mm = 350;
   }
   sceltaModale = { tipoId, mobId, campi, valori };
   document.getElementById('modale-titolo').textContent = `${tipo.nome}: che misura?`;
@@ -849,7 +855,7 @@ svg.addEventListener('pointerdown', (e) => {
     const m = trovaMobileLibero(progetto, Number(mobEl.dataset.mobId));
     if (!m) return;
     // Solo i mobili del livello attivo sono spostabili: gli altri sono bloccati
-    if (livelloMobile(categoriaTipo(m.tipo)) !== livelloStep()) return;
+    if (livelloDiMobile(m) !== livelloStep()) return;
     const p = puntoMm(e);
     registraStoria();
     trascinamento = { id: m.id, dx: m.x - p.x, dy: m.y - p.y, mosso: false };
@@ -876,8 +882,9 @@ svg.addEventListener('pointermove', (e) => {
   if (!m) return;
   const p = puntoMm(e);
   const rx = p.x + trascinamento.dx, ry = p.y + trascinamento.dy;
-  // Orienta le ante verso l'interno rispetto al muro più vicino
-  const rot = orientaVersoMuro(progetto, m, rx, ry);
+  // Orienta le ante verso l'interno (solo i mobili con un fronte, non costadi/reglette)
+  const haFronte = !['costado', 'regletta'].includes(categoriaTipo(m.tipo));
+  const rot = haFronte ? orientaVersoMuro(progetto, m, rx, ry) : null;
   const rotCambiata = rot !== null && rot !== m.rot;
   if (rotCambiata) m.rot = rot;
   // Posizione richiesta dal dito, poi bloccata dentro i muri, poi agganciata

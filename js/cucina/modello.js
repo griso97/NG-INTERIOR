@@ -43,6 +43,8 @@ export const LARGHEZZE_BASE = [300, 400, 500, 600, 700, 800, 900, 1000];
 export const ALTEZZE_BASE = [700, 800];          // armadi bassi
 export const ALTEZZE_PENSILE = [700, 900];       // armadi sopra
 export const ALTEZZE_COLONNA = [2200, 2300];     // colonne, altezza totale
+// Costadi (fianchi di finitura): altezze standard, tutte in profondità 600
+export const ALTEZZE_COSTADO = [850, 900, 2200, 2300, 2350, 2450];
 
 export const TIPI_MODULO_BASE = [
   { id: 'base-ante',     nome: 'Base con ante',     larghezze: LARGHEZZE_BASE },
@@ -72,6 +74,8 @@ export const CATALOGO_MOBILI = [
     larghezze: [600], altezze: ALTEZZE_COLONNA, profondita: 600 },
   { id: 'regletta',      nome: 'Regletta a L', categoria: 'regletta',
     larghezze: [30], altezze: ALTEZZE_BASE, profondita: 30 },
+  { id: 'costado',       nome: 'Costado', categoria: 'costado',
+    larghezze: [20], altezze: ALTEZZE_COSTADO, profondita: 600 },
 ];
 
 // Colonne (armadi a tutta altezza)
@@ -101,6 +105,13 @@ export function campiMobile(tipoId) {
       { campo: 'altezza_mm', et: 'Altezza (mm)', opzioni: ALTEZZE_BASE, default: ALTEZZE_BASE[0] },
     ];
   }
+  if (t.categoria === 'costado') {
+    return [
+      { campo: 'altezza_mm',    et: 'Altezza (mm)', opzioni: ALTEZZE_COSTADO, default: 850 },
+      { campo: 'profondita_mm', et: 'Profondità (mm)', tipo: 'numero', default: 600, min: 50, step: 10 },
+      { campo: 'spessore_mm',   et: 'Spessore (mm)', tipo: 'numero', default: 20, min: 10, step: 1 },
+    ];
+  }
   if (t.categoria === 'colonna') {
     return [
       { campo: 'altezza_mm',      et: 'Altezza totale (mm)', opzioni: ALTEZZE_COLONNA, default: ALTEZZE_COLONNA[0] },
@@ -127,6 +138,9 @@ export function descrizioneMobile(m) {
   if (cat === 'regletta') {
     return `${m.latoA_mm}×${m.latoB_mm} · h${m.altezza_mm}`;
   }
+  if (cat === 'costado') {
+    return `${m.altezza_mm}×${m.profondita_mm} · sp ${m.spessore_mm}`;
+  }
   if (cat === 'colonna') {
     return `${m.larghezza_mm}×${m.altezza_mm} · ${nomeVarianteColonna(m.variante)}`;
   }
@@ -141,10 +155,26 @@ export function descrizioneMobile(m) {
  * La regletta usa i suoi due lati; gli altri la larghezza + profondità del tipo.
  */
 export function dimMobile(m) {
-  if (categoriaTipo(m.tipo) === 'regletta') {
+  const cat = categoriaTipo(m.tipo);
+  if (cat === 'regletta') {
     return { w: m.latoA_mm || 30, d: m.latoB_mm || 30 };
   }
+  if (cat === 'costado') {
+    return { w: m.spessore_mm || 20, d: m.profondita_mm || 600 };
+  }
   return { w: m.larghezza_mm, d: profonditaTipo(m.tipo) };
+}
+
+/**
+ * Livello di un singolo mobile per il blocco a schermate (basso/alto):
+ * i pensili sono "alti"; un costado dipende dalla sua profondità
+ * (60 = basso/colonna, 35 = alto/pensile); gli altri sono "bassi".
+ */
+export function livelloDiMobile(m) {
+  const cat = categoriaTipo(m.tipo);
+  if (cat === 'pensile') return 'alto';
+  if (cat === 'costado') return (m.profondita_mm || 600) >= 500 ? 'basso' : 'alto';
+  return 'basso';
 }
 
 export function infoTipo(tipoId) {
