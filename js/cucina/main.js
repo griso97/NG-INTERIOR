@@ -16,7 +16,7 @@ import {
   rimuoviModuloBase, rimuoviFascia,
   spostaModulo, problemiIngombri,
   ruotaPianta, specchiaPianta, inverteAngolo,
-  toggleParete, muroTolto, snap,
+  toggleParete, muroTolto, snap, liberoPareti,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero,
 } from './modello.js';
 import { renderPianta } from './pianta.js';
@@ -309,7 +309,11 @@ function renderPannelloStep2() {
   }
   const idx = pareti.findIndex((p) => p.id === parete.id);
   const s = spazioLiberoParete(progetto, parete.id);
-  const perc = Math.min(100, Math.max(0, (s.occupato / (s.totale || 1)) * 100));
+  // Spazio che tiene conto ANCHE dei mobili liberi appoggiati al muro
+  const libInfo = liberoPareti(progetto).find((x) => x.id === parete.id);
+  const occTot = Math.min(s.totale, s.occupato + (libInfo ? libInfo.coperto : 0));
+  const liberoTot = Math.max(0, s.totale - occTot);
+  const perc = Math.min(100, Math.max(0, (occTot / (s.totale || 1)) * 100));
   const tipo = TIPI_MODULO_BASE.find((t) => t.id === step2.tipoSelezionato) || TIPI_MODULO_BASE[0];
   if (!tipo.larghezze.includes(step2.larghezzaSelezionata)) {
     step2.larghezzaSelezionata = tipo.larghezze.includes(600) ? 600 : tipo.larghezze[0];
@@ -329,8 +333,8 @@ function renderPannelloStep2() {
         }).join('')}
       </div>
       <div class="spazio-barra">
-        <span class="occupato">Occupato ${s.occupato} / ${s.totale} mm</span>
-        <span class="libero ${s.libero > 0 ? 'ok' : 'pieno'}">Libero ${s.libero} mm</span>
+        <span class="occupato">Muro ${Math.round(s.totale / 10)} cm</span>
+        <span class="libero ${liberoTot > 0 ? 'ok' : 'pieno'}">Libero ${Math.round(liberoTot / 10)} cm</span>
       </div>
       <div class="barra-progresso"><div class="riempita" style="width:${perc}%"></div></div>
     </section>
@@ -493,13 +497,15 @@ function renderRiepilogoStep2() {
   }
   const totFasce = progetto.fasce.reduce((s, f) => s + f.larghezza_mm, 0);
   const lineari = progetto.moduliBase.reduce((s, m) => s + m.larghezza_mm, 0);
+  const lib = liberoPareti(progetto);
   riepilogo.innerHTML = `
-    <h3>Riepilogo moduli base</h3>
+    <h3>Spazio sui muri · cm</h3>
     ${pareti.map((p, i) => {
       if (p.assente) return `<div class="riep-riga"><span>Parete ${i + 1}</span><strong>tolto</strong></div>`;
-      const s = spazioLiberoParete(progetto, p.id);
-      return `<div class="riep-riga"><span>Parete ${i + 1} (${s.totale})</span>
-        <strong>${s.libero === 0 ? '✓ piena' : `${s.libero} libero`}</strong></div>`;
+      const info = lib.find((x) => x.id === p.id);
+      const liberoCm = info ? Math.round(info.libero / 10) : Math.round(p.lunghezza_mm / 10);
+      return `<div class="riep-riga"><span>Parete ${i + 1} (${Math.round(p.lunghezza_mm / 10)} cm)</span>
+        <strong class="${liberoCm === 0 ? 'ok' : ''}">${liberoCm === 0 ? '✓ pieno' : `${liberoCm} liberi`}</strong></div>`;
     }).join('')}
 
     <h3 style="margin-top:20px">Moduli</h3>
@@ -549,6 +555,7 @@ function iconaMobile(id) {
     forno: '<rect x="8" y="6" width="48" height="52"/><rect x="16" y="22" width="32" height="24" rx="2"/><line x1="16" y1="14" x2="48" y2="14"/><circle cx="20" cy="10" r="1.5"/><circle cx="28" cy="10" r="1.5"/><circle cx="36" cy="10" r="1.5"/>',
     pensile: '<rect x="8" y="14" width="48" height="36"/><line x1="32" y1="14" x2="32" y2="50"/><line x1="26" y1="28" x2="26" y2="36"/><line x1="38" y1="28" x2="38" y2="36"/>',
     colonna: '<rect x="18" y="4" width="28" height="56"/><line x1="18" y1="40" x2="46" y2="40"/><line x1="40" y1="20" x2="40" y2="26"/><line x1="40" y1="48" x2="40" y2="54"/>',
+    regletta: '<polyline points="16,8 16,48 56,48" fill="none" stroke-width="7"/><polyline points="16,8 26,8 26,38 56,38 56,48" fill="none"/>',
   };
   return `<svg viewBox="0 0 64 64" aria-hidden="true">${ic[id] || ic['base-ante']}</svg>`;
 }
@@ -599,14 +606,24 @@ function apriScelta(tipoId, mobId = null) {
   document.getElementById('modale-titolo').textContent = `${tipo.nome}: che misura?`;
   const box = document.getElementById('modale-opzioni');
   const opz = (o) => (typeof o === 'object' ? o : { v: o, l: o });
-  box.innerHTML = campi.map((c) => `
-    <div class="modale-gruppo">
-      <div class="modale-et">${c.et}</div>
-      <div class="modale-scelte" data-campo="${c.campo}">
-        ${c.opzioni.map((o) => { const { v, l } = opz(o);
-          return `<button type="button" data-v="${v}" data-num="${typeof o !== 'object'}">${l}</button>`; }).join('')}
-      </div>
-    </div>`).join('') + `
+  box.innerHTML = campi.map((c) => {
+    if (c.tipo === 'numero') {
+      return `
+        <div class="modale-gruppo">
+          <div class="modale-et">${c.et}</div>
+          <input type="number" class="modale-num" data-campo="${c.campo}"
+            value="${sceltaModale.valori[c.campo]}" min="${c.min || 1}" step="${c.step || 1}" />
+        </div>`;
+    }
+    return `
+      <div class="modale-gruppo">
+        <div class="modale-et">${c.et}</div>
+        <div class="modale-scelte" data-campo="${c.campo}">
+          ${c.opzioni.map((o) => { const { v, l } = opz(o);
+            return `<button type="button" data-v="${v}" data-num="${typeof o !== 'object'}">${l}</button>`; }).join('')}
+        </div>
+      </div>`;
+  }).join('') + `
     <button id="modale-conferma" class="btn-oro" type="button" style="width:100%;margin-top:4px">
       ${mobId ? 'Aggiorna misura' : 'Aggiungi mobile'}
     </button>`;
@@ -621,6 +638,11 @@ function apriScelta(tipoId, mobId = null) {
       const campo = b.parentElement.dataset.campo;
       sceltaModale.valori[campo] = b.dataset.num === 'true' ? Number(b.dataset.v) : b.dataset.v;
       segna();
+    });
+  });
+  box.querySelectorAll('.modale-num').forEach((inp) => {
+    inp.addEventListener('input', (e) => {
+      sceltaModale.valori[e.target.dataset.campo] = Math.max(1, Math.floor(Number(e.target.value) || 0));
     });
   });
   document.getElementById('modale-conferma').addEventListener('click', confermaScelta);

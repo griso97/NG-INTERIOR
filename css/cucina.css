@@ -472,3 +472,16 @@
 
 /* ===== Colonne in pianta (profonde come le basi, bordo doppio) ===== */
 .sv-mob-colonna { fill: rgba(201, 169, 74, 0.22); stroke: var(--oro-chiaro); stroke-width: 16; }
+
+/* ===== Regletta a L (filler d'angolo) ===== */
+.sv-mob-regletta { fill: rgba(227, 170, 90, 0.5); stroke: #e3aa5a; stroke-width: 8; }
+.sv-mob-hit { fill: rgba(0,0,0,0); stroke: none; pointer-events: all; }
+
+/* ===== Badge "libero" per muro ===== */
+.sv-badge-txt { font-family: 'Inter', sans-serif; font-size: 110px; font-weight: 600; text-anchor: middle; dominant-baseline: middle; }
+.sv-badge-txt.ok { fill: var(--ok); }
+.sv-badge-txt.pieno { fill: var(--err); }
+
+/* ===== Input numerico nella finestra (regletta) ===== */
+.modale-num { width: 100%; padding: 12px 10px; background: var(--bg-3); border: 1px solid var(--bordo); color: var(--testo); font-size: 16px; border-radius: 2px; outline: none; }
+.modale-num:focus { border-color: var(--oro); }

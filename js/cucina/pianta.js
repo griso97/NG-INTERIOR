@@ -10,6 +10,7 @@ import {
   calcolaVertici, bboxPerimetro,
   moduliDiParete, nomeTipo, PROFONDITA_BASE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
+  dimMobile, liberoPareti,
 } from './modello.js';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -118,6 +119,14 @@ export function renderPianta(svg, progetto, opts = {}) {
       gMob.appendChild(renderMobileLibero(m, m.id === mobSelId, interattivo));
     });
     svg.appendChild(gMob);
+
+    // Badge "libero" su ogni muro (quanto manca alla fine), in cm
+    const gLib = el('g', { class: 'sv-libero-badges' });
+    liberoPareti(progetto).forEach((info) => {
+      gLib.appendChild(renderBadgeLibero(vertici[info.idx], vertici[info.idx + 1],
+        pareti[info.idx], info));
+    });
+    svg.appendChild(gLib);
   } else {
     // Nessuna parete (isola): disegno solo una nota al centro
     const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -247,9 +256,9 @@ function renderModuloInPianta(a, b, parete, modulo, conEtichetta = true) {
  * con linea centrale per le ante (base con ante) e etichetta nome/misura.
  */
 function renderMobileLibero(m, selezionato, interattivo) {
-  const prof = profonditaTipo(m.tipo);
   const categoria = categoriaTipo(m.tipo);
-  const hw = m.larghezza_mm / 2, hd = prof / 2;
+  const dim = dimMobile(m);
+  const hw = dim.w / 2, hd = dim.d / 2;
   const rad = ((m.rot || 0) * Math.PI) / 180;
   const c = Math.cos(rad), s = Math.sin(rad);
   // coordinate locali → piano (y in su) → SVG (y in giù)
@@ -260,9 +269,17 @@ function renderMobileLibero(m, selezionato, interattivo) {
     class: 'sv-mob-g' + (interattivo ? ' interattivo' : ''),
     'data-mob-id': m.id,
   });
+  // Area di tocco invisibile e ingrandita: i mobili piccoli (regletta) o
+  // sottili restano facili da selezionare e trascinare col dito.
+  const [hcx, hcy] = versoSvg(0, 0);
+  g.appendChild(el('circle', {
+    cx: hcx, cy: hcy, r: Math.max(hw, hd, 90) + 70,
+    class: 'sv-mob-hit', 'data-mob-id': m.id,
+  }));
   const corners = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(([x, y]) => versoSvg(x, y));
   const tipoCls = categoria === 'pensile' ? ' sv-mob-pensile' :
     categoria === 'colonna' ? ' sv-mob-colonna' :
+    categoria === 'regletta' ? ' sv-mob-regletta' :
     m.tipo === 'lavello' ? ' sv-mod-lavello' :
     m.tipo === 'forno' ? ' sv-mod-forno' : '';
   g.appendChild(el('polygon', {
@@ -274,6 +291,9 @@ function renderMobileLibero(m, selezionato, interattivo) {
     const [x2, y2] = versoSvg(0, hd - 20);
     g.appendChild(el('line', { x1, y1, x2, y2, class: 'sv-mob-anta' }));
   }
+  // La regletta è troppo piccola per un'etichetta: la mostro solo nel pannello
+  if (categoria === 'regletta') return g;
+
   const [cx, cy] = versoSvg(0, 0);
   const nome = nomeTipo(m.tipo);
   const fs = Math.max(34, Math.min(80, m.larghezza_mm / (nome.length * 0.55)));
@@ -287,6 +307,28 @@ function renderMobileLibero(m, selezionato, interattivo) {
   const r2 = el('tspan', { x: cx, dy: fs * 1.2, class: 'sv-mod-label-mis' });
   r2.textContent = descrizioneMobile(m);
   txt.append(r1, r2);
+  g.appendChild(txt);
+  return g;
+}
+
+/**
+ * Badge "libero: X cm" posizionato al centro del muro, sul lato interno,
+ * appena oltre la profondità dei mobili. Verde se c'è spazio, rosso se pieno.
+ */
+function renderBadgeLibero(a, b, parete, info) {
+  const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const L = Math.hypot(dx, dy) || 1;
+  const sgn = parete.latoInterno === 'interno' ? 1 : -1;
+  const nx = -dy / L * sgn, ny = dx / L * sgn;      // verso interno
+  const off = 720;                                  // oltre i mobili (600)
+  const tx = mx + nx * off, ty = -(my + ny * off);
+  const pieno = info.libero <= 0;
+  const g = el('g', { class: 'sv-badge-libero' });
+  const txt = el('text', {
+    x: tx, y: ty, class: 'sv-badge-txt ' + (pieno ? 'pieno' : 'ok'),
+  });
+  txt.textContent = pieno ? 'muro pieno' : `libero ${Math.round(info.libero / 10)} cm`;
   g.appendChild(txt);
   return g;
 }

@@ -70,6 +70,8 @@ export const CATALOGO_MOBILI = [
     larghezze: LARGHEZZE_BASE, altezze: ALTEZZE_PENSILE, profondita: PROFONDITA_PENSILE },
   { id: 'colonna',       nome: 'Colonna', categoria: 'colonna',
     larghezze: [600], altezze: ALTEZZE_COLONNA, profondita: 600 },
+  { id: 'regletta',      nome: 'Regletta a L', categoria: 'regletta',
+    larghezze: [30], altezze: ALTEZZE_BASE, profondita: 30 },
 ];
 
 // Colonne (armadi a tutta altezza)
@@ -92,6 +94,13 @@ export function nomeVarianteColonna(id) {
 export function campiMobile(tipoId) {
   const t = infoTipo(tipoId);
   if (!t) return [];
+  if (t.categoria === 'regletta') {
+    return [
+      { campo: 'latoA_mm',  et: 'Lato 1 (mm)', tipo: 'numero', default: 30, min: 10, step: 5 },
+      { campo: 'latoB_mm',  et: 'Lato 2 (mm)', tipo: 'numero', default: 30, min: 10, step: 5 },
+      { campo: 'altezza_mm', et: 'Altezza (mm)', opzioni: ALTEZZE_BASE, default: ALTEZZE_BASE[0] },
+    ];
+  }
   if (t.categoria === 'colonna') {
     return [
       { campo: 'altezza_mm',      et: 'Altezza totale (mm)', opzioni: ALTEZZE_COLONNA, default: ALTEZZE_COLONNA[0] },
@@ -111,10 +120,25 @@ export function campiMobile(tipoId) {
 
 /** Descrizione breve del mobile (per etichette e pannello). */
 export function descrizioneMobile(m) {
-  if (categoriaTipo(m.tipo) === 'colonna') {
+  const cat = categoriaTipo(m.tipo);
+  if (cat === 'regletta') {
+    return `${m.latoA_mm}×${m.latoB_mm} · h${m.altezza_mm}`;
+  }
+  if (cat === 'colonna') {
     return `${m.larghezza_mm}×${m.altezza_mm} · ${nomeVarianteColonna(m.variante)}`;
   }
   return m.altezza_mm ? `${m.larghezza_mm}×${m.altezza_mm}` : `${m.larghezza_mm}`;
+}
+
+/**
+ * Ingombro in pianta di un mobile: { w (lungo il fronte), d (profondità) }.
+ * La regletta usa i suoi due lati; gli altri la larghezza + profondità del tipo.
+ */
+export function dimMobile(m) {
+  if (categoriaTipo(m.tipo) === 'regletta') {
+    return { w: m.latoA_mm || 30, d: m.latoB_mm || 30 };
+  }
+  return { w: m.larghezza_mm, d: profonditaTipo(m.tipo) };
 }
 
 export function infoTipo(tipoId) {
@@ -345,6 +369,58 @@ export function angoloInterno(a, b) {
   if (delta <= -180) delta += 360;
   const sgn = a.latoInterno === 'interno' ? 1 : -1; // interno = sinistra
   return delta * sgn > 0;
+}
+
+/**
+ * Spazio libero su ogni muro, tenendo conto dei MOBILI LIBERI appoggiati.
+ * Un mobile conta su un muro se sta sul lato interno vicino a quel muro.
+ * Ritorna [{ id, idx, lunghezza, coperto, libero }] (mm), solo muri presenti.
+ */
+export function liberoPareti(progetto) {
+  const full = progetto.piano.pareti || [];
+  const vertici = calcolaVertici(full);
+  const mobili = progetto.mobiliLiberi || [];
+  const out = [];
+  full.forEach((p, i) => {
+    if (p.assente) return;
+    const a = vertici[i], b = vertici[i + 1];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const L = Math.hypot(dx, dy) || 1;
+    const ux = dx / L, uy = dy / L;                 // versore lungo il muro
+    const sgn = p.latoInterno === 'interno' ? 1 : -1;
+    const nx = -dy / L * sgn, ny = dx / L * sgn;    // normale verso l'interno
+    const intervalli = [];
+    for (const m of mobili) {
+      const d = dimMobile(m);
+      const rad = ((m.rot || 0) * Math.PI) / 180;
+      const c = Math.cos(rad), s = Math.sin(rad);
+      const hw = d.w / 2, hd = d.d / 2;
+      const rx = m.x - a.x, ry = m.y - a.y;
+      const tC = rx * ux + ry * uy;                 // proiezione del centro lungo il muro
+      const dC = rx * nx + ry * ny;                 // distanza dal muro (verso interno)
+      // Semi-ingombro proiettato lungo muro e lungo normale (bounding box orientato)
+      const extU = Math.abs(hw * (c * ux + s * uy)) + Math.abs(hd * (-s * ux + c * uy));
+      const extN = Math.abs(hw * (c * nx + s * ny)) + Math.abs(hd * (-s * nx + c * ny));
+      if (dC - extN > 300) continue;                // troppo dentro: non è su questo muro
+      if (dC + extN < -80) continue;                // dal lato sbagliato (fuori)
+      const lo = Math.max(0, tC - extU);
+      const hi = Math.min(L, tC + extU);
+      if (hi > lo) intervalli.push([lo, hi]);
+    }
+    intervalli.sort((a2, b2) => a2[0] - b2[0]);
+    let coperto = 0, cur = null;
+    for (const iv of intervalli) {
+      if (!cur) cur = [...iv];
+      else if (iv[0] <= cur[1]) cur[1] = Math.max(cur[1], iv[1]);
+      else { coperto += cur[1] - cur[0]; cur = [...iv]; }
+    }
+    if (cur) coperto += cur[1] - cur[0];
+    out.push({
+      id: p.id, idx: i, lunghezza: Math.round(L),
+      coperto: Math.round(coperto), libero: Math.max(0, Math.round(L - coperto)),
+    });
+  });
+  return out;
 }
 
 /**
