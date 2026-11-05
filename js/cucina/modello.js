@@ -376,6 +376,44 @@ export function respingiDaMobili(progetto, m, x, y) {
 }
 
 /**
+ * Orientamento automatico: restituisce la rotazione (0/90/180/270) che fa
+ * guardare le ante verso l'INTERNO della stanza quando il mobile è appoggiato
+ * al muro più vicino (schienale al muro). Ritorna null se non è vicino a
+ * nessun muro (allora si tiene la rotazione attuale, es. isola al centro).
+ */
+export function orientaVersoMuro(progetto, m, x, y) {
+  const full = progetto.piano.pareti || [];
+  if (full.length === 0) return null;
+  const vertici = calcolaVertici(full);
+  let bestDist = Infinity, bestN = null;
+  for (let i = 0; i < full.length; i++) {
+    const p = full[i];
+    if (p.assente) continue;
+    const a = vertici[i], b = vertici[i + 1];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const L = Math.hypot(dx, dy) || 1;
+    const ux = dx / L, uy = dy / L;
+    const sgn = p.latoInterno === 'interno' ? 1 : -1;
+    const nx = -dy / L * sgn, ny = dx / L * sgn;   // verso interno
+    const t = (x - a.x) * ux + (y - a.y) * uy;     // posizione lungo il muro
+    const dist = (x - a.x) * nx + (y - a.y) * ny;  // distanza dal muro
+    if (dist < -400) continue;                     // dal lato sbagliato
+    if (t < -300 || t > L + 300) continue;         // fuori dalla parete
+    if (dist < bestDist) { bestDist = dist; bestN = [nx, ny]; }
+  }
+  if (!bestN || bestDist > 900) return null;       // troppo lontano da un muro
+  const [nx, ny] = bestN;
+  // Il fronte (ante) di default guarda la direzione (sin, −cos) della rotazione
+  let bestRot = m.rot || 0, bestVal = -Infinity;
+  for (const r of [0, 90, 180, 270]) {
+    const rad = r * Math.PI / 180;
+    const v = Math.sin(rad) * nx + (-Math.cos(rad)) * ny;
+    if (v > bestVal) { bestVal = v; bestRot = r; }
+  }
+  return bestRot;
+}
+
+/**
  * Posizione finale vincolata: alterna respinta dagli altri mobili e blocco
  * ai muri, così si assesta rispettando tutto.
  */

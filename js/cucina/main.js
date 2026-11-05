@@ -18,7 +18,7 @@ import {
   ruotaPianta, specchiaPianta, inverteAngolo,
   toggleParete, muroTolto, snap, liberoPareti,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero,
-  vincolaAiMuri, posizionaVincolata,
+  vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
 } from './modello.js';
 import { renderPianta } from './pianta.js';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js';
@@ -813,6 +813,10 @@ function confermaScelta() {
     step2.mobSelId = mobId;
   } else {
     step2.mobSelId = aggiungiMobileLibero(progetto, tipoId, valori);
+    // Nuovo mobile: se nasce vicino a un muro, orienta le ante verso l'interno
+    const nuovo = trovaMobileLibero(progetto, step2.mobSelId);
+    const rot = nuovo && orientaVersoMuro(progetto, nuovo, nuovo.x, nuovo.y);
+    if (nuovo && rot !== null && rot !== undefined) nuovo.rot = rot;
   }
   riblocca(step2.mobSelId);
   chiudiModale();
@@ -871,10 +875,15 @@ svg.addEventListener('pointermove', (e) => {
   const m = trovaMobileLibero(progetto, trascinamento.id);
   if (!m) return;
   const p = puntoMm(e);
+  const rx = p.x + trascinamento.dx, ry = p.y + trascinamento.dy;
+  // Orienta le ante verso l'interno rispetto al muro più vicino
+  const rot = orientaVersoMuro(progetto, m, rx, ry);
+  const rotCambiata = rot !== null && rot !== m.rot;
+  if (rotCambiata) m.rot = rot;
   // Posizione richiesta dal dito, poi bloccata dentro i muri, poi agganciata
-  const v = posizionaVincolata(progetto, m, p.x + trascinamento.dx, p.y + trascinamento.dy);
+  const v = posizionaVincolata(progetto, m, rx, ry);
   const nx = snap(v.x), ny = snap(v.y);
-  if (nx !== m.x || ny !== m.y) {
+  if (nx !== m.x || ny !== m.y || rotCambiata) {
     m.x = nx; m.y = ny;
     trascinamento.mosso = true;
     disegna();
