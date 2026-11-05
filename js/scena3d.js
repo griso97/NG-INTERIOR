@@ -309,21 +309,35 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
     xOffset + W / 2, H / 2, sS / 2,
     matDi(config, "schiena"), 'schiena');
 
-  // Ripiani
+  // Ripiani — distribuiti uniformemente nello spazio LIBERO del modulo.
+  // Se ci sono cassettiere (appoggiate in basso), i ripiani si centrano
+  // SOPRA la cassettiera e sono equidistanti tra sé e tra top/cassettiera.
   if (modulo.ripiani > 0) {
     const larRipiano = W - 2 * sC;
     let profRipianoVisivo = prof - (modulo.riduzioneRipiano || 0);
-    // SCORREVOLE: visivamente il ripiano NON deve sporgere nei binari
-    // (dove scorrono le ante), altrimenti si vede attraverso. La distinta
-    // resta corretta (P − sS); è solo il rendering 3D a essere limitato.
     if (scorrevole) {
       const B = config.scorrevole?.binario ?? 75;
       profRipianoVisivo = Math.min(profRipianoVisivo, prof - B);
     }
-    const altInterna = H - 2 * sC;
-    const passo = altInterna / (modulo.ripiani + 1);
+    // Calcolo dello spazio OCCUPATO dalle cassettiere di questo modulo
+    const casseGlob = config.cassettiere || [];
+    const casseQui = casseGlob.filter((cas) => {
+      const idxs = Array.isArray(cas.moduli) && cas.moduli.length > 0
+        ? cas.moduli : config.moduli.map((_, i) => i);
+      return idxs.includes(indice);
+    });
+    let yOccupato = 0;
+    casseQui.forEach((c) => {
+      const AltMax = Math.max(100, c.altMax || 800);
+      yOccupato += AltMax + 10; // 10mm di gap tra cassettiere consecutive
+    });
+    // Spazio libero sopra la cassettiera in cui distribuire i ripiani
+    const yBase = sC + yOccupato;                  // sotto il primo ripiano
+    const yFine = H - sC;                          // sotto il top
+    const altLibera = Math.max(0, yFine - yBase);
+    const passo = altLibera / (modulo.ripiani + 1);
     for (let r = 1; r <= modulo.ripiani; r++) {
-      const yCentro = sC + r * passo;
+      const yCentro = yBase + r * passo;
       aggiungiBox(larRipiano, sC, profRipianoVisivo,
         xOffset + W / 2, yCentro,
         sS + profRipianoVisivo / 2,
