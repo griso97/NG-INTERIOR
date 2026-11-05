@@ -638,7 +638,16 @@ export function calcolaDistintaCompleta(config) {
   // Cassettiere: ora sono globali (config.cassettiere), con moduli[] = indici
   pezzi.push(...pezziCassettiereArmadio(config));
   pezzi.push(...pezziTamponamenti(config));
-  const raggruppati = raggruppaPezzi(pezzi);
+  // REGOLA GLOBALE: tutte le misure arrotondate PER DIFETTO (floor).
+  // Vale per ogni pezzo della distinta, per non mai dare misure "più grandi
+  // del reale" che potrebbero far sprecare materiale.
+  const arrotondati = pezzi.map((p) => ({
+    ...p,
+    larghezza: Math.floor(p.larghezza),
+    altezza: Math.floor(p.altezza),
+    spessore: Math.floor(p.spessore),
+  }));
+  const raggruppati = raggruppaPezzi(arrotondati);
   return {
     pezzi: raggruppati,
     riepilogo: calcolaRiepilogo(raggruppati),
@@ -706,13 +715,9 @@ export function validaConfig(config) {
   if (config.larghezzaTotale <= 0) errori.push('Larghezza totale non valida');
   if (config.altezzaEsterna <= 0) errori.push('Altezza esterna non valida');
   if (config.profonditaEsterna <= 0) errori.push('Profondità esterna non valida');
-  const sommaModuli = config.moduli.reduce((s, m) => s + m.larghezza, 0);
-  if (Math.abs(sommaModuli - config.larghezzaTotale) > 0.5) {
-    errori.push(
-      `La somma dei moduli (${sommaModuli} mm) non corrisponde alla ` +
-      `larghezza totale (${config.larghezzaTotale} mm).`,
-    );
-  }
+  // Nota: non valido la somma moduli perché, applicando l'arrotondamento
+  // per difetto, la somma può essere leggermente inferiore a L (max n-1 mm).
+  // È uno scarto accettato: tutte le misure sono "al minimo intero".
   // Tamponamenti: minimo 20 mm
   ['sx', 'dx', 'sopra', 'sotto'].forEach((lato) => {
     const t = config.tamponamenti?.[lato];

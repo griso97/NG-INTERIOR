@@ -486,13 +486,14 @@ function ripartisciModuli(config, n = config.moduli.length) {
   const t = config.moduli[0] || {
     numeroAnte: 2, ripiani: 3, riduzioneRipiano: 0, cassettiere: [],
   };
-  const pari = Math.round(config.larghezzaTotale / n);
+  // Regola: tutte le misure sono arrotondate PER DIFETTO. Quindi ogni
+  // modulo ha larghezza = floor(L/n). La somma può essere inferiore a L
+  // di qualche mm (max n-1 mm) — è lo scarto naturale.
+  const larModulo = Math.floor(config.larghezzaTotale / n);
   const nuovi = [];
   for (let i = 0; i < n; i++) {
     nuovi.push({
-      larghezza: i === n - 1
-        ? config.larghezzaTotale - pari * (n - 1)
-        : pari,
+      larghezza: larModulo,
       numeroAnte: t.numeroAnte,
       ripiani: t.ripiani,
       riduzioneRipiano: t.riduzioneRipiano,
