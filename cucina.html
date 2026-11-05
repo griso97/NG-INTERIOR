@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NG Interior · Progetta cucina</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/cucina.css" />
+</head>
+<body class="cucina-body">
+  <header class="app-header">
+    <div class="brand">
+      <a href="./scegli.html" class="back-link" title="Torna alla scelta">←</a>
+      <div>
+        <div class="mono">NG INTERIOR</div>
+        <div class="sottotitolo">Progettazione cucina</div>
+      </div>
+    </div>
+    <div class="header-info" id="step-info">Passo 1 di 4 — Pianta: perimetro</div>
+    <div class="header-strumenti"></div>
+  </header>
+
+  <!-- Stepper in alto -->
+  <nav class="stepper" id="stepper">
+    <button class="step attivo" data-step="1" aria-current="step">
+      <span class="step-n">1</span>
+      <span class="step-nome">Pianta — Perimetro</span>
+    </button>
+    <button class="step disabilitato" data-step="2" disabled>
+      <span class="step-n">2</span>
+      <span class="step-nome">Moduli base</span>
+    </button>
+    <button class="step disabilitato" data-step="3" disabled>
+      <span class="step-n">3</span>
+      <span class="step-nome">3D + Moduli alti</span>
+    </button>
+    <button class="step disabilitato" data-step="4" disabled>
+      <span class="step-n">4</span>
+      <span class="step-nome">Fronti</span>
+    </button>
+  </nav>
+
+  <main class="cucina-app">
+    <!-- Pannello parametri -->
+    <aside id="cucina-pannello" class="pannello"></aside>
+
+    <!-- Area disegno 2D (SVG in scala) -->
+    <section class="cucina-vista">
+      <div class="vista-strumenti">
+        <span class="legenda">Griglia 100 mm · tutte le misure in mm</span>
+      </div>
+      <svg id="pianta-svg" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"></svg>
+    </section>
+
+    <!-- Pannello riepilogo -->
+    <aside id="cucina-riepilogo" class="riepilogo-panel"></aside>
+  </main>
+
+  <script type="module" src="js/cucina/main.js"></script>
+</body>
+</html>

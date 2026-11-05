@@ -76,11 +76,11 @@
     margin:0 0 50px;
   }
   .scelte{
-    display:grid; gap:28px;
-    grid-template-columns:repeat(2, minmax(0, 320px));
-    width:100%; max-width:720px;
+    display:grid; gap:24px;
+    grid-template-columns:repeat(3, minmax(0, 280px));
+    width:100%; max-width:980px;
   }
-  @media (max-width:640px){ .scelte{grid-template-columns:1fr;} }
+  @media (max-width:860px){ .scelte{grid-template-columns:1fr;} }
   .scelta{
     position:relative;
     display:flex; flex-direction:column;
@@ -135,8 +135,8 @@
     <a class="back" href="./index.html">← Home</a>
   </header>
   <main>
-    <h1>Scegli il tipo di armadio</h1>
-    <p class="sottotitolo">Progetta su misura</p>
+    <h1>Cosa vuoi progettare?</h1>
+    <p class="sottotitolo">Scegli il tipo</p>
     <div class="scelte">
       <!-- BATTENTE -->
       <a class="scelta" href="./configuratore.html?tipo=battente">
@@ -161,19 +161,36 @@
       <!-- SCORREVOLE -->
       <a class="scelta" href="./configuratore.html?tipo=scorrevole">
         <svg viewBox="0 0 120 120" aria-hidden="true">
-          <!-- armadio con 2 ante scorrevoli sovrapposte -->
           <rect x="12" y="18" width="96" height="92" rx="1"/>
-          <!-- binario sopra e sotto -->
           <line x1="12" y1="26" x2="108" y2="26"/>
           <line x1="12" y1="102" x2="108" y2="102"/>
-          <!-- due ante leggermente sovrapposte -->
           <rect x="16" y="28" width="52" height="72"/>
           <rect x="54" y="28" width="52" height="72"/>
-          <!-- manigliona verticale -->
           <line x1="63" y1="48" x2="63" y2="80"/>
         </svg>
-        <h2>Scorrevole</h2>
+        <h2>Armadio scorrevole</h2>
         <p>Ante che scorrono</p>
+        <div class="freccia">Progetta →</div>
+      </a>
+      <!-- CUCINA -->
+      <a class="scelta" href="./cucina.html">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <!-- piano cucina a L (vista dall'alto) -->
+          <rect x="12" y="22" width="60" height="18"/>
+          <rect x="54" y="40" width="18" height="60"/>
+          <!-- lavello cerchio -->
+          <circle cx="30" cy="31" r="5"/>
+          <!-- piano cottura 4 cerchi -->
+          <circle cx="50" cy="28" r="2"/>
+          <circle cx="56" cy="28" r="2"/>
+          <circle cx="50" cy="34" r="2"/>
+          <circle cx="56" cy="34" r="2"/>
+          <!-- pensili (linee tratteggiate sopra) -->
+          <line x1="14" y1="48" x2="70" y2="48" stroke-dasharray="3 3"/>
+          <line x1="74" y1="46" x2="74" y2="100" stroke-dasharray="3 3"/>
+        </svg>
+        <h2>Cucina</h2>
+        <p>Pianta + 3D + moduli</p>
         <div class="freccia">Progetta →</div>
       </a>
     </div>
