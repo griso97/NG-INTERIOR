@@ -386,14 +386,17 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
   //   N >= 2 : più ante per modulo, alternate avanti/dietro dentro il
   //            modulo stesso; la "avanti" scorre di un passo a destra.
   if (scorrevole) {
+    // Il rendering 3D usa dimensioni "visive" (W/N + 20) per far vedere
+    // chiaramente la sovrapposizione e lo scorrimento. La DISTINTA invece
+    // usa la formula ufficiale Lm − 25 (vedi calcoli.js) che resta corretta.
     const N = config.scorrevole?.anteModulo ?? 2;
-    // Formula definitiva sez. 4.5
-    const larAntaSc = W - 25;                            // Lm − 25
-    const altAntaSc = H - 47;                            // H − 47
+    const B = config.scorrevole?.binario ?? 75;
+    const altAntaSc = H - B;
+    const larAntaSc = W / N + 20;
     const zAvanti = config.profonditaEsterna - sA / 2 - 2;
     const zDietro = config.profonditaEsterna - sA - sA / 2 - 4;
     const matAnteSc = matDi(config, "ante");
-    const cy = 25 + altAntaSc / 2; // 25mm da terra per lasciare spazio al binario inferiore
+    const cy = (B * 0.4) + altAntaSc / 2;
 
     const creaAnta = (xBase, cz, xOffsetAperto) => {
       const pivot = new THREE.Group();
@@ -410,7 +413,8 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
     };
 
     if (N === 1) {
-      // 1 anta per modulo: alternata avanti/dietro tra moduli adiacenti
+      // 1 anta per modulo: alternata avanti/dietro tra moduli adiacenti,
+      // scorre di tutta la larghezza del modulo verso il modulo successivo.
       const avanti = (indice % 2 === 0);
       const cz = avanti ? zAvanti : zDietro;
       const xBase = xOffset + W / 2;
@@ -418,17 +422,15 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       const xOffsetAperto = siApre ? W : 0;
       creaAnta(xBase, cz, xOffsetAperto);
     } else {
-      // N≥2 per modulo: le ante si sovrappongono dentro il modulo,
-      // alternate avanti/dietro. Quando apri, l'anta "avanti" scorre
-      // visibilmente (di circa 60% della sua larghezza), così l'effetto
-      // di apertura è chiaramente visibile in 3D.
-      const spaziatura = (W - larAntaSc) / Math.max(1, N - 1);
-      const scorreDi = Math.max(spaziatura, larAntaSc * 0.6);
+      // N≥2 ante per modulo: le ante si sovrappongono dentro il modulo,
+      // alternate avanti/dietro. L'anta "avanti" scorre di un passo
+      // (larAnta − overlap) verso destra all'apertura.
+      const passo = larAntaSc - 20;
       for (let k = 0; k < N; k++) {
-        const xBase = xOffset + larAntaSc / 2 + k * spaziatura;
+        const xBase = xOffset + larAntaSc / 2 + k * passo;
         const cz = (k % 2 === 0) ? zAvanti : zDietro;
         const siApre = (k % 2 === 0) && k < N - 1;
-        const xOffsetAperto = siApre ? scorreDi : 0;
+        const xOffsetAperto = siApre ? passo : 0;
         creaAnta(xBase, cz, xOffsetAperto);
       }
     }
