@@ -122,7 +122,9 @@ export function campiMobile(tipoId) {
     ];
   }
   const campi = [
-    { campo: 'larghezza_mm', et: 'Larghezza (mm)', opzioni: t.larghezze, default: t.larghezze.includes(600) ? 600 : t.larghezze[0] },
+    // Larghezza libera (puoi scrivere qualsiasi misura); le standard sono scorciatoie
+    { campo: 'larghezza_mm', et: 'Larghezza (mm)', tipo: 'numero', min: 100, step: 10,
+      opzioni: t.larghezze, default: t.larghezze.includes(600) ? 600 : t.larghezze[0] },
   ];
   if (t.altezze.length > 1) {
     campi.push({ campo: 'altezza_mm', et: 'Altezza (mm)', opzioni: t.altezze, default: t.altezze[0] });

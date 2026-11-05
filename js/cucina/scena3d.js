@@ -334,12 +334,12 @@ export function aggiornaScena3d(progetto, reframe = false) {
       const h = m.altezza_mm || 700;
       gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, MONTAGGIO_PENSILE, cz, h, m.rot));
     } else if (cat === 'colonna') {
-      // Zoccolo in base alla porta bassa; la carcassa riempie fino alla cima
+      // L'altezza della colonna (es. 2200) è la CASSA; il totale è cassa +
+      // zoccolo. Così un costado da 2350 (= 2200 + 15 di piedini) combacia.
       const h = m.altezza_mm || 2200;
       const zocc = zoccoloPerAltezza(m.altezzaBassa_mm || 700);
-      const hCar = h - zocc;
       aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
-      gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, hCar, dim.d), cx, zocc, cz, hCar, m.rot));
+      gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, zocc, cz, h, m.rot));
     } else if (cat === 'regletta') {
       // La regletta è alta come la porta e poggia sullo zoccolo: stessa quota
       const h = m.altezza_mm || 700;
