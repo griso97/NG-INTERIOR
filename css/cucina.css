@@ -331,3 +331,33 @@
 .mod-row.fascia { border-left-color: var(--testo-dim); }
 .mod-row.lavello { border-left-color: #7fbee0; }
 .mod-row.forno { border-left-color: #e07f7f; }
+.mod-azioni { display: flex; gap: 4px; }
+.mod-azioni .btn-mini:disabled { opacity: .3; cursor: default; }
+.mod-vuoto { font-size: 12px; color: var(--testo-dim); padding: 8px 0; }
+.avviso-pannello {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: rgba(220, 70, 70, 0.12);
+  border: 1px solid var(--err);
+  border-radius: 2px;
+  color: #ffdede;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.cucina-body button:disabled { opacity: .45; cursor: not-allowed; }
+.sv-parete-attiva { stroke: #fff; }
+.sv-mod-label-mis { font-weight: 600; fill: #fff; }
+.cucina-body .pannello select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  background: var(--bg-3);
+  border: 1px solid var(--bordo);
+  color: var(--testo);
+  font: inherit;
+  font-size: 13px;
+  border-radius: 2px;
+  outline: none;
+}
+.cucina-body .pannello select:focus { border-color: var(--oro); }

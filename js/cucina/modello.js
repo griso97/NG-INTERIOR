@@ -127,6 +127,81 @@ export function rimuoviFascia(progetto, fasciaId) {
 }
 
 /**
+ * Sposta un modulo (base o fascia) di una posizione verso l'inizio (dir = -1)
+ * o verso la fine (dir = +1) della sua parete, scambiandolo col vicino.
+ */
+export function spostaModulo(progetto, categoria, id, dir) {
+  const lista = categoria === 'fascia' ? progetto.fasce : progetto.moduliBase;
+  const el = lista.find((x) => x.id === id);
+  if (!el) return;
+  const mods = moduliDiParete(progetto, el.parete_id);
+  const i = mods.findIndex((m) => m.categoria === categoria && m.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= mods.length) return;
+  [mods[i], mods[j]] = [mods[j], mods[i]];
+  let pos = 0;
+  for (const m of mods) {
+    const src = (m.categoria === 'fascia' ? progetto.fasce : progetto.moduliBase)
+      .find((x) => x.id === m.id);
+    if (src) src.posizione_mm = pos;
+    pos += m.larghezza_mm;
+  }
+  progetto.moduliBaseConfermati = false;
+}
+
+/**
+ * VALIDAZIONE INGOMBRI.
+ * 1) Pareti in cui i moduli superano la lunghezza (es. parete accorciata
+ *    dopo aver inserito i moduli).
+ * 2) Angoli interni: dove due pareti consecutive si incontrano verso il lato
+ *    dei mobili, gli ultimi PROFONDITA_BASE mm della prima e i primi
+ *    PROFONDITA_BASE mm della seconda sono lo STESSO spazio fisico. Se
+ *    entrambe le pareti hanno un modulo base (non una fascia) in quella zona,
+ *    i mobili si scontrano.
+ * Ritorna un array di { tipo, pareti: [id...], messaggio }.
+ */
+export function problemiIngombri(progetto) {
+  const out = [];
+  const pareti = progetto.piano.pareti || [];
+  pareti.forEach((p, i) => {
+    const s = spazioLiberoParete(progetto, p.id);
+    if (s.libero < 0) {
+      out.push({ tipo: 'eccesso', pareti: [p.id], messaggio:
+        `Parete ${i + 1}: i moduli superano la parete di ${-s.libero} mm` });
+    }
+  });
+  for (let i = 0; i < pareti.length - 1; i++) {
+    const a = pareti[i], b = pareti[i + 1];
+    if (!angoloInterno(a, b)) continue;
+    const finA = a.lunghezza_mm - PROFONDITA_BASE;
+    const occA = moduliDiParete(progetto, a.id).some((m) =>
+      m.categoria === 'base' && m.posizione_mm + m.larghezza_mm > finA);
+    const occB = moduliDiParete(progetto, b.id).some((m) =>
+      m.categoria === 'base' && m.posizione_mm < PROFONDITA_BASE);
+    if (occA && occB) {
+      out.push({ tipo: 'angolo', pareti: [a.id, b.id], messaggio:
+        `Angolo tra parete ${i + 1} e ${i + 2}: i moduli si sovrappongono. ` +
+        `Lascia ${PROFONDITA_BASE} mm liberi (o una fascia) a fine parete ${i + 1} ` +
+        `oppure a inizio parete ${i + 2}.` });
+    }
+  }
+  return out;
+}
+
+/**
+ * True se l'angolo tra la parete a e la successiva b "chiude" verso il lato
+ * dove stanno i mobili (quindi le due file di moduli condividono l'angolo).
+ */
+export function angoloInterno(a, b) {
+  if (a.latoInterno !== b.latoInterno) return false;
+  let delta = (b.angolo_gradi - a.angolo_gradi) % 360;
+  if (delta > 180) delta -= 360;
+  if (delta <= -180) delta += 360;
+  const sgn = a.latoInterno === 'interno' ? 1 : -1; // interno = sinistra
+  return delta * sgn > 0;
+}
+
+/**
  * Dopo una rimozione, ricompatta le posizioni di tutti i moduli lungo
  * ogni parete (così non restano buchi a sinistra).
  */
@@ -167,10 +242,12 @@ export const TIPOLOGIE = [
   },
   {
     id: 'U', nome: 'A U', descrizione: '3 pareti',
+    // Percorso antiorario (giù → destra → su): il lato "interno" (sinistra
+    // rispetto alla direzione di percorrenza) cade dentro la U.
     pareti: [
-      { lunghezza_mm: 2500, angolo_gradi: 90 },
-      { lunghezza_mm: 3000, angolo_gradi: 0 },
       { lunghezza_mm: 2500, angolo_gradi: -90 },
+      { lunghezza_mm: 3000, angolo_gradi: 0 },
+      { lunghezza_mm: 2500, angolo_gradi: 90 },
     ],
   },
   {

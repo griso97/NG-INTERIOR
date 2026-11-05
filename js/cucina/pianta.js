@@ -8,14 +8,14 @@
 
 import {
   calcolaVertici, bboxPerimetro,
-  moduliDiParete, nomeTipo, PROFONDITA_BASE,
+  moduliDiParete, nomeTipo, PROFONDITA_BASE, angoloInterno,
 } from './modello.js';
 
 const MARGINE_MM = 800;        // margine attorno al perimetro (mm)
 const PASSO_GRIGLIA = 100;     // mm (passo primario)
 const PASSO_GRIGLIA_MAGG = 1000; // mm (linea più visibile ogni 1 m)
 
-export function renderPianta(svg, progetto) {
+export function renderPianta(svg, progetto, pareteAttivaId = null) {
   const pareti = progetto.piano.pareti || [];
   const vertici = calcolaVertici(pareti);
 
@@ -41,8 +41,16 @@ export function renderPianta(svg, progetto) {
     pareti.forEach((p, i) => {
       const a = vertici[i], b = vertici[i + 1];
       const mods = moduliDiParete(progetto, p.id);
+      // Zone d'angolo interno (inizio/fine parete) condivise con la parete
+      // adiacente: una fascia lì sta "sotto" il modulo dell'altra parete,
+      // quindi non ne scrivo l'etichetta per non sovrapporre i testi.
+      const angInizio = i > 0 && angoloInterno(pareti[i - 1], p);
+      const angFine = i < pareti.length - 1 && angoloInterno(p, pareti[i + 1]);
       mods.forEach((m) => {
-        gMod.appendChild(renderModuloInPianta(a, b, p, m));
+        const inAngolo = m.categoria === 'fascia' && (
+          (angInizio && m.posizione_mm + m.larghezza_mm <= PROFONDITA_BASE) ||
+          (angFine && m.posizione_mm >= p.lunghezza_mm - PROFONDITA_BASE));
+        gMod.appendChild(renderModuloInPianta(a, b, p, m, !inAngolo));
       });
     });
     svg.appendChild(gMod);
@@ -60,7 +68,8 @@ export function renderPianta(svg, progetto) {
       const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       l.setAttribute('x1', ax); l.setAttribute('y1', ay);
       l.setAttribute('x2', bx); l.setAttribute('y2', by);
-      l.setAttribute('class', 'sv-parete' + (confermato ? ' sv-parete-conf' : ''));
+      l.setAttribute('class', 'sv-parete' + (confermato ? ' sv-parete-conf' : '') +
+        (p.id === pareteAttivaId ? ' sv-parete-attiva' : ''));
       g.appendChild(l);
 
       // Indicatore lato interno (lineetta parallela dal lato giusto)
@@ -144,7 +153,7 @@ function renderLatoInterno(a, b, parete) {
  * Disegna un modulo (base o fascia) come rettangolo sulla parete, verso il
  * lato interno, con etichetta "nome · larghezza mm".
  */
-function renderModuloInPianta(a, b, parete, modulo) {
+function renderModuloInPianta(a, b, parete, modulo, conEtichetta = true) {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const L = Math.hypot(dx, dy) || 1;
@@ -177,6 +186,8 @@ function renderModuloInPianta(a, b, parete, modulo) {
   poly.setAttribute('class', cls);
   g.appendChild(poly);
 
+  if (!conEtichetta) return g;
+
   // Etichetta "tipo · larghezza" al centro del rettangolo
   const cx = (p1x + p3x) / 2;
   const cy = -((p1y + p3y) / 2);
@@ -184,8 +195,19 @@ function renderModuloInPianta(a, b, parete, modulo) {
   txt.setAttribute('x', cx);
   txt.setAttribute('y', cy);
   txt.setAttribute('class', 'sv-mod-label');
+  // Due righe (nome / larghezza), font ridotto sui moduli stretti
+  // così l'etichetta resta dentro il rettangolo.
   const nome = nomeTipo(modulo.tipo);
-  txt.textContent = `${nome} · ${modulo.larghezza_mm}`;
+  const fs = Math.max(30, Math.min(70, modulo.larghezza_mm / (nome.length * 0.6)));
+  txt.style.fontSize = `${fs}px`; // style (non attributo): il CSS vincerebbe sull'attributo
+  const r1 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+  r1.setAttribute('x', cx); r1.setAttribute('dy', -fs * 0.6);
+  r1.textContent = nome;
+  const r2 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+  r2.setAttribute('x', cx); r2.setAttribute('dy', fs * 1.2);
+  r2.setAttribute('class', 'sv-mod-label-mis');
+  r2.textContent = `${modulo.larghezza_mm}`;
+  txt.append(r1, r2);
   g.appendChild(txt);
 
   return g;
