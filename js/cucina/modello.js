@@ -293,7 +293,7 @@ export function toggleParete(progetto, pareteId) {
 }
 
 // --- Mobili liberi (piazzati sulla pianta, spostabili) ---
-const PASSO_SNAP = 50; // mm
+const PASSO_SNAP = 10; // mm (fine: permette di accostare i mobili con precisione)
 export function snap(v) { return Math.round(v / PASSO_SNAP) * PASSO_SNAP; }
 
 /** Centro della pianta (bbox dei muri presenti), per piazzare un nuovo mobile. */
@@ -384,23 +384,66 @@ function aabb(m, x, y) {
   return { hx: (d.w / 2) * c + (d.d / 2) * s, hy: (d.w / 2) * s + (d.d / 2) * c };
 }
 
+/** Direzione del muro più vicino (tangente u), o null se lontano da ogni muro. */
+function muroPiuVicino(progetto, x, y) {
+  const full = progetto.piano.pareti || [];
+  if (full.length === 0) return null;
+  const vertici = calcolaVertici(full);
+  let bestDist = Infinity, bestU = null;
+  for (let i = 0; i < full.length; i++) {
+    const p = full[i];
+    if (p.assente) continue;
+    const a = vertici[i], b = vertici[i + 1];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const L = Math.hypot(dx, dy) || 1;
+    const ux = dx / L, uy = dy / L;
+    const sgn = p.latoInterno === 'interno' ? 1 : -1;
+    const nx = -dy / L * sgn, ny = dx / L * sgn;
+    const t = (x - a.x) * ux + (y - a.y) * uy;
+    const dist = (x - a.x) * nx + (y - a.y) * ny;
+    if (dist < -400 || t < -300 || t > L + 300) continue;
+    if (dist < bestDist) { bestDist = dist; bestU = [ux, uy]; }
+  }
+  return (bestU && bestDist <= 900) ? bestU : null;
+}
+
 /**
  * Respinge un mobile dagli altri mobili che occupano la STESSA fascia di
  * altezza, così non si sormontano (un pensile sopra una base è permesso).
- * Spinge lungo l'asse di minore compenetrazione (bounding box in pianta).
+ * Se il mobile è appoggiato a un muro, lo fa scorrere LUNGO il muro (così i
+ * mobili si affiancano invece di spingersi in profondità contro la parete);
+ * altrimenti (isola) usa l'asse di minore compenetrazione.
  */
 export function respingiDaMobili(progetto, m, x, y) {
   const rv = rangeVerticale(m);
+  const u = muroPiuVicino(progetto, x, y);
   for (const o of (progetto.mobiliLiberi || [])) {
     if (o.id === m.id) continue;
     if (!rangeSovrappone(rv, rangeVerticale(o))) continue;
     const A = aabb(m, x, y), B = aabb(o, o.x, o.y);
-    const dx = x - o.x, dy = y - o.y;
-    const ox = (A.hx + B.hx) - Math.abs(dx);
-    const oy = (A.hy + B.hy) - Math.abs(dy);
-    if (ox > 0 && oy > 0) {
-      if (ox <= oy) x += (dx >= 0 ? 1 : -1) * ox;
-      else y += (dy >= 0 ? 1 : -1) * oy;
+    if (u) {
+      // Risoluzione lungo il muro (u) e perpendicolare (v)
+      const [ux, uy] = u, vx = -uy, vy = ux;
+      const eUm = A.hx * Math.abs(ux) + A.hy * Math.abs(uy);
+      const eUo = B.hx * Math.abs(ux) + B.hy * Math.abs(uy);
+      const eVm = A.hx * Math.abs(vx) + A.hy * Math.abs(vy);
+      const eVo = B.hx * Math.abs(vx) + B.hy * Math.abs(vy);
+      const du = (x - o.x) * ux + (y - o.y) * uy;
+      const dv = (x - o.x) * vx + (y - o.y) * vy;
+      const ou = (eUm + eUo) - Math.abs(du);
+      const ov = (eVm + eVo) - Math.abs(dv);
+      if (ou > 0 && ov > 0) {
+        const s = du >= 0 ? 1 : -1;
+        x += ux * s * ou; y += uy * s * ou;
+      }
+    } else {
+      const dx = x - o.x, dy = y - o.y;
+      const ox = (A.hx + B.hx) - Math.abs(dx);
+      const oy = (A.hy + B.hy) - Math.abs(dy);
+      if (ox > 0 && oy > 0) {
+        if (ox <= oy) x += (dx >= 0 ? 1 : -1) * ox;
+        else y += (dy >= 0 ? 1 : -1) * oy;
+      }
     }
   }
   return { x, y };

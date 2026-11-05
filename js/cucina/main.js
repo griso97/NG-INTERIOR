@@ -902,17 +902,17 @@ svg.addEventListener('pointermove', (e) => {
   const m = trovaMobileLibero(progetto, trascinamento.id);
   if (!m) return;
   const p = puntoMm(e);
-  const rx = p.x + trascinamento.dx, ry = p.y + trascinamento.dy;
+  // Aggancio alla griglia fine SOLO sulla posizione del dito; dopo i vincoli
+  // (muri e collisioni) non ri-aggancio, così il mobile tocca il vicino esatto.
+  const rx = snap(p.x + trascinamento.dx), ry = snap(p.y + trascinamento.dy);
   // Orienta le ante verso l'interno (solo i mobili con un fronte, non costadi/reglette)
   const haFronte = !['costado', 'regletta'].includes(categoriaTipo(m.tipo));
   const rot = haFronte ? orientaVersoMuro(progetto, m, rx, ry) : null;
   const rotCambiata = rot !== null && rot !== m.rot;
   if (rotCambiata) m.rot = rot;
-  // Posizione richiesta dal dito, poi bloccata dentro i muri, poi agganciata
   const v = posizionaVincolata(progetto, m, rx, ry);
-  const nx = snap(v.x), ny = snap(v.y);
-  if (nx !== m.x || ny !== m.y || rotCambiata) {
-    m.x = nx; m.y = ny;
+  if (v.x !== m.x || v.y !== m.y || rotCambiata) {
+    m.x = v.x; m.y = v.y;
     trascinamento.mosso = true;
     disegna();
   }
