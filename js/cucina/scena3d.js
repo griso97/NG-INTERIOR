@@ -35,6 +35,7 @@ const COL = {
   pensile: 0x7d6a3a,
   colonna: 0x5a4d2c,
   regletta:0xc9a94a,
+  costado: 0x9a8248,
   top:     0x232323,
   muro:    0x3a362c,
   pav:     0x121212,
@@ -346,9 +347,10 @@ export function aggiornaScena3d(progetto, reframe = false) {
       aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
       gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, zocc, cz, h, m.rot));
     } else if (cat === 'costado') {
-      // Fianco di finitura: pannello verticale pieno, da terra alla cima
+      // Fianco di finitura: pannello verticale pieno, da terra alla cima.
+      // Colore distinto così si riconosce anche se è sottile (18 mm).
       const h = m.altezza_mm || 850;
-      gruppo.add(collocaMobile(corpo(dim.w, h, dim.d, COL.corpo), cx, 0, cz, h, m.rot));
+      gruppo.add(collocaMobile(corpo(dim.w, h, dim.d, COL.costado), cx, 0, cz, h, m.rot));
     } else {
       // base / lavello / forno: porta = altezza scelta, zoccolo 150/100, piano sopra
       const porta = m.altezza_mm || 700;
