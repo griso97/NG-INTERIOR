@@ -512,3 +512,16 @@
 /* Mobili di un altro livello: bloccati (non toccabili, attenuati) */
 .sv-mob-g.bloccato { opacity: 0.4; }
 .sv-mob-g.bloccato .sv-mob-hit { pointer-events: none; }
+
+/* ===== Chip scorciatoie sotto un input numerico (costado) ===== */
+.modale-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.modale-chips button {
+  padding: 6px 10px; font-size: 12px;
+  background: var(--bg-3); border: 1px solid var(--bordo); color: var(--testo-dim);
+  border-radius: 12px; cursor: pointer;
+}
+.modale-chips button:hover { border-color: var(--oro); color: var(--oro-chiaro); }
+.modale-chips button.sel {
+  background: linear-gradient(180deg, var(--oro-scuro), #3a2d10);
+  color: #fff; border-color: var(--oro-chiaro);
+}

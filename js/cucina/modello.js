@@ -106,10 +106,11 @@ export function campiMobile(tipoId) {
     ];
   }
   if (t.categoria === 'costado') {
+    // Tutti liberi (modalità custom); i valori standard sono scorciatoie
     return [
-      { campo: 'altezza_mm',    et: 'Altezza (mm)', opzioni: ALTEZZE_COSTADO, default: 850 },
-      { campo: 'profondita_mm', et: 'Profondità (mm)', tipo: 'numero', default: 600, min: 50, step: 10 },
-      { campo: 'spessore_mm',   et: 'Spessore (mm)', tipo: 'numero', default: 20, min: 10, step: 1 },
+      { campo: 'altezza_mm',    et: 'Altezza (mm)', tipo: 'numero', default: 850, min: 50, step: 10, opzioni: ALTEZZE_COSTADO },
+      { campo: 'profondita_mm', et: 'Profondità (mm)', tipo: 'numero', default: 600, min: 50, step: 10, opzioni: [600, 350] },
+      { campo: 'spessore_mm',   et: 'Spessore (mm)', tipo: 'numero', default: 20, min: 5, step: 1, opzioni: [18, 20, 25, 30] },
     ];
   }
   if (t.categoria === 'colonna') {

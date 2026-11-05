@@ -774,6 +774,9 @@ function apriScelta(tipoId, mobId = null) {
           <div class="modale-et">${c.et}</div>
           <input type="number" class="modale-num" data-campo="${c.campo}"
             value="${sceltaModale.valori[c.campo]}" min="${c.min || 1}" step="${c.step || 1}" />
+          ${c.opzioni ? `<div class="modale-chips" data-campo="${c.campo}">
+            ${c.opzioni.map((o) => `<button type="button" data-v="${o}">${o}</button>`).join('')}
+          </div>` : ''}
         </div>`;
     }
     return `
@@ -801,11 +804,29 @@ function apriScelta(tipoId, mobId = null) {
       segna();
     });
   });
+  const segnaChips = () => {
+    box.querySelectorAll('.modale-chips button').forEach((b) => {
+      const campo = b.parentElement.dataset.campo;
+      b.classList.toggle('sel', Number(b.dataset.v) === sceltaModale.valori[campo]);
+    });
+  };
   box.querySelectorAll('.modale-num').forEach((inp) => {
     inp.addEventListener('input', (e) => {
       sceltaModale.valori[e.target.dataset.campo] = Math.max(1, Math.floor(Number(e.target.value) || 0));
+      segnaChips();
     });
   });
+  box.querySelectorAll('.modale-chips button').forEach((b) => {
+    b.addEventListener('click', () => {
+      const campo = b.parentElement.dataset.campo;
+      const v = Number(b.dataset.v);
+      sceltaModale.valori[campo] = v;
+      const inp = box.querySelector(`.modale-num[data-campo="${campo}"]`);
+      if (inp) inp.value = v;
+      segnaChips();
+    });
+  });
+  segnaChips();
   document.getElementById('modale-conferma').addEventListener('click', confermaScelta);
   segna();
   modale.hidden = false;
