@@ -192,6 +192,15 @@ body {
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 .radio-row { display: flex; flex-direction: column; gap: 4px; }
+.larghezze-grid {
+  margin-top: 10px;
+  display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  padding: 10px;
+  background: var(--bg-3);
+  border: 1px dashed var(--bordo);
+  border-radius: 2px;
+}
 
 /* Moduli */
 .modulo-card {

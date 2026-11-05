@@ -19,6 +19,7 @@ export function configDefault() {
     spessoreSchiena: 10,
     spessoreAnte: 18,
     setupCarcassa: 1,
+    moduliPersonalizzati: false, // false = tutti uguali (L/N); true = l'utente sceglie ogni larghezza
     materiali: materialiDefault(),
     moduli: [
       { larghezza: 1000, numeroAnte: 2, ripiani: 3, riduzioneRipiano: 0, cassettiere: [] },
@@ -131,7 +132,18 @@ export function renderPannello(contenitore, config, onChange) {
       <label>In quanti moduli dividere la larghezza
         <input type="number" id="n-moduli" value="${config.moduli.length}" min="1" max="10" step="1" />
       </label>
-      <p class="hint">La larghezza totale viene divisa automaticamente in parti uguali tra i moduli.</p>
+      <div class="radio-row" style="margin-top:10px">
+        <label class="radio">
+          <input type="radio" name="mod-tipo" value="uguali" ${!config.moduliPersonalizzati ? 'checked' : ''} />
+          <span>Tutti uguali (divisione automatica)</span>
+        </label>
+        <label class="radio">
+          <input type="radio" name="mod-tipo" value="personalizzati" ${config.moduliPersonalizzati ? 'checked' : ''} />
+          <span>Dimensioni personalizzate</span>
+        </label>
+      </div>
+      <div id="moduli-larghezze"></div>
+      <p class="hint" id="moduli-check"></p>
       <div id="moduli-list"></div>
     </section>
 
@@ -174,6 +186,7 @@ export function renderPannello(contenitore, config, onChange) {
   }
   config.moduli.forEach((m) => { delete m.cassettiere; });
   renderModuli(config);
+  renderLarghezzeModuli(config);
   renderCassettiere(config);
   renderTamponamenti(config);
   renderMateriali(config);
@@ -187,10 +200,13 @@ export function renderPannello(contenitore, config, onChange) {
   bind('#meta-cliente', (e) => { config.meta.cliente = e.target.value; onChange(config, { leggero: true }); });
   bind('#dim-W', (e) => {
     config.larghezzaTotale = toNum(e.target.value, 200);
-    // redistribuisce automaticamente la nuova larghezza tra i moduli
+    // In modalità "tutti uguali" ridistribuisce; in "personalizzati"
+    // aggiorna solo l'indicatore di somma (l'utente riaggiusta a mano).
     ripartisciModuli(config);
     renderModuli(config);
     attaccaEventiModuli(contenitore, config, onChange);
+    renderLarghezzeModuli(config);
+    attaccaEventiLarghezzeModuli(contenitore, config, onChange);
     onChange(config);
   });
   bind('#dim-H', (e) => { config.altezzaEsterna = toNum(e.target.value, 200); onChange(config); });
@@ -243,15 +259,35 @@ export function renderPannello(contenitore, config, onChange) {
     });
     renderModuli(config);
     attaccaEventiModuli(contenitore, config, onChange);
+    renderLarghezzeModuli(config);
+    attaccaEventiLarghezzeModuli(contenitore, config, onChange);
     renderCassettiere(config);
     attaccaEventiCassettiere(contenitore, config, onChange);
     onChange(config);
   });
 
   attaccaEventiModuli(contenitore, config, onChange);
+  attaccaEventiLarghezzeModuli(contenitore, config, onChange);
   attaccaEventiCassettiere(contenitore, config, onChange);
   attaccaEventiTamponamenti(contenitore, config, onChange);
   attaccaEventiMateriali(contenitore, config, onChange);
+
+  // Radio "tutti uguali" vs "personalizzati"
+  contenitore.querySelectorAll('input[name="mod-tipo"]').forEach((r) => {
+    r.addEventListener('change', (e) => {
+      const personalizzati = e.target.value === 'personalizzati';
+      config.moduliPersonalizzati = personalizzati;
+      if (!personalizzati) {
+        // Riporta le larghezze a L/n uguali per tutti
+        ripartisciModuli(config);
+      }
+      renderLarghezzeModuli(config);
+      attaccaEventiLarghezzeModuli(contenitore, config, onChange);
+      renderModuli(config);
+      attaccaEventiModuli(contenitore, config, onChange);
+      onChange(config);
+    });
+  });
 
   // Pulsanti globali
   bind('#btn-reset', () => {
@@ -486,19 +522,33 @@ function ripartisciModuli(config, n = config.moduli.length) {
   const t = config.moduli[0] || {
     numeroAnte: 2, ripiani: 3, riduzioneRipiano: 0, cassettiere: [],
   };
-  // Regola: tutte le misure sono arrotondate PER DIFETTO. Quindi ogni
-  // modulo ha larghezza = floor(L/n). La somma può essere inferiore a L
-  // di qualche mm (max n-1 mm) — è lo scarto naturale.
-  const larModulo = Math.floor(config.larghezzaTotale / n);
+  const vecchi = config.moduli;
   const nuovi = [];
-  for (let i = 0; i < n; i++) {
-    nuovi.push({
-      larghezza: larModulo,
-      numeroAnte: t.numeroAnte,
-      ripiani: t.ripiani,
-      riduzioneRipiano: t.riduzioneRipiano,
-      cassettiere: (t.cassettiere || []).map((c) => ({ ...c })),
-    });
+
+  if (config.moduliPersonalizzati) {
+    // Mantiene le larghezze esistenti; i nuovi ricevono una larghezza di
+    // default = floor(L/n) (l'utente poi li ritoccherà manualmente).
+    const def = Math.floor(config.larghezzaTotale / n);
+    for (let i = 0; i < n; i++) {
+      nuovi.push({
+        larghezza: vecchi[i]?.larghezza ?? def,
+        numeroAnte: t.numeroAnte, ripiani: t.ripiani,
+        riduzioneRipiano: t.riduzioneRipiano,
+        cassettiere: (t.cassettiere || []).map((c) => ({ ...c })),
+      });
+    }
+  } else {
+    // Tutti uguali: larghezza = floor(L/n). La somma può essere inferiore
+    // a L di qualche mm (max n-1 mm) — è lo scarto naturale.
+    const larModulo = Math.floor(config.larghezzaTotale / n);
+    for (let i = 0; i < n; i++) {
+      nuovi.push({
+        larghezza: larModulo,
+        numeroAnte: t.numeroAnte, ripiani: t.ripiani,
+        riduzioneRipiano: t.riduzioneRipiano,
+        cassettiere: (t.cassettiere || []).map((c) => ({ ...c })),
+      });
+    }
   }
   config.moduli = nuovi;
 }
@@ -559,9 +609,66 @@ function attaccaEventiMateriali(contenitore, config, onChange) {
   });
 }
 
+/**
+ * In modalità "dimensioni personalizzate" mostra un input per la larghezza
+ * di OGNI modulo + un riepilogo della somma vs larghezza totale.
+ */
+function renderLarghezzeModuli(config) {
+  const wrap = document.getElementById('moduli-larghezze');
+  const check = document.getElementById('moduli-check');
+  if (!wrap) return;
+  if (!config.moduliPersonalizzati) {
+    wrap.innerHTML = '';
+    if (check) check.textContent = '';
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="larghezze-grid">
+      ${config.moduli.map((m, i) => `
+        <label>Modulo ${i + 1} (mm)
+          <input type="number" class="m-lar" data-i="${i}"
+            value="${m.larghezza}" min="100" step="1" />
+        </label>
+      `).join('')}
+    </div>`;
+  aggiornaControlloSommaModuli(config);
+}
+
+function attaccaEventiLarghezzeModuli(contenitore, config, onChange) {
+  if (!config.moduliPersonalizzati) return;
+  contenitore.querySelectorAll('#moduli-larghezze .m-lar').forEach((inp) => {
+    inp.addEventListener('input', (e) => {
+      const i = Number(e.target.dataset.i);
+      const v = Math.max(100, Math.floor(Number(e.target.value) || 100));
+      config.moduli[i].larghezza = v;
+      aggiornaControlloSommaModuli(config);
+      renderModuli(config);                             // aggiorna header "Modulo N · XXX mm"
+      attaccaEventiModuli(contenitore, config, onChange);
+      onChange(config);
+    });
+  });
+}
+
+function aggiornaControlloSommaModuli(config) {
+  const check = document.getElementById('moduli-check');
+  if (!check) return;
+  const somma = config.moduli.reduce((s, m) => s + m.larghezza, 0);
+  const diff = config.larghezzaTotale - somma;
+  if (diff === 0) {
+    check.textContent = `Somma: ${somma} mm — corrisponde esattamente a L (${config.larghezzaTotale})`;
+    check.className = 'hint ok';
+  } else if (diff > 0) {
+    check.textContent = `Somma: ${somma} mm — mancano ${diff} mm per arrivare a L (${config.larghezzaTotale})`;
+    check.className = 'hint';
+  } else {
+    check.textContent = `⚠ Somma: ${somma} mm — superi L (${config.larghezzaTotale}) di ${-diff} mm`;
+    check.className = 'hint err';
+  }
+}
+
 function toNum(v, min) {
   const n = Number(v);
   if (Number.isNaN(n)) return min;
-  return Math.max(min, Math.round(n));
+  return Math.max(min, Math.floor(n));
 }
 function attr(s) { return (s || '').replace(/"/g, '&quot;'); }
