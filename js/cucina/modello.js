@@ -38,7 +38,10 @@ export function progettoDefault() {
 // CATALOGO MODULI BASE (Step 2)
 // =============================================================================
 export const PROFONDITA_BASE = 600;              // mm, fissa (ante incluse)
+export const PROFONDITA_PENSILE = 350;           // mm, pensili (armadi sopra)
 export const LARGHEZZE_BASE = [300, 400, 500, 600, 700, 800, 900, 1000];
+export const ALTEZZE_BASE = [700, 800];          // armadi bassi
+export const ALTEZZE_PENSILE = [700, 900];       // armadi sopra
 
 export const TIPI_MODULO_BASE = [
   { id: 'base-ante',     nome: 'Base con ante',     larghezze: LARGHEZZE_BASE },
@@ -46,9 +49,38 @@ export const TIPI_MODULO_BASE = [
   { id: 'lavello',       nome: 'Lavello',           larghezze: LARGHEZZE_BASE },
   { id: 'forno',         nome: 'Forno + placca',    larghezze: [600] },
 ];
+
+/**
+ * CATALOGO dei mobili che si posano liberamente sulla pianta (barra icone).
+ * Ogni voce ha: larghezze e altezze selezionabili, profondità e categoria.
+ * Le altezze non si vedono in pianta (vista dall'alto) ma vengono salvate
+ * e servono per la vista 3D e la distinta.
+ */
+export const CATALOGO_MOBILI = [
+  { id: 'base-ante',     nome: 'Base con ante', categoria: 'base',
+    larghezze: LARGHEZZE_BASE, altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
+  { id: 'base-cassetti', nome: 'Base cassetti', categoria: 'base',
+    larghezze: LARGHEZZE_BASE, altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
+  { id: 'lavello',       nome: 'Lavello', categoria: 'base',
+    larghezze: LARGHEZZE_BASE, altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
+  { id: 'forno',         nome: 'Forno + placca', categoria: 'base',
+    larghezze: [600], altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
+  { id: 'pensile',       nome: 'Pensile', categoria: 'pensile',
+    larghezze: LARGHEZZE_BASE, altezze: ALTEZZE_PENSILE, profondita: PROFONDITA_PENSILE },
+];
+
+export function infoTipo(tipoId) {
+  return CATALOGO_MOBILI.find((t) => t.id === tipoId)
+    || TIPI_MODULO_BASE.find((t) => t.id === tipoId)
+    || null;
+}
+export function profonditaTipo(tipoId) { return infoTipo(tipoId)?.profondita || PROFONDITA_BASE; }
+export function categoriaTipo(tipoId) { return infoTipo(tipoId)?.categoria || 'base'; }
+export function altezzeTipo(tipoId) { return infoTipo(tipoId)?.altezze || ALTEZZE_BASE; }
+
 export function nomeTipo(tipoId) {
   if (tipoId === 'fascia') return 'Fascia chiusura';
-  return TIPI_MODULO_BASE.find((t) => t.id === tipoId)?.nome || tipoId;
+  return infoTipo(tipoId)?.nome || tipoId;
 }
 
 /**
@@ -163,13 +195,14 @@ export function centroPianta(progetto) {
   return { x: (bb.minX + bb.maxX) / 2, y: (bb.minY + bb.maxY) / 2 };
 }
 
-export function aggiungiMobileLibero(progetto, tipo, larghezza_mm) {
+export function aggiungiMobileLibero(progetto, tipo, larghezza_mm, altezza_mm) {
   const c = centroPianta(progetto);
   const n = progetto.mobiliLiberi.length;
   // Sfalsa i nuovi mobili così non nascono uno sopra l'altro
   const id = Math.max(0, ...progetto.mobiliLiberi.map((m) => m.id)) + 1;
+  if (altezza_mm == null) altezza_mm = altezzeTipo(tipo)[0];
   progetto.mobiliLiberi.push({
-    id, tipo, larghezza_mm,
+    id, tipo, larghezza_mm, altezza_mm,
     x: snap(c.x + (n % 4) * 150), y: snap(c.y - (n % 4) * 150), rot: 0,
   });
   return id;

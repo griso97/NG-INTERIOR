@@ -9,6 +9,7 @@
 import {
   calcolaVertici, bboxPerimetro,
   moduliDiParete, nomeTipo, PROFONDITA_BASE, angoloInterno,
+  profonditaTipo, categoriaTipo,
 } from './modello.js';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -246,7 +247,9 @@ function renderModuloInPianta(a, b, parete, modulo, conEtichetta = true) {
  * con linea centrale per le ante (base con ante) e etichetta nome/misura.
  */
 function renderMobileLibero(m, selezionato, interattivo) {
-  const hw = m.larghezza_mm / 2, hd = PROFONDITA_BASE / 2;
+  const prof = profonditaTipo(m.tipo);
+  const categoria = categoriaTipo(m.tipo);
+  const hw = m.larghezza_mm / 2, hd = prof / 2;
   const rad = ((m.rot || 0) * Math.PI) / 180;
   const c = Math.cos(rad), s = Math.sin(rad);
   // coordinate locali → piano (y in su) → SVG (y in giù)
@@ -258,20 +261,21 @@ function renderMobileLibero(m, selezionato, interattivo) {
     'data-mob-id': m.id,
   });
   const corners = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(([x, y]) => versoSvg(x, y));
-  const tipoCls = m.tipo === 'lavello' ? ' sv-mod-lavello' :
+  const tipoCls = categoria === 'pensile' ? ' sv-mob-pensile' :
+    m.tipo === 'lavello' ? ' sv-mod-lavello' :
     m.tipo === 'forno' ? ' sv-mod-forno' : '';
   g.appendChild(el('polygon', {
     points: corners.map((p) => p.join(',')).join(' '),
     class: 'sv-mod sv-mob' + tipoCls + (selezionato ? ' sel' : ''),
   }));
-  if (m.tipo === 'base-ante') {
-    const [x1, y1] = versoSvg(0, -hd + 30);
-    const [x2, y2] = versoSvg(0, hd - 30);
+  if (m.tipo === 'base-ante' || m.tipo === 'pensile') {
+    const [x1, y1] = versoSvg(0, -hd + 20);
+    const [x2, y2] = versoSvg(0, hd - 20);
     g.appendChild(el('line', { x1, y1, x2, y2, class: 'sv-mob-anta' }));
   }
   const [cx, cy] = versoSvg(0, 0);
   const nome = nomeTipo(m.tipo);
-  const fs = Math.max(40, Math.min(90, m.larghezza_mm / (nome.length * 0.55)));
+  const fs = Math.max(34, Math.min(80, m.larghezza_mm / (nome.length * 0.55)));
   const txt = el('text', {
     x: cx, y: cy, class: 'sv-mod-label',
     transform: m.rot ? `rotate(${-m.rot} ${cx} ${cy})` : null,
@@ -280,7 +284,7 @@ function renderMobileLibero(m, selezionato, interattivo) {
   const r1 = el('tspan', { x: cx, dy: -fs * 0.6 });
   r1.textContent = nome;
   const r2 = el('tspan', { x: cx, dy: fs * 1.2, class: 'sv-mod-label-mis' });
-  r2.textContent = `${m.larghezza_mm}`;
+  r2.textContent = m.altezza_mm ? `${m.larghezza_mm}×${m.altezza_mm}` : `${m.larghezza_mm}`;
   txt.append(r1, r2);
   g.appendChild(txt);
   return g;

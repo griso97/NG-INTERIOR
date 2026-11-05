@@ -9,7 +9,8 @@
 import {
   progettoDefault, TIPOLOGIE,
   applicaPreset, aggiungiParete, rimuoviParete,
-  TIPI_MODULO_BASE, LARGHEZZE_BASE, nomeTipo,
+  TIPI_MODULO_BASE, CATALOGO_MOBILI, LARGHEZZE_BASE, nomeTipo,
+  infoTipo, altezzeTipo,
   spazioLiberoParete, moduliDiParete,
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
@@ -546,6 +547,7 @@ function iconaMobile(id) {
     'base-cassetti': '<rect x="8" y="6" width="48" height="52"/><line x1="8" y1="22" x2="56" y2="22"/><line x1="8" y1="38" x2="56" y2="38"/><line x1="28" y1="14" x2="36" y2="14"/><line x1="28" y1="30" x2="36" y2="30"/><line x1="28" y1="46" x2="36" y2="46"/>',
     lavello: '<rect x="8" y="6" width="48" height="52"/><rect x="16" y="16" width="32" height="22" rx="3"/><line x1="32" y1="8" x2="32" y2="14"/>',
     forno: '<rect x="8" y="6" width="48" height="52"/><rect x="16" y="22" width="32" height="24" rx="2"/><line x1="16" y1="14" x2="48" y2="14"/><circle cx="20" cy="10" r="1.5"/><circle cx="28" cy="10" r="1.5"/><circle cx="36" cy="10" r="1.5"/>',
+    pensile: '<rect x="8" y="14" width="48" height="36"/><line x1="32" y1="14" x2="32" y2="50"/><line x1="26" y1="28" x2="26" y2="36"/><line x1="38" y1="28" x2="38" y2="36"/>',
   };
   return `<svg viewBox="0 0 64 64" aria-hidden="true">${ic[id] || ic['base-ante']}</svg>`;
 }
@@ -553,7 +555,7 @@ function iconaMobile(id) {
 function renderPalette() {
   palette.hidden = progetto.stepCorrente !== 2;
   if (palette.hidden) return;
-  palette.innerHTML = TIPI_MODULO_BASE.map((t) => `
+  palette.innerHTML = CATALOGO_MOBILI.map((t) => `
     <button type="button" class="palette-btn" data-tipo="${t.id}">
       ${iconaMobile(t.id)}<span>${t.nome}</span>
     </button>`).join('');
@@ -568,7 +570,7 @@ function blocMobileSelezionato() {
   return `
     <section>
       <h3>Mobile selezionato</h3>
-      <div class="mod-row ${m.tipo}"><span>${nomeTipo(m.tipo)} · <strong>${m.larghezza_mm}</strong> mm</span></div>
+      <div class="mod-row ${m.tipo}"><span>${nomeTipo(m.tipo)} · <strong>${m.larghezza_mm}</strong>×<strong>${m.altezza_mm || '—'}</strong> mm</span></div>
       <div class="mob-azioni-grid">
         <button id="mob-ruota" class="btn-ghost" type="button">⟳ Ruota 90°</button>
         <button id="mob-misura" class="btn-ghost" type="button">Cambia misura</button>
@@ -578,29 +580,68 @@ function blocMobileSelezionato() {
     </section>`;
 }
 
-/** Finestra con le misure. Se mobId è dato, cambia la misura di quel mobile. */
+/**
+ * Finestra con le misure: si sceglie larghezza e (se il tipo ne ha più di una)
+ * altezza, poi Conferma. Se mobId è dato, cambia la misura di quel mobile.
+ */
+let sceltaModale = null; // { tipoId, mobId, larg, alt }
 function apriScelta(tipoId, mobId = null) {
-  const tipo = TIPI_MODULO_BASE.find((t) => t.id === tipoId);
+  const tipo = infoTipo(tipoId);
   if (!tipo) return;
+  const altezze = altezzeTipo(tipoId);
+  const esistente = mobId ? trovaMobileLibero(progetto, mobId) : null;
+  sceltaModale = {
+    tipoId, mobId,
+    larg: esistente ? esistente.larghezza_mm : (tipo.larghezze.includes(600) ? 600 : tipo.larghezze[0]),
+    alt: esistente ? esistente.altezza_mm : altezze[0],
+  };
   document.getElementById('modale-titolo').textContent =
     `${tipo.nome}: che misura?`;
-  document.getElementById('modale-opzioni').innerHTML = tipo.larghezze
-    .map((l) => `<button type="button" data-l="${l}">${l} mm</button>`).join('');
-  document.querySelectorAll('#modale-opzioni button').forEach((b) => {
+  const box = document.getElementById('modale-opzioni');
+  box.innerHTML = `
+    <div class="modale-gruppo">
+      <div class="modale-et">Larghezza (mm)</div>
+      <div class="modale-scelte" data-campo="larg">
+        ${tipo.larghezze.map((l) => `<button type="button" data-v="${l}">${l}</button>`).join('')}
+      </div>
+    </div>
+    ${altezze.length > 1 ? `
+    <div class="modale-gruppo">
+      <div class="modale-et">Altezza (mm)</div>
+      <div class="modale-scelte" data-campo="alt">
+        ${altezze.map((a) => `<button type="button" data-v="${a}">${a}</button>`).join('')}
+      </div>
+    </div>` : ''}
+    <button id="modale-conferma" class="btn-oro" type="button" style="width:100%;margin-top:4px">
+      ${mobId ? 'Aggiorna misura' : 'Aggiungi mobile'}
+    </button>`;
+  const segna = () => {
+    box.querySelectorAll('.modale-scelte button').forEach((b) => {
+      const campo = b.parentElement.dataset.campo;
+      b.classList.toggle('sel', Number(b.dataset.v) === sceltaModale[campo]);
+    });
+  };
+  box.querySelectorAll('.modale-scelte button').forEach((b) => {
     b.addEventListener('click', () => {
-      const larg = Number(b.dataset.l);
-      if (mobId) {
-        const m = trovaMobileLibero(progetto, mobId);
-        if (m) m.larghezza_mm = larg;
-        step2.mobSelId = mobId;
-      } else {
-        step2.mobSelId = aggiungiMobileLibero(progetto, tipoId, larg);
-      }
-      chiudiModale();
-      aggiorna();
+      sceltaModale[b.parentElement.dataset.campo] = Number(b.dataset.v);
+      segna();
     });
   });
+  document.getElementById('modale-conferma').addEventListener('click', confermaScelta);
+  segna();
   modale.hidden = false;
+}
+function confermaScelta() {
+  const { tipoId, mobId, larg, alt } = sceltaModale;
+  if (mobId) {
+    const m = trovaMobileLibero(progetto, mobId);
+    if (m) { m.larghezza_mm = larg; m.altezza_mm = alt; }
+    step2.mobSelId = mobId;
+  } else {
+    step2.mobSelId = aggiungiMobileLibero(progetto, tipoId, larg, alt);
+  }
+  chiudiModale();
+  aggiorna();
 }
 function chiudiModale() { modale.hidden = true; }
 document.getElementById('modale-annulla').addEventListener('click', chiudiModale);
