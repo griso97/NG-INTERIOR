@@ -50,28 +50,35 @@ const modale = document.getElementById('modale');
 
 // --------- DISPATCH principale: sceglie lo step attivo ---------
 function renderPannello() {
+  if (progetto.stepCorrente === 3) return renderPannelloStep3();
   if (progetto.stepCorrente === 2) return renderPannelloStep2();
   return renderPannelloStep1();
 }
 function renderRiepilogo() {
+  if (progetto.stepCorrente === 3) return renderRiepilogoStep3();
   if (progetto.stepCorrente === 2) return renderRiepilogoStep2();
   return renderRiepilogoStep1();
 }
 const NOMI_STEP = {
   1: 'Pianta: perimetro',
   2: 'Moduli base',
-  3: '3D + moduli alti',
+  3: 'Vista 3D',
   4: 'Fronti',
 };
 function step2Disponibile() {
   return progetto.pianoConfermato && progetto.piano.pareti.some((p) => !p.assente);
 }
+function step3Disponibile() {
+  return step2Disponibile() &&
+    ((progetto.mobiliLiberi || []).length > 0 || (progetto.moduliBase || []).length > 0);
+}
 // Stepper in alto: evidenzia lo step attivo, abilita quelli raggiungibili
 function renderStepper() {
-  if (progetto.stepCorrente !== 1 && !step2Disponibile()) progetto.stepCorrente = 1;
+  if (progetto.stepCorrente === 2 && !step2Disponibile()) progetto.stepCorrente = 1;
+  if (progetto.stepCorrente === 3 && !step3Disponibile()) progetto.stepCorrente = step2Disponibile() ? 2 : 1;
   document.querySelectorAll('#stepper .step').forEach((btn) => {
     const n = Number(btn.dataset.step);
-    const abilitato = n === 1 || (n === 2 && step2Disponibile());
+    const abilitato = n === 1 || (n === 2 && step2Disponibile()) || (n === 3 && step3Disponibile());
     btn.disabled = !abilitato;
     btn.classList.toggle('disabilitato', !abilitato);
     btn.classList.toggle('attivo', n === progetto.stepCorrente);
@@ -321,6 +328,8 @@ function renderPannelloStep2() {
   }
   const mods = moduliDiParete(progetto, parete.id);
   const problemi = problemiIngombri(progetto);
+  const haContenuto = (progetto.moduliBase || []).length > 0 ||
+    (progetto.mobiliLiberi || []).length > 0;
 
   pannello.innerHTML = `
     <section>
@@ -403,16 +412,13 @@ function renderPannelloStep2() {
 
     <section class="actions">
       <button id="s2-indietro" class="btn-ghost" type="button">← Pianta</button>
-      <button id="s2-conferma" class="btn-oro" type="button" style="flex:1"
-        ${problemi.length || !progetto.moduliBase.length ? 'disabled' : ''}>
-        ${progetto.moduliBaseConfermati ? 'Sblocca moduli' : 'Conferma moduli base'}
-      </button>
+      <button id="s2-vedi3d" class="btn-oro" type="button" style="flex:1"
+        ${haContenuto ? '' : 'disabled'}>Vedi in 3D →</button>
     </section>
-    <div class="conferma-stato ${progetto.moduliBaseConfermati ? 'ok' : 'non-conf'}">
-      ${progetto.moduliBaseConfermati
-        ? '✓ Moduli base confermati — lo Step 3 sarà disponibile presto'
-        : problemi.length ? 'Risolvi gli avvisi per confermare'
-        : !progetto.moduliBase.length ? 'Aggiungi almeno un modulo' : 'Moduli non ancora confermati'}
+    <div class="conferma-stato ${haContenuto ? 'ok' : 'non-conf'}">
+      ${problemi.length ? 'Risolvi gli avvisi evidenziati'
+        : !haContenuto ? 'Aggiungi almeno un mobile o un modulo'
+        : '✓ Pronto — premi "Vedi in 3D" o lo step 3 in alto'}
     </div>
   `;
   attaccaEventiStep2();
@@ -484,8 +490,10 @@ function attaccaEventiStep2() {
     progetto.stepCorrente = 1;
     fatto();
   });
-  document.getElementById('s2-conferma').addEventListener('click', () => {
-    progetto.moduliBaseConfermati = !progetto.moduliBaseConfermati;
+  const btn3d = document.getElementById('s2-vedi3d');
+  if (btn3d) btn3d.addEventListener('click', () => {
+    progetto.moduliBaseConfermati = true;
+    if (step3Disponibile()) progetto.stepCorrente = 3;
     fatto();
   });
 }
@@ -523,15 +531,89 @@ function renderRiepilogoStep2() {
   `;
 }
 
+// --------- STEP 3 — VISTA 3D ---------
+const canvas3d = document.getElementById('cucina-3d');
+const legenda3d = document.querySelector('.vista-strumenti .legenda');
+let scena3dMod = null;      // modulo importato dinamicamente
+let scena3dMontata = false;
+
+function renderPannelloStep3() {
+  const n = (progetto.mobiliLiberi || []).length;
+  pannello.innerHTML = `
+    <section class="step3-pannello">
+      <h3>Vista 3D</h3>
+      <div class="riga-3d">
+        Trascina per <strong>ruotare</strong>, due dita o rotella per lo
+        <strong>zoom</strong>, due dita/tasto destro per <strong>spostare</strong>.
+      </div>
+    </section>
+    <section class="step3-pannello">
+      <h3>Legenda altezze</h3>
+      <div class="riga-3d">
+        • Basi: altezza scelta (zoccolo 100 + piano 40)<br>
+        • Pensili: appesi a 140 cm da terra<br>
+        • Colonne: a tutta altezza<br>
+        • Reglette: a terra come filler d'angolo
+      </div>
+    </section>
+    <section class="actions">
+      <button id="s3-indietro" class="btn-ghost" type="button" style="flex:1">← Moduli base</button>
+    </section>`;
+  const b = document.getElementById('s3-indietro');
+  if (b) b.addEventListener('click', () => { progetto.stepCorrente = 2; aggiorna(); });
+}
+
+function renderRiepilogoStep3() {
+  const conta = {};
+  for (const m of (progetto.mobiliLiberi || [])) {
+    const k = nomeTipo(m.tipo);
+    conta[k] = (conta[k] || 0) + 1;
+  }
+  riepilogo.innerHTML = `
+    <h3>Mobili in scena</h3>
+    ${Object.keys(conta).length === 0
+      ? '<div class="riep-riga"><span>Nessun mobile</span><strong>—</strong></div>'
+      : Object.entries(conta).map(([k, v]) =>
+        `<div class="riep-riga"><span>${k}</span><strong>×${v}</strong></div>`).join('')}
+    <div class="riep-riga"><span>Totale pezzi</span><strong>${(progetto.mobiliLiberi || []).length}</strong></div>
+    <h3 style="margin-top:20px">Prossimo step</h3>
+    <div class="riep-riga" style="opacity:.5"><span>Step 4</span><strong>Fronti</strong></div>
+  `;
+}
+
+// Mostra/nasconde pianta 2D vs vista 3D e tiene aggiornata la scena
+async function aggiornaVista() {
+  const in3d = progetto.stepCorrente === 3;
+  svg.style.display = in3d ? 'none' : '';
+  canvas3d.hidden = !in3d;
+  if (legenda3d) legenda3d.textContent = in3d
+    ? 'Vista 3D · trascina per ruotare'
+    : 'Griglia 100 mm · tutte le misure in mm';
+  if (!in3d) return;
+  try {
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js');
+    if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
+    else { scena3dMod.aggiornaScena3d(progetto, true); }
+    // Dopo lo "unhide" il canvas ha la dimensione giusta solo al frame dopo
+    requestAnimationFrame(() => scena3dMod.forzaResize3d());
+  } catch (e) {
+    console.error('Errore vista 3D:', e);
+    pannello.insertAdjacentHTML('afterbegin',
+      '<section><div class="avviso-pannello">Impossibile avviare la vista 3D su questo dispositivo.</div></section>');
+  }
+}
+
 // --------- AGGIORNA (render completo + autosalvataggio) ---------
 function disegna() {
   const st = progetto.stepCorrente;
-  renderPianta(svg, progetto, {
-    pareteAttivaId: st === 2 ? step2.pareteAttivaId : null,
-    pareteSelId: st === 1 ? pareteSelId : null,
-    mobSelId: step2.mobSelId,
-    interattivo: st === 2,
-  });
+  if (st !== 3) {
+    renderPianta(svg, progetto, {
+      pareteAttivaId: st === 2 ? step2.pareteAttivaId : null,
+      pareteSelId: st === 1 ? pareteSelId : null,
+      mobSelId: step2.mobSelId,
+      interattivo: st === 2,
+    });
+  }
 }
 function aggiorna() {
   renderStepper();
@@ -539,6 +621,7 @@ function aggiorna() {
   renderRiepilogo();
   renderPalette();
   disegna();
+  aggiornaVista();
   salvaProgetto(progetto);
 }
 function aggiornaSoloDisegno() {

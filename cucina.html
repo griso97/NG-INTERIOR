@@ -9,6 +9,16 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/cucina.css" />
+
+  <!-- Three.js ES modules via importmap (file locali in vendor/) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three/three.module.js",
+      "three/addons/": "./vendor/three/addons/"
+    }
+  }
+  </script>
 </head>
 <body class="cucina-body">
   <header class="app-header">
@@ -53,6 +63,8 @@
         <span class="legenda">Griglia 100 mm · tutte le misure in mm</span>
       </div>
       <svg id="pianta-svg" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"></svg>
+      <!-- Vista 3D (solo Step 3) -->
+      <canvas id="cucina-3d" hidden></canvas>
       <!-- Mobili da piazzare sulla pianta (solo Step 2): tocca, scegli la misura, trascina -->
       <div id="palette" class="palette" hidden></div>
     </section>
