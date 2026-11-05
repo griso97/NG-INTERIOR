@@ -66,9 +66,11 @@
 @media (max-width: 980px) {
   .cucina-app {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 50vh auto;
+    grid-template-rows: 62vh auto auto;
     height: auto;
   }
+  /* Da telefono la pianta sta in cima, con la barra mobili subito sotto */
+  .cucina-vista { order: -1; }
   .cucina-body { overflow: auto; }
 }
 
@@ -361,3 +363,82 @@
   outline: none;
 }
 .cucina-body .pannello select:focus { border-color: var(--oro); }
+
+/* ===== Muri tolti / selezionati ===== */
+.parete-card.sel { border-color: var(--oro); }
+.parete-card.assente { opacity: .6; }
+.parete-card .p-header { cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; }
+.p-azioni { display: flex; gap: 4px; }
+.sel-parete-pill.assente { opacity: .4; text-decoration: line-through; cursor: not-allowed; }
+.sv-parete-assente { stroke: #4a4a4a; stroke-dasharray: 80 80; }
+.sv-parete-sel { stroke: #fff; }
+.sv-hit { stroke: rgba(0,0,0,0); stroke-width: 260; pointer-events: stroke; cursor: pointer; }
+
+/* ===== Mobili liberi sulla pianta ===== */
+#pianta-svg { touch-action: none; }
+.sv-mob-g.interattivo { cursor: grab; }
+.sv-mob-g.interattivo:active { cursor: grabbing; }
+.sv-mob { stroke-width: 10; fill: rgba(201, 169, 74, 0.16); }
+.sv-mob.sel { stroke: #fff; stroke-width: 24; }
+.sv-mob-anta { stroke: var(--oro-chiaro); stroke-width: 6; stroke-dasharray: 60 50; }
+.mob-azioni-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.mob-azioni-grid button:last-child { grid-column: span 2; }
+
+/* ===== Barra mobili sotto la pianta ===== */
+.palette {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 10px;
+  border-top: 1px solid var(--bordo);
+  background: var(--bg-2);
+  flex-shrink: 0;
+  -webkit-overflow-scrolling: touch;
+}
+.palette[hidden] { display: none; }
+.palette-btn {
+  flex: 0 0 auto;
+  width: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px;
+  background: var(--bg-3);
+  border: 1px solid var(--bordo);
+  border-radius: 4px;
+  color: var(--testo);
+  font-size: 10px;
+  letter-spacing: .5px;
+  cursor: pointer;
+}
+.palette-btn:active, .palette-btn:hover { border-color: var(--oro); }
+.palette-btn svg { width: 48px; height: 48px; fill: none; stroke: var(--oro-chiaro); stroke-width: 2.5; stroke-linejoin: round; }
+
+/* ===== Finestra scelta misura ===== */
+.modale-fondo {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50; padding: 16px;
+}
+.modale-fondo[hidden] { display: none; }
+.modale {
+  background: var(--bg-2);
+  border: 1px solid var(--bordo);
+  border-radius: 4px;
+  padding: 20px;
+  width: min(420px, 100%);
+}
+.modale h3 { margin: 0 0 14px; font-size: 14px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--oro-chiaro); }
+.modale-opzioni { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.modale-opzioni button {
+  padding: 14px 6px;
+  background: var(--bg-3);
+  border: 1px solid var(--bordo);
+  border-radius: 2px;
+  color: var(--testo);
+  font-size: 15px;
+  cursor: pointer;
+}
+.modale-opzioni button:hover { border-color: var(--oro); color: var(--oro-chiaro); }

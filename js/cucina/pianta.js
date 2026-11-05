@@ -11,11 +11,26 @@ import {
   moduliDiParete, nomeTipo, PROFONDITA_BASE, angoloInterno,
 } from './modello.js';
 
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs = {}) => {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) if (v !== null && v !== undefined) e.setAttribute(k, v);
+  return e;
+};
+
 const MARGINE_MM = 800;        // margine attorno al perimetro (mm)
 const PASSO_GRIGLIA = 100;     // mm (passo primario)
 const PASSO_GRIGLIA_MAGG = 1000; // mm (linea più visibile ogni 1 m)
 
-export function renderPianta(svg, progetto, pareteAttivaId = null) {
+/**
+ * opts: { pareteAttivaId, pareteSelId, mobSelId, interattivo }
+ *  - pareteAttivaId: muro su cui si lavora nello Step 2 (evidenziato)
+ *  - pareteSelId: muro toccato nello Step 1 (per toglierlo/rimetterlo)
+ *  - mobSelId: mobile libero selezionato
+ *  - interattivo: se true i mobili liberi si possono trascinare (Step 2)
+ */
+export function renderPianta(svg, progetto, opts = {}) {
+  const { pareteAttivaId = null, pareteSelId = null, mobSelId = null, interattivo = false } = opts;
   const pareti = progetto.piano.pareti || [];
   const vertici = calcolaVertici(pareti);
 
@@ -64,16 +79,22 @@ export function renderPianta(svg, progetto, pareteAttivaId = null) {
       const ax = a.x, ay = -a.y;
       const bx = b.x, by = -b.y;
 
-      // Linea parete (grosso tratto oro)
-      const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      l.setAttribute('x1', ax); l.setAttribute('y1', ay);
-      l.setAttribute('x2', bx); l.setAttribute('y2', by);
-      l.setAttribute('class', 'sv-parete' + (confermato ? ' sv-parete-conf' : '') +
-        (p.id === pareteAttivaId ? ' sv-parete-attiva' : ''));
-      g.appendChild(l);
+      // Area di tocco invisibile e più larga del muro (per selezionarlo)
+      g.appendChild(el('line', {
+        x1: ax, y1: ay, x2: bx, y2: by,
+        class: 'sv-hit', 'data-parete-id': p.id,
+      }));
+
+      // Linea parete (grosso tratto oro); se tolto, tratteggio grigio
+      let cls = 'sv-parete';
+      if (p.assente) cls += ' sv-parete-assente';
+      else if (confermato) cls += ' sv-parete-conf';
+      if (p.id === pareteAttivaId) cls += ' sv-parete-attiva';
+      if (p.id === pareteSelId) cls += ' sv-parete-sel';
+      g.appendChild(el('line', { x1: ax, y1: ay, x2: bx, y2: by, class: cls }));
 
       // Indicatore lato interno (lineetta parallela dal lato giusto)
-      g.appendChild(renderLatoInterno(a, b, p));
+      if (!p.assente) g.appendChild(renderLatoInterno(a, b, p));
 
       // Quota (etichetta misura in mm al centro della parete)
       g.appendChild(renderQuota(a, b, p));
@@ -89,6 +110,13 @@ export function renderPianta(svg, progetto, pareteAttivaId = null) {
       c.setAttribute('class', 'sv-angolo');
       svg.appendChild(c);
     });
+
+    // Mobili liberi: sopra a muri e quote, così restano sempre toccabili
+    const gMob = el('g', { class: 'sv-mobili-liberi' });
+    (progetto.mobiliLiberi || []).forEach((m) => {
+      gMob.appendChild(renderMobileLibero(m, m.id === mobSelId, interattivo));
+    });
+    svg.appendChild(gMob);
   } else {
     // Nessuna parete (isola): disegno solo una nota al centro
     const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -210,6 +238,51 @@ function renderModuloInPianta(a, b, parete, modulo, conEtichetta = true) {
   txt.append(r1, r2);
   g.appendChild(txt);
 
+  return g;
+}
+
+/**
+ * Mobile libero: rettangolo 600 mm di profondità, ruotato di m.rot gradi,
+ * con linea centrale per le ante (base con ante) e etichetta nome/misura.
+ */
+function renderMobileLibero(m, selezionato, interattivo) {
+  const hw = m.larghezza_mm / 2, hd = PROFONDITA_BASE / 2;
+  const rad = ((m.rot || 0) * Math.PI) / 180;
+  const c = Math.cos(rad), s = Math.sin(rad);
+  // coordinate locali → piano (y in su) → SVG (y in giù)
+  const versoPlan = (lx, ly) => [m.x + lx * c - ly * s, m.y + lx * s + ly * c];
+  const versoSvg = (lx, ly) => { const [x, y] = versoPlan(lx, ly); return [x, -y]; };
+
+  const g = el('g', {
+    class: 'sv-mob-g' + (interattivo ? ' interattivo' : ''),
+    'data-mob-id': m.id,
+  });
+  const corners = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(([x, y]) => versoSvg(x, y));
+  const tipoCls = m.tipo === 'lavello' ? ' sv-mod-lavello' :
+    m.tipo === 'forno' ? ' sv-mod-forno' : '';
+  g.appendChild(el('polygon', {
+    points: corners.map((p) => p.join(',')).join(' '),
+    class: 'sv-mod sv-mob' + tipoCls + (selezionato ? ' sel' : ''),
+  }));
+  if (m.tipo === 'base-ante') {
+    const [x1, y1] = versoSvg(0, -hd + 30);
+    const [x2, y2] = versoSvg(0, hd - 30);
+    g.appendChild(el('line', { x1, y1, x2, y2, class: 'sv-mob-anta' }));
+  }
+  const [cx, cy] = versoSvg(0, 0);
+  const nome = nomeTipo(m.tipo);
+  const fs = Math.max(40, Math.min(90, m.larghezza_mm / (nome.length * 0.55)));
+  const txt = el('text', {
+    x: cx, y: cy, class: 'sv-mod-label',
+    transform: m.rot ? `rotate(${-m.rot} ${cx} ${cy})` : null,
+  });
+  txt.style.fontSize = `${fs}px`;
+  const r1 = el('tspan', { x: cx, dy: -fs * 0.6 });
+  r1.textContent = nome;
+  const r2 = el('tspan', { x: cx, dy: fs * 1.2, class: 'sv-mod-label-mis' });
+  r2.textContent = `${m.larghezza_mm}`;
+  txt.append(r1, r2);
+  g.appendChild(txt);
   return g;
 }
 

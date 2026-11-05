@@ -29,6 +29,8 @@ export function progettoDefault() {
     fasce: [],
     reglette: [],
     mostraAlti: false,
+    // Mobili liberi piazzati sulla pianta (x,y = centro in mm, rot in gradi)
+    mobiliLiberi: [],
   };
 }
 
@@ -83,6 +85,7 @@ export function spazioLiberoParete(progetto, pareteId) {
  * Ritorna { ok, errore? } — rifiuta se non c'è spazio libero sufficiente.
  */
 export function aggiungiModuloBase(progetto, pareteId, tipo, larghezza_mm) {
+  if (muroTolto(progetto, pareteId)) return { ok: false, errore: 'Questo muro è stato tolto' };
   const s = spazioLiberoParete(progetto, pareteId);
   if (larghezza_mm > s.libero) {
     return { ok: false, errore:
@@ -101,6 +104,7 @@ export function aggiungiModuloBase(progetto, pareteId, tipo, larghezza_mm) {
  * Aggiunge una FASCIA di chiusura (filler) su una parete, con larghezza libera.
  */
 export function aggiungiFascia(progetto, pareteId, larghezza_mm, contesto = 'parete') {
+  if (muroTolto(progetto, pareteId)) return { ok: false, errore: 'Questo muro è stato tolto' };
   const s = spazioLiberoParete(progetto, pareteId);
   if (larghezza_mm > s.libero) {
     return { ok: false, errore:
@@ -124,6 +128,61 @@ export function rimuoviFascia(progetto, fasciaId) {
   progetto.fasce = progetto.fasce.filter((f) => f.id !== fasciaId);
   ricompattaPosizioni(progetto);
   progetto.moduliBaseConfermati = false;
+}
+
+export function muroTolto(progetto, pareteId) {
+  return !!progetto.piano.pareti.find((p) => p.id === pareteId)?.assente;
+}
+
+/**
+ * "Toglie" un muro (o lo rimette). Il muro resta nel percorso, così gli altri
+ * muri non si spostano; semplicemente non viene disegnato come parete e non
+ * può avere moduli. Non si può togliere un muro che ha ancora moduli sopra.
+ */
+export function toggleParete(progetto, pareteId) {
+  const p = progetto.piano.pareti.find((x) => x.id === pareteId);
+  if (!p) return { ok: false, errore: 'Muro non trovato' };
+  if (!p.assente && moduliDiParete(progetto, pareteId).length > 0) {
+    return { ok: false, errore:
+      'Togli prima i moduli da questo muro (Step 2), poi toglilo.' };
+  }
+  p.assente = !p.assente;
+  progetto.pianoConfermato = false;
+  return { ok: true };
+}
+
+// --- Mobili liberi (piazzati sulla pianta, spostabili) ---
+const PASSO_SNAP = 50; // mm
+export function snap(v) { return Math.round(v / PASSO_SNAP) * PASSO_SNAP; }
+
+/** Centro della pianta (bbox dei muri presenti), per piazzare un nuovo mobile. */
+export function centroPianta(progetto) {
+  const pareti = progetto.piano.pareti.filter((p) => !p.assente);
+  if (pareti.length === 0) return { x: 1000, y: 500 };
+  const bb = bboxPerimetro(pareti);
+  return { x: (bb.minX + bb.maxX) / 2, y: (bb.minY + bb.maxY) / 2 };
+}
+
+export function aggiungiMobileLibero(progetto, tipo, larghezza_mm) {
+  const c = centroPianta(progetto);
+  const n = progetto.mobiliLiberi.length;
+  // Sfalsa i nuovi mobili così non nascono uno sopra l'altro
+  const id = Math.max(0, ...progetto.mobiliLiberi.map((m) => m.id)) + 1;
+  progetto.mobiliLiberi.push({
+    id, tipo, larghezza_mm,
+    x: snap(c.x + (n % 4) * 150), y: snap(c.y - (n % 4) * 150), rot: 0,
+  });
+  return id;
+}
+export function trovaMobileLibero(progetto, id) {
+  return progetto.mobiliLiberi.find((m) => m.id === id);
+}
+export function ruotaMobileLibero(progetto, id) {
+  const m = trovaMobileLibero(progetto, id);
+  if (m) m.rot = ((m.rot || 0) + 90) % 360;
+}
+export function rimuoviMobileLibero(progetto, id) {
+  progetto.mobiliLiberi = progetto.mobiliLiberi.filter((m) => m.id !== id);
 }
 
 /**
@@ -164,6 +223,7 @@ export function problemiIngombri(progetto) {
   const out = [];
   const pareti = progetto.piano.pareti || [];
   pareti.forEach((p, i) => {
+    if (p.assente) return;
     const s = spazioLiberoParete(progetto, p.id);
     if (s.libero < 0) {
       out.push({ tipo: 'eccesso', pareti: [p.id], messaggio:
@@ -172,6 +232,7 @@ export function problemiIngombri(progetto) {
   });
   for (let i = 0; i < pareti.length - 1; i++) {
     const a = pareti[i], b = pareti[i + 1];
+    if (a.assente || b.assente) continue;
     if (!angoloInterno(a, b)) continue;
     const finA = a.lunghezza_mm - PROFONDITA_BASE;
     const occA = moduliDiParete(progetto, a.id).some((m) =>

@@ -53,11 +53,22 @@
         <span class="legenda">Griglia 100 mm · tutte le misure in mm</span>
       </div>
       <svg id="pianta-svg" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"></svg>
+      <!-- Mobili da piazzare sulla pianta (solo Step 2): tocca, scegli la misura, trascina -->
+      <div id="palette" class="palette" hidden></div>
     </section>
 
     <!-- Pannello riepilogo -->
     <aside id="cucina-riepilogo" class="riepilogo-panel"></aside>
   </main>
+
+  <!-- Finestra scelta misura -->
+  <div id="modale" class="modale-fondo" hidden>
+    <div class="modale" role="dialog" aria-modal="true" aria-labelledby="modale-titolo">
+      <h3 id="modale-titolo"></h3>
+      <div id="modale-opzioni" class="modale-opzioni"></div>
+      <button id="modale-annulla" class="btn-ghost" type="button" style="width:100%">Annulla</button>
+    </div>
+  </div>
 
   <script type="module" src="js/cucina/main.js"></script>
 </body>

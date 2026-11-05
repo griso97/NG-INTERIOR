@@ -14,6 +14,8 @@ import {
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
   spostaModulo, problemiIngombri,
+  toggleParete, muroTolto, snap,
+  aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero,
 } from './modello.js';
 import { renderPianta } from './pianta.js';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js';
@@ -36,7 +38,12 @@ let step2 = {
   larghezzaSelezionata: 600,
   fasciaLarghezza: 100,
   errore: null,
+  mobSelId: null,        // mobile libero selezionato sulla pianta
 };
+let pareteSelId = null;  // muro toccato nello Step 1
+let trascinamento = null; // { id, dx, dy, mosso } mentre si sposta un mobile
+const palette = document.getElementById('palette');
+const modale = document.getElementById('modale');
 
 // --------- DISPATCH principale: sceglie lo step attivo ---------
 function renderPannello() {
@@ -54,7 +61,7 @@ const NOMI_STEP = {
   4: 'Fronti',
 };
 function step2Disponibile() {
-  return progetto.pianoConfermato && progetto.piano.pareti.length > 0;
+  return progetto.pianoConfermato && progetto.piano.pareti.some((p) => !p.assente);
 }
 // Stepper in alto: evidenzia lo step attivo, abilita quelli raggiungibili
 function renderStepper() {
@@ -100,10 +107,13 @@ function renderPannelloStep1() {
       <h3>Pareti · tutte le misure in mm</h3>
       <div id="pareti-list">
         ${progetto.piano.pareti.map((p, i) => `
-          <div class="parete-card" data-id="${p.id}">
-            <header>
-              Parete ${i + 1}
-              <button class="btn-mini p-rimuovi" type="button" data-id="${p.id}">rimuovi</button>
+          <div class="parete-card ${p.id === pareteSelId ? 'sel' : ''} ${p.assente ? 'assente' : ''}" data-id="${p.id}">
+            <header class="p-header" data-id="${p.id}">
+              Parete ${i + 1}${p.assente ? ' · tolto' : ''}
+              <span class="p-azioni">
+                <button class="btn-mini p-togli" type="button" data-id="${p.id}">${p.assente ? 'rimetti' : 'togli muro'}</button>
+                <button class="btn-mini p-rimuovi" type="button" data-id="${p.id}">elimina</button>
+              </span>
             </header>
             <label>Lunghezza (mm)
               <input type="number" class="p-lung" data-id="${p.id}"
@@ -158,12 +168,13 @@ function iconaTipologia(id) {
 // --------- RENDER RIEPILOGO (destra) — STEP 1 ---------
 function renderRiepilogoStep1() {
   const pareti = progetto.piano.pareti;
-  const perimetroTotale = pareti.reduce((s, p) => s + p.lunghezza_mm, 0);
+  const attive = pareti.filter((p) => !p.assente);
+  const perimetroTotale = attive.reduce((s, p) => s + p.lunghezza_mm, 0);
   const tipo = TIPOLOGIE.find((t) => t.id === progetto.piano.tipologia);
   riepilogo.innerHTML = `
     <h3>Riepilogo pianta</h3>
     <div class="riep-riga"><span>Tipologia</span><strong>${tipo ? tipo.nome : '—'}</strong></div>
-    <div class="riep-riga"><span>N° pareti</span><strong>${pareti.length}</strong></div>
+    <div class="riep-riga"><span>N° pareti</span><strong>${attive.length}${attive.length < pareti.length ? ` (${pareti.length - attive.length} tolte)` : ''}</strong></div>
     <div class="riep-riga"><span>Perimetro interno</span><strong>${perimetroTotale} mm</strong></div>
     <div class="riep-riga"><span>Stato</span><strong>${progetto.pianoConfermato ? 'Confermato' : 'In modifica'}</strong></div>
 
@@ -206,9 +217,26 @@ function attaccaEventiPannello() {
     });
   });
   // Rimuovi parete (solo personalizzata)
+  pannello.querySelectorAll('.p-togli').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const r = toggleParete(progetto, Number(btn.dataset.id));
+      if (!r.ok) alert(r.errore);
+      aggiorna();
+    });
+  });
   pannello.querySelectorAll('.p-rimuovi').forEach((btn) => {
     btn.addEventListener('click', () => {
+      if (!confirm('Eliminare questo muro? Le pareti successive si spostano di conseguenza. Per lasciare un buco usa "togli muro".')) return;
       rimuoviParete(progetto, Number(btn.dataset.id));
+      pareteSelId = null;
+      aggiorna();
+    });
+  });
+  pannello.querySelectorAll('.p-header').forEach((h) => {
+    h.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      const id = Number(h.dataset.id);
+      pareteSelId = pareteSelId === id ? null : id;
       aggiorna();
     });
   });
@@ -240,7 +268,7 @@ function attaccaEventiPannello() {
 
 // --------- RENDER PANNELLO SINISTRO — STEP 2 (moduli base) ---------
 function pareteAttiva() {
-  const pareti = progetto.piano.pareti;
+  const pareti = progetto.piano.pareti.filter((p) => !p.assente);
   let p = pareti.find((x) => x.id === step2.pareteAttivaId);
   if (!p) { p = pareti[0]; step2.pareteAttivaId = p ? p.id : null; }
   return p;
@@ -249,7 +277,11 @@ function pareteAttiva() {
 function renderPannelloStep2() {
   const pareti = progetto.piano.pareti;
   const parete = pareteAttiva();
-  const idx = pareti.indexOf(parete);
+  if (!parete) {
+    pannello.innerHTML = `<section><div class="mod-vuoto">Nessun muro attivo: rimetti almeno un muro dallo Step 1.</div></section>`;
+    return;
+  }
+  const idx = pareti.findIndex((p) => p.id === parete.id);
   const s = spazioLiberoParete(progetto, parete.id);
   const perc = Math.min(100, Math.max(0, (s.occupato / (s.totale || 1)) * 100));
   const tipo = TIPI_MODULO_BASE.find((t) => t.id === step2.tipoSelezionato) || TIPI_MODULO_BASE[0];
@@ -265,6 +297,7 @@ function renderPannelloStep2() {
       <div class="sel-parete-row">
         ${pareti.map((p, i) => {
           const conProblemi = problemi.some((x) => x.pareti.includes(p.id));
+          if (p.assente) return `<button type="button" class="sel-parete-pill assente" disabled>Parete ${i + 1} · tolto</button>`;
           return `<button type="button" class="sel-parete-pill ${p.id === parete.id ? 'sel' : ''}"
             data-id="${p.id}">Parete ${i + 1}${conProblemi ? ' ⚠' : ''}</button>`;
         }).join('')}
@@ -275,6 +308,8 @@ function renderPannelloStep2() {
       </div>
       <div class="barra-progresso"><div class="riempita" style="width:${perc}%"></div></div>
     </section>
+
+    ${blocMobileSelezionato()}
 
     <section>
       <h3>Aggiungi modulo · profondità 600 mm</h3>
@@ -399,6 +434,19 @@ function attaccaEventiStep2() {
       fatto();
     });
   });
+  const mobSel = trovaMobileLibero(progetto, step2.mobSelId);
+  if (mobSel) {
+    document.getElementById('mob-ruota').addEventListener('click', () => {
+      ruotaMobileLibero(progetto, mobSel.id); fatto();
+    });
+    document.getElementById('mob-misura').addEventListener('click', () => {
+      apriScelta(mobSel.tipo, mobSel.id);
+    });
+    document.getElementById('mob-elimina').addEventListener('click', () => {
+      rimuoviMobileLibero(progetto, mobSel.id);
+      step2.mobSelId = null; fatto();
+    });
+  }
   document.getElementById('s2-indietro').addEventListener('click', () => {
     progetto.stepCorrente = 1;
     fatto();
@@ -422,6 +470,7 @@ function renderRiepilogoStep2() {
   riepilogo.innerHTML = `
     <h3>Riepilogo moduli base</h3>
     ${pareti.map((p, i) => {
+      if (p.assente) return `<div class="riep-riga"><span>Parete ${i + 1}</span><strong>tolto</strong></div>`;
       const s = spazioLiberoParete(progetto, p.id);
       return `<div class="riep-riga"><span>Parete ${i + 1} (${s.totale})</span>
         <strong>${s.libero === 0 ? '✓ piena' : `${s.libero} libero`}</strong></div>`;
@@ -433,27 +482,156 @@ function renderRiepilogoStep2() {
       : Object.entries(conteggio).map(([k, n]) =>
         `<div class="riep-riga"><span>${k}</span><strong>×${n}</strong></div>`).join('')}
     <div class="riep-riga"><span>Fasce (totale)</span><strong>${progetto.fasce.length} · ${totFasce} mm</strong></div>
+    <div class="riep-riga"><span>Mobili liberi sulla pianta</span><strong>${progetto.mobiliLiberi.length}</strong></div>
     <div class="riep-riga"><span>Metri lineari moduli</span><strong>${(lineari / 1000).toFixed(2)} m</strong></div>
     <div class="riep-riga"><span>Stato</span><strong>${progetto.moduliBaseConfermati ? 'Confermato' : 'In modifica'}</strong></div>
   `;
 }
 
 // --------- AGGIORNA (render completo + autosalvataggio) ---------
+function disegna() {
+  const st = progetto.stepCorrente;
+  renderPianta(svg, progetto, {
+    pareteAttivaId: st === 2 ? step2.pareteAttivaId : null,
+    pareteSelId: st === 1 ? pareteSelId : null,
+    mobSelId: step2.mobSelId,
+    interattivo: st === 2,
+  });
+}
 function aggiorna() {
   renderStepper();
   renderPannello();
   renderRiepilogo();
-  renderPianta(svg, progetto,
-    progetto.stepCorrente === 2 ? step2.pareteAttivaId : null);
+  renderPalette();
+  disegna();
   salvaProgetto(progetto);
 }
 function aggiornaSoloDisegno() {
   // Durante l'input continuo (es. digitazione) non rirenderizzo il pannello
   // intero per non perdere il focus sull'input.
-  renderPianta(svg, progetto);
+  disegna();
   renderRiepilogo();
   salvaProgetto(progetto);
 }
+
+// --------- MOBILI LIBERI: palette, scelta misura, spostamento ---------
+function iconaMobile(id) {
+  const ic = {
+    'base-ante': '<rect x="8" y="6" width="48" height="52"/><line x1="32" y1="6" x2="32" y2="58"/><line x1="26" y1="22" x2="26" y2="30"/><line x1="38" y1="22" x2="38" y2="30"/>',
+    'base-cassetti': '<rect x="8" y="6" width="48" height="52"/><line x1="8" y1="22" x2="56" y2="22"/><line x1="8" y1="38" x2="56" y2="38"/><line x1="28" y1="14" x2="36" y2="14"/><line x1="28" y1="30" x2="36" y2="30"/><line x1="28" y1="46" x2="36" y2="46"/>',
+    lavello: '<rect x="8" y="6" width="48" height="52"/><rect x="16" y="16" width="32" height="22" rx="3"/><line x1="32" y1="8" x2="32" y2="14"/>',
+    forno: '<rect x="8" y="6" width="48" height="52"/><rect x="16" y="22" width="32" height="24" rx="2"/><line x1="16" y1="14" x2="48" y2="14"/><circle cx="20" cy="10" r="1.5"/><circle cx="28" cy="10" r="1.5"/><circle cx="36" cy="10" r="1.5"/>',
+  };
+  return `<svg viewBox="0 0 64 64" aria-hidden="true">${ic[id] || ic['base-ante']}</svg>`;
+}
+
+function renderPalette() {
+  palette.hidden = progetto.stepCorrente !== 2;
+  if (palette.hidden) return;
+  palette.innerHTML = TIPI_MODULO_BASE.map((t) => `
+    <button type="button" class="palette-btn" data-tipo="${t.id}">
+      ${iconaMobile(t.id)}<span>${t.nome}</span>
+    </button>`).join('');
+  palette.querySelectorAll('.palette-btn').forEach((b) => {
+    b.addEventListener('click', () => apriScelta(b.dataset.tipo));
+  });
+}
+
+function blocMobileSelezionato() {
+  const m = trovaMobileLibero(progetto, step2.mobSelId);
+  if (!m) return '';
+  return `
+    <section>
+      <h3>Mobile selezionato</h3>
+      <div class="mod-row ${m.tipo}"><span>${nomeTipo(m.tipo)} · <strong>${m.larghezza_mm}</strong> mm</span></div>
+      <div class="mob-azioni-grid">
+        <button id="mob-ruota" class="btn-ghost" type="button">⟳ Ruota 90°</button>
+        <button id="mob-misura" class="btn-ghost" type="button">Cambia misura</button>
+        <button id="mob-elimina" class="btn-ghost" type="button">Elimina</button>
+      </div>
+      <div class="mod-vuoto">Trascina il mobile sulla pianta per spostarlo (scatta ogni 50 mm).</div>
+    </section>`;
+}
+
+/** Finestra con le misure. Se mobId è dato, cambia la misura di quel mobile. */
+function apriScelta(tipoId, mobId = null) {
+  const tipo = TIPI_MODULO_BASE.find((t) => t.id === tipoId);
+  if (!tipo) return;
+  document.getElementById('modale-titolo').textContent =
+    `${tipo.nome}: che misura?`;
+  document.getElementById('modale-opzioni').innerHTML = tipo.larghezze
+    .map((l) => `<button type="button" data-l="${l}">${l} mm</button>`).join('');
+  document.querySelectorAll('#modale-opzioni button').forEach((b) => {
+    b.addEventListener('click', () => {
+      const larg = Number(b.dataset.l);
+      if (mobId) {
+        const m = trovaMobileLibero(progetto, mobId);
+        if (m) m.larghezza_mm = larg;
+        step2.mobSelId = mobId;
+      } else {
+        step2.mobSelId = aggiungiMobileLibero(progetto, tipoId, larg);
+      }
+      chiudiModale();
+      aggiorna();
+    });
+  });
+  modale.hidden = false;
+}
+function chiudiModale() { modale.hidden = true; }
+document.getElementById('modale-annulla').addEventListener('click', chiudiModale);
+modale.addEventListener('click', (e) => { if (e.target === modale) chiudiModale(); });
+
+/** Coordinate di un evento puntatore in mm di pianta (y in su). */
+function puntoMm(e) {
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  const q = pt.matrixTransform(svg.getScreenCTM().inverse());
+  return { x: q.x, y: -q.y };
+}
+
+svg.addEventListener('pointerdown', (e) => {
+  const mobEl = e.target.closest && e.target.closest('[data-mob-id]');
+  if (mobEl && progetto.stepCorrente === 2) {
+    const m = trovaMobileLibero(progetto, Number(mobEl.dataset.mobId));
+    if (!m) return;
+    const p = puntoMm(e);
+    trascinamento = { id: m.id, dx: m.x - p.x, dy: m.y - p.y, mosso: false };
+    try { svg.setPointerCapture(e.pointerId); } catch (_) { /* puntatore non attivo */ }
+    e.preventDefault();
+    step2.mobSelId = m.id;
+    return;
+  }
+  const hit = e.target.closest && e.target.closest('[data-parete-id]');
+  if (hit && progetto.stepCorrente === 1) {
+    const id = Number(hit.dataset.pareteId);
+    pareteSelId = pareteSelId === id ? null : id;
+    aggiorna();
+    return;
+  }
+  // tocco sul vuoto: deseleziona
+  if (step2.mobSelId !== null || pareteSelId !== null) {
+    step2.mobSelId = null; pareteSelId = null; aggiorna();
+  }
+});
+svg.addEventListener('pointermove', (e) => {
+  if (!trascinamento) return;
+  const m = trovaMobileLibero(progetto, trascinamento.id);
+  if (!m) return;
+  const p = puntoMm(e);
+  const nx = snap(p.x + trascinamento.dx), ny = snap(p.y + trascinamento.dy);
+  if (nx !== m.x || ny !== m.y) {
+    m.x = nx; m.y = ny;
+    trascinamento.mosso = true;
+    disegna();
+  }
+});
+const fineTrascinamento = () => {
+  if (!trascinamento) return;
+  trascinamento = null;
+  aggiorna();
+};
+svg.addEventListener('pointerup', fineTrascinamento);
+svg.addEventListener('pointercancel', fineTrascinamento);
 
 // Primo caricamento
 aggiorna();
