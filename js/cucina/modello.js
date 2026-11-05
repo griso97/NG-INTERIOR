@@ -115,6 +115,9 @@ export function campiMobile(tipoId) {
   if (t.altezze.length > 1) {
     campi.push({ campo: 'altezza_mm', et: 'Altezza (mm)', opzioni: t.altezze, default: t.altezze[0] });
   }
+  if (tipoId === 'base-cassetti') {
+    campi.push({ campo: 'cassetti', et: 'Numero cassetti', opzioni: [1, 2, 3, 4, 5, 6], default: 3 });
+  }
   return campi;
 }
 
@@ -126,6 +129,9 @@ export function descrizioneMobile(m) {
   }
   if (cat === 'colonna') {
     return `${m.larghezza_mm}×${m.altezza_mm} · ${nomeVarianteColonna(m.variante)}`;
+  }
+  if (m.tipo === 'base-cassetti') {
+    return `${m.larghezza_mm}×${m.altezza_mm} · ${m.cassetti || 3} cassetti`;
   }
   return m.altezza_mm ? `${m.larghezza_mm}×${m.altezza_mm}` : `${m.larghezza_mm}`;
 }
