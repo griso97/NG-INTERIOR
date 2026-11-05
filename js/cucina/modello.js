@@ -369,6 +369,57 @@ export function rimuoviParete(progetto, idParete) {
   progetto.pianoConfermato = false;
 }
 
+// Normalizza un angolo in (-180, 180].
+function normAngolo(a) {
+  let x = a % 360;
+  if (x > 180) x -= 360;
+  if (x <= -180) x += 360;
+  return x;
+}
+
+/**
+ * Ruota l'intera pianta di `delta` gradi (di solito ±90): tutti i muri
+ * girano insieme mantenendo la forma.
+ */
+export function ruotaPianta(progetto, delta = 90) {
+  for (const p of progetto.piano.pareti) {
+    p.angolo_gradi = normAngolo(p.angolo_gradi + delta);
+  }
+  progetto.pianoConfermato = false;
+}
+
+/**
+ * Specchia la pianta (riflessione orizzontale): angolo → −angolo. La forma
+ * si ribalta a specchio. Il lato interno dei mobili viene invertito perché
+ * la riflessione scambia sinistra e destra.
+ */
+export function specchiaPianta(progetto) {
+  for (const p of progetto.piano.pareti) {
+    p.angolo_gradi = normAngolo(-p.angolo_gradi);
+    p.latoInterno = p.latoInterno === 'interno' ? 'esterno' : 'interno';
+  }
+  progetto.pianoConfermato = false;
+}
+
+/**
+ * Inverte il verso di un angolo (giunto all'inizio della parete `pareteId`,
+ * cioè tra questa parete e la precedente): una svolta a destra diventa a
+ * sinistra e viceversa. Tutte le pareti successive ruotano di conseguenza,
+ * così la forma oltre quell'angolo si ribalta ma resta rigida.
+ */
+export function inverteAngolo(progetto, pareteId) {
+  const pareti = progetto.piano.pareti;
+  const i = pareti.findIndex((p) => p.id === pareteId);
+  if (i <= 0) return { ok: false, errore: 'La prima parete non ha un angolo da girare' };
+  const svolta = normAngolo(pareti[i].angolo_gradi - pareti[i - 1].angolo_gradi);
+  const delta = -2 * svolta; // porta la svolta da +X a −X
+  for (let j = i; j < pareti.length; j++) {
+    pareti[j].angolo_gradi = normAngolo(pareti[j].angolo_gradi + delta);
+  }
+  progetto.pianoConfermato = false;
+  return { ok: true };
+}
+
 /**
  * Calcola i vertici del perimetro (punti con coordinate in mm) percorrendo
  * le pareti nell'ordine dato. Parte da (0, 0).

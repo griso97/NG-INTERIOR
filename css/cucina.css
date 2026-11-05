@@ -442,3 +442,8 @@
   cursor: pointer;
 }
 .modale-opzioni button:hover { border-color: var(--oro); color: var(--oro-chiaro); }
+
+/* ===== Orientamento pianta (ruota / specchia) ===== */
+.orienta-row { display: flex; gap: 6px; margin-bottom: 12px; }
+.orienta-row button { flex: 1; font-size: 11px; padding: 8px 4px; }
+.p-gira { width: 100%; }

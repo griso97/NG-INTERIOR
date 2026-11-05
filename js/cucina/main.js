@@ -14,6 +14,7 @@ import {
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
   spostaModulo, problemiIngombri,
+  ruotaPianta, specchiaPianta, inverteAngolo,
   toggleParete, muroTolto, snap,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero,
 } from './modello.js';
@@ -105,6 +106,12 @@ function renderPannelloStep1() {
 
     <section>
       <h3>Pareti · tutte le misure in mm</h3>
+      ${progetto.piano.pareti.length > 0 ? `
+        <div class="orienta-row">
+          <button id="btn-ruota-sx" class="btn-ghost" type="button" title="Ruota tutta la pianta a sinistra">⟲ Ruota</button>
+          <button id="btn-ruota-dx" class="btn-ghost" type="button" title="Ruota tutta la pianta a destra">Ruota ⟳</button>
+          <button id="btn-specchia" class="btn-ghost" type="button" title="Specchia la pianta">⇄ Specchia</button>
+        </div>` : ''}
       <div id="pareti-list">
         ${progetto.piano.pareti.map((p, i) => `
           <div class="parete-card ${p.id === pareteSelId ? 'sel' : ''} ${p.assente ? 'assente' : ''}" data-id="${p.id}">
@@ -119,6 +126,10 @@ function renderPannelloStep1() {
               <input type="number" class="p-lung" data-id="${p.id}"
                 value="${p.lunghezza_mm}" min="100" step="10" />
             </label>
+            ${i > 0 ? `
+              <button type="button" class="btn-mini p-gira" data-id="${p.id}" style="margin-top:8px">
+                ↱ Gira angolo al contrario
+              </button>` : ''}
             <div class="grid-lato" style="margin-top:8px">
               <div style="font-size:11px;color:var(--testo-dim);letter-spacing:1px;text-transform:uppercase;">
                 Lato interno (mobili)
@@ -237,6 +248,20 @@ function attaccaEventiPannello() {
       if (e.target.closest('button')) return;
       const id = Number(h.dataset.id);
       pareteSelId = pareteSelId === id ? null : id;
+      aggiorna();
+    });
+  });
+  // Orientamento globale: ruota / specchia
+  const btnRsx = document.getElementById('btn-ruota-sx');
+  if (btnRsx) btnRsx.addEventListener('click', () => { ruotaPianta(progetto, 90); aggiorna(); });
+  const btnRdx = document.getElementById('btn-ruota-dx');
+  if (btnRdx) btnRdx.addEventListener('click', () => { ruotaPianta(progetto, -90); aggiorna(); });
+  const btnSpec = document.getElementById('btn-specchia');
+  if (btnSpec) btnSpec.addEventListener('click', () => { specchiaPianta(progetto); aggiorna(); });
+  // Gira il singolo angolo al contrario
+  pannello.querySelectorAll('.p-gira').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      inverteAngolo(progetto, Number(btn.dataset.id));
       aggiorna();
     });
   });
