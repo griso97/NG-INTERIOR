@@ -9,19 +9,44 @@
 import {
   progettoDefault, TIPOLOGIE,
   applicaPreset, aggiungiParete, rimuoviParete,
+  TIPI_MODULO_BASE, LARGHEZZE_BASE, nomeTipo,
+  spazioLiberoParete, moduliDiParete,
+  aggiungiModuloBase, aggiungiFascia,
+  rimuoviModuloBase, rimuoviFascia,
 } from './modello.js';
 import { renderPianta } from './pianta.js';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
+if (!progetto.stepCorrente) progetto.stepCorrente = 1;
 
 const pannello = document.getElementById('cucina-pannello');
 const riepilogo = document.getElementById('cucina-riepilogo');
 const svg = document.getElementById('pianta-svg');
+const stepInfo = document.getElementById('step-info');
 
-// --------- RENDER PANNELLO SINISTRO ---------
+// Stato locale UI per Step 2
+let step2 = {
+  pareteAttivaId: null,  // parete selezionata per inserire moduli
+  tipoSelezionato: 'base-ante',
+  larghezzaSelezionata: 600,
+  fasciaLarghezza: 100,
+  errore: null,
+};
+
+// --------- DISPATCH principale: sceglie lo step attivo ---------
 function renderPannello() {
+  if (progetto.stepCorrente === 2) return renderPannelloStep2();
+  return renderPannelloStep1();
+}
+function renderRiepilogo() {
+  if (progetto.stepCorrente === 2) return renderRiepilogoStep2();
+  return renderRiepilogoStep1();
+}
+
+// --------- RENDER PANNELLO SINISTRO — STEP 1 ---------
+function renderPannelloStep1() {
   pannello.innerHTML = `
     <section>
       <h3>Tipologia</h3>
@@ -43,9 +68,7 @@ function renderPannello() {
           <div class="parete-card" data-id="${p.id}">
             <header>
               Parete ${i + 1}
-              ${progetto.piano.tipologia === 'personalizzata'
-                ? `<button class="btn-mini p-rimuovi" type="button" data-id="${p.id}">rimuovi</button>`
-                : ''}
+              <button class="btn-mini p-rimuovi" type="button" data-id="${p.id}">rimuovi</button>
             </header>
             <label>Lunghezza (mm)
               <input type="number" class="p-lung" data-id="${p.id}"
@@ -63,10 +86,9 @@ function renderPannello() {
           </div>
         `).join('')}
       </div>
-      ${progetto.piano.tipologia === 'personalizzata' ? `
-        <button id="btn-aggiungi-parete" class="btn-oro" type="button" style="margin-top:10px;width:100%">
-          + Aggiungi parete
-        </button>` : ''}
+      <button id="btn-aggiungi-parete" class="btn-oro" type="button" style="margin-top:10px;width:100%">
+        + Aggiungi parete
+      </button>
     </section>
 
     <section class="actions">

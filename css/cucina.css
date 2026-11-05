@@ -237,3 +237,97 @@
 .sv-griglia-linea-maggiore {
   stroke: rgba(201,169,74,0.15); stroke-width: 3;
 }
+
+/* Moduli disegnati in pianta (vista dall'alto) */
+.sv-mod {
+  stroke: var(--oro-chiaro); stroke-width: 6;
+  fill: rgba(201, 169, 74, 0.1);
+}
+.sv-mod-lavello { fill: rgba(80, 150, 200, 0.18); stroke: #7fbee0; }
+.sv-mod-forno   { fill: rgba(200, 80, 80, 0.18);  stroke: #e07f7f; }
+.sv-mod-fascia  {
+  fill: rgba(140, 140, 140, 0.15);
+  stroke: var(--testo-dim);
+  stroke-dasharray: 40 40;
+}
+.sv-mod-label {
+  fill: var(--oro-chiaro);
+  font-family: 'Inter', sans-serif;
+  font-size: 70px;
+  font-weight: 500;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+
+/* Avviso "modulo troppo grande" sopra la pianta */
+.avviso-modulo {
+  position: absolute;
+  top: 60px; left: 50%; transform: translateX(-50%);
+  background: rgba(220, 70, 70, 0.14);
+  border: 1px solid var(--err);
+  padding: 10px 18px;
+  color: #ffdede;
+  border-radius: 2px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  z-index: 20;
+  max-width: 500px;
+  text-align: center;
+}
+
+/* Step 2: UI aggiunta */
+.spazio-barra {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.spazio-barra .occupato { color: var(--testo-dim); }
+.spazio-barra .libero.ok { color: var(--ok); }
+.spazio-barra .libero.pieno { color: var(--err); }
+.barra-progresso {
+  height: 8px; background: #0d0d0d; border: 1px solid var(--bordo);
+  border-radius: 2px; overflow: hidden; margin-bottom: 10px;
+}
+.barra-progresso .riempita {
+  height: 100%;
+  background: linear-gradient(90deg, var(--oro-scuro), var(--oro));
+  transition: width .2s;
+}
+.sel-parete-row {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.sel-parete-pill {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--bordo);
+  color: var(--testo-dim);
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+.sel-parete-pill.sel {
+  background: linear-gradient(180deg, var(--oro-scuro), #3a2d10);
+  color: #fff;
+  border-color: var(--oro-chiaro);
+}
+.mod-elenco {
+  margin-top: 10px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.mod-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px;
+  background: var(--bg-3);
+  border: 1px solid var(--bordo);
+  border-left: 3px solid var(--oro-scuro);
+  border-radius: 2px;
+  font-size: 12px;
+}
+.mod-row.fascia { border-left-color: var(--testo-dim); }
+.mod-row.lavello { border-left-color: #7fbee0; }
+.mod-row.forno { border-left-color: #e07f7f; }

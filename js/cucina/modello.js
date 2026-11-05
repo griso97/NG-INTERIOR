@@ -12,6 +12,7 @@
 export function progettoDefault() {
   return {
     versione: 1,
+    stepCorrente: 1,
     piano: {
       tipologia: 'lineare',
       pareti: [
@@ -19,14 +20,131 @@ export function progettoDefault() {
       ],
     },
     pianoConfermato: false,
-    // Riserve di struttura per gli step successivi (vuote in Step 1)
+    // Moduli a terra (Step 2)
     moduliBase: [],
+    moduliBaseConfermati: false,
+    // Moduli alti / colonne (Step 3) e fronti (Step 4) — vuoti in Step 2
     moduliAlti: [],
     colonne: [],
     fasce: [],
     reglette: [],
     mostraAlti: false,
   };
+}
+
+// =============================================================================
+// CATALOGO MODULI BASE (Step 2)
+// =============================================================================
+export const PROFONDITA_BASE = 600;              // mm, fissa (ante incluse)
+export const LARGHEZZE_BASE = [300, 400, 500, 600, 700, 800, 900, 1000];
+
+export const TIPI_MODULO_BASE = [
+  { id: 'base-ante',     nome: 'Base con ante',     larghezze: LARGHEZZE_BASE },
+  { id: 'base-cassetti', nome: 'Base cassetti',     larghezze: LARGHEZZE_BASE },
+  { id: 'lavello',       nome: 'Lavello',           larghezze: LARGHEZZE_BASE },
+  { id: 'forno',         nome: 'Forno + placca',    larghezze: [600] },
+];
+export function nomeTipo(tipoId) {
+  if (tipoId === 'fascia') return 'Fascia chiusura';
+  return TIPI_MODULO_BASE.find((t) => t.id === tipoId)?.nome || tipoId;
+}
+
+/**
+ * Moduli (base + fasce) presenti su una parete, ordinati per posizione.
+ * Usato per validazione, UI e rendering in pianta.
+ */
+export function moduliDiParete(progetto, pareteId) {
+  const base = (progetto.moduliBase || [])
+    .filter((m) => m.parete_id === pareteId)
+    .map((m) => ({ ...m, categoria: 'base' }));
+  const fasce = (progetto.fasce || [])
+    .filter((f) => f.parete_id === pareteId)
+    .map((f) => ({ ...f, categoria: 'fascia', tipo: 'fascia' }));
+  return [...base, ...fasce].sort((a, b) => a.posizione_mm - b.posizione_mm);
+}
+
+/**
+ * Spazio totale/occupato/libero su una singola parete (in mm).
+ */
+export function spazioLiberoParete(progetto, pareteId) {
+  const parete = progetto.piano.pareti.find((p) => p.id === pareteId);
+  if (!parete) return { totale: 0, occupato: 0, libero: 0 };
+  const occupato = moduliDiParete(progetto, pareteId)
+    .reduce((s, m) => s + m.larghezza_mm, 0);
+  return {
+    totale: parete.lunghezza_mm,
+    occupato,
+    libero: parete.lunghezza_mm - occupato,
+  };
+}
+
+/**
+ * Aggiunge un modulo base in coda ai moduli della parete.
+ * Ritorna { ok, errore? } — rifiuta se non c'è spazio libero sufficiente.
+ */
+export function aggiungiModuloBase(progetto, pareteId, tipo, larghezza_mm) {
+  const s = spazioLiberoParete(progetto, pareteId);
+  if (larghezza_mm > s.libero) {
+    return { ok: false, errore:
+      `Modulo troppo grande: spazio libero ${s.libero} mm, modulo richiesto ${larghezza_mm} mm` };
+  }
+  const nuovoId = Math.max(0, ...(progetto.moduliBase || []).map((m) => m.id || 0)) + 1;
+  progetto.moduliBase.push({
+    id: nuovoId, parete_id: pareteId, tipo,
+    larghezza_mm, posizione_mm: s.occupato,
+  });
+  progetto.moduliBaseConfermati = false;
+  return { ok: true };
+}
+
+/**
+ * Aggiunge una FASCIA di chiusura (filler) su una parete, con larghezza libera.
+ */
+export function aggiungiFascia(progetto, pareteId, larghezza_mm, contesto = 'parete') {
+  const s = spazioLiberoParete(progetto, pareteId);
+  if (larghezza_mm > s.libero) {
+    return { ok: false, errore:
+      `Fascia troppo grande: spazio libero ${s.libero} mm, fascia richiesta ${larghezza_mm} mm` };
+  }
+  const nuovoId = Math.max(0, ...(progetto.fasce || []).map((f) => f.id || 0)) + 1;
+  progetto.fasce.push({
+    id: nuovoId, parete_id: pareteId,
+    larghezza_mm, posizione_mm: s.occupato, contesto,
+  });
+  progetto.moduliBaseConfermati = false;
+  return { ok: true };
+}
+
+export function rimuoviModuloBase(progetto, moduloId) {
+  progetto.moduliBase = progetto.moduliBase.filter((m) => m.id !== moduloId);
+  ricompattaPosizioni(progetto);
+  progetto.moduliBaseConfermati = false;
+}
+export function rimuoviFascia(progetto, fasciaId) {
+  progetto.fasce = progetto.fasce.filter((f) => f.id !== fasciaId);
+  ricompattaPosizioni(progetto);
+  progetto.moduliBaseConfermati = false;
+}
+
+/**
+ * Dopo una rimozione, ricompatta le posizioni di tutti i moduli lungo
+ * ogni parete (così non restano buchi a sinistra).
+ */
+function ricompattaPosizioni(progetto) {
+  for (const parete of progetto.piano.pareti) {
+    const mods = moduliDiParete(progetto, parete.id);
+    let pos = 0;
+    for (const m of mods) {
+      if (m.categoria === 'base') {
+        const b = progetto.moduliBase.find((x) => x.id === m.id);
+        if (b) b.posizione_mm = pos;
+      } else {
+        const f = progetto.fasce.find((x) => x.id === m.id);
+        if (f) f.posizione_mm = pos;
+      }
+      pos += m.larghezza_mm;
+    }
+  }
 }
 
 /**

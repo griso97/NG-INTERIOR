@@ -6,7 +6,10 @@
 // reale (basta che Three.js e co. restino coerenti con le misure in mm).
 // =============================================================================
 
-import { calcolaVertici, bboxPerimetro } from './modello.js';
+import {
+  calcolaVertici, bboxPerimetro,
+  moduliDiParete, nomeTipo, PROFONDITA_BASE,
+} from './modello.js';
 
 const MARGINE_MM = 800;        // margine attorno al perimetro (mm)
 const PASSO_GRIGLIA = 100;     // mm (passo primario)
@@ -33,6 +36,17 @@ export function renderPianta(svg, progetto) {
 
   // --- Perimetro ---
   if (pareti.length > 0) {
+    // Prima disegno i MODULI (così stanno sotto le linee della parete)
+    const gMod = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    pareti.forEach((p, i) => {
+      const a = vertici[i], b = vertici[i + 1];
+      const mods = moduliDiParete(progetto, p.id);
+      mods.forEach((m) => {
+        gMod.appendChild(renderModuloInPianta(a, b, p, m));
+      });
+    });
+    svg.appendChild(gMod);
+
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     pareti.forEach((p, i) => {
       const a = vertici[i];
@@ -124,6 +138,57 @@ function renderLatoInterno(a, b, parete) {
   l.setAttribute('x2', x2); l.setAttribute('y2', y2);
   l.setAttribute('class', 'sv-interno');
   return l;
+}
+
+/**
+ * Disegna un modulo (base o fascia) come rettangolo sulla parete, verso il
+ * lato interno, con etichetta "nome · larghezza mm".
+ */
+function renderModuloInPianta(a, b, parete, modulo) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const L = Math.hypot(dx, dy) || 1;
+  const ux = dx / L, uy = dy / L;              // versore parete
+  const sgn = parete.latoInterno === 'interno' ? 1 : -1;
+  const nx = -dy / L * sgn, ny = dx / L * sgn;  // normale verso l'interno
+  const PROF = PROFONDITA_BASE;                 // 600 mm
+
+  // Punti A→B del modulo lungo la parete
+  const p1x = a.x + ux * modulo.posizione_mm;
+  const p1y = a.y + uy * modulo.posizione_mm;
+  const p2x = p1x + ux * modulo.larghezza_mm;
+  const p2y = p1y + uy * modulo.larghezza_mm;
+  // Punti arretrati (profondità 600) verso l'interno
+  const p3x = p2x + nx * PROF;
+  const p3y = p2y + ny * PROF;
+  const p4x = p1x + nx * PROF;
+  const p4y = p1y + ny * PROF;
+
+  // Costruisco il gruppo (polygon + etichetta)
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  const points = [
+    [p1x, -p1y], [p2x, -p2y], [p3x, -p3y], [p4x, -p4y],
+  ].map((pt) => pt.join(',')).join(' ');
+  poly.setAttribute('points', points);
+  const cls = modulo.categoria === 'fascia' ? 'sv-mod sv-mod-fascia' :
+    (modulo.tipo === 'lavello' ? 'sv-mod sv-mod-lavello' :
+     modulo.tipo === 'forno'   ? 'sv-mod sv-mod-forno'   : 'sv-mod sv-mod-base');
+  poly.setAttribute('class', cls);
+  g.appendChild(poly);
+
+  // Etichetta "tipo · larghezza" al centro del rettangolo
+  const cx = (p1x + p3x) / 2;
+  const cy = -((p1y + p3y) / 2);
+  const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  txt.setAttribute('x', cx);
+  txt.setAttribute('y', cy);
+  txt.setAttribute('class', 'sv-mod-label');
+  const nome = nomeTipo(modulo.tipo);
+  txt.textContent = `${nome} · ${modulo.larghezza_mm}`;
+  g.appendChild(txt);
+
+  return g;
 }
 
 function renderQuota(a, b, parete) {
