@@ -18,6 +18,7 @@ import {
   ruotaPianta, specchiaPianta, inverteAngolo,
   toggleParete, muroTolto, snap, liberoPareti,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero,
+  vincolaAiMuri,
 } from './modello.js';
 import { renderPianta } from './pianta.js';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js';
@@ -467,7 +468,9 @@ function attaccaEventiStep2() {
   const mobSel = trovaMobileLibero(progetto, step2.mobSelId);
   if (mobSel) {
     document.getElementById('mob-ruota').addEventListener('click', () => {
-      ruotaMobileLibero(progetto, mobSel.id); fatto();
+      ruotaMobileLibero(progetto, mobSel.id);
+      riblocca(mobSel.id);
+      fatto();
     });
     document.getElementById('mob-misura').addEventListener('click', () => {
       apriScelta(mobSel.tipo, mobSel.id);
@@ -658,8 +661,17 @@ function confermaScelta() {
   } else {
     step2.mobSelId = aggiungiMobileLibero(progetto, tipoId, valori);
   }
+  riblocca(step2.mobSelId);
   chiudiModale();
   aggiorna();
+}
+
+/** Riporta un mobile dentro i muri dopo rotazione/cambio misura. */
+function riblocca(id) {
+  const m = trovaMobileLibero(progetto, id);
+  if (!m) return;
+  const v = vincolaAiMuri(progetto, m, m.x, m.y);
+  m.x = snap(v.x); m.y = snap(v.y);
 }
 function chiudiModale() { modale.hidden = true; }
 document.getElementById('modale-annulla').addEventListener('click', chiudiModale);
@@ -702,7 +714,9 @@ svg.addEventListener('pointermove', (e) => {
   const m = trovaMobileLibero(progetto, trascinamento.id);
   if (!m) return;
   const p = puntoMm(e);
-  const nx = snap(p.x + trascinamento.dx), ny = snap(p.y + trascinamento.dy);
+  // Posizione richiesta dal dito, poi bloccata dentro i muri, poi agganciata
+  const v = vincolaAiMuri(progetto, m, p.x + trascinamento.dx, p.y + trascinamento.dy);
+  const nx = snap(v.x), ny = snap(v.y);
   if (nx !== m.x || ny !== m.y) {
     m.x = nx; m.y = ny;
     trascinamento.mosso = true;

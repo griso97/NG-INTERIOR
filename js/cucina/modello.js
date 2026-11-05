@@ -286,6 +286,43 @@ export function aggiungiMobileLibero(progetto, tipo, props = {}) {
 export function trovaMobileLibero(progetto, id) {
   return progetto.mobiliLiberi.find((m) => m.id === id);
 }
+
+/**
+ * Vincola una posizione (x,y) del CENTRO di un mobile in modo che il suo
+ * ingombro NON esca da nessun muro presente: ogni muro è una barriera verso
+ * l'esterno. Negli angoli i due muri fermano il mobile insieme.
+ * Ritorna {x, y} eventualmente spostati verso l'interno.
+ */
+export function vincolaAiMuri(progetto, m, x, y) {
+  const full = progetto.piano.pareti || [];
+  const pareti = full.filter((p) => !p.assente);
+  if (pareti.length === 0) return { x, y };
+  const vertici = calcolaVertici(full);
+  const d = dimMobile(m);
+  const rad = ((m.rot || 0) * Math.PI) / 180;
+  const c = Math.cos(rad), s = Math.sin(rad);
+  const hw = d.w / 2, hd = d.d / 2;
+  // 4 passate: bastano per soddisfare anche due muri d'angolo insieme
+  for (let pass = 0; pass < 4; pass++) {
+    for (let i = 0; i < full.length; i++) {
+      const p = full[i];
+      if (p.assente) continue;
+      const a = vertici[i], b = vertici[i + 1];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const L = Math.hypot(dx, dy) || 1;
+      const sgn = p.latoInterno === 'interno' ? 1 : -1;
+      const nx = -dy / L * sgn, ny = dx / L * sgn;   // normale verso l'interno
+      const centerDist = (x - a.x) * nx + (y - a.y) * ny;
+      const extN = Math.abs(hw * (c * nx + s * ny)) + Math.abs(hd * (-s * nx + c * ny));
+      if (centerDist < extN) {
+        const spinta = extN - centerDist;
+        x += nx * spinta;
+        y += ny * spinta;
+      }
+    }
+  }
+  return { x, y };
+}
 export function ruotaMobileLibero(progetto, id) {
   const m = trovaMobileLibero(progetto, id);
   if (m) m.rot = ((m.rot || 0) + 90) % 360;
