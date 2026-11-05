@@ -373,21 +373,22 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
   //            modulo stesso; la "avanti" scorre di un passo a destra.
   if (scorrevole) {
     const N = config.scorrevole?.anteModulo ?? 2;
-    const B = config.scorrevole?.binario ?? 75;
-    const altAntaSc = H - B;
+    // Formula definitiva sez. 4.5
+    const larAntaSc = W - 25;                            // Lm − 25
+    const altAntaSc = H - 47;                            // H − 47
     const zAvanti = config.profonditaEsterna - sA / 2 - 2;
     const zDietro = config.profonditaEsterna - sA - sA / 2 - 4;
     const matAnteSc = matDi(config, "ante");
-    const cy = (B * 0.4) + altAntaSc / 2;
+    const cy = 25 + altAntaSc / 2; // 25mm da terra per lasciare spazio al binario inferiore
 
-    const creaAnta = (larAnta, xBase, cz, xOffsetAperto) => {
+    const creaAnta = (xBase, cz, xOffsetAperto) => {
       const pivot = new THREE.Group();
       pivot.position.set(xBase + (porteAperte ? xOffsetAperto : 0), cy, cz);
       pivot.userData.tipo = 'pivot-anta-scorrevole';
       pivot.userData.xBase = xBase;
       pivot.userData.xOffsetAperto = xOffsetAperto;
       const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(larAnta, altAntaSc, sA), matAnteSc);
+        new THREE.BoxGeometry(larAntaSc, altAntaSc, sA), matAnteSc);
       mesh.castShadow = true; mesh.receiveShadow = true;
       mesh.userData.tipo = 'anta';
       pivot.add(mesh);
@@ -395,22 +396,24 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
     };
 
     if (N === 1) {
-      const larAntaSc = W + 20;              // copre il modulo + overlap
-      const avanti = (indice % 2 === 0);     // alternato tra moduli
+      // 1 anta per modulo: alternata avanti/dietro tra moduli adiacenti
+      const avanti = (indice % 2 === 0);
       const cz = avanti ? zAvanti : zDietro;
       const xBase = xOffset + W / 2;
       const siApre = avanti && indice < totali - 1;
-      const xOffsetAperto = siApre ? W : 0;  // scorre di 1 modulo intero
-      creaAnta(larAntaSc, xBase, cz, xOffsetAperto);
+      const xOffsetAperto = siApre ? W : 0;
+      creaAnta(xBase, cz, xOffsetAperto);
     } else {
-      const larAntaSc = W / N + 20;
-      const passo = larAntaSc - 20;
+      // N≥2 per modulo: le ante si sovrappongono dentro il modulo,
+      // alternate avanti/dietro; "avanti" scorrono verso destra all'apertura
+      const passo = (W - larAntaSc) / (N - 1) + larAntaSc / 2;
+      const spaziatura = (W - larAntaSc) / Math.max(1, N - 1);
       for (let k = 0; k < N; k++) {
-        const xBase = xOffset + larAntaSc / 2 + k * passo;
+        const xBase = xOffset + larAntaSc / 2 + k * spaziatura;
         const cz = (k % 2 === 0) ? zAvanti : zDietro;
         const siApre = (k % 2 === 0) && k < N - 1;
-        const xOffsetAperto = siApre ? passo : 0;
-        creaAnta(larAntaSc, xBase, cz, xOffsetAperto);
+        const xOffsetAperto = siApre ? spaziatura : 0;
+        creaAnta(xBase, cz, xOffsetAperto);
       }
     }
   }

@@ -587,22 +587,26 @@ export function pezziTamponamenti(config) {
 }
 
 /**
- * ANTE SCORREVOLI — per modulo.
- * ⚠️ FORMULA DA DEFINIRE — in attesa di specifica dall'utente.
- * Default documentato: 1 modulo = 2 ante che scorrono una davanti all'altra.
- * La formula qui sotto è un PLACEHOLDER segnato "DA VERIFICARE" nella
- * distinta: NON usarla per i tagli finché non viene confermata la regola.
+ * ANTE SCORREVOLI (sezione 4.5 del documento) — formula definitiva.
+ *
+ *   Altezza anta   = H − 47
+ *   Larghezza anta = Lm − 25  (dove Lm = L / numero_moduli)
+ *   Spessore       = sA
+ *
+ * N = numero di ante per modulo (scelto dall'utente; default 2):
+ *   - 1 ante/modulo → 1 anta che copre tutto il modulo, scorre sopra il
+ *     modulo adiacente
+ *   - 2 ante/modulo → 2 ante che si sovrappongono dentro lo stesso modulo
+ *
+ * Esempio (L=2000, 2 moduli, H=2400): Lm=1000 → anta 975 × 2353 × sA
  */
 export function pezziAnteScorrevoliModulo(config, modulo, indiceModulo) {
   const N = config.scorrevole?.anteModulo ?? 2;
-  const B = config.scorrevole?.binario ?? 75;
-  // Placeholder: 2 ante che coprono il modulo con 20mm di sovrapposizione
-  // e altezza = H - B (ingombro binario come riferimento provvisorio).
-  const larAnta = Math.round(modulo.larghezza / N + 20);
-  const altAnta = config.altezzaEsterna - B;
+  const larAnta = modulo.larghezza - 25;
+  const altAnta = config.altezzaEsterna - 47;
   return [{
     modulo: `Modulo ${indiceModulo + 1}`,
-    nome: `Anta scorrevole · DA VERIFICARE (×${N})`,
+    nome: N === 1 ? 'Anta scorrevole' : `Anta scorrevole (×${N})`,
     larghezza: larAnta,
     altezza: altAnta,
     spessore: config.spessoreAnte,
