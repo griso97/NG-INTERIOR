@@ -5,7 +5,31 @@
 // riepilogo in fondo. Niente logica di calcolo qui dentro.
 // =============================================================================
 
-export function renderDistinta(contenitore, distinta) {
+import { trovaMateriale } from './materiali.js';
+
+/**
+ * Risale dalla categoria + posizione del pezzo al materiale scelto
+ * dall'utente nel pannello Materiali, e restituisce il NOME visibile.
+ * Esempi: "carcassa" → "Roble Hera", "ante" → "Roble Denver".
+ */
+function nomeMaterialeDelPezzo(pezzo, config) {
+  const mat = config?.materiali || {};
+  let id;
+  if (pezzo.parteMateriale) {
+    // Cassettiera: cassStruttura o cassFronti
+    id = mat[pezzo.parteMateriale];
+  } else if (pezzo.modulo === 'Tamponamenti') {
+    // Tamponamento: la faccia (materiale 'ante') usa la tinta dei
+    // tamponamenti; la fascia (materiale 'carcassa') usa la carcassa.
+    id = pezzo.materiale === 'ante' ? mat.tamponamenti : mat.carcassa;
+  } else {
+    id = mat[pezzo.materiale];
+  }
+  const m = trovaMateriale(id);
+  return m ? m.nome : (pezzo.materiale || '—');
+}
+
+export function renderDistinta(contenitore, distinta, config) {
   const { pezzi, riepilogo } = distinta;
   const righe = pezzi.map((p) => `
     <tr>
@@ -13,7 +37,7 @@ export function renderDistinta(contenitore, distinta) {
       <td class="num">${fmt(p.larghezza)}</td>
       <td class="num">${fmt(p.altezza)}</td>
       <td class="num">${fmt(p.spessore)}</td>
-      <td class="tag tag-${p.materiale}">${p.materiale}</td>
+      <td class="tag tag-${p.materiale}" title="${escape(p.materiale)}">${escape(nomeMaterialeDelPezzo(p, config))}</td>
       <td class="num qta">${p.quantita}</td>
     </tr>
   `).join('');

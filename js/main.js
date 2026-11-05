@@ -49,7 +49,7 @@ function onChange(nuovaConfig, opzioni = {}) {
 function aggiorna() {
   const distinta = calcolaDistintaCompleta(config);
   aggiornaScena(config);
-  renderDistinta(distintaEl, distinta);
+  renderDistinta(distintaEl, distinta, config);
   agganciaExport(distinta);
   mostraAvvisi();
   aggiornaHeader();
@@ -74,7 +74,7 @@ function mostraAvvisi() {
 function agganciaExport(distinta) {
   const btnCsv = document.getElementById('btn-csv');
   const btnPdf = document.getElementById('btn-pdf');
-  if (btnCsv) btnCsv.onclick = () => esportaCSV(distinta, config.meta);
+  if (btnCsv) btnCsv.onclick = () => esportaCSV(distinta, config.meta, config);
   if (btnPdf) btnPdf.onclick = () => esportaPDF(distinta, config, config.meta);
 }
 
@@ -134,3 +134,41 @@ aggiorna();
 
 // Resize canvas quando cambia la finestra
 window.addEventListener('resize', () => forzaResize(canvas));
+
+// Resize manuale del pannello Distinta (trascinando la maniglia).
+// Salva la larghezza scelta in localStorage.
+(() => {
+  const resizer = document.getElementById('distinta-resizer');
+  const app = document.querySelector('.app');
+  if (!resizer || !app) return;
+  const CHIAVE = 'ng-distinta-width';
+  const salvata = Number(localStorage.getItem(CHIAVE) || 0);
+  if (salvata >= 300 && salvata <= 900) {
+    app.style.setProperty('--distinta-w', salvata + 'px');
+  }
+  let trascino = false;
+  resizer.addEventListener('mousedown', (e) => {
+    trascino = true;
+    resizer.classList.add('on');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!trascino) return;
+    // La distinta sta sul lato destro; larghezza = distanza da bordo destro
+    const w = Math.max(300, Math.min(900, window.innerWidth - e.clientX));
+    app.style.setProperty('--distinta-w', w + 'px');
+    forzaResize(canvas);
+  });
+  document.addEventListener('mouseup', () => {
+    if (!trascino) return;
+    trascino = false;
+    resizer.classList.remove('on');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    // Salva la larghezza scelta
+    const w = app.style.getPropertyValue('--distinta-w') || '500px';
+    localStorage.setItem(CHIAVE, parseInt(w, 10));
+  });
+})();

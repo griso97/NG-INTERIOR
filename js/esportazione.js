@@ -6,14 +6,15 @@
 // in A4 con intestazione (dati lavoro + misure armadio) e tabella pezzi.
 // =============================================================================
 
-export function esportaCSV(distinta, meta = {}) {
+export function esportaCSV(distinta, meta = {}, config = null) {
   const righe = [
     ['Pezzo', 'Larghezza (mm)', 'Altezza/Lunghezza (mm)',
       'Spessore (mm)', 'Materiale', 'Quantità'],
   ];
   distinta.pezzi.forEach((p) => {
     righe.push([
-      p.nome, p.larghezza, p.altezza, p.spessore, p.materiale,
+      p.nome, p.larghezza, p.altezza, p.spessore,
+      nomeMaterialeCsv(p, config),
       p.quantita,
     ]);
   });
@@ -33,6 +34,20 @@ function csvEscape(v) {
   const s = v === undefined || v === null ? '' : String(v);
   if (/[;"\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
+}
+
+import { trovaMateriale } from './materiali.js';
+
+function nomeMaterialeCsv(pezzo, config) {
+  if (!config) return pezzo.materiale || '—';
+  const mat = config.materiali || {};
+  let id;
+  if (pezzo.parteMateriale) id = mat[pezzo.parteMateriale];
+  else if (pezzo.modulo === 'Tamponamenti')
+    id = pezzo.materiale === 'ante' ? mat.tamponamenti : mat.carcassa;
+  else id = mat[pezzo.materiale];
+  const m = trovaMateriale(id);
+  return m ? m.nome : (pezzo.materiale || '—');
 }
 
 export function esportaPDF(distinta, config, meta = {}) {
@@ -86,7 +101,7 @@ export function esportaPDF(distinta, config, meta = {}) {
     doc.text(String(Math.round(p.larghezza)), colX[1], y);
     doc.text(String(Math.round(p.altezza)), colX[2], y);
     doc.text(String(p.spessore), colX[3], y);
-    doc.text(p.materiale, colX[4], y);
+    doc.text(nomeMaterialeCsv(p, config).slice(0, 18), colX[4], y);
     doc.setFont('helvetica', 'bold');
     doc.text(String(p.quantita), colX[5], y);
     doc.setFont('helvetica', 'normal');

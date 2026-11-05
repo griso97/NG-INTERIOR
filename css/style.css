@@ -96,10 +96,27 @@ body {
 
 /* ----- Layout ----- */
 .app {
+  position: relative;
   display: grid;
-  grid-template-columns: 340px 1fr 420px;
+  grid-template-columns: 340px 1fr var(--distinta-w, 500px);
   grid-template-rows: 1fr;
   height: calc(100vh - 61px);
+}
+/* Maniglia di resize della distinta: trascinando il bordo sinistro
+   si può allargare/restringere il pannello a piacere. */
+.distinta-resizer {
+  position: absolute;
+  top: 0; bottom: 0;
+  right: var(--distinta-w, 500px);
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 5;
+  transition: background .15s;
+}
+.distinta-resizer:hover,
+.distinta-resizer.on {
+  background: linear-gradient(90deg, transparent, var(--oro-scuro), transparent);
 }
 .pannello {
   background: var(--bg-2);
@@ -377,16 +394,16 @@ table.distinta td.qta {
 }
 .tag {
   display: inline-block;
-  padding: 2px 8px;
-  font-size: 10px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+  padding: 3px 9px;
+  font-size: 11px;
+  letter-spacing: 0.3px;
   border-radius: 2px;
   border: 1px solid transparent;
+  white-space: nowrap;
 }
-.tag-carcassa { color: #d9b870; border-color: #5a4820; background: #1d170a; }
-.tag-schiena  { color: #c7a07a; border-color: #4a3b2a; background: #1a140e; }
-.tag-ante     { color: #d9d9d9; border-color: #333; background: #161616; }
+.tag-carcassa { color: #e9c979; border-color: #5a4820; background: #1d170a; }
+.tag-schiena  { color: #e0b48c; border-color: #4a3b2a; background: #1a140e; }
+.tag-ante     { color: #e0e0e0; border-color: #3a3a3a; background: #171717; }
 
 .riepilogo {
   margin-top: 14px;
