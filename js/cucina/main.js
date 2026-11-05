@@ -617,10 +617,10 @@ function renderPannelloStep3d() {
     <section class="step3-pannello">
       <h3>Legenda altezze</h3>
       <div class="riga-3d">
-        • Basi: altezza scelta (zoccolo 100 + piano 40)<br>
+        • Basi: porta 70 → zoccolo 15 cm · porta 80 → zoccolo 10 cm (+ piano 4 cm)<br>
+        • Reglette: alte come la porta (70/80), allineate ai mobili<br>
         • Pensili: appesi a 140 cm da terra<br>
-        • Colonne: a tutta altezza<br>
-        • Reglette: a terra come filler d'angolo
+        • Colonne: a tutta altezza (2200/2300)
       </div>
     </section>
     <section class="actions">

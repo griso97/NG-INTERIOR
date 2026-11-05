@@ -16,8 +16,10 @@ import {
 } from './modello.js';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
-const ALT_ZOCCOLO = 100;
 const SP_TOP = 40;
+// Zoccolo (piedini) in base all'altezza della porta:
+//  porta 70 → zoccolo 150 mm · porta 80 → zoccolo 100 mm
+function zoccoloPerAltezza(h) { return h >= 800 ? 100 : 150; }
 const ALT_MURO = 2600;
 const H_FORNO = 600;
 const H_MICRO = 380;
@@ -254,6 +256,16 @@ function collocaMobile(g, cx, yBottom, cz, h, rotGradi) {
   return g;
 }
 
+/** Zoccolo (piedini): scatola bassa, più scura e un po' arretrata sul fronte. */
+function aggiungiZoccolo(cx, cz, w, d, zocc, rotGradi) {
+  const geo = new THREE.BoxGeometry(w - 40, zocc, d - 100);
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x15130d, roughness: 0.85 }));
+  const g = new THREE.Group();
+  mesh.position.z = -50; // arretrato rispetto al fronte
+  g.add(mesh);
+  gruppo.add(collocaMobile(g, cx, 0, cz, zocc, rotGradi));
+}
+
 // ---------------------------------------------------------------------------
 export function aggiornaScena3d(progetto, reframe = false) {
   if (!scene) return;
@@ -297,16 +309,18 @@ export function aggiornaScena3d(progetto, reframe = false) {
       const centro = mm.posizione_mm + mm.larghezza_mm / 2;
       const px = a.x + ux * centro + nx * (PROFONDITA_BASE / 2);
       const py = a.y + uy * centro + ny * (PROFONDITA_BASE / 2);
-      const hTot = 700;
+      const porta = 700;               // porta/anta
+      const zocc = zoccoloPerAltezza(porta);
+      aggiungiZoccolo(px, -py, mm.larghezza_mm, PROFONDITA_BASE, zocc, p.angolo_gradi);
       if (mm.categoria === 'fascia') {
-        const box = corpo(mm.larghezza_mm, hTot - ALT_ZOCCOLO, PROFONDITA_BASE, COL.regletta);
-        gruppo.add(collocaMobile(box, px, ALT_ZOCCOLO, -py, hTot - ALT_ZOCCOLO, p.angolo_gradi));
+        const box = corpo(mm.larghezza_mm, porta, PROFONDITA_BASE, COL.regletta);
+        gruppo.add(collocaMobile(box, px, zocc, -py, porta, p.angolo_gradi));
         continue;
       }
-      const g = costruisciMobile('base', mm.tipo, { ...mm, altezza_mm: hTot }, mm.larghezza_mm, hTot - ALT_ZOCCOLO, PROFONDITA_BASE);
-      gruppo.add(collocaMobile(g, px, ALT_ZOCCOLO, -py, hTot - ALT_ZOCCOLO, p.angolo_gradi));
+      const g = costruisciMobile('base', mm.tipo, { ...mm, altezza_mm: porta }, mm.larghezza_mm, porta, PROFONDITA_BASE);
+      gruppo.add(collocaMobile(g, px, zocc, -py, porta, p.angolo_gradi));
       gruppo.add(collocaMobile(corpo(mm.larghezza_mm + 20, SP_TOP, PROFONDITA_BASE + 40, COL.top),
-        px, hTot, -py, SP_TOP, p.angolo_gradi));
+        px, zocc + porta, -py, SP_TOP, p.angolo_gradi));
     }
   });
 
@@ -319,16 +333,25 @@ export function aggiornaScena3d(progetto, reframe = false) {
       const h = m.altezza_mm || 700;
       gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, MONTAGGIO_PENSILE, cz, h, m.rot));
     } else if (cat === 'colonna') {
+      // Zoccolo in base alla porta bassa; la carcassa riempie fino alla cima
       const h = m.altezza_mm || 2200;
-      gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, 0, cz, h, m.rot));
+      const zocc = zoccoloPerAltezza(m.altezzaBassa_mm || 700);
+      const hCar = h - zocc;
+      aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
+      gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, hCar, dim.d), cx, zocc, cz, hCar, m.rot));
     } else if (cat === 'regletta') {
+      // La regletta è alta come la porta e poggia sullo zoccolo: stessa quota
       const h = m.altezza_mm || 700;
-      gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, 0, cz, h, m.rot));
+      const zocc = zoccoloPerAltezza(h);
+      aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
+      gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, zocc, cz, h, m.rot));
     } else {
-      const hTot = m.altezza_mm || 700;
-      const hCorpo = hTot - ALT_ZOCCOLO;
-      gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, hCorpo, dim.d), cx, ALT_ZOCCOLO, cz, hCorpo, m.rot));
-      gruppo.add(collocaMobile(corpo(dim.w + 20, SP_TOP, dim.d + 40, COL.top), cx, hTot, cz, SP_TOP, m.rot));
+      // base / lavello / forno: porta = altezza scelta, zoccolo 150/100, piano sopra
+      const porta = m.altezza_mm || 700;
+      const zocc = zoccoloPerAltezza(porta);
+      aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
+      gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d), cx, zocc, cz, porta, m.rot));
+      gruppo.add(collocaMobile(corpo(dim.w + 20, SP_TOP, dim.d + 40, COL.top), cx, zocc + porta, cz, SP_TOP, m.rot));
     }
   }
 
