@@ -9,7 +9,7 @@
 import {
   calcolaVertici, bboxPerimetro,
   moduliDiParete, nomeTipo, PROFONDITA_BASE, angoloInterno,
-  profonditaTipo, categoriaTipo,
+  profonditaTipo, categoriaTipo, descrizioneMobile,
 } from './modello.js';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -262,6 +262,7 @@ function renderMobileLibero(m, selezionato, interattivo) {
   });
   const corners = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(([x, y]) => versoSvg(x, y));
   const tipoCls = categoria === 'pensile' ? ' sv-mob-pensile' :
+    categoria === 'colonna' ? ' sv-mob-colonna' :
     m.tipo === 'lavello' ? ' sv-mod-lavello' :
     m.tipo === 'forno' ? ' sv-mod-forno' : '';
   g.appendChild(el('polygon', {
@@ -284,7 +285,7 @@ function renderMobileLibero(m, selezionato, interattivo) {
   const r1 = el('tspan', { x: cx, dy: -fs * 0.6 });
   r1.textContent = nome;
   const r2 = el('tspan', { x: cx, dy: fs * 1.2, class: 'sv-mod-label-mis' });
-  r2.textContent = m.altezza_mm ? `${m.larghezza_mm}×${m.altezza_mm}` : `${m.larghezza_mm}`;
+  r2.textContent = descrizioneMobile(m);
   txt.append(r1, r2);
   g.appendChild(txt);
   return g;

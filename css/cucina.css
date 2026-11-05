@@ -469,3 +469,6 @@
   background: linear-gradient(180deg, var(--oro-scuro), #3a2d10);
   color: #fff; border-color: var(--oro-chiaro);
 }
+
+/* ===== Colonne in pianta (profonde come le basi, bordo doppio) ===== */
+.sv-mob-colonna { fill: rgba(201, 169, 74, 0.22); stroke: var(--oro-chiaro); stroke-width: 16; }

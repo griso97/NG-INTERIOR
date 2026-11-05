@@ -42,6 +42,7 @@ export const PROFONDITA_PENSILE = 350;           // mm, pensili (armadi sopra)
 export const LARGHEZZE_BASE = [300, 400, 500, 600, 700, 800, 900, 1000];
 export const ALTEZZE_BASE = [700, 800];          // armadi bassi
 export const ALTEZZE_PENSILE = [700, 900];       // armadi sopra
+export const ALTEZZE_COLONNA = [2200, 2300];     // colonne, altezza totale
 
 export const TIPI_MODULO_BASE = [
   { id: 'base-ante',     nome: 'Base con ante',     larghezze: LARGHEZZE_BASE },
@@ -67,7 +68,54 @@ export const CATALOGO_MOBILI = [
     larghezze: [600], altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
   { id: 'pensile',       nome: 'Pensile', categoria: 'pensile',
     larghezze: LARGHEZZE_BASE, altezze: ALTEZZE_PENSILE, profondita: PROFONDITA_PENSILE },
+  { id: 'colonna',       nome: 'Colonna', categoria: 'colonna',
+    larghezze: [600], altezze: ALTEZZE_COLONNA, profondita: 600 },
 ];
+
+// Colonne (armadi a tutta altezza)
+export const H_VANO_FORNO = 600;                 // vano forno da incasso (modificabile)
+export const H_VANO_MICRO = 380;                 // vano microonde da incasso (modificabile)
+export const VARIANTI_COLONNA = [
+  { id: 'porta',     nome: 'Porta unica' },
+  { id: 'forno',     nome: 'Forno + porta' },
+  { id: 'microonde', nome: 'Microonde + porta' },
+];
+export function nomeVarianteColonna(id) {
+  return VARIANTI_COLONNA.find((v) => v.id === id)?.nome || id;
+}
+
+/**
+ * Campi da scegliere nella finestra quando si posa/modifica un mobile.
+ * Ogni campo: { campo, et (etichetta), opzioni: [valore | {v,l}], default }.
+ * La colonna ha più campi (altezza totale, porta bassa, parte alta).
+ */
+export function campiMobile(tipoId) {
+  const t = infoTipo(tipoId);
+  if (!t) return [];
+  if (t.categoria === 'colonna') {
+    return [
+      { campo: 'altezza_mm',      et: 'Altezza totale (mm)', opzioni: ALTEZZE_COLONNA, default: ALTEZZE_COLONNA[0] },
+      { campo: 'altezzaBassa_mm', et: 'Porta bassa (mm)',    opzioni: ALTEZZE_BASE,    default: ALTEZZE_BASE[0] },
+      { campo: 'variante',        et: 'Parte alta',
+        opzioni: VARIANTI_COLONNA.map((v) => ({ v: v.id, l: v.nome })), default: 'porta' },
+    ];
+  }
+  const campi = [
+    { campo: 'larghezza_mm', et: 'Larghezza (mm)', opzioni: t.larghezze, default: t.larghezze.includes(600) ? 600 : t.larghezze[0] },
+  ];
+  if (t.altezze.length > 1) {
+    campi.push({ campo: 'altezza_mm', et: 'Altezza (mm)', opzioni: t.altezze, default: t.altezze[0] });
+  }
+  return campi;
+}
+
+/** Descrizione breve del mobile (per etichette e pannello). */
+export function descrizioneMobile(m) {
+  if (categoriaTipo(m.tipo) === 'colonna') {
+    return `${m.larghezza_mm}×${m.altezza_mm} · ${nomeVarianteColonna(m.variante)}`;
+  }
+  return m.altezza_mm ? `${m.larghezza_mm}×${m.altezza_mm}` : `${m.larghezza_mm}`;
+}
 
 export function infoTipo(tipoId) {
   return CATALOGO_MOBILI.find((t) => t.id === tipoId)
@@ -195,14 +243,18 @@ export function centroPianta(progetto) {
   return { x: (bb.minX + bb.maxX) / 2, y: (bb.minY + bb.maxY) / 2 };
 }
 
-export function aggiungiMobileLibero(progetto, tipo, larghezza_mm, altezza_mm) {
+export function aggiungiMobileLibero(progetto, tipo, props = {}) {
   const c = centroPianta(progetto);
   const n = progetto.mobiliLiberi.length;
   // Sfalsa i nuovi mobili così non nascono uno sopra l'altro
   const id = Math.max(0, ...progetto.mobiliLiberi.map((m) => m.id)) + 1;
-  if (altezza_mm == null) altezza_mm = altezzeTipo(tipo)[0];
+  const info = infoTipo(tipo);
+  const base = {
+    larghezza_mm: info?.larghezze[0] ?? 600,
+    altezza_mm: altezzeTipo(tipo)[0],
+  };
   progetto.mobiliLiberi.push({
-    id, tipo, larghezza_mm, altezza_mm,
+    id, tipo, ...base, ...props,
     x: snap(c.x + (n % 4) * 150), y: snap(c.y - (n % 4) * 150), rot: 0,
   });
   return id;
