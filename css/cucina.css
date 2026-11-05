@@ -387,6 +387,7 @@
 /* ===== Barra mobili sotto la pianta ===== */
 .palette {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   overflow-x: auto;
   padding: 8px 10px;
@@ -394,6 +395,13 @@
   background: var(--bg-2);
   flex-shrink: 0;
   -webkit-overflow-scrolling: touch;
+}
+/* Su telefono la barra va a capo: tutti i mobili (anche pensili e colonne)
+   restano visibili senza dover scorrere. */
+@media (max-width: 980px) {
+  .palette { flex-wrap: wrap; justify-content: center; }
+  .palette-btn { width: 72px; font-size: 9px; }
+  .palette-btn svg { width: 40px; height: 40px; }
 }
 .palette[hidden] { display: none; }
 .palette-btn {

@@ -308,7 +308,6 @@ export function vincolaAiMuri(progetto, m, x, y) {
   const rad = ((m.rot || 0) * Math.PI) / 180;
   const c = Math.cos(rad), s = Math.sin(rad);
   const hw = d.w / 2, hd = d.d / 2;
-  // 4 passate: bastano per soddisfare anche due muri d'angolo insieme
   for (let pass = 0; pass < 4; pass++) {
     for (let i = 0; i < full.length; i++) {
       const p = full[i];
@@ -316,16 +315,74 @@ export function vincolaAiMuri(progetto, m, x, y) {
       const a = vertici[i], b = vertici[i + 1];
       const dx = b.x - a.x, dy = b.y - a.y;
       const L = Math.hypot(dx, dy) || 1;
+      const ux = dx / L, uy = dy / L;                 // lungo il muro
       const sgn = p.latoInterno === 'interno' ? 1 : -1;
-      const nx = -dy / L * sgn, ny = dx / L * sgn;   // normale verso l'interno
-      const centerDist = (x - a.x) * nx + (y - a.y) * ny;
+      const nx = -dy / L * sgn, ny = dx / L * sgn;    // normale verso l'interno
+      const extU = Math.abs(hw * (c * ux + s * uy)) + Math.abs(hd * (-s * ux + c * uy));
       const extN = Math.abs(hw * (c * nx + s * ny)) + Math.abs(hd * (-s * nx + c * ny));
-      if (centerDist < extN) {
-        const spinta = extN - centerDist;
-        x += nx * spinta;
-        y += ny * spinta;
+      // (a) barriera: non attraversare il muro verso l'esterno
+      const distN = (x - a.x) * nx + (y - a.y) * ny;
+      if (distN < extN) { const sp = extN - distN; x += nx * sp; y += ny * sp; }
+      // (b) estremi: se il mobile è appoggiato a questo muro, resta tra 0 e L
+      const distN2 = (x - a.x) * nx + (y - a.y) * ny;
+      if (distN2 <= extN + 150) {
+        const tC = (x - a.x) * ux + (y - a.y) * uy;
+        const lo = extU, hi = L - extU;
+        const target = lo > hi ? L / 2 : Math.min(hi, Math.max(lo, tC));
+        const shift = target - tC;
+        x += ux * shift; y += uy * shift;
       }
     }
+  }
+  return { x, y };
+}
+
+// Estensione verticale occupata da un mobile (mm): [basso, alto].
+const MONT_PENSILE_MM = 1400;
+export function rangeVerticale(m) {
+  const cat = categoriaTipo(m.tipo);
+  if (cat === 'pensile') { const h = m.altezza_mm || 700; return [MONT_PENSILE_MM, MONT_PENSILE_MM + h]; }
+  const h = m.altezza_mm || (cat === 'colonna' ? 2200 : 700);
+  return [0, h];
+}
+function rangeSovrappone(a, b) { return a[0] < b[1] - 1 && b[0] < a[1] - 1; }
+function aabb(m, x, y) {
+  const d = dimMobile(m);
+  const rad = ((m.rot || 0) * Math.PI) / 180;
+  const c = Math.abs(Math.cos(rad)), s = Math.abs(Math.sin(rad));
+  return { hx: (d.w / 2) * c + (d.d / 2) * s, hy: (d.w / 2) * s + (d.d / 2) * c };
+}
+
+/**
+ * Respinge un mobile dagli altri mobili che occupano la STESSA fascia di
+ * altezza, così non si sormontano (un pensile sopra una base è permesso).
+ * Spinge lungo l'asse di minore compenetrazione (bounding box in pianta).
+ */
+export function respingiDaMobili(progetto, m, x, y) {
+  const rv = rangeVerticale(m);
+  for (const o of (progetto.mobiliLiberi || [])) {
+    if (o.id === m.id) continue;
+    if (!rangeSovrappone(rv, rangeVerticale(o))) continue;
+    const A = aabb(m, x, y), B = aabb(o, o.x, o.y);
+    const dx = x - o.x, dy = y - o.y;
+    const ox = (A.hx + B.hx) - Math.abs(dx);
+    const oy = (A.hy + B.hy) - Math.abs(dy);
+    if (ox > 0 && oy > 0) {
+      if (ox <= oy) x += (dx >= 0 ? 1 : -1) * ox;
+      else y += (dy >= 0 ? 1 : -1) * oy;
+    }
+  }
+  return { x, y };
+}
+
+/**
+ * Posizione finale vincolata: alterna respinta dagli altri mobili e blocco
+ * ai muri, così si assesta rispettando tutto.
+ */
+export function posizionaVincolata(progetto, m, x, y) {
+  for (let pass = 0; pass < 6; pass++) {
+    ({ x, y } = respingiDaMobili(progetto, m, x, y));
+    ({ x, y } = vincolaAiMuri(progetto, m, x, y));
   }
   return { x, y };
 }

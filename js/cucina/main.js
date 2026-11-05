@@ -18,7 +18,7 @@ import {
   ruotaPianta, specchiaPianta, inverteAngolo,
   toggleParete, muroTolto, snap, liberoPareti,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero,
-  vincolaAiMuri,
+  vincolaAiMuri, posizionaVincolata,
 } from './modello.js';
 import { renderPianta } from './pianta.js';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js';
@@ -753,7 +753,7 @@ function confermaScelta() {
 function riblocca(id) {
   const m = trovaMobileLibero(progetto, id);
   if (!m) return;
-  const v = vincolaAiMuri(progetto, m, m.x, m.y);
+  const v = posizionaVincolata(progetto, m, m.x, m.y);
   m.x = snap(v.x); m.y = snap(v.y);
 }
 function chiudiModale() { modale.hidden = true; }
@@ -798,7 +798,7 @@ svg.addEventListener('pointermove', (e) => {
   if (!m) return;
   const p = puntoMm(e);
   // Posizione richiesta dal dito, poi bloccata dentro i muri, poi agganciata
-  const v = vincolaAiMuri(progetto, m, p.x + trascinamento.dx, p.y + trascinamento.dy);
+  const v = posizionaVincolata(progetto, m, p.x + trascinamento.dx, p.y + trascinamento.dy);
   const nx = snap(v.x), ny = snap(v.y);
   if (nx !== m.x || ny !== m.y) {
     m.x = nx; m.y = ny;
