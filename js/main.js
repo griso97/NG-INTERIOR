@@ -106,8 +106,26 @@ function flash(msg, errore = false) {
   setTimeout(() => mostraAvvisi(), 2500);
 }
 
-// Toggle apri porte
-btnToggleAnte.addEventListener('change', (e) => impostaApertura(e.target.checked));
+// Toggle apri porte — switch in header + bottone fisso in basso (mobile).
+// I due controlli sono sincronizzati tra loro.
+const btnFabApri = document.getElementById('toggle-ante-mobile');
+function aggiornaFab(aperte) {
+  if (!btnFabApri) return;
+  btnFabApri.classList.toggle('on', aperte);
+  btnFabApri.textContent = aperte ? 'Chiudi porte' : 'Apri porte';
+}
+btnToggleAnte.addEventListener('change', (e) => {
+  impostaApertura(e.target.checked);
+  aggiornaFab(e.target.checked);
+});
+if (btnFabApri) {
+  btnFabApri.addEventListener('click', () => {
+    const nuovo = !btnToggleAnte.checked;
+    btnToggleAnte.checked = nuovo;
+    impostaApertura(nuovo);
+    aggiornaFab(nuovo);
+  });
+}
 
 // Montaggio iniziale
 renderPannello(pannello, config, onChange);

@@ -442,10 +442,14 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
         profScatola = Pscatola - M;
         zScatolaFronte = sS + Pcas; // fronte della scatola allineato con i binari
       } else {
+        // BATTENTE: la cassettiera resta INTERNA al mobile (dietro le ante).
+        // Il fronte della scatola è arretrato di sC + 3mm rispetto al retro
+        // delle ante, così il fronte cassetto (spessore sC) sta dietro
+        // l'anta e si vede solo quando si aprono le porte.
         const Pc = config.profonditaEsterna - config.spessoreAnte - sS;
         larTF = W - 2 * sC - 80;
         profScatola = Pc - 80 - sC;
-        zScatolaFronte = sS + Pc; // fronte della scatola allineato col fronte carcassa
+        zScatolaFronte = config.profonditaEsterna - config.spessoreAnte - sC - 3;
       }
       const altFianchi = AltMax - 4 * sC;
       const As = AltMax - 2 * sC;
