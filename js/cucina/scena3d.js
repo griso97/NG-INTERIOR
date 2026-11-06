@@ -36,6 +36,7 @@ const H_MICRO = 380;
 let scene, camera, renderer, controls, gruppo, canvasEl;
 let animazioneAttiva = false;
 let selId = null;             // mobile evidenziato (selezionato nel 3D)
+let ultimoProgetto = null;    // ultimo progetto reso (per ricostruire al caricamento texture)
 const texCache = {};
 
 /** Evidenzia un gruppo: bordi bianchi + leggero bagliore sul corpo. */
@@ -77,46 +78,54 @@ function aggiungiAccessorioTop(a) {
     comandi.position.set(0, 13, pd / 2 - 35); g.add(comandi);
   }
   if (a.lavello) {
-    const matInox = new THREE.MeshStandardMaterial({ color: 0xc2c2c8, roughness: 0.22, metalness: 0.8 });
-    const vw = Math.min(a.w * 0.55, 480), vd = Math.min(a.d * 0.5, 380);
-    const prof = 170, t = 16, zc = -a.d * 0.04;   // vasca un filo arretrata
-    // Bordo/cornice a filo top
-    const bordo = new THREE.Mesh(new THREE.BoxGeometry(vw + 50, 10, vd + 50), matInox);
-    bordo.position.set(0, 2, zc); g.add(bordo);
-    // Fondo della vasca (scende)
-    const fondo = new THREE.Mesh(new THREE.BoxGeometry(vw, t, vd), matInox);
-    fondo.position.set(0, -prof, zc); g.add(fondo);
-    // 4 pareti della vasca (scatola aperta sopra)
-    const paretiPos = [
-      [0, -prof / 2, zc - vd / 2, vw, prof, t],
-      [0, -prof / 2, zc + vd / 2, vw, prof, t],
-      [-vw / 2, -prof / 2, zc, t, prof, vd],
-      [vw / 2, -prof / 2, zc, t, prof, vd],
+    const matInox = new THREE.MeshStandardMaterial({ color: 0xcacace, roughness: 0.18, metalness: 0.9 });
+    const matInt = new THREE.MeshStandardMaterial({ color: 0x9a9a9e, roughness: 0.25, metalness: 0.85 });
+    const vw = Math.min(a.w * 0.56, 500), vd = Math.min(a.d * 0.52, 400);
+    const prof = 180, t = 14, zc = -a.d * 0.03;
+    const iw = vw - 2 * t, id = vd - 2 * t;        // apertura interna
+    // Cornice a filo del top (4 lati) → l'apertura centrale resta VUOTA (si vede la vasca)
+    const br = 28;                                   // larghezza cornice
+    const corniceGeo = [
+      [0, 0, zc - vd / 2 - br / 2, vw + 2 * br, br],
+      [0, 0, zc + vd / 2 + br / 2, vw + 2 * br, br],
+      [-vw / 2 - br / 2, 0, zc, br, vd],
+      [vw / 2 + br / 2, 0, zc, br, vd],
     ];
-    for (const [px, py, pz, sw, sh, sd] of paretiPos) {
-      const par = new THREE.Mesh(new THREE.BoxGeometry(sw, sh, sd), matInox);
-      par.position.set(px, py, pz); g.add(par);
+    for (const [px, , pz, sw, sd] of corniceGeo) {
+      const c2 = new THREE.Mesh(new THREE.BoxGeometry(sw, 12, sd), matInox);
+      c2.position.set(px, 2, pz); g.add(c2);
     }
-    // Scarico sul fondo
-    const scarico = new THREE.Mesh(new THREE.CylinderGeometry(26, 26, 14, 16),
-      new THREE.MeshStandardMaterial({ color: 0x555558, roughness: 0.4, metalness: 0.6 }));
+    // Pareti interne della vasca (scatola aperta sopra, scende sotto il top)
+    for (const [px, pz, sw, sd] of [
+      [0, zc - id / 2, iw, t], [0, zc + id / 2, iw, t],
+      [-iw / 2, zc, t, id], [iw / 2, zc, t, id],
+    ]) {
+      const par = new THREE.Mesh(new THREE.BoxGeometry(sw, prof, sd), matInt);
+      par.position.set(px, -prof / 2, pz); g.add(par);
+    }
+    const fondo = new THREE.Mesh(new THREE.BoxGeometry(iw, t, id), matInt);
+    fondo.position.set(0, -prof, zc); g.add(fondo);
+    const scarico = new THREE.Mesh(new THREE.CylinderGeometry(28, 28, 10, 20),
+      new THREE.MeshStandardMaterial({ color: 0x3a3a3e, roughness: 0.5, metalness: 0.6 }));
     scarico.position.set(0, -prof + 8, zc); g.add(scarico);
-    // Rubinetto a miscelatore: base + collo + canna a gooseneck
-    const matMet = new THREE.MeshStandardMaterial({ color: 0xdadade, roughness: 0.2, metalness: 0.85 });
-    const zr = -a.d * 0.34;
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(26, 30, 24, 16), matMet);
-    base.position.set(0, 12, zr); g.add(base);
-    const collo = new THREE.Mesh(new THREE.CylinderGeometry(13, 15, 230, 14), matMet);
-    collo.position.set(0, 130, zr); g.add(collo);
-    // Gooseneck: arco in avanti
-    const arco = new THREE.Mesh(new THREE.TorusGeometry(70, 13, 12, 24, Math.PI / 2), matMet);
-    arco.rotation.y = Math.PI / 2;
-    arco.position.set(0, 245, zr + 70); g.add(arco);
-    const canna = new THREE.Mesh(new THREE.CylinderGeometry(12, 12, 70, 12), matMet);
-    canna.position.set(0, 240, zr + 140); g.add(canna);
-    // Leva del miscelatore
-    const leva = new THREE.Mesh(new THREE.BoxGeometry(14, 14, 90), matMet);
-    leva.position.set(26, 44, zr); g.add(leva);
+    // Rubinetto a miscelatore: base + colonna + canna orizzontale (collegati)
+    const matMet = new THREE.MeshStandardMaterial({ color: 0xdedee2, roughness: 0.15, metalness: 0.95 });
+    const zr = -a.d * 0.34, hTop = 300;
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(28, 34, 26, 20), matMet);
+    base.position.set(0, 13, zr); g.add(base);
+    const colonna = new THREE.Mesh(new THREE.CylinderGeometry(14, 16, hTop, 16), matMet);
+    colonna.position.set(0, 13 + hTop / 2, zr); g.add(colonna);
+    // Raccordo in cima (sfera) + canna che va in avanti e scende
+    const nodo = new THREE.Mesh(new THREE.SphereGeometry(16, 16, 16), matMet);
+    nodo.position.set(0, 13 + hTop, zr); g.add(nodo);
+    const canna = new THREE.Mesh(new THREE.CylinderGeometry(13, 13, 190, 16), matMet);
+    canna.rotation.x = Math.PI / 2;
+    canna.position.set(0, 13 + hTop, zr + 95); g.add(canna);
+    const beccuccio = new THREE.Mesh(new THREE.CylinderGeometry(13, 11, 55, 16), matMet);
+    beccuccio.position.set(0, 13 + hTop - 27, zr + 185); g.add(beccuccio);
+    const leva = new THREE.Mesh(new THREE.CapsuleGeometry(8, 70, 4, 8), matMet);
+    leva.rotation.z = Math.PI / 2;
+    leva.position.set(44, 52, zr); g.add(leva);
   }
   gruppo.add(g);
 }
@@ -131,28 +140,56 @@ const COL = {
   costado: 0x9a8248,
   top:     0x232323,
   muro:    0x3a362c,
-  pav:     0x121212,
+  pav:     0xd7d0c4,
   oro:     0xc9a94a,
 };
 const matOro = new THREE.LineBasicMaterial({ color: COL.oro });
 const matManiglia = new THREE.MeshStandardMaterial({ color: 0xcfcfcf, roughness: 0.35, metalness: 0.6 });
 
+// Ambiente IBL: gradiente (soffitto chiaro → pavimento scuro) per riflessi soft.
+function creaAmbiente(rnd) {
+  const c = document.createElement('canvas'); c.width = 16; c.height = 64;
+  const x = c.getContext('2d');
+  const grd = x.createLinearGradient(0, 0, 0, 64);
+  grd.addColorStop(0.0, '#eae4d6');
+  grd.addColorStop(0.45, '#b7b0a0');
+  grd.addColorStop(0.55, '#5a564c');
+  grd.addColorStop(1.0, '#1a1a1a');
+  x.fillStyle = grd; x.fillRect(0, 0, 16, 64);
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  const pmrem = new THREE.PMREMGenerator(rnd);
+  const env = pmrem.fromEquirectangular(tex).texture;
+  tex.dispose(); pmrem.dispose();
+  return env;
+}
+
 // ---------------------------------------------------------------------------
 export function montaScena3d(canvas, progetto) {
   canvasEl = canvas;
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0a0a);
+  scene.background = new THREE.Color(0xe9e6df);
   const w = canvas.clientWidth || 800, h = canvas.clientHeight || 600;
   camera = new THREE.PerspectiveCamera(50, w / h, 10, 60000);
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(w, h, false);
+  // Resa più realistica: tone mapping cinematografico + colori sRGB
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.5;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x20200f, 0.8));
-  const key = new THREE.DirectionalLight(0xfff0d0, 1.0);
+  // Illuminazione d'ambiente (image-based) per riflessi e materiali reali
+  scene.environment = creaAmbiente(renderer);
+
+  scene.add(new THREE.HemisphereLight(0xfff4e0, 0x403828, 1.6));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+  const key = new THREE.DirectionalLight(0xfff0d8, 2.2);
   key.position.set(3000, 6000, 4000); scene.add(key);
-  const fill = new THREE.DirectionalLight(0xdfe6ff, 0.35);
+  const fill = new THREE.DirectionalLight(0xdfe6ff, 0.9);
   fill.position.set(-4000, 3000, -2000); scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xffffff, 0.6);
+  rim.position.set(0, 2000, -5000); scene.add(rim);
 
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
@@ -215,13 +252,16 @@ function corpo(w, h, d, colore) {
 
 /** Pannello (anta/cassetto) sporgente sul fronte locale (+Z). */
 function pannello(g, px, py, z, pw, ph, mat) {
-  const geo = new THREE.BoxGeometry(pw, ph, 20);
-  const material = (mat && mat.isMaterial) ? mat
-    : new THREE.MeshStandardMaterial({ color: mat || COL.anta, roughness: 0.6, metalness: 0.08 });
-  const mesh = new THREE.Mesh(geo, material);
+  // Anta: uso direttamente il materiale (legno con texture o tinta piena),
+  // così la venatura compare su tutte le facce dell'anta.
+  const materiale = (mat && mat.isMaterial)
+    ? mat
+    : new THREE.MeshStandardMaterial({ color: (mat || COL.anta), roughness: 0.6, metalness: 0.08 });
+  const box = new THREE.BoxGeometry(pw, ph, 20);
+  const mesh = new THREE.Mesh(box, materiale);
   mesh.position.set(px, py, z + 10);
   g.add(mesh);
-  const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), matOro);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(box), matOro);
   e.position.copy(mesh.position);
   g.add(e);
 }
@@ -403,7 +443,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   const pav = new THREE.Mesh(new THREE.PlaneGeometry(padW, padD),
     new THREE.MeshStandardMaterial({ color: COL.pav, roughness: 0.95 }));
   pav.rotation.x = -Math.PI / 2; pav.position.set(cxF, 0, czF); gruppo.add(pav);
-  const grid = new THREE.GridHelper(Math.max(padW, padD), Math.round(Math.max(padW, padD) / 500), 0x2a2416, 0x1a1810);
+  const grid = new THREE.GridHelper(Math.max(padW, padD), Math.round(Math.max(padW, padD) / 500), 0xbdb5a6, 0xc7c0b2);
   grid.position.set(cxF, 1, czF); gruppo.add(grid);
 
   // Muri di riferimento
@@ -425,7 +465,8 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
 
   // Materiale delle ante per gruppo (bassi / pensili / colonne). null = colore di default.
   const col = progetto.coloriFronti || {};
-  const reRender = () => { if (renderer) renderer.render(scene, camera); };
+  ultimoProgetto = progetto;
+  const reRender = () => { if (ultimoProgetto) aggiornaScena3d(ultimoProgetto, false, selId); };
   const matBase = col.base ? getMaterialeTHREE(col.base, reRender) : null;
   const matPensile = col.pensile ? getMaterialeTHREE(col.pensile, reRender) : null;
   const matColonna = col.colonna ? getMaterialeTHREE(col.colonna, reRender) : null;
