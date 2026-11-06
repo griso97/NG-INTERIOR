@@ -304,6 +304,9 @@ export function aggiornaScena3d(progetto, reframe = false) {
     gruppo.add(muro);
   });
 
+  // Raccolgo le basi per disegnare un unico piano di lavoro continuo
+  const basiTop = [];
+
   // Moduli agganciati ai muri + fasce
   full.forEach((p, i) => {
     if (p.assente) return;
@@ -320,6 +323,7 @@ export function aggiornaScena3d(progetto, reframe = false) {
       const porta = 700;               // porta/anta
       const zocc = zoccoloPerAltezza(porta);
       aggiungiZoccolo(px, -py, mm.larghezza_mm, PROFONDITA_BASE, zocc, p.angolo_gradi);
+      basiTop.push({ x: px, y: py, rot: p.angolo_gradi, w: mm.larghezza_mm, topY: zocc + porta });
       if (mm.categoria === 'fascia') {
         const box = corpo(mm.larghezza_mm, porta, PROFONDITA_BASE, COL.regletta);
         gruppo.add(collocaMobile(box, px, zocc, -py, porta, p.angolo_gradi));
@@ -327,8 +331,6 @@ export function aggiornaScena3d(progetto, reframe = false) {
       }
       const g = costruisciMobile('base', mm.tipo, { ...mm, altezza_mm: porta }, mm.larghezza_mm, porta, PROFONDITA_BASE);
       gruppo.add(collocaMobile(g, px, zocc, -py, porta, p.angolo_gradi));
-      gruppo.add(collocaMobile(corpo(mm.larghezza_mm + 20, SP_TOP, PROFONDITA_BASE + 40, COL.top),
-        px, zocc + porta, -py, SP_TOP, p.angolo_gradi));
     }
   });
 
@@ -370,17 +372,56 @@ export function aggiornaScena3d(progetto, reframe = false) {
       const base = h >= 1500 ? Math.max(0, QUOTA_RIF - h) : 0;
       gruppo.add(collocaMobile(corpo(dim.w, h, dim.d, COL.costado), cx, base, cz, h, m.rot));
     } else {
-      // base / lavello / forno: porta = altezza scelta, zoccolo 150/100, piano sopra
+      // base / lavello / forno: porta = altezza scelta, zoccolo 150/100.
+      // Il piano di lavoro NON si disegna qui: è un pezzo unico continuo (dopo).
       const porta = m.altezza_mm || 700;
       const zocc = zoccoloPerAltezza(porta);
       aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
       gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d), cx, zocc, cz, porta, m.rot));
-      gruppo.add(collocaMobile(corpo(dim.w + 20, SP_TOP, dim.d + 40, COL.top), cx, zocc + porta, cz, SP_TOP, m.rot));
+      basiTop.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, topY: zocc + porta });
     }
   }
 
+  // Piano di lavoro continuo (un pezzo unico per ogni fila di basi)
+  renderTopContinui(basiTop);
+
   if (reframe) inquadra(bb);
   if (renderer) renderer.render(scene, camera);
+}
+
+/**
+ * Disegna un piano di lavoro CONTINUO: raggruppa le basi che stanno sulla
+ * stessa fila (stesso orientamento, stessa linea e stessa quota) e ne copre
+ * l'intera lunghezza con un unico pezzo, invece di un pezzo per modulo.
+ */
+function renderTopContinui(basi) {
+  const gruppi = {};
+  for (const b of basi) {
+    const rotN = ((Math.round((b.rot || 0) / 90) * 90) % 360 + 360) % 360;
+    const rad = rotN * Math.PI / 180;
+    const c = Math.cos(rad), s = Math.sin(rad);
+    const perp = Math.round((b.x * (-s) + b.y * c) / 5) * 5;   // linea della fila
+    const key = `${rotN}|${perp}|${Math.round(b.topY)}`;
+    (gruppi[key] ||= { rotN, c, s, topY: b.topY, items: [] }).items.push(b);
+  }
+  for (const key in gruppi) {
+    const G = gruppi[key];
+    const { c, s, rotN, topY } = G;
+    let lo = Infinity, hi = -Infinity, perpSum = 0;
+    for (const b of G.items) {
+      const along = b.x * c + b.y * s;
+      lo = Math.min(lo, along - b.w / 2);
+      hi = Math.max(hi, along + b.w / 2);
+      perpSum += b.x * (-s) + b.y * c;
+    }
+    const perp = perpSum / G.items.length;
+    const centerAlong = (lo + hi) / 2;
+    const len = (hi - lo) + 40;                 // piccola sporgenza ai lati
+    const cx = c * centerAlong + (-s) * perp;
+    const cy = s * centerAlong + c * perp;
+    const slab = corpo(len, SP_TOP, PROFONDITA_BASE + 40, COL.top);
+    gruppo.add(collocaMobile(slab, cx, topY, -cy, SP_TOP, rotN));
+  }
 }
 
 function bbox(progetto, vertici) {
