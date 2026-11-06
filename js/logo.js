@@ -45,10 +45,11 @@ export function isMobile() {
 }
 
 /**
- * Lato massimo (px) dell'immagine esportata, prudente su mobile per non far
- * crashare il contesto WebGL (perdita di contesto = flash + immagine vuota).
+ * Lato massimo (px) dell'immagine esportata: Full HD su telefono (buona
+ * qualità, leggero, compatibile con tutti i dispositivi), un filo più alto
+ * su computer. Niente risoluzioni estreme (evita crash/pesantezza).
  */
-export function latoMaxExport() { return isMobile() ? 2000 : 3600; }
+export function latoMaxExport() { return isMobile() ? 1920 : 2560; }
 
 /** data:URL → Blob (sincrono, così resta dentro il gesto dell'utente). */
 function dataURLtoBlob(dataURL) {
