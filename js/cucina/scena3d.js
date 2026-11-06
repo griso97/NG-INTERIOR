@@ -98,6 +98,25 @@ export function forzaResize3d() {
   renderer.setSize(w, h, false);
 }
 
+const rayPick = new THREE.Raycaster();
+/** Dato un punto schermo, ritorna l'id del mobile cliccato (o null). */
+export function pickMobile(clientX, clientY) {
+  if (!renderer || !camera || !gruppo) return null;
+  const rect = canvasEl.getBoundingClientRect();
+  const mouse = new THREE.Vector2(
+    ((clientX - rect.left) / rect.width) * 2 - 1,
+    -((clientY - rect.top) / rect.height) * 2 + 1,
+  );
+  rayPick.setFromCamera(mouse, camera);
+  const hits = rayPick.intersectObjects(gruppo.children, true);
+  for (const hit of hits) {
+    let o = hit.object;
+    while (o && o.userData.mobId === undefined) o = o.parent;
+    if (o && o.userData.mobId !== undefined) return o.userData.mobId;
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Primitive
 function corpo(w, h, d, colore) {
@@ -195,13 +214,20 @@ function cassetti(g, w, h, d, n) {
     maniglia(g, 0, py + ph / 2 - Math.min(28, ph * 0.3), z, true, Math.min(uw * 0.5, 320));
   }
 }
-function pianoCottura(g, w, h, d) {
-  const z = d / 2, yTop = h / 2;
+// Numero di fuochi in base alla larghezza del mobile: piccolo → 2, grande → 4.
+function fuochiPerLarghezza(w) { return w < 600 ? 2 : 4; }
+
+function pianoCottura(g, w, h, d, fuochi = 4) {
+  const yTop = h / 2;
   const slab = new THREE.Mesh(new THREE.BoxGeometry(w - 20, 20, d - 20),
     new THREE.MeshStandardMaterial({ color: 0x16161a, roughness: 0.4, metalness: 0.2 }));
   slab.position.set(0, yTop + 10, 0); g.add(slab);
-  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(Math.min(w, d) * 0.14, 8, 8, 24),
+  const pos = fuochi === 2
+    ? [[-1, 0], [1, 0]]
+    : [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+  const r = Math.min(w, d) * (fuochi === 2 ? 0.16 : 0.14);
+  for (const [sx, sz] of pos) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 8, 8, 24),
       new THREE.MeshStandardMaterial({ color: 0x33333a, metalness: 0.4, roughness: 0.5 }));
     ring.rotation.x = Math.PI / 2;
     ring.position.set(sx * w * 0.22, yTop + 22, sz * d * 0.18); g.add(ring);
@@ -252,7 +278,7 @@ function costruisciMobile(cat, tipo, m, w, h, d) {
   if (cat === 'colonna') { colonnaFronte(g, w, h, d, m); return g; }
   if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3)); return g; }
   if (tipo === 'lavello') { ante(g, w, h, d, w >= 900 ? 2 : 1); lavelloTop(g, w, h, d); return g; }
-  if (tipo === 'forno') { pannelloElettro(g, -h * 0.05, d / 2, w - 24, h * 0.7, 'forno'); pianoCottura(g, w, h, d); return g; }
+  if (tipo === 'forno') { pannelloElettro(g, -h * 0.05, d / 2, w - 24, h * 0.7, 'forno'); pianoCottura(g, w, h, d, fuochiPerLarghezza(w)); return g; }
   // base con ante / pensile
   ante(g, w, h, d, w >= 900 ? 2 : 1);
   return g;
@@ -345,41 +371,42 @@ export function aggiornaScena3d(progetto, reframe = false) {
     const cat = categoriaTipo(m.tipo);
     const dim = dimMobile(m);
     const cx = m.x, cz = -m.y;
+    let g3d = null;
     if (cat === 'pensile') {
       const h = m.altezza_mm || 700;
       // Se ci sono colonne, la CIMA del pensile va alla cima delle colonne;
       // altrimenti resta appeso all'altezza standard (140 cm da terra).
       const base = topLine != null ? (topLine - h) : MONTAGGIO_PENSILE;
-      gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, base, cz, h, m.rot));
+      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, base, cz, h, m.rot);
     } else if (cat === 'colonna') {
       // L'altezza della colonna (es. 2200) è la CASSA; il totale è cassa +
       // zoccolo. Così un costado da 2350 (= 2200 + 15 di piedini) combacia.
       const h = m.altezza_mm || 2200;
       const zocc = zoccoloPerAltezza(m.altezzaBassa_mm || 700);
       aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
-      gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, zocc, cz, h, m.rot));
+      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, zocc, cz, h, m.rot);
     } else if (cat === 'regletta') {
-      // La regletta è alta come la porta e poggia sullo zoccolo: stessa quota
       const h = m.altezza_mm || 700;
       const zocc = zoccoloPerAltezza(h);
       aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
-      gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, zocc, cz, h, m.rot));
+      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, zocc, cz, h, m.rot);
     } else if (cat === 'costado') {
-      // Fianco di finitura. La misura parte dall'ALTO: i costadi alti si
-      // allineano alla cima delle colonne; se sono più corti, il vuoto resta
-      // SOTTO (lo zoccolo ci passa sotto). I costadi bassi (base) restano a terra.
       const h = m.altezza_mm || 850;
       const base = h >= 1500 ? Math.max(0, QUOTA_RIF - h) : 0;
-      gruppo.add(collocaMobile(corpo(dim.w, h, dim.d, COL.costado), cx, base, cz, h, m.rot));
+      g3d = collocaMobile(corpo(dim.w, h, dim.d, COL.costado), cx, base, cz, h, m.rot);
     } else {
       // base / lavello / forno: porta = altezza scelta, zoccolo 150/100.
       // Il piano di lavoro NON si disegna qui: è un pezzo unico continuo (dopo).
       const porta = m.altezza_mm || 700;
       const zocc = zoccoloPerAltezza(porta);
       aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
-      gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d), cx, zocc, cz, porta, m.rot));
+      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d), cx, zocc, cz, porta, m.rot);
+      // Placca / lavello aggiunti a mano (oltre ai tipi lavello/forno)
+      if (m.placca && m.tipo !== 'forno') pianoCottura(g3d, dim.w, porta, dim.d, fuochiPerLarghezza(dim.w));
+      if (m.lavello && m.tipo !== 'lavello') lavelloTop(g3d, dim.w, porta, dim.d);
       basiTop.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, topY: zocc + porta });
     }
+    if (g3d) { g3d.userData.mobId = m.id; gruppo.add(g3d); }
   }
 
   // Piano di lavoro continuo (un pezzo unico per ogni fila di basi)

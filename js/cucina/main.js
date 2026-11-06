@@ -620,30 +620,79 @@ const legenda3d = document.querySelector('.vista-strumenti .legenda');
 let scena3dMod = null;      // modulo importato dinamicamente
 let scena3dMontata = false;
 
+// Click nel 3D: seleziona il mobile toccato (per vederlo/modificarlo)
+canvas3d.addEventListener('click', (e) => {
+  if (progetto.stepCorrente !== 4 || !scena3dMod || !scena3dMod.pickMobile) return;
+  const id = scena3dMod.pickMobile(e.clientX, e.clientY);
+  if (id === step2.mobSelId) return;
+  step2.mobSelId = id;
+  renderPannello();
+  renderRiepilogo();
+});
+
 function renderPannelloStep3d() {
-  const n = (progetto.mobiliLiberi || []).length;
+  const sel = trovaMobileLibero(progetto, step2.mobSelId);
+  if (sel) return renderPannelloModificaMobile(sel);
   pannello.innerHTML = `
     <section class="step3-pannello">
       <h3>Vista 3D</h3>
       <div class="riga-3d">
+        <strong>Tocca un mobile</strong> per vedere cos'è e modificarlo
+        (aggiungere lavello o piano cottura).<br><br>
         Trascina per <strong>ruotare</strong>, due dita o rotella per lo
         <strong>zoom</strong>, due dita/tasto destro per <strong>spostare</strong>.
-      </div>
-    </section>
-    <section class="step3-pannello">
-      <h3>Legenda altezze</h3>
-      <div class="riga-3d">
-        • Basi: porta 70 → zoccolo 15 cm · porta 80 → zoccolo 10 cm (+ piano 4 cm)<br>
-        • Reglette: alte come la porta (70/80), allineate ai mobili<br>
-        • Pensili: appesi a 140 cm da terra<br>
-        • Colonne: a tutta altezza (2200/2300)
       </div>
     </section>
     <section class="actions">
       <button id="s3-indietro" class="btn-ghost" type="button" style="flex:1">← Moduli alti</button>
     </section>`;
-  const b = document.getElementById('s3-indietro');
-  if (b) b.addEventListener('click', () => { progetto.stepCorrente = 3; aggiorna(); });
+  document.getElementById('s3-indietro')?.addEventListener('click', () => { progetto.stepCorrente = 3; aggiorna(); });
+}
+
+function renderPannelloModificaMobile(m) {
+  const cat = categoriaTipo(m.tipo);
+  const isBase = cat === 'base';
+  const puoAgg = m.tipo === 'base-ante' || m.tipo === 'base-cassetti';
+  const fuochi = (m.larghezza_mm || 600) < 600 ? 2 : 4;
+  const sinkCm = Math.max(30, Math.round(((m.larghezza_mm || 600) - 100) / 10));
+  pannello.innerHTML = `
+    <section class="step3-pannello">
+      <h3>Modulo selezionato</h3>
+      <div class="mod-row ${m.tipo}"><span>${nomeTipo(m.tipo)} · <strong>${descrizioneMobile(m)}</strong></span></div>
+    </section>
+    ${puoAgg ? `
+    <section class="step3-pannello">
+      <h3>Aggiungi al modulo</h3>
+      <div class="mob-azioni-grid">
+        <button id="tog-placca" class="btn-ghost ${m.placca ? 'attivo' : ''}" type="button">
+          ${m.placca ? '✓ ' : ''}Piano cottura (${fuochi} fuochi)
+        </button>
+        <button id="tog-lavello" class="btn-ghost ${m.lavello ? 'attivo' : ''}" type="button">
+          ${m.lavello ? '✓ ' : ''}Lavello (${sinkCm} cm)
+        </button>
+      </div>
+      <div class="riga-3d" style="margin-top:6px">La dimensione di piano cottura e lavello si adatta alla larghezza del modulo.</div>
+    </section>` : `
+    <section class="step3-pannello"><div class="riga-3d">${
+      m.tipo === 'forno' ? 'Modulo con forno e piano cottura.' :
+      m.tipo === 'lavello' ? 'Modulo con lavello.' :
+      'Per aggiungere lavello o piano cottura seleziona una base con ante o cassetti.'}</div></section>`}
+    <section class="actions">
+      <button id="mob-misura" class="btn-ghost" type="button" style="flex:1">Cambia misura</button>
+      <button id="mob-deseleziona" class="btn-ghost" type="button">Chiudi</button>
+    </section>
+    <section class="actions">
+      <button id="s3-indietro" class="btn-ghost" type="button" style="flex:1">← Moduli alti</button>
+    </section>`;
+  document.getElementById('tog-placca')?.addEventListener('click', () => {
+    registraStoria(); m.placca = !m.placca; if (m.placca) m.lavello = false; aggiorna();
+  });
+  document.getElementById('tog-lavello')?.addEventListener('click', () => {
+    registraStoria(); m.lavello = !m.lavello; if (m.lavello) m.placca = false; aggiorna();
+  });
+  document.getElementById('mob-misura')?.addEventListener('click', () => apriScelta(m.tipo, m.id));
+  document.getElementById('mob-deseleziona')?.addEventListener('click', () => { step2.mobSelId = null; aggiorna(); });
+  document.getElementById('s3-indietro')?.addEventListener('click', () => { step2.mobSelId = null; progetto.stepCorrente = 3; aggiorna(); });
 }
 
 function renderRiepilogoStep3d() {
@@ -674,7 +723,7 @@ async function aggiornaVista() {
   try {
     if (!scena3dMod) scena3dMod = await import('./scena3d.js');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
-    else { scena3dMod.aggiornaScena3d(progetto, true); }
+    else { scena3dMod.aggiornaScena3d(progetto, false); } // niente reframe: tiene la vista dove sei
     // Dopo lo "unhide" il canvas ha la dimensione giusta solo al frame dopo
     requestAnimationFrame(() => scena3dMod.forzaResize3d());
   } catch (e) {

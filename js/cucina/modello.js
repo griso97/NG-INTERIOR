@@ -147,10 +147,11 @@ export function descrizioneMobile(m) {
   if (cat === 'colonna') {
     return `${m.larghezza_mm}×${m.altezza_mm} · ${nomeVarianteColonna(m.variante)}`;
   }
+  const extra = (m.placca ? ' · piano cottura' : '') + (m.lavello ? ' · lavello' : '');
   if (m.tipo === 'base-cassetti') {
-    return `${m.larghezza_mm}×${m.altezza_mm} · ${m.cassetti || 3} cassetti`;
+    return `${m.larghezza_mm}×${m.altezza_mm} · ${m.cassetti || 3} cassetti${extra}`;
   }
-  return m.altezza_mm ? `${m.larghezza_mm}×${m.altezza_mm}` : `${m.larghezza_mm}`;
+  return (m.altezza_mm ? `${m.larghezza_mm}×${m.altezza_mm}` : `${m.larghezza_mm}`) + extra;
 }
 
 /**

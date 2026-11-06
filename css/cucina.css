@@ -525,3 +525,10 @@
   background: linear-gradient(180deg, var(--oro-scuro), #3a2d10);
   color: #fff; border-color: var(--oro-chiaro);
 }
+
+/* ===== 3D: modulo selezionato e toggle attivi ===== */
+#cucina-3d { cursor: pointer; }
+.btn-ghost.attivo {
+  background: linear-gradient(180deg, var(--oro-scuro), #3a2d10);
+  color: #fff; border-color: var(--oro-chiaro);
+}
