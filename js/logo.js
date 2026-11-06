@@ -37,6 +37,19 @@ export function componiConLogo(sorgente) {
   return c;
 }
 
+/** Vero se siamo su un telefono/tablet (euristica user-agent). */
+export function isMobile() {
+  const ua = navigator.userAgent || '';
+  return /Mobi|Android|iPhone|iPad|iPod/i.test(ua)
+    || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(ua)); // iPad in modalità desktop
+}
+
+/**
+ * Lato massimo (px) dell'immagine esportata, prudente su mobile per non far
+ * crashare il contesto WebGL (perdita di contesto = flash + immagine vuota).
+ */
+export function latoMaxExport() { return isMobile() ? 2000 : 3600; }
+
 /** data:URL → Blob (sincrono, così resta dentro il gesto dell'utente). */
 function dataURLtoBlob(dataURL) {
   const [head, b64] = dataURL.split(',');
@@ -61,28 +74,75 @@ export function salvaImmagineCanvas(canvas, nomeFile) {
   let blob;
   try { blob = dataURLtoBlob(dataURL); } catch (e) { blob = null; }
 
-  // 1) Condivisione nativa con file (ideale su mobile)
+  // 1) Condivisione nativa con file (ideale su mobile → "Salva su Foto").
   if (blob && navigator.canShare && navigator.share) {
     try {
       const file = new File([blob], nomeFile, { type: 'image/png' });
       if (navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file], title: 'NG Interior' }).catch(() => {});
+        navigator.share({ files: [file], title: 'NG Interior' })
+          .catch((err) => { if (!err || err.name !== 'AbortError') mostraOverlay(dataURL, nomeFile, blob); });
         return true;
       }
     } catch (e) { /* fallback sotto */ }
   }
 
-  // 2) Download classico (desktop e Android con download manager)
-  try {
-    const url = blob ? URL.createObjectURL(blob) : dataURL;
-    const a = document.createElement('a');
-    a.href = url; a.download = nomeFile; a.rel = 'noopener';
-    document.body.appendChild(a); a.click(); a.remove();
-    if (blob) setTimeout(() => URL.revokeObjectURL(url), 5000);
-    return true;
-  } catch (e) { /* ultimo fallback */ }
+  // 2) Desktop: download diretto del file.
+  if (!isMobile()) {
+    try {
+      const url = blob ? URL.createObjectURL(blob) : dataURL;
+      const a = document.createElement('a');
+      a.href = url; a.download = nomeFile; a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); a.remove();
+      if (blob) setTimeout(() => URL.revokeObjectURL(url), 5000);
+      return true;
+    } catch (e) { /* overlay sotto */ }
+  }
 
-  // 3) Apri in una nuova scheda: l'utente tiene premuto per salvare
-  try { window.open(blob ? URL.createObjectURL(blob) : dataURL, '_blank'); return true; }
-  catch (e) { return false; }
+  // 3) Fallback universale (mobile senza condivisione, o errori): mostro
+  //    l'immagine a schermo intero da tenere premuta per salvarla.
+  mostraOverlay(dataURL, nomeFile, blob);
+  return true;
+}
+
+/**
+ * Overlay a schermo intero con l'immagine generata: su telefono si tiene
+ * premuto per "Salva su Foto", su desktop c'è il pulsante Scarica.
+ */
+function mostraOverlay(dataURL, nomeFile, blob) {
+  const back = document.createElement('div');
+  back.setAttribute('role', 'dialog');
+  back.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.9);'
+    + 'display:flex;flex-direction:column;align-items:center;justify-content:center;'
+    + 'gap:14px;padding:18px;box-sizing:border-box;';
+  const hint = document.createElement('div');
+  hint.textContent = 'Tieni premuto l’immagine e scegli “Salva su Foto” (oppure usa Scarica).';
+  hint.style.cssText = 'color:#fff;font:500 15px/1.45 system-ui,-apple-system,sans-serif;'
+    + 'text-align:center;max-width:540px;';
+  const img = document.createElement('img');
+  img.src = dataURL;
+  img.alt = nomeFile;
+  img.style.cssText = 'max-width:92vw;max-height:64vh;object-fit:contain;border-radius:8px;'
+    + 'box-shadow:0 10px 40px rgba(0,0,0,.55);-webkit-touch-callout:default;';
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;justify-content:center;';
+  const dl = document.createElement('a');
+  dl.textContent = '⬇ Scarica';
+  dl.href = blob ? URL.createObjectURL(blob) : dataURL;
+  dl.download = nomeFile;
+  dl.style.cssText = 'background:#c9a94a;color:#1a1a1a;font:600 15px system-ui;'
+    + 'padding:12px 22px;border-radius:9px;text-decoration:none;';
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.textContent = 'Chiudi';
+  close.style.cssText = 'background:#333;color:#fff;font:600 15px system-ui;'
+    + 'padding:12px 22px;border-radius:9px;border:none;cursor:pointer;';
+  const chiudi = () => {
+    back.remove();
+    if (dl.href && dl.href.indexOf('blob:') === 0) setTimeout(() => URL.revokeObjectURL(dl.href), 3000);
+  };
+  close.addEventListener('click', chiudi);
+  back.addEventListener('click', (e) => { if (e.target === back) chiudi(); });
+  row.appendChild(dl); row.appendChild(close);
+  back.appendChild(hint); back.appendChild(img); back.appendChild(row);
+  document.body.appendChild(back);
 }

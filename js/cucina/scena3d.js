@@ -15,7 +15,7 @@ import {
   moduliDiParete, PROFONDITA_BASE,
 } from './modello.js';
 import { getMaterialeTHREE } from '../materiali.js';
-import { componiConLogo, salvaImmagineCanvas } from '../logo.js';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js';
 export { MATERIALI } from '../materiali.js';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -226,7 +226,7 @@ export function forzaResize3d() {
 }
 
 /** Salva l'immagine del rendering in ALTA QUALITÀ (PNG). */
-export function esportaImmagine3d(nomeFile = 'cucina.png', latoMax = 3600) {
+export function esportaImmagine3d(nomeFile = 'cucina.png', latoMax = latoMaxExport()) {
   if (!renderer || !scene || !camera || !canvasEl) return false;
   const cw = canvasEl.clientWidth || canvasEl.width;
   const ch = canvasEl.clientHeight || canvasEl.height;

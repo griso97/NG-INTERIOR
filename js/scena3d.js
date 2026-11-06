@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js';
 import { getMaterialeTHREE } from './materiali.js';
-import { componiConLogo, salvaImmagineCanvas } from './logo.js';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -206,7 +206,7 @@ export function forzaResize(canvas) { ridimensiona(canvas); }
  * risoluzione molto più alta del canvas a video, scarica il file, poi
  * ripristina la dimensione a video.
  */
-export function esportaImmagine(nomeFile = 'render.png', latoMax = 3600) {
+export function esportaImmagine(nomeFile = 'render.png', latoMax = latoMaxExport()) {
   if (!renderer || !scene || !camera) return false;
   const canvas = renderer.domElement;
   const cw = canvas.clientWidth || canvas.width;
