@@ -467,6 +467,7 @@ export function respingiDaMobili(progetto, m, x, y) {
  * nessun muro (allora si tiene la rotazione attuale, es. isola al centro).
  */
 export function orientaVersoMuro(progetto, m, x, y) {
+  if (m.isola) return null;                        // isola: orientamento manuale
   const full = progetto.piano.pareti || [];
   if (full.length === 0) return null;
   const vertici = calcolaVertici(full);
@@ -504,9 +505,17 @@ export function orientaVersoMuro(progetto, m, x, y) {
  * linea, lo fa scorrere lungo il muro quel tanto che basta per farli combaciare
  * ESATTAMENTE (zero spazio). Così accostando due mobili si attaccano perfetti.
  */
+/** Asse di "larghezza" di un mobile in base alla sua rotazione. */
+function asseMobile(m) {
+  const r = ((m.rot || 0) * Math.PI) / 180;
+  return [Math.cos(r), Math.sin(r)];
+}
+
 export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
   const rv = rangeVerticale(m);
-  const u = muroPiuVicino(progetto, x, y) || [1, 0];
+  // Vicino a un muro uso l'asse del muro; altrimenti (isola) l'asse del mobile,
+  // così i mobili affiancati si agganciano anche ruotati/al centro stanza.
+  const u = muroPiuVicino(progetto, x, y) || asseMobile(m);
   const [ux, uy] = u, vx = -uy, vy = ux;
   const A = aabb(m, x, y);
   const eUm = A.hx * Math.abs(ux) + A.hy * Math.abs(uy);
@@ -538,12 +547,15 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
  * mobili vicini, così si accostano combaciando senza lasciare spazio.
  */
 export function posizionaVincolata(progetto, m, x, y) {
+  // Isola/libero: niente vincolo ai muri (posizione libera), ma SEMPRE respinta
+  // dagli altri mobili e aggancio magnetico (si attaccano perfetti tra loro).
+  const libero = !!m.isola;
   for (let pass = 0; pass < 6; pass++) {
     ({ x, y } = respingiDaMobili(progetto, m, x, y));
-    ({ x, y } = vincolaAiMuri(progetto, m, x, y));
+    if (!libero) ({ x, y } = vincolaAiMuri(progetto, m, x, y));
   }
   ({ x, y } = aggancioMagnetico(progetto, m, x, y));
-  ({ x, y } = vincolaAiMuri(progetto, m, x, y));
+  if (!libero) ({ x, y } = vincolaAiMuri(progetto, m, x, y));
   return { x, y };
 }
 

@@ -555,6 +555,12 @@ function attaccaEventiStep2() {
       riblocca(mobSel.id);
       fatto();
     });
+    document.getElementById('mob-isola').addEventListener('click', () => {
+      registraStoria();
+      mobSel.isola = !mobSel.isola;
+      riblocca(mobSel.id);
+      fatto();
+    });
     document.getElementById('mob-misura').addEventListener('click', () => {
       apriScelta(mobSel.tipo, mobSel.id);
     });
@@ -891,10 +897,13 @@ function blocMobileSelezionato() {
       <div class="mod-row ${m.tipo}"><span>${nomeTipo(m.tipo)} · <strong>${descrizioneMobile(m)}</strong></span></div>
       <div class="mob-azioni-grid">
         <button id="mob-ruota" class="btn-ghost" type="button">⟳ Ruota 90°</button>
+        <button id="mob-isola" class="btn-ghost ${m.isola ? 'attivo' : ''}" type="button">${m.isola ? '✓ ' : ''}🏝 Isola (libero)</button>
         <button id="mob-misura" class="btn-ghost" type="button">Cambia misura</button>
         <button id="mob-elimina" class="btn-ghost" type="button">Elimina</button>
       </div>
-      <div class="mod-vuoto">Trascina il mobile sulla pianta per spostarlo (scatta ogni 50 mm).</div>
+      <div class="mod-vuoto">${m.isola
+        ? 'Isola: posizionalo dove vuoi e ruotalo a mano. Si attacca comunque agli altri mobili.'
+        : 'Trascina sulla pianta: vicino al muro si orienta da solo. Attiva “Isola” per metterlo libero al centro.'}</div>
     </section>`;
 }
 
