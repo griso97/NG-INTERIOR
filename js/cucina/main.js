@@ -656,6 +656,10 @@ function renderPannelloModificaMobile(m) {
   const puoAgg = m.tipo === 'base-ante' || m.tipo === 'base-cassetti';
   const fuochi = (m.larghezza_mm || 600) < 600 ? 2 : 4;
   const sinkCm = Math.max(30, Math.round(((m.larghezza_mm || 600) - 100) / 10));
+  const gruppoColore = cat === 'pensile' ? 'pensile' : cat === 'colonna' ? 'colonna' : isBase ? 'base' : null;
+  const nomeGruppo = { base: 'mobili bassi', pensile: 'pensili', colonna: 'colonne' }[gruppoColore];
+  const materiali = (scena3dMod && scena3dMod.MATERIALI) || [];
+  const colAttuale = (progetto.coloriFronti || {})[gruppoColore];
   pannello.innerHTML = `
     <section class="step3-pannello">
       <h3>Modulo selezionato</h3>
@@ -678,6 +682,15 @@ function renderPannelloModificaMobile(m) {
       m.tipo === 'forno' ? 'Modulo con forno e piano cottura.' :
       m.tipo === 'lavello' ? 'Modulo con lavello.' :
       'Per aggiungere lavello o piano cottura seleziona una base con ante o cassetti.'}</div></section>`}
+    ${gruppoColore ? `
+    <section class="step3-pannello">
+      <h3>Colore ante · ${nomeGruppo}</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Si applica a tutte le ante dei ${nomeGruppo}.</div>
+      <div class="palette-colori">
+        ${materiali.map((mt) => `<button type="button" class="swatch ${mt.id === colAttuale ? 'sel' : ''}"
+          data-mat="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`).join('')}
+      </div>
+    </section>` : ''}
     <section class="actions">
       <button id="mob-misura" class="btn-ghost" type="button" style="flex:1">Cambia misura</button>
       <button id="mob-deseleziona" class="btn-ghost" type="button">Chiudi</button>
@@ -685,6 +698,12 @@ function renderPannelloModificaMobile(m) {
     <section class="actions">
       <button id="s3-indietro" class="btn-ghost" type="button" style="flex:1">← Moduli alti</button>
     </section>`;
+  pannello.querySelectorAll('.swatch').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    if (!progetto.coloriFronti) progetto.coloriFronti = {};
+    progetto.coloriFronti[gruppoColore] = b.dataset.mat;
+    aggiorna();
+  }));
   document.getElementById('tog-placca')?.addEventListener('click', () => {
     registraStoria(); m.placca = !m.placca; if (m.placca) m.lavello = false; aggiorna();
   });

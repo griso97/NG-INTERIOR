@@ -31,6 +31,8 @@ export function progettoDefault() {
     mostraAlti: false,
     // Mobili liberi piazzati sulla pianta (x,y = centro in mm, rot in gradi)
     mobiliLiberi: [],
+    // Colore/materiale delle ante per gruppo (id materiale, null = default)
+    coloriFronti: { base: null, pensile: null, colonna: null },
   };
 }
 

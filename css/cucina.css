@@ -532,3 +532,12 @@
   background: linear-gradient(180deg, var(--oro-scuro), #3a2d10);
   color: #fff; border-color: var(--oro-chiaro);
 }
+
+/* ===== Palette colori ante (3D) ===== */
+.palette-colori { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
+.palette-colori .swatch {
+  aspect-ratio: 1; border: 2px solid var(--bordo); border-radius: 4px;
+  background-size: cover; background-position: center; cursor: pointer; padding: 0;
+}
+.palette-colori .swatch:hover { border-color: var(--oro); }
+.palette-colori .swatch.sel { border-color: var(--oro-chiaro); box-shadow: 0 0 0 2px var(--oro-chiaro); }

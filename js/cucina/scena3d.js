@@ -14,6 +14,8 @@ import {
   calcolaVertici, dimMobile, categoriaTipo,
   moduliDiParete, PROFONDITA_BASE,
 } from './modello.js';
+import { getMaterialeTHREE } from '../materiali.js';
+export { MATERIALI } from '../materiali.js';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -182,9 +184,11 @@ function corpo(w, h, d, colore) {
 }
 
 /** Pannello (anta/cassetto) sporgente sul fronte locale (+Z). */
-function pannello(g, px, py, z, pw, ph, colore) {
+function pannello(g, px, py, z, pw, ph, mat) {
   const geo = new THREE.BoxGeometry(pw, ph, 20);
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: colore, roughness: 0.6, metalness: 0.08 }));
+  const material = (mat && mat.isMaterial) ? mat
+    : new THREE.MeshStandardMaterial({ color: mat || COL.anta, roughness: 0.6, metalness: 0.08 });
+  const mesh = new THREE.Mesh(geo, material);
   mesh.position.set(px, py, z + 10);
   g.add(mesh);
   const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), matOro);
@@ -247,24 +251,24 @@ function pannelloElettro(g, py, z, pw, ph, tipo) {
 
 // ---------------------------------------------------------------------------
 // Fronti per categoria. Corpo centrato nell'origine: x[-w/2,w/2] y[-h/2,h/2] z[-d/2,d/2]
-function ante(g, w, h, d, n) {
+function ante(g, w, h, d, n, matAnta) {
   const mg = 14, gap = 16, z = d / 2;
   const uw = w - 2 * mg, ph = h - 2 * mg;
   const pw = (uw - (n - 1) * gap) / n;
   for (let i = 0; i < n; i++) {
     const px = -uw / 2 + pw / 2 + i * (pw + gap);
-    pannello(g, px, 0, z, pw, ph, COL.anta);
+    pannello(g, px, 0, z, pw, ph, matAnta || COL.anta);
     const hx = n === 1 ? px + pw / 2 - 35 : (i === 0 ? px + pw / 2 - 22 : px - pw / 2 + 22);
     maniglia(g, hx, 0, z, false, Math.min(260, ph * 0.5));
   }
 }
-function cassetti(g, w, h, d, n) {
+function cassetti(g, w, h, d, n, matAnta) {
   const mg = 14, gap = 14, z = d / 2;
   const uw = w - 2 * mg, uh = h - 2 * mg;
   const ph = (uh - (n - 1) * gap) / n;
   for (let i = 0; i < n; i++) {
     const py = -uh / 2 + ph / 2 + i * (ph + gap);
-    pannello(g, 0, py, z, uw, ph, COL.cassetto);
+    pannello(g, 0, py, z, uw, ph, matAnta || COL.cassetto);
     maniglia(g, 0, py + ph / 2 - Math.min(28, ph * 0.3), z, true, Math.min(uw * 0.5, 320));
   }
 }
@@ -296,14 +300,14 @@ function lavelloTop(g, w, h, d) {
     new THREE.MeshStandardMaterial({ color: 0xcfcfcf, roughness: 0.3, metalness: 0.6 }));
   rub.position.set(0, yTop + 90, -d * 0.28); g.add(rub);
 }
-function colonnaFronte(g, w, h, d, m) {
+function colonnaFronte(g, w, h, d, m, matAnta) {
   const z = d / 2;
   const pw = w - 24;
   const ab = m.altezzaBassa_mm || 700;
   const bottom = -h / 2;
   const porta = (yB, segH) => {
     const cyc = yB + segH / 2;
-    pannello(g, 0, cyc, z, pw, segH - 14, COL.anta);
+    pannello(g, 0, cyc, z, pw, segH - 14, matAnta || COL.anta);
     maniglia(g, pw / 2 - 30, cyc, z, false, Math.min(260, (segH - 14) * 0.4));
   };
   porta(bottom, ab);                 // porta bassa
@@ -323,18 +327,18 @@ function colonnaFronte(g, w, h, d, m) {
 }
 
 /** Costruisce il mobile completo centrato nell'origine (corpo + fronti). */
-function costruisciMobile(cat, tipo, m, w, h, d) {
+function costruisciMobile(cat, tipo, m, w, h, d, matAnta) {
   const g = new THREE.Group();
   const coloreCorpo = cat === 'pensile' ? COL.pensile : cat === 'colonna' ? COL.colonna
     : cat === 'regletta' ? COL.regletta : COL.corpo;
   g.add(corpo(w, h, d, coloreCorpo));
   if (cat === 'regletta') return g;
-  if (cat === 'colonna') { colonnaFronte(g, w, h, d, m); return g; }
-  if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3)); return g; }
-  if (tipo === 'lavello') { ante(g, w, h, d, w >= 900 ? 2 : 1); return g; } // lavello disegnato sopra il top
+  if (cat === 'colonna') { colonnaFronte(g, w, h, d, m, matAnta); return g; }
+  if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta); return g; }
+  if (tipo === 'lavello') { ante(g, w, h, d, w >= 900 ? 2 : 1, matAnta); return g; } // lavello disegnato sopra il top
   if (tipo === 'forno') { pannelloElettro(g, -h * 0.05, d / 2, w - 24, h * 0.7, 'forno'); return g; } // placca sopra il top
   // base con ante / pensile
-  ante(g, w, h, d, w >= 900 ? 2 : 1);
+  ante(g, w, h, d, w >= 900 ? 2 : 1, matAnta);
   return g;
 }
 
@@ -389,6 +393,13 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   const basiTop = [];
   const accessori = [];
 
+  // Materiale delle ante per gruppo (bassi / pensili / colonne). null = colore di default.
+  const col = progetto.coloriFronti || {};
+  const reRender = () => { if (renderer) renderer.render(scene, camera); };
+  const matBase = col.base ? getMaterialeTHREE(col.base, reRender) : null;
+  const matPensile = col.pensile ? getMaterialeTHREE(col.pensile, reRender) : null;
+  const matColonna = col.colonna ? getMaterialeTHREE(col.colonna, reRender) : null;
+
   // Moduli agganciati ai muri + fasce
   full.forEach((p, i) => {
     if (p.assente) return;
@@ -411,7 +422,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
         gruppo.add(collocaMobile(box, px, zocc, -py, porta, p.angolo_gradi));
         continue;
       }
-      const g = costruisciMobile('base', mm.tipo, { ...mm, altezza_mm: porta }, mm.larghezza_mm, porta, PROFONDITA_BASE);
+      const g = costruisciMobile('base', mm.tipo, { ...mm, altezza_mm: porta }, mm.larghezza_mm, porta, PROFONDITA_BASE, matBase);
       gruppo.add(collocaMobile(g, px, zocc, -py, porta, p.angolo_gradi));
       if (mm.tipo === 'forno' || mm.tipo === 'lavello') {
         accessori.push({ id: mm.id, x: px, y: py, rot: p.angolo_gradi, w: mm.larghezza_mm, d: PROFONDITA_BASE,
@@ -438,14 +449,14 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       // Se ci sono colonne, la CIMA del pensile va alla cima delle colonne;
       // altrimenti resta appeso all'altezza standard (140 cm da terra).
       const base = topLine != null ? (topLine - h) : MONTAGGIO_PENSILE;
-      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, base, cz, h, m.rot);
+      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matPensile), cx, base, cz, h, m.rot);
     } else if (cat === 'colonna') {
       // L'altezza della colonna (es. 2200) è la CASSA; il totale è cassa +
       // zoccolo. Così un costado da 2350 (= 2200 + 15 di piedini) combacia.
       const h = m.altezza_mm || 2200;
       const zocc = zoccoloPerAltezza(m.altezzaBassa_mm || 700);
       aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
-      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, zocc, cz, h, m.rot);
+      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matColonna), cx, zocc, cz, h, m.rot);
     } else if (cat === 'regletta') {
       const h = m.altezza_mm || 700;
       const zocc = zoccoloPerAltezza(h);
@@ -461,7 +472,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const porta = m.altezza_mm || 700;
       const zocc = zoccoloPerAltezza(porta);
       aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
-      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d), cx, zocc, cz, porta, m.rot);
+      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d, matBase), cx, zocc, cz, porta, m.rot);
       basiTop.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, topY: zocc + porta });
       // Placca / lavello (tipi forno/lavello oppure aggiunti a mano): sopra il top
       const hasPlacca = m.tipo === 'forno' || m.placca;
