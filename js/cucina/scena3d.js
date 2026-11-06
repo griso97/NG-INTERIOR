@@ -468,6 +468,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   // Raccolgo le basi per il piano continuo e gli accessori (placca/lavello)
   const basiTop = [];
   const accessori = [];
+  const fianchi = [];   // costadi e colonne: delimitano il top (lo taglia/estende)
 
   // Materiale delle ante per gruppo (bassi / pensili / colonne). null = colore di default.
   const col = progetto.coloriFronti || {};
@@ -493,8 +494,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const py = a.y + uy * centro + ny * (PROFONDITA_BASE / 2);
       const porta = 700;               // porta/anta
       const zocc = zoccoloPerAltezza(porta);
-      aggiungiZoccolo(px, -py, mm.larghezza_mm, PROFONDITA_BASE, zocc, p.angolo_gradi);
-      basiTop.push({ x: px, y: py, rot: p.angolo_gradi, w: mm.larghezza_mm, topY: zocc + porta });
+      basiTop.push({ x: px, y: py, rot: p.angolo_gradi, w: mm.larghezza_mm, d: PROFONDITA_BASE, zocc, topY: zocc + porta });
       if (mm.categoria === 'fascia') {
         const box = corpo(mm.larghezza_mm, porta, PROFONDITA_BASE, COL.regletta);
         gruppo.add(collocaMobile(box, px, zocc, -py, porta, p.angolo_gradi));
@@ -534,6 +534,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const h = m.altezza_mm || 2200;
       const zocc = zoccoloPerAltezza(m.altezzaBassa_mm || 700);
       aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
+      fianchi.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, h: h + zocc, cat: 'colonna' });
       g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matColonna), cx, zocc, cz, h, m.rot);
     } else if (cat === 'regletta') {
       const h = m.altezza_mm || 700;
@@ -543,15 +544,15 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
     } else if (cat === 'costado') {
       const h = m.altezza_mm || 850;
       const base = h >= 1500 ? Math.max(0, QUOTA_RIF - h) : 0;
+      fianchi.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, h, cat: 'costado' });
       g3d = collocaMobile(corpo(dim.w, h, dim.d, matCostado || COL.costado), cx, base, cz, h, m.rot);
     } else {
       // base / lavello / forno: porta = altezza scelta, zoccolo 150/100.
       // Il piano di lavoro NON si disegna qui: è un pezzo unico continuo (dopo).
       const porta = m.altezza_mm || 700;
       const zocc = zoccoloPerAltezza(porta);
-      aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
       g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d, matBase), cx, zocc, cz, porta, m.rot);
-      basiTop.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, topY: zocc + porta });
+      basiTop.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc, topY: zocc + porta });
       // Placca / lavello (tipi forno/lavello oppure aggiunti a mano): sopra il top
       const hasPlacca = m.tipo === 'forno' || m.placca;
       const hasLavello = m.tipo === 'lavello' || m.lavello;
@@ -564,8 +565,10 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
     if (g3d) { g3d.userData.mobId = m.id; if (m.id === selId) evidenzia(g3d); gruppo.add(g3d); }
   }
 
-  // Piano di lavoro continuo (un pezzo unico per ogni fila di basi)
-  renderTopContinui(basiTop);
+  // Zoccolo continuo (un pezzo unico per fila) + piano di lavoro continuo che
+  // non entra nei costadi/colonne (si ferma alla colonna, copre il costado basso)
+  renderZoccoliContinui(basiTop);
+  renderTopContinui(basiTop, fianchi);
   // Lavello, piano cottura e rubinetto SOPRA il top
   for (const a of accessori) aggiungiAccessorioTop(a);
 
@@ -578,33 +581,112 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
  * stessa fila (stesso orientamento, stessa linea e stessa quota) e ne copre
  * l'intera lunghezza con un unico pezzo, invece di un pezzo per modulo.
  */
-function renderTopContinui(basi) {
+/** Normalizza una rotazione a 0/90/180/270. */
+function rotNorm(r) { return ((Math.round((r || 0) / 90) * 90) % 360 + 360) % 360; }
+
+/**
+ * Divide gli elementi di una fila (stessa linea/quota) in tratti CONTIGUI:
+ * dove c'è un vuoto (es. una colonna in mezzo) si spezza, così top e zoccolo
+ * non attraversano i buchi. Ritorna [{lo, hi, items}] in coordinate "along".
+ */
+function tratti(items, c, s) {
+  const arr = items.map((b) => {
+    const along = b.x * c + b.y * s;
+    return { b, lo: along - b.w / 2, hi: along + b.w / 2 };
+  }).sort((p, q) => p.lo - q.lo);
+  const runs = [];
+  let cur = null;
+  for (const it of arr) {
+    if (!cur || it.lo > cur.hi + 60) { cur = { lo: it.lo, hi: it.hi, items: [it.b] }; runs.push(cur); }
+    else { cur.hi = Math.max(cur.hi, it.hi); cur.items.push(it.b); }
+  }
+  return runs;
+}
+
+/** Proiezione di un fianco (costado/colonna) sull'asse della fila: [near, far]. */
+function proiettaFianco(f, c, s) {
+  const along = f.x * c + f.y * s;
+  const perp = f.x * (-s) + f.y * c;
+  const fc = Math.cos((f.rot || 0) * Math.PI / 180), fs = Math.sin((f.rot || 0) * Math.PI / 180);
+  const hU = (f.w / 2) * Math.abs(c * fc + s * fs) + (f.d / 2) * Math.abs(-c * fs + s * fc);
+  return { along, perp, near: along - hU, far: along + hU };
+}
+
+/**
+ * Piano di lavoro CONTINUO che rispetta i costadi e le colonne:
+ * - alle estremità libere ha una piccola sporgenza;
+ * - se c'è una COLONNA (o un costado a tutta altezza) il top si ferma lì
+ *   (parte dalla colonna, non le entra sopra);
+ * - se c'è un COSTADO basso il top arriva fino alla sua faccia ESTERNA
+ *   (il modulo si appoggia al costado, il top lo copre).
+ */
+function renderTopContinui(basi, fianchi = []) {
   const gruppi = {};
   for (const b of basi) {
-    const rotN = ((Math.round((b.rot || 0) / 90) * 90) % 360 + 360) % 360;
-    const rad = rotN * Math.PI / 180;
-    const c = Math.cos(rad), s = Math.sin(rad);
-    const perp = Math.round((b.x * (-s) + b.y * c) / 5) * 5;   // linea della fila
+    const rotN = rotNorm(b.rot);
+    const rad = rotN * Math.PI / 180, c = Math.cos(rad), s = Math.sin(rad);
+    const perp = Math.round((b.x * (-s) + b.y * c) / 5) * 5;
     const key = `${rotN}|${perp}|${Math.round(b.topY)}`;
-    (gruppi[key] ||= { rotN, c, s, topY: b.topY, items: [] }).items.push(b);
+    (gruppi[key] ||= { rotN, c, s, topY: b.topY, d: b.d || PROFONDITA_BASE, items: [] }).items.push(b);
   }
   for (const key in gruppi) {
     const G = gruppi[key];
     const { c, s, rotN, topY } = G;
-    let lo = Infinity, hi = -Infinity, perpSum = 0;
-    for (const b of G.items) {
-      const along = b.x * c + b.y * s;
-      lo = Math.min(lo, along - b.w / 2);
-      hi = Math.max(hi, along + b.w / 2);
-      perpSum += b.x * (-s) + b.y * c;
+    for (const run of tratti(G.items, c, s)) {
+      let lo = run.lo, hi = run.hi;
+      let perpSum = 0; for (const b of run.items) perpSum += b.x * (-s) + b.y * c;
+      const perp = perpSum / run.items.length;
+      let endLo = lo - 20, endHi = hi + 20;   // estremità libere: piccola sporgenza
+      for (const f of fianchi) {
+        const pf = proiettaFianco(f, c, s);
+        if (Math.abs(pf.perp - perp) > 350) continue;   // non sulla stessa linea
+        const tall = (f.h || 0) >= 1500;
+        if (pf.along >= hi - 1 && pf.near <= hi + 90) {          // estremità destra
+          endHi = (f.cat === 'costado' && !tall) ? pf.far : hi;
+        }
+        if (pf.along <= lo + 1 && pf.far >= lo - 90) {           // estremità sinistra
+          endLo = (f.cat === 'costado' && !tall) ? pf.near : lo;
+        }
+      }
+      const len = endHi - endLo;
+      const centerAlong = (endLo + endHi) / 2;
+      const cx = c * centerAlong + (-s) * perp;
+      const cy = s * centerAlong + c * perp;
+      const slab = corpo(len, SP_TOP, G.d + 40, COL.top);
+      gruppo.add(collocaMobile(slab, cx, topY, -cy, SP_TOP, rotN));
     }
-    const perp = perpSum / G.items.length;
-    const centerAlong = (lo + hi) / 2;
-    const len = (hi - lo) + 40;                 // piccola sporgenza ai lati
-    const cx = c * centerAlong + (-s) * perp;
-    const cy = s * centerAlong + c * perp;
-    const slab = corpo(len, SP_TOP, PROFONDITA_BASE + 40, COL.top);
-    gruppo.add(collocaMobile(slab, cx, topY, -cy, SP_TOP, rotN));
+  }
+}
+
+/**
+ * Zoccolo (piedini) CONTINUO: un unico pezzo per fila di basi, da un bordo
+ * all'altro (quindi da costado a costado, coprendo tutti i moduli).
+ */
+function renderZoccoliContinui(basi) {
+  const gruppi = {};
+  for (const b of basi) {
+    const rotN = rotNorm(b.rot);
+    const rad = rotN * Math.PI / 180, c = Math.cos(rad), s = Math.sin(rad);
+    const perp = Math.round((b.x * (-s) + b.y * c) / 5) * 5;
+    const key = `${rotN}|${perp}|${Math.round(b.zocc || 150)}`;
+    (gruppi[key] ||= { rotN, c, s, zocc: b.zocc || 150, d: b.d || PROFONDITA_BASE, items: [] }).items.push(b);
+  }
+  for (const key in gruppi) {
+    const G = gruppi[key];
+    const { c, s, rotN, zocc } = G;
+    for (const run of tratti(G.items, c, s)) {
+      let perpSum = 0; for (const b of run.items) perpSum += b.x * (-s) + b.y * c;
+      const perp = perpSum / run.items.length;
+      const len = run.hi - run.lo;
+      const centerAlong = (run.lo + run.hi) / 2;
+      const cx = c * centerAlong + (-s) * perp;
+      const cy = s * centerAlong + c * perp;
+      const geo = new THREE.BoxGeometry(len, zocc, G.d - 100);
+      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x15130d, roughness: 0.85 }));
+      mesh.position.z = -50;                 // arretrato rispetto al fronte
+      const g = new THREE.Group(); g.add(mesh);
+      gruppo.add(collocaMobile(g, cx, 0, -cy, zocc, rotN));
+    }
   }
 }
 
