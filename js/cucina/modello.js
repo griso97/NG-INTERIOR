@@ -547,6 +547,15 @@ export function generaPensiliAuto(progetto, altezzaPensile) {
     const p = { id: nextId++, tipo: 'pensile', larghezza_mm: LARGHEZZA_ANGOLO, altezza_mm: altezzaPensile, x: cx, y: cy, rot: 0 };
     const rot = orientaVersoMuro(progetto, p, cx, cy);
     if (rot !== null) p.rot = rot;
+    // Niente modulo d'angolo se l'angolo è occupato da una colonna
+    // (la colonna è a tutta altezza: il pensile ci finirebbe dentro)
+    const A = aabb(p, p.x, p.y);
+    const angoloOccupato = progetto.mobiliLiberi.some((o) => {
+      if (categoriaTipo(o.tipo) !== 'colonna') return false;
+      const B = aabb(o, o.x, o.y);
+      return Math.abs(p.x - o.x) < A.hx + B.hx - 20 && Math.abs(p.y - o.y) < A.hy + B.hy - 20;
+    });
+    if (angoloOccupato) { nextId--; continue; }
     nuovi.push(p);
   }
 
