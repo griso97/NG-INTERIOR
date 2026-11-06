@@ -33,7 +33,61 @@ const H_MICRO = 380;
 
 let scene, camera, renderer, controls, gruppo, canvasEl;
 let animazioneAttiva = false;
+let selId = null;             // mobile evidenziato (selezionato nel 3D)
 const texCache = {};
+
+/** Evidenzia un gruppo: bordi bianchi + leggero bagliore sul corpo. */
+function evidenzia(g) {
+  g.traverse((o) => {
+    if (o.isLineSegments) {
+      o.material = new THREE.LineBasicMaterial({ color: 0xffffff });
+    } else if (o.isMesh && o.material && o.material.emissive !== undefined) {
+      o.material = o.material.clone();
+      o.material.emissive = new THREE.Color(0x9a7a28);
+      o.material.emissiveIntensity = 1.0;
+    }
+  });
+}
+
+/** Lavello / piano cottura / rubinetto posati SOPRA la superficie del top. */
+function aggiungiAccessorioTop(a) {
+  const g = new THREE.Group();
+  g.position.set(a.x, a.surfaceY, -a.y);
+  g.rotation.y = -(a.rot || 0) * Math.PI / 180;
+  if (a.id !== undefined) g.userData.mobId = a.id;
+  if (a.placca) {
+    const pw = Math.min(a.w - 40, 580), pd = Math.min(a.d - 80, 500);
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(pw, 18, pd),
+      new THREE.MeshStandardMaterial({ color: 0x14141a, roughness: 0.3, metalness: 0.3 }));
+    slab.position.set(0, 9, 0); g.add(slab);
+    const pos = a.fuochi === 2 ? [[-1, 0], [1, 0]] : [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+    const r = Math.min(pw, pd) * (a.fuochi === 2 ? 0.2 : 0.17);
+    for (const [sx, sz] of pos) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 7, 10, 28),
+        new THREE.MeshStandardMaterial({ color: 0x55555e, metalness: 0.5, roughness: 0.45 }));
+      ring.rotation.x = Math.PI / 2;
+      ring.position.set(sx * pw * 0.26, 20, sz * pd * 0.26); g.add(ring);
+    }
+  }
+  if (a.lavello) {
+    const vw = Math.min(a.w * 0.6, 520), vd = a.d * 0.55;
+    // Vasca: incassata nel top (scende sotto la superficie)
+    const vasca = new THREE.Mesh(new THREE.BoxGeometry(vw, 80, vd),
+      new THREE.MeshStandardMaterial({ color: 0xa8a8ac, roughness: 0.25, metalness: 0.55 }));
+    vasca.position.set(0, -30, 20); g.add(vasca);
+    const fondo = new THREE.Mesh(new THREE.BoxGeometry(vw - 40, 10, vd - 40),
+      new THREE.MeshStandardMaterial({ color: 0x8a8a8e, roughness: 0.3, metalness: 0.5 }));
+    fondo.position.set(0, -66, 20); g.add(fondo);
+    // Rubinetto: colonna + bocca piegata, bello alto e visibile, dietro la vasca
+    const matMet = new THREE.MeshStandardMaterial({ color: 0xd8d8dc, roughness: 0.25, metalness: 0.7 });
+    const colonna = new THREE.Mesh(new THREE.CylinderGeometry(12, 14, 240, 12), matMet);
+    colonna.position.set(0, 120, -a.d * 0.32); g.add(colonna);
+    const bocca = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 150, 12), matMet);
+    bocca.rotation.x = Math.PI / 2;
+    bocca.position.set(0, 230, -a.d * 0.32 + 70); g.add(bocca);
+  }
+  gruppo.add(g);
+}
 
 const COL = {
   corpo:   0x4a4026,
@@ -277,8 +331,8 @@ function costruisciMobile(cat, tipo, m, w, h, d) {
   if (cat === 'regletta') return g;
   if (cat === 'colonna') { colonnaFronte(g, w, h, d, m); return g; }
   if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3)); return g; }
-  if (tipo === 'lavello') { ante(g, w, h, d, w >= 900 ? 2 : 1); lavelloTop(g, w, h, d); return g; }
-  if (tipo === 'forno') { pannelloElettro(g, -h * 0.05, d / 2, w - 24, h * 0.7, 'forno'); pianoCottura(g, w, h, d, fuochiPerLarghezza(w)); return g; }
+  if (tipo === 'lavello') { ante(g, w, h, d, w >= 900 ? 2 : 1); return g; } // lavello disegnato sopra il top
+  if (tipo === 'forno') { pannelloElettro(g, -h * 0.05, d / 2, w - 24, h * 0.7, 'forno'); return g; } // placca sopra il top
   // base con ante / pensile
   ante(g, w, h, d, w >= 900 ? 2 : 1);
   return g;
@@ -301,8 +355,9 @@ function aggiungiZoccolo(cx, cz, w, d, zocc, rotGradi) {
 }
 
 // ---------------------------------------------------------------------------
-export function aggiornaScena3d(progetto, reframe = false) {
+export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   if (!scene) return;
+  selId = selezionato;
   while (gruppo.children.length) gruppo.remove(gruppo.children[0]);
   const full = progetto.piano.pareti || [];
   const vertici = calcolaVertici(full);
@@ -330,8 +385,9 @@ export function aggiornaScena3d(progetto, reframe = false) {
     gruppo.add(muro);
   });
 
-  // Raccolgo le basi per disegnare un unico piano di lavoro continuo
+  // Raccolgo le basi per il piano continuo e gli accessori (placca/lavello)
   const basiTop = [];
+  const accessori = [];
 
   // Moduli agganciati ai muri + fasce
   full.forEach((p, i) => {
@@ -357,6 +413,11 @@ export function aggiornaScena3d(progetto, reframe = false) {
       }
       const g = costruisciMobile('base', mm.tipo, { ...mm, altezza_mm: porta }, mm.larghezza_mm, porta, PROFONDITA_BASE);
       gruppo.add(collocaMobile(g, px, zocc, -py, porta, p.angolo_gradi));
+      if (mm.tipo === 'forno' || mm.tipo === 'lavello') {
+        accessori.push({ id: mm.id, x: px, y: py, rot: p.angolo_gradi, w: mm.larghezza_mm, d: PROFONDITA_BASE,
+          surfaceY: zocc + porta + SP_TOP, placca: mm.tipo === 'forno', lavello: mm.tipo === 'lavello',
+          fuochi: fuochiPerLarghezza(mm.larghezza_mm) });
+      }
     }
   });
 
@@ -401,16 +462,23 @@ export function aggiornaScena3d(progetto, reframe = false) {
       const zocc = zoccoloPerAltezza(porta);
       aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
       g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d), cx, zocc, cz, porta, m.rot);
-      // Placca / lavello aggiunti a mano (oltre ai tipi lavello/forno)
-      if (m.placca && m.tipo !== 'forno') pianoCottura(g3d, dim.w, porta, dim.d, fuochiPerLarghezza(dim.w));
-      if (m.lavello && m.tipo !== 'lavello') lavelloTop(g3d, dim.w, porta, dim.d);
       basiTop.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, topY: zocc + porta });
+      // Placca / lavello (tipi forno/lavello oppure aggiunti a mano): sopra il top
+      const hasPlacca = m.tipo === 'forno' || m.placca;
+      const hasLavello = m.tipo === 'lavello' || m.lavello;
+      if (hasPlacca || hasLavello) {
+        accessori.push({ id: m.id, x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d,
+          surfaceY: zocc + porta + SP_TOP, placca: hasPlacca, lavello: hasLavello,
+          fuochi: fuochiPerLarghezza(dim.w) });
+      }
     }
-    if (g3d) { g3d.userData.mobId = m.id; gruppo.add(g3d); }
+    if (g3d) { g3d.userData.mobId = m.id; if (m.id === selId) evidenzia(g3d); gruppo.add(g3d); }
   }
 
   // Piano di lavoro continuo (un pezzo unico per ogni fila di basi)
   renderTopContinui(basiTop);
+  // Lavello, piano cottura e rubinetto SOPRA il top
+  for (const a of accessori) aggiungiAccessorioTop(a);
 
   if (reframe) inquadra(bb);
   if (renderer) renderer.render(scene, camera);

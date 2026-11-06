@@ -628,6 +628,7 @@ canvas3d.addEventListener('click', (e) => {
   step2.mobSelId = id;
   renderPannello();
   renderRiepilogo();
+  scena3dMod.aggiornaScena3d(progetto, false, id); // evidenzia il modulo toccato
 });
 
 function renderPannelloStep3d() {
@@ -723,7 +724,7 @@ async function aggiornaVista() {
   try {
     if (!scena3dMod) scena3dMod = await import('./scena3d.js');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
-    else { scena3dMod.aggiornaScena3d(progetto, false); } // niente reframe: tiene la vista dove sei
+    else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Dopo lo "unhide" il canvas ha la dimensione giusta solo al frame dopo
     requestAnimationFrame(() => scena3dMod.forzaResize3d());
   } catch (e) {
