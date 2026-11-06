@@ -61,21 +61,24 @@ export const MATERIALI = [
     texture: 'materials/rovere-nodoso.jpg', colore: 0xa0804c,
     nota: 'nome provvisorio' },
   // ---- Tinte solide (matte e lucide) ----
+  // OPACHI: superficie totalmente matte, tono un filo "schiarito/polveroso"
+  // così lo stacco con il lucido è netto anche senza riflessi.
   { id: 'bianco-matte',  nome: 'Bianco opaco',   categoria: 'tinta',
-    thumb: 'materials/bianco-matte-thumb.jpg',  colore: 0xf0f0ee,
-    solido: true, roughness: 0.92, metalness: 0.02 },
+    thumb: 'materials/bianco-matte-thumb.jpg',  colore: 0xe7e5de,
+    solido: true, roughness: 1.0, metalness: 0.0 },
   { id: 'nero-matte',    nome: 'Nero opaco',     categoria: 'tinta',
-    thumb: 'materials/nero-matte-thumb.jpg',    colore: 0x121212,
-    solido: true, roughness: 0.92, metalness: 0.02 },
+    thumb: 'materials/nero-matte-thumb.jpg',    colore: 0x1f1f23,
+    solido: true, roughness: 1.0, metalness: 0.0 },
   { id: 'grigio-matte',  nome: 'Grigio opaco',   categoria: 'tinta',
     thumb: 'materials/grigio-matte-thumb.jpg',  colore: 0x8a8a8a,
-    solido: true, roughness: 0.92, metalness: 0.02 },
+    solido: true, roughness: 1.0, metalness: 0.0 },
+  // LUCIDI: laccato lucido con riflessi netti (roughness bassissima + clearcoat).
   { id: 'bianco-lucido', nome: 'Bianco lucido',  categoria: 'tinta',
     thumb: 'materials/bianco-lucido-thumb.jpg', colore: 0xfafafa,
-    solido: true, roughness: 0.12, metalness: 0.2 },
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true },
   { id: 'nero-lucido',   nome: 'Nero lucido',    categoria: 'tinta',
-    thumb: 'materials/nero-lucido-thumb.jpg',   colore: 0x0a0a0a,
-    solido: true, roughness: 0.12, metalness: 0.2 },
+    thumb: 'materials/nero-lucido-thumb.jpg',   colore: 0x060607,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true },
 ];
 
 // PARTI selezionabili nel pannello materiali.
@@ -107,11 +110,26 @@ export function getMaterialeTHREE(id, onPronto) {
   const def = trovaMateriale(id);
   // Tinte solide: niente texture, solo colore + finitura matte/lucida.
   if (def.solido) {
-    const mat = new THREE.MeshStandardMaterial({
-      color: def.colore,
-      roughness: def.roughness ?? 0.6,
-      metalness: def.metalness ?? 0.05,
-    });
+    let mat;
+    if (def.lucido) {
+      // Laccato LUCIDO: clearcoat trasparente sopra il colore → riflessi netti
+      // (stacco evidente rispetto all'opaco), serve un environment in scena.
+      mat = new THREE.MeshPhysicalMaterial({
+        color: def.colore,
+        roughness: def.roughness ?? 0.05,
+        metalness: 0.0,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.0,
+        envMapIntensity: 2.6,
+      });
+    } else {
+      mat = new THREE.MeshStandardMaterial({
+        color: def.colore,
+        roughness: def.roughness ?? 1.0,
+        metalness: def.metalness ?? 0.0,
+        envMapIntensity: 0.4,
+      });
+    }
     cacheMat.set(id, mat);
     return mat;
   }

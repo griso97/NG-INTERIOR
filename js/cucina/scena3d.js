@@ -174,7 +174,7 @@ export function montaScena3d(canvas, progetto) {
   scene.background = new THREE.Color(0xe9e6df);
   const w = canvas.clientWidth || 800, h = canvas.clientHeight || 600;
   camera = new THREE.PerspectiveCamera(50, w / h, 10, 60000);
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(w, h, false);
   // Resa più realistica: tone mapping cinematografico + colori sRGB
@@ -222,6 +222,30 @@ export function forzaResize3d() {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h, false);
+}
+
+/** Salva l'immagine del rendering in ALTA QUALITÀ (PNG). */
+export function esportaImmagine3d(nomeFile = 'cucina.png', latoMax = 3600) {
+  if (!renderer || !scene || !camera || !canvasEl) return false;
+  const cw = canvasEl.clientWidth || canvasEl.width;
+  const ch = canvasEl.clientHeight || canvasEl.height;
+  const pr0 = renderer.getPixelRatio();
+  const scala = Math.max(1, latoMax / Math.max(cw, ch));
+  const tw = Math.round(cw * scala), th = Math.round(ch * scala);
+  renderer.setPixelRatio(1);
+  renderer.setSize(tw, th, false);
+  camera.aspect = tw / th; camera.updateProjectionMatrix();
+  renderer.render(scene, camera);
+  let url;
+  try { url = canvasEl.toDataURL('image/png'); } catch (e) { url = null; }
+  renderer.setPixelRatio(pr0);
+  renderer.setSize(cw, ch, false);
+  camera.aspect = cw / ch; camera.updateProjectionMatrix();
+  renderer.render(scene, camera);
+  if (!url) return false;
+  const a = document.createElement('a');
+  a.href = url; a.download = nomeFile; a.click();
+  return true;
 }
 
 const rayPick = new THREE.Raycaster();

@@ -20,6 +20,9 @@ import { getMaterialeTHREE } from './materiali.js';
 // Non stira mai la texture, replica la fotografia.
 const TEX_MM = 300;
 
+// Materiale metallico per le maniglie (cassettiera, ecc.)
+const MAT_METALLO = new THREE.MeshStandardMaterial({ color: 0xd0d2d6, roughness: 0.28, metalness: 0.9 });
+
 /**
  * Imposta le UV di un BoxGeometry in base a una "strategia":
  *  - 'default': tiling fisico uniforme (ripete ogni TEX_MM mm)
@@ -82,9 +85,38 @@ function matDi(config, parte) {
 /**
  * Inizializza scena, camera, luci e controlli dentro il canvas dato.
  */
+// Ambiente IBL: gradiente (soffitto chiaro → pavimento scuro) per riflessi
+// morbidi e realistici sui materiali laccati lucidi.
+function creaAmbiente(rnd) {
+  const c = document.createElement('canvas'); c.width = 32; c.height = 128;
+  const x = c.getContext('2d');
+  // Gradiente FORTE soffitto→pavimento: i laccati LUCIDI lo riflettono come
+  // una "velatura" (chiaro in alto, scuro in basso) → stacco netto rispetto
+  // agli OPACHI che restano uniformi.
+  const grd = x.createLinearGradient(0, 0, 0, 128);
+  grd.addColorStop(0.0, '#ffffff');
+  grd.addColorStop(0.34, '#e4ded2');
+  grd.addColorStop(0.5, '#8f897d');
+  grd.addColorStop(0.7, '#4a4740');
+  grd.addColorStop(1.0, '#191814');
+  x.fillStyle = grd; x.fillRect(0, 0, 32, 128);
+  // Striscia luminosa netta appena sopra l'orizzonte = riflesso "finestra".
+  const sb = x.createLinearGradient(0, 44, 0, 60);
+  sb.addColorStop(0.0, 'rgba(255,255,255,0)');
+  sb.addColorStop(0.5, 'rgba(255,255,255,0.95)');
+  sb.addColorStop(1.0, 'rgba(255,255,255,0)');
+  x.fillStyle = sb; x.fillRect(0, 44, 32, 16);
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  const pmrem = new THREE.PMREMGenerator(rnd);
+  const env = pmrem.fromEquirectangular(tex).texture;
+  tex.dispose(); pmrem.dispose();
+  return env;
+}
+
 export function inizializzaScena(canvas) {
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0a0a);
+  scene.background = new THREE.Color(0xe9e6df);
 
   // Camera prospettica
   const w = canvas.clientWidth || 800;
@@ -92,33 +124,45 @@ export function inizializzaScena(canvas) {
   camera = new THREE.PerspectiveCamera(45, w / h, 10, 20000);
   camera.position.set(3000, 2200, 3800);
 
-  // Renderer
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  renderer.setPixelRatio(window.devicePixelRatio);
+  // Renderer: resa realistica (tone mapping cinematografico + colori sRGB)
+  // preserveDrawingBuffer: serve per salvare l'immagine (toDataURL).
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(w, h, false);
   renderer.shadowMap.enabled = true;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.4;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  // Luci: ambient + due direzionali per far "respirare" i materiali
+  // Environment (IBL): indispensabile per i riflessi dei laccati LUCIDI,
+  // così lo stacco lucido/opaco si vede davvero.
+  scene.environment = creaAmbiente(renderer);
+
+  // Luci: hemisphere + ambient + key/fill/rim, più luminose e naturali
+  scene.add(new THREE.HemisphereLight(0xfff4e8, 0x4a4a52, 1.3));
   scene.add(new THREE.AmbientLight(0xffffff, 0.45));
-  const key = new THREE.DirectionalLight(0xffffff, 0.9);
+  const key = new THREE.DirectionalLight(0xfff2e0, 1.8);
   key.position.set(2500, 4000, 3000);
   key.castShadow = true;
   scene.add(key);
-  const fill = new THREE.DirectionalLight(0xf0d090, 0.35);
+  const fill = new THREE.DirectionalLight(0xdfe6ff, 0.7);
   fill.position.set(-2500, 2000, -1500);
   scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xffffff, 0.5);
+  rim.position.set(0, 1800, -4000);
+  scene.add(rim);
 
-  // Pavimento neutro, elegante
+  // Pavimento neutro chiaro
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(10000, 10000),
-    new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 }),
+    new THREE.MeshStandardMaterial({ color: 0xd7d0c4, roughness: 0.95 }),
   );
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   scene.add(floor);
 
-  // Griglia tenue oro, per riferimento
-  const grid = new THREE.GridHelper(8000, 16, 0x8a7030, 0x2a2015);
+  // Griglia tenue, per riferimento
+  const grid = new THREE.GridHelper(8000, 16, 0xbdb5a6, 0xc7c0b2);
   grid.position.y = 0.1;
   scene.add(grid);
 
@@ -155,6 +199,37 @@ function ridimensiona(canvas) {
 }
 
 export function forzaResize(canvas) { ridimensiona(canvas); }
+
+/**
+ * Salva l'immagine del rendering in ALTA QUALITÀ (PNG). Rende la scena a una
+ * risoluzione molto più alta del canvas a video, scarica il file, poi
+ * ripristina la dimensione a video.
+ */
+export function esportaImmagine(nomeFile = 'render.png', latoMax = 3600) {
+  if (!renderer || !scene || !camera) return false;
+  const canvas = renderer.domElement;
+  const cw = canvas.clientWidth || canvas.width;
+  const ch = canvas.clientHeight || canvas.height;
+  const pr0 = renderer.getPixelRatio();
+  // Dimensione alta mantenendo le proporzioni a video
+  const scala = Math.max(1, latoMax / Math.max(cw, ch));
+  const tw = Math.round(cw * scala), th = Math.round(ch * scala);
+  renderer.setPixelRatio(1);
+  renderer.setSize(tw, th, false);
+  camera.aspect = tw / th; camera.updateProjectionMatrix();
+  renderer.render(scene, camera);
+  let url;
+  try { url = canvas.toDataURL('image/png'); } catch (e) { url = null; }
+  // Ripristina
+  renderer.setPixelRatio(pr0);
+  renderer.setSize(cw, ch, false);
+  camera.aspect = cw / ch; camera.updateProjectionMatrix();
+  renderer.render(scene, camera);
+  if (!url) return false;
+  const a = document.createElement('a');
+  a.href = url; a.download = nomeFile; a.click();
+  return true;
+}
 
 /**
  * Apre/chiude le porte.
@@ -498,6 +573,13 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
         aggiungiBox(larFronte, altFronte, sC,
           xCentro, cy, zFronte,
           matFronti, 'cassetto');
+        // Maniglia: barra metallica orizzontale vicino al bordo alto del fronte
+        const lman = Math.min(larFronte * 0.5, 300);
+        const hman = Math.min(altFronte * 0.14, 22);
+        const man = new THREE.Mesh(new THREE.BoxGeometry(lman, hman, 20), MAT_METALLO);
+        man.position.set(xCentro, cy + altFronte / 2 - Math.min(altFronte * 0.22, 55), zFronte + sC / 2 + 11);
+        man.castShadow = true;
+        gruppoArmadio.add(man);
       }
       yCassBase += AltMax + 10;
     });

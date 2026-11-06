@@ -654,6 +654,11 @@ function renderPannelloStep3d() {
           <span class="et-zocc">${z.nome}</span>`).join('')}
       </div>
     </section>
+    <section class="step3-pannello">
+      <h3>Immagine</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Salva una foto del rendering in alta qualità (PNG).</div>
+      <button id="s3-salva-img" class="btn-ghost" type="button" style="width:100%">📷 Salva immagine HD</button>
+    </section>
     <section class="actions">
       <button id="s3-indietro" class="btn-ghost" type="button" style="flex:1">← Moduli alti</button>
     </section>`;
@@ -662,7 +667,19 @@ function renderPannelloStep3d() {
     progetto.zoccoloColore = b.dataset.zocc;
     aggiorna();
   }));
+  document.getElementById('s3-salva-img')?.addEventListener('click', () => {
+    const ok = scena3dMod && scena3dMod.esportaImmagine3d
+      && scena3dMod.esportaImmagine3d(`cucina-${nomeFileData()}.png`);
+    if (!ok) alert('Impossibile salvare l\'immagine su questo dispositivo.');
+  });
   document.getElementById('s3-indietro')?.addEventListener('click', () => { progetto.stepCorrente = 3; aggiorna(); });
+}
+
+/** Stringa data per il nome file, es. 2026-11-06. */
+function nomeFileData() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 function renderPannelloModificaMobile(m) {

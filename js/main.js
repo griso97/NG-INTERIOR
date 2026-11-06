@@ -7,7 +7,7 @@
 
 import { calcolaDistintaCompleta, validaConfig } from './calcoli.js';
 import {
-  inizializzaScena, aggiornaScena, impostaApertura, forzaResize,
+  inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine,
 } from './scena3d.js';
 import { renderPannello, configDefault } from './interfaccia.js';
 import { renderDistinta } from './distinta.js';
@@ -76,6 +76,12 @@ function agganciaExport(distinta) {
   const btnPdf = document.getElementById('btn-pdf');
   if (btnCsv) btnCsv.onclick = () => esportaCSV(distinta, config.meta, config);
   if (btnPdf) btnPdf.onclick = () => esportaPDF(distinta, config, config.meta);
+  const btnImg = document.getElementById('btn-img');
+  if (btnImg) btnImg.onclick = () => {
+    const d = new Date(); const p = (n) => String(n).padStart(2, '0');
+    const nome = `armadio-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.png`;
+    if (!esportaImmagine(nome)) flash('Impossibile salvare l\'immagine.', true);
+  };
 }
 
 function agganciaAzioniGlobali() {

@@ -48,6 +48,7 @@ export function renderDistinta(contenitore, distinta, config) {
       <div class="distinta-azioni">
         <button id="btn-csv" class="btn-oro">Esporta CSV</button>
         <button id="btn-pdf" class="btn-oro">Esporta PDF</button>
+        <button id="btn-img" class="btn-oro">📷 Salva immagine HD</button>
       </div>
     </div>
     <div class="tabella-wrap">
