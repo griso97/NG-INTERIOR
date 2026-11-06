@@ -500,6 +500,64 @@ export function posizionaVincolata(progetto, m, x, y) {
   }
   return { x, y };
 }
+
+export const LARGHEZZA_ANGOLO = 630;  // pensile d'angolo nelle cucine a L/U
+
+/**
+ * Genera automaticamente i pensili: uno sopra ogni base (stessa larghezza,
+ * allineato, appoggiato allo stesso muro) all'altezza scelta (700/900), più
+ * un pensile d'angolo da 630 in ogni angolo interno (cucine a L/U).
+ * Sostituisce i pensili esistenti. Ritorna quanti ne ha creati.
+ */
+export function generaPensiliAuto(progetto, altezzaPensile) {
+  // Via i pensili attuali, riparto da zero
+  progetto.mobiliLiberi = (progetto.mobiliLiberi || [])
+    .filter((m) => categoriaTipo(m.tipo) !== 'pensile');
+  let nextId = Math.max(0, ...progetto.mobiliLiberi.map((m) => m.id)) + 1;
+  const nuovi = [];
+  const OFFSET = (PROFONDITA_BASE - PROFONDITA_PENSILE) / 2; // 125 mm
+
+  // Un pensile sopra ogni base (non sopra colonne/reglette/costadi)
+  for (const b of progetto.mobiliLiberi) {
+    if (categoriaTipo(b.tipo) !== 'base') continue;
+    const rad = (b.rot || 0) * Math.PI / 180;
+    const nx = Math.sin(rad), ny = -Math.cos(rad); // normale verso la stanza (fronte base)
+    nuovi.push({
+      id: nextId++, tipo: 'pensile',
+      larghezza_mm: dimMobile(b).w, altezza_mm: altezzaPensile,
+      x: b.x - nx * OFFSET, y: b.y - ny * OFFSET, rot: b.rot || 0,
+    });
+  }
+
+  // Pensile d'angolo (630) in ogni angolo interno
+  const full = progetto.piano.pareti || [];
+  const vertici = calcolaVertici(full);
+  for (let i = 0; i < full.length - 1; i++) {
+    const a = full[i], b = full[i + 1];
+    if (a.assente || b.assente || !angoloInterno(a, b)) continue;
+    const a2 = vertici[i + 1], b2 = vertici[i + 2];
+    const dx = b2.x - a2.x, dy = b2.y - a2.y;
+    const L2 = Math.hypot(dx, dy) || 1;
+    const ux = dx / L2, uy = dy / L2;
+    const sgn = b.latoInterno === 'interno' ? 1 : -1;
+    const nx = -dy / L2 * sgn, ny = dx / L2 * sgn;
+    const cAlong = LARGHEZZA_ANGOLO / 2;
+    const cx = a2.x + ux * cAlong + nx * (PROFONDITA_PENSILE / 2);
+    const cy = a2.y + uy * cAlong + ny * (PROFONDITA_PENSILE / 2);
+    const p = { id: nextId++, tipo: 'pensile', larghezza_mm: LARGHEZZA_ANGOLO, altezza_mm: altezzaPensile, x: cx, y: cy, rot: 0 };
+    const rot = orientaVersoMuro(progetto, p, cx, cy);
+    if (rot !== null) p.rot = rot;
+    nuovi.push(p);
+  }
+
+  progetto.mobiliLiberi.push(...nuovi);
+  // Assesto (muri + niente sovrapposizioni fra loro)
+  for (const p of nuovi) {
+    const v = posizionaVincolata(progetto, p, p.x, p.y);
+    p.x = snap(v.x); p.y = snap(v.y);
+  }
+  return nuovi.length;
+}
 export function ruotaMobileLibero(progetto, id) {
   const m = trovaMobileLibero(progetto, id);
   if (m) m.rot = ((m.rot || 0) + 90) % 360;

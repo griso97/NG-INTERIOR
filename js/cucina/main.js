@@ -16,7 +16,7 @@ import {
   rimuoviModuloBase, rimuoviFascia,
   spostaModulo, problemiIngombri,
   ruotaPianta, specchiaPianta, inverteAngolo,
-  toggleParete, muroTolto, snap, liberoPareti,
+  toggleParete, muroTolto, snap, liberoPareti, generaPensiliAuto,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
 } from './modello.js';
@@ -393,7 +393,13 @@ function renderPannelloModuli() {
 
     ${livello === 'alto' ? `
     <section>
-      <div class="riga-3d">Posiziona i <strong>pensili</strong> dalla barra qui sotto.
+      <h3>Pensili automatici</h3>
+      <div class="riga-3d">Crea i pensili <strong>allineati sopra le basi</strong> (e in angolo nelle cucine a L/U). Scegli l'altezza:</div>
+      <div class="orienta-row" style="margin-top:8px">
+        <button id="auto-70" class="btn-oro" type="button">Auto 70</button>
+        <button id="auto-90" class="btn-oro" type="button">Auto 90</button>
+      </div>
+      <div class="riga-3d" style="margin-top:8px">Oppure aggiungili a mano dalla barra qui sotto.
       I mobili bassi sono <strong>bloccati</strong>: non si spostano per errore.</div>
     </section>` : ''}
 
@@ -530,6 +536,16 @@ function attaccaEventiStep2() {
       fatto();
     });
   });
+  const autoPensili = (h) => {
+    registraStoria();
+    const n = generaPensiliAuto(progetto, h);
+    step2.mobSelId = null;
+    aggiorna();
+    if (n === 0) alert('Aggiungi prima i mobili bassi: i pensili vengono creati sopra le basi.');
+  };
+  document.getElementById('auto-70')?.addEventListener('click', () => autoPensili(700));
+  document.getElementById('auto-90')?.addEventListener('click', () => autoPensili(900));
+
   const mobSel = trovaMobileLibero(progetto, step2.mobSelId);
   if (mobSel) {
     document.getElementById('mob-ruota').addEventListener('click', () => {
