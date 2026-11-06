@@ -36,3 +36,53 @@ export function componiConLogo(sorgente) {
   }
   return c;
 }
+
+/** data:URL → Blob (sincrono, così resta dentro il gesto dell'utente). */
+function dataURLtoBlob(dataURL) {
+  const [head, b64] = dataURL.split(',');
+  const mime = (head.match(/:(.*?);/) || [, 'image/png'])[1];
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+/**
+ * Salva/condivide l'immagine di un canvas 2D.
+ * - Su TELEFONO usa la condivisione nativa (menù "Salva immagine/foto"),
+ *   perché il download via link spesso non salva nulla (specie su iPhone).
+ * - Su desktop scarica il file PNG.
+ * Tutto resta sincrono fino alla chiamata di share/click, così non si perde
+ * il "gesto utente" richiesto dai browser.
+ */
+export function salvaImmagineCanvas(canvas, nomeFile) {
+  let dataURL;
+  try { dataURL = canvas.toDataURL('image/png'); } catch (e) { return false; }
+  let blob;
+  try { blob = dataURLtoBlob(dataURL); } catch (e) { blob = null; }
+
+  // 1) Condivisione nativa con file (ideale su mobile)
+  if (blob && navigator.canShare && navigator.share) {
+    try {
+      const file = new File([blob], nomeFile, { type: 'image/png' });
+      if (navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: 'NG Interior' }).catch(() => {});
+        return true;
+      }
+    } catch (e) { /* fallback sotto */ }
+  }
+
+  // 2) Download classico (desktop e Android con download manager)
+  try {
+    const url = blob ? URL.createObjectURL(blob) : dataURL;
+    const a = document.createElement('a');
+    a.href = url; a.download = nomeFile; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+    if (blob) setTimeout(() => URL.revokeObjectURL(url), 5000);
+    return true;
+  } catch (e) { /* ultimo fallback */ }
+
+  // 3) Apri in una nuova scheda: l'utente tiene premuto per salvare
+  try { window.open(blob ? URL.createObjectURL(blob) : dataURL, '_blank'); return true; }
+  catch (e) { return false; }
+}
