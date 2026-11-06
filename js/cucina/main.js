@@ -656,8 +656,9 @@ function renderPannelloModificaMobile(m) {
   const puoAgg = m.tipo === 'base-ante' || m.tipo === 'base-cassetti';
   const fuochi = (m.larghezza_mm || 600) < 600 ? 2 : 4;
   const sinkCm = Math.max(30, Math.round(((m.larghezza_mm || 600) - 100) / 10));
-  const gruppoColore = cat === 'pensile' ? 'pensile' : cat === 'colonna' ? 'colonna' : isBase ? 'base' : null;
-  const nomeGruppo = { base: 'mobili bassi', pensile: 'pensili', colonna: 'colonne' }[gruppoColore];
+  const gruppoColore = cat === 'pensile' ? 'pensile' : cat === 'colonna' ? 'colonna'
+    : cat === 'costado' ? 'costado' : isBase ? 'base' : null;
+  const nomeGruppo = { base: 'mobili bassi', pensile: 'pensili', colonna: 'colonne', costado: 'costadi' }[gruppoColore];
   const materiali = (scena3dMod && scena3dMod.MATERIALI) || [];
   const colAttuale = (progetto.coloriFronti || {})[gruppoColore];
   pannello.innerHTML = `
@@ -684,8 +685,8 @@ function renderPannelloModificaMobile(m) {
       'Per aggiungere lavello o piano cottura seleziona una base con ante o cassetti.'}</div></section>`}
     ${gruppoColore ? `
     <section class="step3-pannello">
-      <h3>Colore ante · ${nomeGruppo}</h3>
-      <div class="riga-3d" style="margin-bottom:6px">Si applica a tutte le ante dei ${nomeGruppo}.</div>
+      <h3>Colore ${gruppoColore === 'costado' ? '' : 'ante '}· ${nomeGruppo}</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Si applica a tutti i ${nomeGruppo}.</div>
       <div class="palette-colori">
         ${materiali.map((mt) => `<button type="button" class="swatch ${mt.id === colAttuale ? 'sel' : ''}"
           data-mat="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`).join('')}

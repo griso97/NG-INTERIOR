@@ -32,7 +32,7 @@ export function progettoDefault() {
     // Mobili liberi piazzati sulla pianta (x,y = centro in mm, rot in gradi)
     mobiliLiberi: [],
     // Colore/materiale delle ante per gruppo (id materiale, null = default)
-    coloriFronti: { base: null, pensile: null, colonna: null },
+    coloriFronti: { base: null, pensile: null, colonna: null, costado: null },
   };
 }
 
@@ -493,14 +493,51 @@ export function orientaVersoMuro(progetto, m, x, y) {
 }
 
 /**
+ * Aggancio magnetico: se un bordo del mobile è VICINO (entro `soglia`) al bordo
+ * di un altro mobile della stessa fascia di altezza e affiancato sulla stessa
+ * linea, lo fa scorrere lungo il muro quel tanto che basta per farli combaciare
+ * ESATTAMENTE (zero spazio). Così accostando due mobili si attaccano perfetti.
+ */
+export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
+  const rv = rangeVerticale(m);
+  const u = muroPiuVicino(progetto, x, y) || [1, 0];
+  const [ux, uy] = u, vx = -uy, vy = ux;
+  const A = aabb(m, x, y);
+  const eUm = A.hx * Math.abs(ux) + A.hy * Math.abs(uy);
+  const eVm = A.hx * Math.abs(vx) + A.hy * Math.abs(vy);
+  let best = null;
+  for (const o of (progetto.mobiliLiberi || [])) {
+    if (o.id === m.id) continue;
+    if (!rangeSovrappone(rv, rangeVerticale(o))) continue;
+    const B = aabb(o, o.x, o.y);
+    const eUo = B.hx * Math.abs(ux) + B.hy * Math.abs(uy);
+    const eVo = B.hx * Math.abs(vx) + B.hy * Math.abs(vy);
+    const du = (x - o.x) * ux + (y - o.y) * uy;
+    const dv = (x - o.x) * vx + (y - o.y) * vy;
+    // Devono stare affiancati sulla stessa linea: sovrapposti in perpendicolare
+    if (Math.abs(dv) >= (eVm + eVo) - 1) continue;
+    const gap = Math.abs(du) - (eUm + eUo);   // >0 = spazio tra i bordi
+    if (gap > 1 && gap <= soglia && (!best || gap < best.gap)) {
+      const s = du >= 0 ? 1 : -1;             // da che lato sta m rispetto a o
+      best = { gap, dx: -ux * s * gap, dy: -uy * s * gap };
+    }
+  }
+  if (best) { x += best.dx; y += best.dy; }
+  return { x, y };
+}
+
+/**
  * Posizione finale vincolata: alterna respinta dagli altri mobili e blocco
- * ai muri, così si assesta rispettando tutto.
+ * ai muri, così si assesta rispettando tutto. Infine aggancio magnetico ai
+ * mobili vicini, così si accostano combaciando senza lasciare spazio.
  */
 export function posizionaVincolata(progetto, m, x, y) {
   for (let pass = 0; pass < 6; pass++) {
     ({ x, y } = respingiDaMobili(progetto, m, x, y));
     ({ x, y } = vincolaAiMuri(progetto, m, x, y));
   }
+  ({ x, y } = aggancioMagnetico(progetto, m, x, y));
+  ({ x, y } = vincolaAiMuri(progetto, m, x, y));
   return { x, y };
 }
 

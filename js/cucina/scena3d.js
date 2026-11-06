@@ -131,19 +131,22 @@ function aggiungiAccessorioTop(a) {
 }
 
 const COL = {
-  corpo:   0x4a4026,
-  anta:    0x6f5e36,
-  cassetto:0x6a5a34,
-  pensile: 0x7d6a3a,
-  colonna: 0x5a4d2c,
-  regletta:0xc9a94a,
-  costado: 0x9a8248,
+  // Carcassa e fronti di default in tono NEUTRO (niente oro/olivastro):
+  // quando si sceglie un colore/legno le ante lo prendono, la cassa resta neutra.
+  corpo:   0xb7b1a4,
+  anta:    0xcac4b8,
+  cassetto:0xc7c1b5,
+  pensile: 0xb9b3a6,
+  colonna: 0xb3ada0,
+  regletta:0xbdb7aa,
+  costado: 0xc0b9ac,
   top:     0x232323,
   muro:    0x3a362c,
   pav:     0xd7d0c4,
   oro:     0xc9a94a,
 };
-const matOro = new THREE.LineBasicMaterial({ color: COL.oro });
+// Linee di contorno discrete (niente oro): un filo scuro che fa da fuga/ombra.
+const matOro = new THREE.LineBasicMaterial({ color: 0x3b3833, transparent: true, opacity: 0.55 });
 const matManiglia = new THREE.MeshStandardMaterial({ color: 0xcfcfcf, roughness: 0.35, metalness: 0.6 });
 
 // Ambiente IBL: gradiente (soffitto chiaro → pavimento scuro) per riflessi soft.
@@ -242,10 +245,13 @@ export function pickMobile(clientX, clientY) {
 
 // ---------------------------------------------------------------------------
 // Primitive
-function corpo(w, h, d, colore) {
+function corpo(w, h, d, coloreOMat) {
   const g = new THREE.Group();
   const geo = new THREE.BoxGeometry(w, h, d);
-  g.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: colore, roughness: 0.7, metalness: 0.05 })));
+  const mat = (coloreOMat && coloreOMat.isMaterial)
+    ? coloreOMat
+    : new THREE.MeshStandardMaterial({ color: coloreOMat, roughness: 0.7, metalness: 0.05 });
+  g.add(new THREE.Mesh(geo, mat));
   g.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), matOro));
   return g;
 }
@@ -470,6 +476,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   const matBase = col.base ? getMaterialeTHREE(col.base, reRender) : null;
   const matPensile = col.pensile ? getMaterialeTHREE(col.pensile, reRender) : null;
   const matColonna = col.colonna ? getMaterialeTHREE(col.colonna, reRender) : null;
+  const matCostado = col.costado ? getMaterialeTHREE(col.costado, reRender) : null;
 
   // Moduli agganciati ai muri + fasce
   full.forEach((p, i) => {
@@ -536,7 +543,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
     } else if (cat === 'costado') {
       const h = m.altezza_mm || 850;
       const base = h >= 1500 ? Math.max(0, QUOTA_RIF - h) : 0;
-      g3d = collocaMobile(corpo(dim.w, h, dim.d, COL.costado), cx, base, cz, h, m.rot);
+      g3d = collocaMobile(corpo(dim.w, h, dim.d, matCostado || COL.costado), cx, base, cz, h, m.rot);
     } else {
       // base / lavello / forno: porta = altezza scelta, zoccolo 150/100.
       // Il piano di lavoro NON si disegna qui: è un pezzo unico continuo (dopo).
