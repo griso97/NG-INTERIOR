@@ -424,16 +424,6 @@ function collocaMobile(g, cx, yBottom, cz, h, rotGradi) {
   return g;
 }
 
-/** Zoccolo (piedini): scatola bassa, più scura e un po' arretrata sul fronte. */
-function aggiungiZoccolo(cx, cz, w, d, zocc, rotGradi) {
-  const geo = new THREE.BoxGeometry(w - 40, zocc, d - 100);
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x15130d, roughness: 0.85 }));
-  const g = new THREE.Group();
-  mesh.position.z = -50; // arretrato rispetto al fronte
-  g.add(mesh);
-  gruppo.add(collocaMobile(g, cx, 0, cz, zocc, rotGradi));
-}
-
 // ---------------------------------------------------------------------------
 export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   if (!scene) return;
@@ -469,6 +459,8 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   const basiTop = [];
   const accessori = [];
   const fianchi = [];   // costadi e colonne: delimitano il top (lo taglia/estende)
+  const zoccoli = [];   // TUTTO ciò che poggia a terra (basi, colonne, reglette):
+                        // lo zoccolo è un unico pezzo continuo che li copre tutti
 
   // Materiale delle ante per gruppo (bassi / pensili / colonne). null = colore di default.
   const col = progetto.coloriFronti || {};
@@ -495,6 +487,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const porta = 700;               // porta/anta
       const zocc = zoccoloPerAltezza(porta);
       basiTop.push({ x: px, y: py, rot: p.angolo_gradi, w: mm.larghezza_mm, d: PROFONDITA_BASE, zocc, topY: zocc + porta });
+      zoccoli.push({ x: px, y: py, rot: p.angolo_gradi, w: mm.larghezza_mm, d: PROFONDITA_BASE, zocc });
       if (mm.categoria === 'fascia') {
         const box = corpo(mm.larghezza_mm, porta, PROFONDITA_BASE, COL.regletta);
         gruppo.add(collocaMobile(box, px, zocc, -py, porta, p.angolo_gradi));
@@ -533,13 +526,13 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       // zoccolo. Così un costado da 2350 (= 2200 + 15 di piedini) combacia.
       const h = m.altezza_mm || 2200;
       const zocc = zoccoloPerAltezza(m.altezzaBassa_mm || 700);
-      aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
+      zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
       fianchi.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, h: h + zocc, cat: 'colonna' });
       g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matColonna), cx, zocc, cz, h, m.rot);
     } else if (cat === 'regletta') {
       const h = m.altezza_mm || 700;
       const zocc = zoccoloPerAltezza(h);
-      aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
+      zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
       g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, zocc, cz, h, m.rot);
     } else if (cat === 'costado') {
       const h = m.altezza_mm || 850;
@@ -553,6 +546,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const zocc = zoccoloPerAltezza(porta);
       g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d, matBase), cx, zocc, cz, porta, m.rot);
       basiTop.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc, topY: zocc + porta });
+      zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
       // Placca / lavello (tipi forno/lavello oppure aggiunti a mano): sopra il top
       const hasPlacca = m.tipo === 'forno' || m.placca;
       const hasLavello = m.tipo === 'lavello' || m.lavello;
@@ -565,9 +559,9 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
     if (g3d) { g3d.userData.mobId = m.id; if (m.id === selId) evidenzia(g3d); gruppo.add(g3d); }
   }
 
-  // Zoccolo continuo (un pezzo unico per fila) + piano di lavoro continuo che
-  // non entra nei costadi/colonne (si ferma alla colonna, copre il costado basso)
-  renderZoccoliContinui(basiTop);
+  // Zoccolo continuo (un unico pezzo per fila: basi + colonne insieme) +
+  // piano di lavoro continuo che non entra nei costadi/colonne
+  renderZoccoliContinui(zoccoli, materialeZoccolo(progetto.zoccoloColore));
   renderTopContinui(basiTop, fianchi);
   // Lavello, piano cottura e rubinetto SOPRA il top
   for (const a of accessori) aggiungiAccessorioTop(a);
@@ -662,7 +656,7 @@ function renderTopContinui(basi, fianchi = []) {
  * Zoccolo (piedini) CONTINUO: un unico pezzo per fila di basi, da un bordo
  * all'altro (quindi da costado a costado, coprendo tutti i moduli).
  */
-function renderZoccoliContinui(basi) {
+function renderZoccoliContinui(basi, mat) {
   const gruppi = {};
   for (const b of basi) {
     const rotN = rotNorm(b.rot);
@@ -682,13 +676,31 @@ function renderZoccoliContinui(basi) {
       const cx = c * centerAlong + (-s) * perp;
       const cy = s * centerAlong + c * perp;
       const geo = new THREE.BoxGeometry(len, zocc, G.d - 100);
-      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x15130d, roughness: 0.85 }));
+      const mesh = new THREE.Mesh(geo, mat ? mat.clone() : new THREE.MeshStandardMaterial({ color: 0x191919, roughness: 0.96, metalness: 0 }));
       mesh.position.z = -50;                 // arretrato rispetto al fronte
       const g = new THREE.Group(); g.add(mesh);
       gruppo.add(collocaMobile(g, cx, 0, -cy, zocc, rotN));
     }
   }
 }
+
+/** Materiale dello zoccolo in base al colore scelto (default: nero opaco). */
+function materialeZoccolo(id) {
+  switch (id) {
+    case 'bianco-opaco':
+      return new THREE.MeshStandardMaterial({ color: 0xeceae4, roughness: 1.0, metalness: 0.0 });
+    case 'acciaio':
+      return new THREE.MeshStandardMaterial({ color: 0xc6cace, roughness: 0.42, metalness: 0.72 });
+    case 'nero-opaco':
+    default:
+      return new THREE.MeshStandardMaterial({ color: 0x17171a, roughness: 1.0, metalness: 0.0 });
+  }
+}
+export const COLORI_ZOCCOLO = [
+  { id: 'nero-opaco', nome: 'Nero opaco', css: '#17171a' },
+  { id: 'bianco-opaco', nome: 'Bianco opaco', css: '#eceae4' },
+  { id: 'acciaio', nome: 'Acciaio', css: 'linear-gradient(135deg,#d6dadf,#9aa0a6 55%,#c2c7cc)' },
+];
 
 function bbox(progetto, vertici) {
   const xs = [], ys = [];

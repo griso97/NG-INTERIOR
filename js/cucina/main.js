@@ -634,6 +634,8 @@ canvas3d.addEventListener('click', (e) => {
 function renderPannelloStep3d() {
   const sel = trovaMobileLibero(progetto, step2.mobSelId);
   if (sel) return renderPannelloModificaMobile(sel);
+  const coloriZocc = (scena3dMod && scena3dMod.COLORI_ZOCCOLO) || [];
+  const zoccSel = progetto.zoccoloColore || 'nero-opaco';
   pannello.innerHTML = `
     <section class="step3-pannello">
       <h3>Vista 3D</h3>
@@ -644,9 +646,22 @@ function renderPannelloStep3d() {
         <strong>zoom</strong>, due dita/tasto destro per <strong>spostare</strong>.
       </div>
     </section>
+    <section class="step3-pannello">
+      <h3>Colore zoccolo</h3>
+      <div class="palette-zoccolo">
+        ${coloriZocc.map((z) => `<button type="button" class="swatch-zocc ${z.id === zoccSel ? 'sel' : ''}"
+          data-zocc="${z.id}" title="${z.nome}" style="background:${z.css}"></button>
+          <span class="et-zocc">${z.nome}</span>`).join('')}
+      </div>
+    </section>
     <section class="actions">
       <button id="s3-indietro" class="btn-ghost" type="button" style="flex:1">← Moduli alti</button>
     </section>`;
+  pannello.querySelectorAll('.swatch-zocc').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    progetto.zoccoloColore = b.dataset.zocc;
+    aggiorna();
+  }));
   document.getElementById('s3-indietro')?.addEventListener('click', () => { progetto.stepCorrente = 3; aggiorna(); });
 }
 
@@ -742,9 +757,13 @@ async function aggiornaVista() {
     : 'Griglia 100 mm · tutte le misure in mm';
   if (!in3d) return;
   try {
+    const eraCaricato = !!scena3dMod;
     if (!scena3dMod) scena3dMod = await import('./scena3d.js');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
+    // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
+    // che vengono dal modulo (colori ante/zoccolo) compaiono subito.
+    if (!eraCaricato) renderPannello();
     // Dopo lo "unhide" il canvas ha la dimensione giusta solo al frame dopo
     requestAnimationFrame(() => scena3dMod.forzaResize3d());
   } catch (e) {
