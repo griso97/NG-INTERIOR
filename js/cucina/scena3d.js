@@ -58,35 +58,65 @@ function aggiungiAccessorioTop(a) {
   g.rotation.y = -(a.rot || 0) * Math.PI / 180;
   if (a.id !== undefined) g.userData.mobId = a.id;
   if (a.placca) {
-    const pw = Math.min(a.w - 40, 580), pd = Math.min(a.d - 80, 500);
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(pw, 18, pd),
-      new THREE.MeshStandardMaterial({ color: 0x14141a, roughness: 0.3, metalness: 0.3 }));
-    slab.position.set(0, 9, 0); g.add(slab);
-    const pos = a.fuochi === 2 ? [[-1, 0], [1, 0]] : [[-1, -1], [1, -1], [-1, 1], [1, 1]];
-    const r = Math.min(pw, pd) * (a.fuochi === 2 ? 0.2 : 0.17);
+    // Piano a induzione: vetro nero lucido + zone di cottura (cerchi)
+    const pw = Math.min(a.w - 40, 580), pd = Math.min(a.d - 80, 480);
+    const vetro = new THREE.Mesh(new THREE.BoxGeometry(pw, 12, pd),
+      new THREE.MeshStandardMaterial({ color: 0x08080a, roughness: 0.12, metalness: 0.35 }));
+    vetro.position.set(0, 6, 0); g.add(vetro);
+    const pos = a.fuochi === 2 ? [[0, -1], [0, 1]] : [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+    const rz = Math.min(pw, pd) * (a.fuochi === 2 ? 0.26 : 0.2);
+    const matZona = new THREE.MeshStandardMaterial({ color: 0x3a3a42, metalness: 0.3, roughness: 0.5 });
     for (const [sx, sz] of pos) {
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 7, 10, 28),
-        new THREE.MeshStandardMaterial({ color: 0x55555e, metalness: 0.5, roughness: 0.45 }));
-      ring.rotation.x = Math.PI / 2;
-      ring.position.set(sx * pw * 0.26, 20, sz * pd * 0.26); g.add(ring);
+      const anello = new THREE.Mesh(new THREE.TorusGeometry(rz, 4, 8, 40), matZona);
+      anello.rotation.x = Math.PI / 2;
+      anello.position.set(sx * pw * 0.24, 13, sz * pd * 0.22); g.add(anello);
     }
+    // Pannello comandi (striscia chiara davanti)
+    const comandi = new THREE.Mesh(new THREE.BoxGeometry(pw * 0.5, 2, 40),
+      new THREE.MeshStandardMaterial({ color: 0x202028, roughness: 0.4, metalness: 0.3 }));
+    comandi.position.set(0, 13, pd / 2 - 35); g.add(comandi);
   }
   if (a.lavello) {
-    const vw = Math.min(a.w * 0.6, 520), vd = a.d * 0.55;
-    // Vasca: incassata nel top (scende sotto la superficie)
-    const vasca = new THREE.Mesh(new THREE.BoxGeometry(vw, 80, vd),
-      new THREE.MeshStandardMaterial({ color: 0xa8a8ac, roughness: 0.25, metalness: 0.55 }));
-    vasca.position.set(0, -30, 20); g.add(vasca);
-    const fondo = new THREE.Mesh(new THREE.BoxGeometry(vw - 40, 10, vd - 40),
-      new THREE.MeshStandardMaterial({ color: 0x8a8a8e, roughness: 0.3, metalness: 0.5 }));
-    fondo.position.set(0, -66, 20); g.add(fondo);
-    // Rubinetto: colonna + bocca piegata, bello alto e visibile, dietro la vasca
-    const matMet = new THREE.MeshStandardMaterial({ color: 0xd8d8dc, roughness: 0.25, metalness: 0.7 });
-    const colonna = new THREE.Mesh(new THREE.CylinderGeometry(12, 14, 240, 12), matMet);
-    colonna.position.set(0, 120, -a.d * 0.32); g.add(colonna);
-    const bocca = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 150, 12), matMet);
-    bocca.rotation.x = Math.PI / 2;
-    bocca.position.set(0, 230, -a.d * 0.32 + 70); g.add(bocca);
+    const matInox = new THREE.MeshStandardMaterial({ color: 0xc2c2c8, roughness: 0.22, metalness: 0.8 });
+    const vw = Math.min(a.w * 0.55, 480), vd = Math.min(a.d * 0.5, 380);
+    const prof = 170, t = 16, zc = -a.d * 0.04;   // vasca un filo arretrata
+    // Bordo/cornice a filo top
+    const bordo = new THREE.Mesh(new THREE.BoxGeometry(vw + 50, 10, vd + 50), matInox);
+    bordo.position.set(0, 2, zc); g.add(bordo);
+    // Fondo della vasca (scende)
+    const fondo = new THREE.Mesh(new THREE.BoxGeometry(vw, t, vd), matInox);
+    fondo.position.set(0, -prof, zc); g.add(fondo);
+    // 4 pareti della vasca (scatola aperta sopra)
+    const paretiPos = [
+      [0, -prof / 2, zc - vd / 2, vw, prof, t],
+      [0, -prof / 2, zc + vd / 2, vw, prof, t],
+      [-vw / 2, -prof / 2, zc, t, prof, vd],
+      [vw / 2, -prof / 2, zc, t, prof, vd],
+    ];
+    for (const [px, py, pz, sw, sh, sd] of paretiPos) {
+      const par = new THREE.Mesh(new THREE.BoxGeometry(sw, sh, sd), matInox);
+      par.position.set(px, py, pz); g.add(par);
+    }
+    // Scarico sul fondo
+    const scarico = new THREE.Mesh(new THREE.CylinderGeometry(26, 26, 14, 16),
+      new THREE.MeshStandardMaterial({ color: 0x555558, roughness: 0.4, metalness: 0.6 }));
+    scarico.position.set(0, -prof + 8, zc); g.add(scarico);
+    // Rubinetto a miscelatore: base + collo + canna a gooseneck
+    const matMet = new THREE.MeshStandardMaterial({ color: 0xdadade, roughness: 0.2, metalness: 0.85 });
+    const zr = -a.d * 0.34;
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(26, 30, 24, 16), matMet);
+    base.position.set(0, 12, zr); g.add(base);
+    const collo = new THREE.Mesh(new THREE.CylinderGeometry(13, 15, 230, 14), matMet);
+    collo.position.set(0, 130, zr); g.add(collo);
+    // Gooseneck: arco in avanti
+    const arco = new THREE.Mesh(new THREE.TorusGeometry(70, 13, 12, 24, Math.PI / 2), matMet);
+    arco.rotation.y = Math.PI / 2;
+    arco.position.set(0, 245, zr + 70); g.add(arco);
+    const canna = new THREE.Mesh(new THREE.CylinderGeometry(12, 12, 70, 12), matMet);
+    canna.position.set(0, 240, zr + 140); g.add(canna);
+    // Leva del miscelatore
+    const leva = new THREE.Mesh(new THREE.BoxGeometry(14, 14, 90), matMet);
+    leva.position.set(26, 44, zr); g.add(leva);
   }
   gruppo.add(g);
 }
