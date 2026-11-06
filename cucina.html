@@ -8,6 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <!-- Tema chiaro/scuro: applicato subito per evitare lo "sfarfallio" -->
+  <script>(function(){try{var t=localStorage.getItem('ng-tema')||'scuro';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/cucina.css" />
 
@@ -31,7 +34,9 @@
       </div>
     </div>
     <div class="header-info" id="step-info">Passo 1 di 4 — Pianta: perimetro</div>
-    <div class="header-strumenti"></div>
+    <div class="header-strumenti">
+      <button type="button" id="tema-toggle" class="tema-toggle">☀ Chiaro</button>
+    </div>
   </header>
 
   <!-- Stepper in alto -->

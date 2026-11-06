@@ -22,6 +22,7 @@ import {
 } from './modello.js';
 import { renderPianta } from './pianta.js';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js';
+import { agganciaTema } from '../tema.js';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1079,6 +1080,9 @@ const fineTrascinamento = () => {
 };
 svg.addEventListener('pointerup', fineTrascinamento);
 svg.addEventListener('pointercancel', fineTrascinamento);
+
+// Tema chiaro/scuro
+agganciaTema();
 
 // Primo caricamento
 aggiorna();

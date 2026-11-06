@@ -10,6 +10,7 @@ import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo,
 } from './scena3d.js';
 import { SFONDI_LISTA } from './sfondi.js';
+import { agganciaTema } from './tema.js';
 import { renderPannello, configDefault } from './interfaccia.js';
 import { renderDistinta } from './distinta.js';
 import { esportaCSV, esportaPDF } from './esportazione.js';
@@ -37,6 +38,7 @@ const btnToggleAnte = document.getElementById('toggle-ante');
 
 inizializzaScena(canvas);
 agganciaSfondo();
+agganciaTema();
 
 // Selettore sfondo 3D (chiaro / neutro / scuro)
 function agganciaSfondo() {

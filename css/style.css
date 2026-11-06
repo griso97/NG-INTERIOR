@@ -7,6 +7,10 @@
   --bg: #0a0a0a;
   --bg-2: #121212;
   --bg-3: #1a1a1a;
+  --bg-4: #0d0d0d;
+  --vista: #060606;      /* fondale area 3D / pianta */
+  --riga: #141414;       /* riga pari tabella */
+  --riga-h: #1a1710;     /* riga hover tabella */
   --oro: #c9a94a;
   --oro-chiaro: #e9c979;
   --oro-scuro: #8a7030;
@@ -15,6 +19,21 @@
   --bordo: #2a2416;
   --ok: #6cc07a;
   --err: #e36a6a;
+}
+
+/* MODALITÀ CHIARA — superfici dei contenuti chiare, brand (oro) invariato,
+   header/accenti scuri mantenuti per identità di marca. */
+:root[data-theme="chiaro"] {
+  --bg: #f1eee7;
+  --bg-2: #fbf9f4;
+  --bg-3: #eae6dc;
+  --bg-4: #efece4;
+  --vista: #e9e6df;
+  --riga: #f4f1ea;
+  --riga-h: #ece7db;
+  --testo: #211f18;
+  --testo-dim: #6a6456;
+  --bordo: #ddd6c6;
 }
 
 * { box-sizing: border-box; }
@@ -126,7 +145,7 @@ body {
 }
 .vista {
   position: relative;
-  background: #060606;
+  background: var(--vista);
 }
 #canvas3d {
   width: 100%; height: 100%;
@@ -247,7 +266,7 @@ body {
 .cass-row {
   margin-top: 8px;
   padding: 10px;
-  background: #0d0d0d;
+  background: var(--bg-4);
   border: 1px solid var(--bordo);
   border-radius: 2px;
 }
@@ -370,7 +389,7 @@ table.distinta {
 }
 table.distinta th {
   position: sticky; top: 0;
-  background: #0d0d0d;
+  background: var(--bg-4);
   color: var(--oro);
   text-transform: uppercase;
   font-size: 10px;
@@ -384,8 +403,8 @@ table.distinta td {
   border-bottom: 1px solid #1e1e1e;
   color: var(--testo);
 }
-table.distinta tr:nth-child(even) td { background: #141414; }
-table.distinta tr:hover td { background: #1a1710; }
+table.distinta tr:nth-child(even) td { background: var(--riga); }
+table.distinta tr:hover td { background: var(--riga-h); }
 table.distinta th.num, table.distinta td.num { text-align: right; }
 table.distinta td.qta {
   color: var(--oro-chiaro);
@@ -476,7 +495,7 @@ table.distinta td.qta {
   border-top: 1px dashed var(--bordo);
 }
 .mat-swatch {
-  background: #0d0d0d;
+  background: var(--bg-4);
   border: 1px solid var(--bordo);
   border-radius: 2px;
   padding: 4px;
@@ -582,3 +601,24 @@ table.distinta td.qta {
   border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--oro-scuro); }
+
+/* Pulsante modalità chiara/scura (header) */
+.tema-toggle {
+  background: linear-gradient(180deg, #1a1510, #0d0a06);
+  color: var(--oro-chiaro);
+  border: 1px solid var(--oro-scuro);
+  border-radius: 20px;
+  padding: 7px 14px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .15s;
+}
+.tema-toggle:hover { border-color: var(--oro-chiaro); color: #fff; }
+
+/* Tema chiaro: tag materiale leggibili su fondo chiaro */
+:root[data-theme="chiaro"] .tag-carcassa { color: #7a5f16; border-color: #d8cca6; background: #f3ecd6; }
+:root[data-theme="chiaro"] .tag-schiena  { color: #8a5a36; border-color: #e3d2bd; background: #f5ebe0; }
+:root[data-theme="chiaro"] .tag-ante     { color: #333333; border-color: #d2d2d2; background: #efefef; }

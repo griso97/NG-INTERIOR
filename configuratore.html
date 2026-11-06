@@ -10,6 +10,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 
+  <!-- Tema chiaro/scuro: applicato subito per evitare lo "sfarfallio" -->
+  <script>(function(){try{var t=localStorage.getItem('ng-tema')||'scuro';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+
   <link rel="stylesheet" href="css/style.css" />
 
   <!-- Three.js ES modules via importmap (file locali in vendor/) -->
@@ -37,6 +40,7 @@
     </div>
     <div class="header-info" id="header-info">Armadio a battente — v1.0</div>
     <div class="header-strumenti">
+      <button type="button" id="tema-toggle" class="tema-toggle">☀ Chiaro</button>
       <label class="switch">
         <input type="checkbox" id="toggle-ante" />
         <span>Apri porte</span>
