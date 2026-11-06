@@ -327,29 +327,42 @@ function pannelloElettro(g, py, z, pw, ph, tipo) {
 
 // ---------------------------------------------------------------------------
 // Fronti per categoria. Corpo centrato nell'origine: x[-w/2,w/2] y[-h/2,h/2] z[-d/2,d/2]
-function ante(g, w, h, d, n, matAnta) {
-  const mg = 14, gap = 16, z = d / 2;
-  const uw = w - 2 * mg, ph = h - 2 * mg;
-  const pw = (uw - (n - 1) * gap) / n;
+// Fughe reali delle ante: in LARGHEZZA si toglie 3 mm totali (1,5 per lato),
+// in ALTEZZA 2 mm (1 sopra, 1 sotto). GAP = fuga fra due ante/cassetti.
+const FUGA_W = 3, FUGA_H = 2, GAP_ANTE = 3;
+function ante(g, w, h, d, n, matAnta, sporg) {
+  const z = d / 2;
+  const uw = w - FUGA_W;
+  const pw = (uw - (n - 1) * GAP_ANTE) / n;
+  // sporgente: anta = h + 20 che avanza 2 cm SOTTO (bordo alto a filo).
+  const ph = sporg ? (h + 20) : (h - FUGA_H);
+  const py = sporg ? -10 : 0;
   for (let i = 0; i < n; i++) {
-    const px = -uw / 2 + pw / 2 + i * (pw + gap);
-    pannello(g, px, 0, z, pw, ph, matAnta || COL.anta);
+    const px = -uw / 2 + pw / 2 + i * (pw + GAP_ANTE);
+    pannello(g, px, py, z, pw, ph, matAnta || COL.anta);
     const hx = n === 1 ? px + pw / 2 - 35 : (i === 0 ? px + pw / 2 - 22 : px - pw / 2 + 22);
-    maniglia(g, hx, 0, z, false, Math.min(260, ph * 0.5));
+    maniglia(g, hx, py, z, false, Math.min(260, ph * 0.5));
   }
 }
 function cassetti(g, w, h, d, n, matAnta) {
-  const mg = 14, gap = 14, z = d / 2;
-  const uw = w - 2 * mg, uh = h - 2 * mg;
-  const ph = (uh - (n - 1) * gap) / n;
+  const z = d / 2;
+  const uw = w - FUGA_W, uh = h - FUGA_H;
+  const ph = (uh - (n - 1) * GAP_ANTE) / n;
   for (let i = 0; i < n; i++) {
-    const py = -uh / 2 + ph / 2 + i * (ph + gap);
+    const py = -uh / 2 + ph / 2 + i * (ph + GAP_ANTE);
     pannello(g, 0, py, z, uw, ph, matAnta || COL.cassetto);
     maniglia(g, 0, py + ph / 2 - Math.min(28, ph * 0.3), z, true, Math.min(uw * 0.5, 320));
   }
 }
 // Numero di fuochi in base alla larghezza del mobile: piccolo → 2, grande → 4.
 function fuochiPerLarghezza(w) { return w < 600 ? 2 : 4; }
+
+/** L'anta del pensile sporge 2 cm sotto? Dipende dall'opzione e dall'altezza. */
+function antaPensileSporge(opt, h) {
+  if (opt === 'sporg70') return Math.abs(h - 700) < 40;
+  if (opt === 'sporg90') return Math.abs(h - 900) < 40;
+  return false;
+}
 
 function pianoCottura(g, w, h, d, fuochi = 4) {
   const yTop = h / 2;
@@ -378,13 +391,13 @@ function lavelloTop(g, w, h, d) {
 }
 function colonnaFronte(g, w, h, d, m, matAnta) {
   const z = d / 2;
-  const pw = w - 24;
+  const pw = w - FUGA_W;
   const ab = m.altezzaBassa_mm || 700;
   const bottom = -h / 2;
   const porta = (yB, segH) => {
     const cyc = yB + segH / 2;
-    pannello(g, 0, cyc, z, pw, segH - 14, matAnta || COL.anta);
-    maniglia(g, pw / 2 - 30, cyc, z, false, Math.min(260, (segH - 14) * 0.4));
+    pannello(g, 0, cyc, z, pw, segH - FUGA_H, matAnta || COL.anta);
+    maniglia(g, pw / 2 - 30, cyc, z, false, Math.min(260, (segH - FUGA_H) * 0.4));
   };
   porta(bottom, ab);                 // porta bassa
   let y0 = bottom + ab;
@@ -403,7 +416,7 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
 }
 
 /** Costruisce il mobile completo centrato nell'origine (corpo + fronti). */
-function costruisciMobile(cat, tipo, m, w, h, d, matAnta) {
+function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
   const coloreCorpo = cat === 'pensile' ? COL.pensile : cat === 'colonna' ? COL.colonna
     : cat === 'regletta' ? COL.regletta : COL.corpo;
@@ -413,8 +426,8 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta) {
   if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta); return g; }
   if (tipo === 'lavello') { ante(g, w, h, d, w >= 900 ? 2 : 1, matAnta); return g; } // lavello disegnato sopra il top
   if (tipo === 'forno') { pannelloElettro(g, -h * 0.05, d / 2, w - 24, h * 0.7, 'forno'); return g; } // placca sopra il top
-  // base con ante / pensile
-  ante(g, w, h, d, w >= 900 ? 2 : 1, matAnta);
+  // base con ante / pensile (il pensile può avere l'anta sporgente sotto)
+  ante(g, w, h, d, w >= 900 ? 2 : 1, matAnta, opt.sporg);
   return g;
 }
 
@@ -520,7 +533,8 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       // Se ci sono colonne, la CIMA del pensile va alla cima delle colonne;
       // altrimenti resta appeso all'altezza standard (140 cm da terra).
       const base = topLine != null ? (topLine - h) : MONTAGGIO_PENSILE;
-      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matPensile), cx, base, cz, h, m.rot);
+      const sporg = antaPensileSporge(progetto.antaPensile, h);
+      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matPensile, { sporg }), cx, base, cz, h, m.rot);
     } else if (cat === 'colonna') {
       // L'altezza della colonna (es. 2200) è la CASSA; il totale è cassa +
       // zoccolo. Così un costado da 2350 (= 2200 + 15 di piedini) combacia.

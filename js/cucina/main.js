@@ -707,6 +707,19 @@ function renderPannelloModificaMobile(m) {
           data-mat="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`).join('')}
       </div>
     </section>` : ''}
+    ${cat === 'pensile' ? `
+    <section class="step3-pannello">
+      <h3>Ante pensili</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Vale per tutti i pensili.</div>
+      <div class="opzioni-anta">
+        ${[
+          { id: 'standard', et: 'Standard (−2 mm h · −3 mm largh.)' },
+          { id: 'sporg70', et: 'Sporgente sotto · 70 → 72' },
+          { id: 'sporg90', et: 'Sporgente sotto · 90 → 92' },
+        ].map((o) => `<button type="button" class="btn-ghost opt-anta ${(progetto.antaPensile || 'standard') === o.id ? 'attivo' : ''}"
+          data-anta="${o.id}">${(progetto.antaPensile || 'standard') === o.id ? '✓ ' : ''}${o.et}</button>`).join('')}
+      </div>
+    </section>` : ''}
     <section class="actions">
       <button id="mob-misura" class="btn-ghost" type="button" style="flex:1">Cambia misura</button>
       <button id="mob-deseleziona" class="btn-ghost" type="button">Chiudi</button>
@@ -718,6 +731,11 @@ function renderPannelloModificaMobile(m) {
     registraStoria();
     if (!progetto.coloriFronti) progetto.coloriFronti = {};
     progetto.coloriFronti[gruppoColore] = b.dataset.mat;
+    aggiorna();
+  }));
+  pannello.querySelectorAll('.opt-anta').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    progetto.antaPensile = b.dataset.anta;
     aggiorna();
   }));
   document.getElementById('tog-placca')?.addEventListener('click', () => {

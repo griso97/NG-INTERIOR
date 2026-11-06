@@ -34,6 +34,10 @@ export function progettoDefault() {
     // Colore/materiale delle ante per gruppo (id materiale, null = default)
     coloriFronti: { base: null, pensile: null, colonna: null, costado: null },
     zoccoloColore: 'nero-opaco',
+    // Stile anta pensili: 'standard' (−2 alt / −3 largh come i bassi),
+    // 'sporg70' (pensili 70 → anta 72, sporge 2cm sotto),
+    // 'sporg90' (pensili 90 → anta 92, sporge 2cm sotto).
+    antaPensile: 'standard',
   };
 }
 
@@ -47,7 +51,7 @@ export const ALTEZZE_BASE = [700, 800];          // armadi bassi
 export const ALTEZZE_PENSILE = [700, 900];       // armadi sopra
 export const ALTEZZE_COLONNA = [2200, 2300];     // colonne, altezza totale
 // Costadi (fianchi di finitura): altezze standard, tutte in profondità 600
-export const ALTEZZE_COSTADO = [850, 900, 2200, 2300, 2350, 2450];
+export const ALTEZZE_COSTADO = [720, 850, 900, 920, 2200, 2300, 2350, 2450];
 
 export const TIPI_MODULO_BASE = [
   { id: 'base-ante',     nome: 'Base con ante',     larghezze: LARGHEZZE_BASE },

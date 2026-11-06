@@ -551,3 +551,7 @@
 .swatch-zocc:hover { border-color: var(--oro); }
 .swatch-zocc.sel { border-color: var(--oro-chiaro); box-shadow: 0 0 0 2px var(--oro-chiaro); }
 .et-zocc { font-size: 13px; color: var(--testo-soft, #bdb6a6); }
+
+/* Opzioni anta pensili: pulsanti impilati */
+.opzioni-anta { display: flex; flex-direction: column; gap: 6px; }
+.opzioni-anta .opt-anta { text-align: left; }
