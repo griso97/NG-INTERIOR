@@ -20,6 +20,13 @@ const SP_TOP = 40;
 // Zoccolo (piedini) in base all'altezza della porta:
 //  porta 70 → zoccolo 150 mm · porta 80 → zoccolo 100 mm
 function zoccoloPerAltezza(h) { return h >= 800 ? 100 : 150; }
+
+// Quota della cima delle colonne (cassa + zoccolo). null se non ci sono colonne.
+function quotaAltaColonne(progetto) {
+  const cols = (progetto.mobiliLiberi || []).filter((m) => categoriaTipo(m.tipo) === 'colonna');
+  if (cols.length === 0) return null;
+  return Math.max(...cols.map((c) => (c.altezza_mm || 2200) + zoccoloPerAltezza(c.altezzaBassa_mm || 700)));
+}
 const ALT_MURO = 2600;
 const H_FORNO = 600;
 const H_MICRO = 380;
@@ -325,6 +332,12 @@ export function aggiornaScena3d(progetto, reframe = false) {
     }
   });
 
+  // Quota alta = cima delle colonne (cassa + zoccolo). Pensili e costadi alti
+  // si allineano a questa quota; se non ci sono colonne, uso un valore di
+  // riferimento (2350).
+  const topLine = quotaAltaColonne(progetto);
+  const QUOTA_RIF = topLine != null ? topLine : 2350;
+
   // Mobili liberi
   for (const m of (progetto.mobiliLiberi || [])) {
     const cat = categoriaTipo(m.tipo);
@@ -332,7 +345,10 @@ export function aggiornaScena3d(progetto, reframe = false) {
     const cx = m.x, cz = -m.y;
     if (cat === 'pensile') {
       const h = m.altezza_mm || 700;
-      gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, MONTAGGIO_PENSILE, cz, h, m.rot));
+      // Se ci sono colonne, la CIMA del pensile va alla cima delle colonne;
+      // altrimenti resta appeso all'altezza standard (140 cm da terra).
+      const base = topLine != null ? (topLine - h) : MONTAGGIO_PENSILE;
+      gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, base, cz, h, m.rot));
     } else if (cat === 'colonna') {
       // L'altezza della colonna (es. 2200) è la CASSA; il totale è cassa +
       // zoccolo. Così un costado da 2350 (= 2200 + 15 di piedini) combacia.
@@ -347,10 +363,12 @@ export function aggiornaScena3d(progetto, reframe = false) {
       aggiungiZoccolo(cx, cz, dim.w, dim.d, zocc, m.rot);
       gruppo.add(collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, zocc, cz, h, m.rot));
     } else if (cat === 'costado') {
-      // Fianco di finitura: pannello verticale pieno, da terra alla cima.
-      // Colore distinto così si riconosce anche se è sottile (18 mm).
+      // Fianco di finitura. La misura parte dall'ALTO: i costadi alti si
+      // allineano alla cima delle colonne; se sono più corti, il vuoto resta
+      // SOTTO (lo zoccolo ci passa sotto). I costadi bassi (base) restano a terra.
       const h = m.altezza_mm || 850;
-      gruppo.add(collocaMobile(corpo(dim.w, h, dim.d, COL.costado), cx, 0, cz, h, m.rot));
+      const base = h >= 1500 ? Math.max(0, QUOTA_RIF - h) : 0;
+      gruppo.add(collocaMobile(corpo(dim.w, h, dim.d, COL.costado), cx, base, cz, h, m.rot));
     } else {
       // base / lavello / forno: porta = altezza scelta, zoccolo 150/100, piano sopra
       const porta = m.altezza_mm || 700;
