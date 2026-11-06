@@ -14,6 +14,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js';
 import { getMaterialeTHREE } from './materiali.js';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js';
+import { sfondoDi } from './sfondi.js';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -68,6 +69,8 @@ function tilingPerDimensioni(geo, strategia = 'default') {
 let scene, camera, renderer, controls;
 let gruppoArmadio;           // nodo che contiene tutti i mesh dell'armadio
 let porteAperte = false;     // toggle: false = chiuse, true = aperte
+let floorMesh, gridMesh;     // pavimento + griglia (per cambiare sfondo)
+let sfondoAttuale = null;    // id sfondo applicato
 
 // Binario scorrevole: materiale metallico fisso (non è legno).
 const matBinario = new THREE.MeshStandardMaterial({
@@ -115,6 +118,22 @@ function creaAmbiente(rnd) {
   return env;
 }
 
+/**
+ * Cambia lo sfondo/pavimento/griglia della vista 3D (solo estetica: luci e
+ * riflessi restano identici). id: 'chiaro' | 'neutro' | 'scuro'.
+ */
+export function impostaSfondo(id) {
+  if (!scene || id === sfondoAttuale) return;
+  sfondoAttuale = id;
+  const sf = sfondoDi(id);
+  scene.background = new THREE.Color(sf.bg);
+  if (floorMesh) floorMesh.material.color.setHex(sf.pav);
+  if (gridMesh) scene.remove(gridMesh);
+  gridMesh = new THREE.GridHelper(8000, 16, sf.g1, sf.g2);
+  gridMesh.position.y = 0.1;
+  scene.add(gridMesh);
+}
+
 export function inizializzaScena(canvas) {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xe9e6df);
@@ -153,19 +172,17 @@ export function inizializzaScena(canvas) {
   rim.position.set(0, 1800, -4000);
   scene.add(rim);
 
-  // Pavimento neutro chiaro
-  const floor = new THREE.Mesh(
+  // Pavimento (colore impostato da impostaSfondo)
+  floorMesh = new THREE.Mesh(
     new THREE.PlaneGeometry(10000, 10000),
     new THREE.MeshStandardMaterial({ color: 0xd7d0c4, roughness: 0.95 }),
   );
-  floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
-  scene.add(floor);
+  floorMesh.rotation.x = -Math.PI / 2;
+  floorMesh.receiveShadow = true;
+  scene.add(floorMesh);
 
-  // Griglia tenue, per riferimento
-  const grid = new THREE.GridHelper(8000, 16, 0xbdb5a6, 0xc7c0b2);
-  grid.position.y = 0.1;
-  scene.add(grid);
+  // Sfondo iniziale
+  impostaSfondo('chiaro');
 
   // Controlli orbitali: rotazione + pan + zoom liberi come prima
   controls = new OrbitControls(camera, renderer.domElement);
@@ -258,6 +275,7 @@ export function toggleAnte(valore) { impostaApertura(valore); }
  */
 export function aggiornaScena(config) {
   if (!gruppoArmadio) return;
+  impostaSfondo(config.sfondo || 'chiaro');
   // Pulisce i figli precedenti
   while (gruppoArmadio.children.length) {
     const c = gruppoArmadio.children.pop();

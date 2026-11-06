@@ -16,7 +16,9 @@ import {
 } from './modello.js';
 import { getMaterialeTHREE } from '../materiali.js';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js';
+import { sfondoDi } from '../sfondi.js';
 export { MATERIALI } from '../materiali.js';
+export { SFONDI_LISTA } from '../sfondi.js';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -469,13 +471,17 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   const vertici = calcolaVertici(full);
   const bb = bbox(progetto, vertici);
 
+  // Sfondo/pavimento scelti (solo estetica, non tocca luci/riflessi)
+  const sf = sfondoDi(progetto.sfondo);
+  scene.background = new THREE.Color(sf.bg);
+
   // Pavimento + griglia
   const padW = (bb.maxX - bb.minX) + 2000, padD = (bb.maxY - bb.minY) + 2000;
   const cxF = (bb.minX + bb.maxX) / 2, czF = -(bb.minY + bb.maxY) / 2;
   const pav = new THREE.Mesh(new THREE.PlaneGeometry(padW, padD),
-    new THREE.MeshStandardMaterial({ color: COL.pav, roughness: 0.95 }));
+    new THREE.MeshStandardMaterial({ color: sf.pav, roughness: 0.95 }));
   pav.rotation.x = -Math.PI / 2; pav.position.set(cxF, 0, czF); gruppo.add(pav);
-  const grid = new THREE.GridHelper(Math.max(padW, padD), Math.round(Math.max(padW, padD) / 500), 0xbdb5a6, 0xc7c0b2);
+  const grid = new THREE.GridHelper(Math.max(padW, padD), Math.round(Math.max(padW, padD) / 500), sf.g1, sf.g2);
   grid.position.set(cxF, 1, czF); gruppo.add(grid);
 
   // Muri di riferimento

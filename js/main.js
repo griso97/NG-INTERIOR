@@ -7,8 +7,9 @@
 
 import { calcolaDistintaCompleta, validaConfig } from './calcoli.js';
 import {
-  inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine,
+  inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo,
 } from './scena3d.js';
+import { SFONDI_LISTA } from './sfondi.js';
 import { renderPannello, configDefault } from './interfaccia.js';
 import { renderDistinta } from './distinta.js';
 import { esportaCSV, esportaPDF } from './esportazione.js';
@@ -35,6 +36,23 @@ const avvisiEl = document.getElementById('avvisi');
 const btnToggleAnte = document.getElementById('toggle-ante');
 
 inizializzaScena(canvas);
+agganciaSfondo();
+
+// Selettore sfondo 3D (chiaro / neutro / scuro)
+function agganciaSfondo() {
+  const cont = document.getElementById('sfondo-3d');
+  if (!cont) return;
+  const attuale = config.sfondo || 'chiaro';
+  cont.innerHTML = SFONDI_LISTA.map((s) => `<button type="button" class="sfondo-btn ${s.id === attuale ? 'on' : ''}"
+    data-sfondo="${s.id}" title="Sfondo ${s.nome}" style="background:${s.css}"></button>`).join('');
+  cont.querySelectorAll('.sfondo-btn').forEach((b) => b.addEventListener('click', () => {
+    config.sfondo = b.dataset.sfondo;
+    impostaSfondo(config.sfondo);
+    cont.querySelectorAll('.sfondo-btn').forEach((x) => x.classList.toggle('on', x === b));
+    try { salvaLocale(config); } catch (_) { /* no-op */ }
+  }));
+  impostaSfondo(attuale);
+}
 
 function onChange(nuovaConfig, opzioni = {}) {
   config = nuovaConfig;

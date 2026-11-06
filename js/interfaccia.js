@@ -12,6 +12,7 @@ export function configDefault() {
   return {
     meta: { cliente: '' },
     tipoArmadio: 'battente', // 'battente' | 'scorrevole'
+    sfondo: 'chiaro',        // sfondo vista 3D: chiaro | neutro | scuro
     larghezzaTotale: 2000,
     altezzaEsterna: 2400,
     profonditaEsterna: 600,

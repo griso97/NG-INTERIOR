@@ -34,6 +34,7 @@ export function progettoDefault() {
     // Colore/materiale delle ante per gruppo (id materiale, null = default)
     coloriFronti: { base: null, pensile: null, colonna: null, costado: null },
     zoccoloColore: 'nero-opaco',
+    sfondo: 'chiaro',            // sfondo vista 3D: chiaro | neutro | scuro
     // Stile anta pensili: 'standard' (−2 alt / −3 largh come i bassi),
     // 'sporg70' (pensili 70 → anta 72, sporge 2cm sotto),
     // 'sporg90' (pensili 90 → anta 92, sporge 2cm sotto).

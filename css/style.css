@@ -509,6 +509,23 @@ table.distinta td.qta {
 .mat-swatch.sel span { color: var(--oro-chiaro); }
 
 /* Bottone fisso "Apri/Chiudi porte" per mobile */
+/* Selettore sfondo 3D: piccoli cerchi in alto a destra della vista */
+.sfondo-3d {
+  position: absolute;
+  top: 12px; right: 12px;
+  display: flex; gap: 8px;
+  z-index: 10;
+  background: rgba(0,0,0,0.3);
+  padding: 7px; border-radius: 22px;
+  backdrop-filter: blur(4px);
+}
+.sfondo-btn {
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.5);
+  padding: 0; cursor: pointer;
+}
+.sfondo-btn.on { border-color: var(--oro-chiaro); box-shadow: 0 0 0 2px var(--oro-chiaro); }
+
 .fab-apri {
   display: none;
   position: absolute;

@@ -655,6 +655,14 @@ function renderPannelloStep3d() {
       </div>
     </section>
     <section class="step3-pannello">
+      <h3>Sfondo</h3>
+      <div class="palette-zoccolo">
+        ${((scena3dMod && scena3dMod.SFONDI_LISTA) || []).map((s) => `<button type="button" class="swatch-zocc ${s.id === (progetto.sfondo || 'chiaro') ? 'sel' : ''}"
+          data-sfondo="${s.id}" title="${s.nome}" style="background:${s.css}"></button>
+          <span class="et-zocc">${s.nome}</span>`).join('')}
+      </div>
+    </section>
+    <section class="step3-pannello">
       <h3>Immagine</h3>
       <div class="riga-3d" style="margin-bottom:6px">Salva una foto del rendering in alta qualità (PNG).</div>
       <button id="s3-salva-img" class="btn-ghost" type="button" style="width:100%">📷 Salva immagine HD</button>
@@ -662,9 +670,13 @@ function renderPannelloStep3d() {
     <section class="actions">
       <button id="s3-indietro" class="btn-ghost" type="button" style="flex:1">← Moduli alti</button>
     </section>`;
-  pannello.querySelectorAll('.swatch-zocc').forEach((b) => b.addEventListener('click', () => {
+  pannello.querySelectorAll('.swatch-zocc[data-zocc]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     progetto.zoccoloColore = b.dataset.zocc;
+    aggiorna();
+  }));
+  pannello.querySelectorAll('.swatch-zocc[data-sfondo]').forEach((b) => b.addEventListener('click', () => {
+    progetto.sfondo = b.dataset.sfondo;
     aggiorna();
   }));
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
