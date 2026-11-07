@@ -17,6 +17,7 @@ import {
   spostaModulo, problemiIngombri,
   ruotaPianta, specchiaPianta, inverteAngolo,
   toggleParete, muroTolto, snap, liberoPareti, generaPensiliAuto,
+  spaziTraMobili, riempiSpaziReglette,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
 } from './modello.js';
@@ -369,6 +370,7 @@ function renderPannelloModuli() {
   const problemi = problemiIngombri(progetto);
   const haContenuto = (progetto.mobiliLiberi || []).length > 0;
   const livello = livelloStep();
+  const spaziGaps = spaziTraMobili(progetto);
   const nMobiliLivello = (progetto.mobiliLiberi || [])
     .filter((m) => livelloDiMobile(m) === livello).length;
 
@@ -391,6 +393,15 @@ function renderPannelloModuli() {
     </section>
 
     ${blocMobileSelezionato()}
+
+    ${spaziGaps.length ? `
+    <section>
+      <h3>Spazi tra i mobili</h3>
+      <div class="riga-3d">${spaziGaps.length} spazio/i vuoto/i tra i mobili (${
+        spaziGaps.map((g) => `${(g.gap / 10).toFixed(g.gap % 10 ? 1 : 0)} cm`).join(', ')
+      }). Riempili con una regletta dello spessore esatto.</div>
+      <button id="riempi-reglette" class="btn-oro" type="button" style="margin-top:8px;width:100%">↔ Riempi spazi con reglette</button>
+    </section>` : ''}
 
     ${livello === 'alto' ? `
     <section>
@@ -546,6 +557,13 @@ function attaccaEventiStep2() {
   };
   document.getElementById('auto-70')?.addEventListener('click', () => autoPensili(700));
   document.getElementById('auto-90')?.addEventListener('click', () => autoPensili(900));
+  document.getElementById('riempi-reglette')?.addEventListener('click', () => {
+    registraStoria();
+    const n = riempiSpaziReglette(progetto);
+    step2.mobSelId = null;
+    aggiorna();
+    if (n === 0) alert('Nessuno spazio da riempire.');
+  });
 
   const mobSel = trovaMobileLibero(progetto, step2.mobSelId);
   if (mobSel) {

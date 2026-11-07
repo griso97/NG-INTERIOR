@@ -10,7 +10,7 @@ import {
   calcolaVertici, bboxPerimetro,
   moduliDiParete, nomeTipo, PROFONDITA_BASE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
-  dimMobile, liberoPareti, livelloDiMobile,
+  dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili,
 } from './modello.js';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -128,6 +128,20 @@ export function renderPianta(svg, progetto, opts = {}) {
         pareti[info.idx], info));
     });
     svg.appendChild(gLib);
+
+    // Etichette sugli SPAZI VUOTI tra i mobili (es. 3 cm all'angolo)
+    const gGap = el('g', { class: 'sv-gap-badges' });
+    spaziTraMobili(progetto).forEach((sp) => {
+      const rad = (sp.rot || 0) * Math.PI / 180;
+      const fx = Math.sin(rad), fy = -Math.cos(rad);   // direzione fronte (verso stanza)
+      const off = 400;
+      const t = el('text', {
+        x: sp.x + fx * off, y: -(sp.y + fy * off), class: 'sv-gap-badge',
+      });
+      t.textContent = `${(sp.gap / 10).toFixed(sp.gap % 10 ? 1 : 0)} cm`;
+      gGap.appendChild(t);
+    });
+    svg.appendChild(gGap);
   } else {
     // Nessuna parete (isola): disegno solo una nota al centro
     const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');

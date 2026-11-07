@@ -792,6 +792,72 @@ export function liberoPareti(progetto) {
 }
 
 /**
+ * Trova gli SPAZI VUOTI tra due mobili bassi affiancati sulla stessa linea
+ * (stessa fila/orientamento), es. il salto di ~3 cm quando ci si allinea a un
+ * pensile d'angolo da 630. Ritorna, per ogni spazio, centro (x,y), larghezza
+ * (gap in mm), orientamento e profondità. Le reglette già presenti "occupano"
+ * lo spazio, così un buco già riempito non viene più segnalato.
+ */
+export function spaziTraMobili(progetto, min = 10, max = 300) {
+  const mob = (progetto.mobiliLiberi || []).filter((m) => {
+    const cat = categoriaTipo(m.tipo);
+    return cat === 'base' || cat === 'regletta';
+  });
+  const gruppi = {};
+  for (const m of mob) {
+    const d = dimMobile(m);
+    const rotN = ((Math.round((m.rot || 0) / 90) * 90) % 360 + 360) % 360;
+    const horiz = rotN % 180 === 0;                   // larghezza lungo X
+    const line = horiz ? Math.round(m.y / 5) * 5 : Math.round(m.x / 5) * 5;
+    const pos = horiz ? m.x : m.y;
+    const half = d.w / 2;                             // mezza larghezza lungo l'asse
+    const key = `${horiz ? 'H' : 'V'}|${line}`;
+    (gruppi[key] ||= { horiz, line, items: [] }).items.push({ pos, half, m });
+  }
+  const out = [];
+  for (const k in gruppi) {
+    const G = gruppi[k];
+    G.items.sort((a, b) => a.pos - b.pos);
+    for (let i = 0; i < G.items.length - 1; i++) {
+      const A = G.items[i], B = G.items[i + 1];
+      const gap = (B.pos - B.half) - (A.pos + A.half);
+      if (gap < min || gap > max) continue;
+      // se uno dei due è già una regletta, lo spazio è di fatto riempito
+      if (categoriaTipo(A.m.tipo) === 'regletta' || categoriaTipo(B.m.tipo) === 'regletta') continue;
+      const center = (A.pos + A.half + (B.pos - B.half)) / 2;
+      out.push({
+        x: G.horiz ? center : G.line,
+        y: G.horiz ? G.line : center,
+        gap: Math.round(gap),
+        rot: A.m.rot || 0,
+        depth: Math.round(Math.max(dimMobile(A.m).d, dimMobile(B.m).d)),
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Riempie automaticamente gli spazi tra i mobili con una regletta dello
+ * spessore esatto del vuoto. Ritorna quante reglette ha inserito.
+ */
+export function riempiSpaziReglette(progetto) {
+  const gaps = spaziTraMobili(progetto);
+  if (gaps.length === 0) return 0;
+  let nextId = Math.max(0, ...progetto.mobiliLiberi.map((m) => m.id)) + 1;
+  let n = 0;
+  for (const g of gaps) {
+    progetto.mobiliLiberi.push({
+      id: nextId++, tipo: 'regletta',
+      latoA_mm: g.gap, latoB_mm: g.depth, altezza_mm: 700,
+      x: g.x, y: g.y, rot: g.rot,
+    });
+    n++;
+  }
+  return n;
+}
+
+/**
  * Dopo una rimozione, ricompatta le posizioni di tutti i moduli lungo
  * ogni parete (così non restano buchi a sinistra).
  */
