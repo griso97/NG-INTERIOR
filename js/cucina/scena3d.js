@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {
   calcolaVertici, dimMobile, categoriaTipo,
-  moduliDiParete, PROFONDITA_BASE,
+  moduliDiParete, PROFONDITA_BASE, infoAngoloCieco, SPESSORE_ANTA,
 } from './modello.js';
 import { getMaterialeTHREE } from '../materiali.js';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js';
@@ -465,6 +465,70 @@ function lavastoviglieFronte(g, w, h, d, matAnta) {
   maniglia(g, 0, h / 2 - FUGA_H / 2 - hStrip - 20, z, true, Math.min(pw * 0.55, 320));
 }
 
+/**
+ * Fronte di un mobile ad ANGOLO CIECO: anta apribile sulla parte libera +
+ * pannello cieco (fisso, senza maniglia) sulla parte coperta dall'altro mobile.
+ */
+function anteCieche(g, w, h, d, matAnta, cieco) {
+  const z = d / 2;
+  const coveredW = Math.max(40, Math.min(w - 80, cieco.coveredW));
+  const freeW = w - coveredW;
+  const latoDx = cieco.latoDx;                      // copertura sul lato +x?
+  const doorCx = latoDx ? (-w / 2 + freeW / 2) : (w / 2 - freeW / 2);
+  const blindCx = latoDx ? (w / 2 - coveredW / 2) : (-w / 2 + coveredW / 2);
+  // Anta/e apribili sulla parte libera
+  const nAnte = freeW >= 900 ? 2 : 1;
+  const uw = freeW - FUGA_W;
+  const pw = (uw - (nAnte - 1) * GAP_ANTE) / nAnte;
+  for (let i = 0; i < nAnte; i++) {
+    const px = doorCx - uw / 2 + pw / 2 + i * (pw + GAP_ANTE);
+    pannello(g, px, 0, z, pw, h - FUGA_H, matAnta || COL.anta);
+    const hx = latoDx ? (px + pw / 2 - 30) : (px - pw / 2 + 30);
+    maniglia(g, hx, 0, z, false, Math.min(260, (h - FUGA_H) * 0.5));
+  }
+  // Pannello cieco (fisso): stessa finitura, nessuna maniglia
+  pannello(g, blindCx, 0, z, coveredW - FUGA_W, h - FUGA_H, matAnta || COL.anta);
+}
+
+/**
+ * Regletta a L nell'angolo interno tra due mobili (uno cieco): due pezzi a 90°,
+ * uno da 30 mm e uno da 30+spessore anta (48 con ante da 18), così uno sormonta
+ * l'altro. Sta sul fronte, a filo dei due mobili.
+ */
+function renderRegolettaAngolo(cieco, m, h, zocc, matAnta) {
+  const o = cieco.o;
+  const radM = (m.rot || 0) * Math.PI / 180, radO = (o.rot || 0) * Math.PI / 180;
+  const nmx = Math.sin(radM), nmy = -Math.cos(radM);     // normale fronte m (pianta)
+  const nox = Math.sin(radO), noy = -Math.cos(radO);
+  const dM = dimMobile(m).d, dO = dimMobile(o).d;
+  const kM = m.x * nmx + m.y * nmy + dM / 2;
+  const kO = o.x * nox + o.y * noy + dO / 2;
+  // Punto d'incrocio dei due piani-fronte (normali ortonormali)
+  const Px = nmx * kM + nox * kO, Py = nmy * kM + noy * kO;
+  const mat = (matAnta && matAnta.isMaterial)
+    ? matAnta : new THREE.MeshStandardMaterial({ color: COL.anta, roughness: 0.6, metalness: 0.08 });
+  const yC = zocc + (h - FUGA_H) / 2;
+  const sp = 40;                                          // spessore pezzo (verso stanza)
+  const L1 = 30 + SPESSORE_ANTA, L2 = 30;                 // 48 e 30
+  const addPezzo = (lw, cx, cy, rotDeg) => {
+    const geo = new THREE.BoxGeometry(lw, h - FUGA_H, sp);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(cx, yC, -cy);
+    mesh.rotation.y = -rotDeg * Math.PI / 180;
+    gruppo.add(mesh);
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), matOro);
+    e.position.copy(mesh.position); e.rotation.copy(mesh.rotation); gruppo.add(e);
+  };
+  // tangenti (assi larghezza) e versi verso i rispettivi mobili
+  const tmx = Math.cos(radM), tmy = Math.sin(radM);
+  const tox = Math.cos(radO), toy = Math.sin(radO);
+  const dirM = ((m.x - Px) * tmx + (m.y - Py) * tmy) >= 0 ? 1 : -1;
+  const dirO = ((o.x - Px) * tox + (o.y - Py) * toy) >= 0 ? 1 : -1;
+  // Pezzo lungo il fronte di m (48), e pezzo lungo il fronte di o (30)
+  addPezzo(L1, Px - nmx * (sp / 2) + tmx * dirM * (L1 / 2), Py - nmy * (sp / 2) + tmy * dirM * (L1 / 2), m.rot || 0);
+  addPezzo(L2, Px - nox * (sp / 2) + tox * dirO * (L2 / 2), Py - noy * (sp / 2) + toy * dirO * (L2 / 2), o.rot || 0);
+}
+
 /** Pensile ad angolo (63×63): cassa quadrata + anta diagonale a 45°. */
 function pensileAngoloFronte(g, w, h, d, matAnta) {
   const mat = (matAnta && matAnta.isMaterial)
@@ -492,6 +556,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
     : cat === 'regletta' ? COL.regletta : COL.corpo;
   g.add(corpo(w, h, d, coloreCorpo));
   if (cat === 'regletta') return g;
+  if (opt.cieco) { anteCieche(g, w, h, d, matAnta, opt.cieco); return g; }
   if (tipo === 'pensile-angolo') { pensileAngoloFronte(g, w, h, d, matAnta); return g; }
   if (cat === 'colonna') { colonnaFronte(g, w, h, d, m, matAnta); return g; }
   if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta); return g; }
@@ -634,7 +699,9 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       // Il piano di lavoro NON si disegna qui: è un pezzo unico continuo (dopo).
       const porta = m.altezza_mm || 700;
       const zocc = zoccoloPerAltezza(porta);
-      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d, matBase), cx, zocc, cz, porta, m.rot);
+      const cieco = infoAngoloCieco(progetto, m);
+      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d, matBase, { cieco }), cx, zocc, cz, porta, m.rot);
+      if (cieco) renderRegolettaAngolo(cieco, m, porta, zocc, matBase);
       basiTop.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc, topY: zocc + porta });
       zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
       // Placca / lavello (tipi forno/lavello oppure aggiunti a mano): sopra il top

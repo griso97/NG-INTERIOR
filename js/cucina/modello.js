@@ -816,6 +816,55 @@ export function liberoPareti(progetto) {
   return out;
 }
 
+// Spessore anta standard (per il calcolo della regletta a L d'angolo).
+export const SPESSORE_ANTA = 18;
+
+/** AABB (assi del mondo) di un mobile: {x0,x1,y0,y1}. */
+function aabbMondo(m) {
+  const d = dimMobile(m);
+  const rotN = ((Math.round((m.rot || 0) / 90) * 90) % 360 + 360) % 360;
+  const horiz = rotN % 180 === 0;             // larghezza lungo X
+  const hx = (horiz ? d.w : d.d) / 2;
+  const hy = (horiz ? d.d : d.w) / 2;
+  return { x0: m.x - hx, x1: m.x + hx, y0: m.y - hy, y1: m.y + hy, horiz, w: d.w, d: d.d };
+}
+
+/**
+ * Info per il mobile "ad angolo cieco": trova la base PERPENDICOLARE che lo
+ * copre all'angolo e calcola quanta parte del fronte è coperta e da che lato.
+ * Ritorna null se il mobile non è segnato cieco o non trova il mobile che copre.
+ * { coveredW, latoDx (true=copertura sul lato +), corner:{x,y} }.
+ */
+export function infoAngoloCieco(progetto, m) {
+  if (!m || !m.angoloCieco) return null;
+  const A = aabbMondo(m);
+  let best = null;
+  for (const o of (progetto.mobiliLiberi || [])) {
+    if (o.id === m.id) continue;
+    if (categoriaTipo(o.tipo) !== 'base') continue;
+    const B = aabbMondo(o);
+    if (B.horiz === A.horiz) continue;                 // non perpendicolare
+    const ix0 = Math.max(A.x0, B.x0), ix1 = Math.min(A.x1, B.x1);
+    const iy0 = Math.max(A.y0, B.y0), iy1 = Math.min(A.y1, B.y1);
+    if (ix1 - ix0 <= 5 || iy1 - iy0 <= 5) continue;    // nessuna sovrapposizione
+    const area = (ix1 - ix0) * (iy1 - iy0);
+    let coveredW, latoDx, cornerX, cornerY;
+    if (A.horiz) {                                      // larghezza lungo X
+      coveredW = ix1 - ix0;
+      latoDx = (ix0 + ix1) / 2 > m.x;
+      cornerX = latoDx ? ix0 : ix1;                    // bordo interno della copertura
+      cornerY = (iy0 + iy1) / 2;
+    } else {                                           // larghezza lungo Y
+      coveredW = iy1 - iy0;
+      latoDx = (iy0 + iy1) / 2 > m.y;
+      cornerY = latoDx ? iy0 : iy1;
+      cornerX = (ix0 + ix1) / 2;
+    }
+    if (!best || area > best.area) best = { o, area, coveredW: Math.round(coveredW), latoDx, corner: { x: cornerX, y: cornerY } };
+  }
+  return best;
+}
+
 /**
  * Trova gli SPAZI VUOTI tra due mobili bassi affiancati sulla stessa linea
  * (stessa fila/orientamento), es. il salto di ~3 cm quando ci si allinea a un

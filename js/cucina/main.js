@@ -579,6 +579,11 @@ function attaccaEventiStep2() {
       riblocca(mobSel.id);
       fatto();
     });
+    document.getElementById('mob-cieco')?.addEventListener('click', () => {
+      registraStoria();
+      mobSel.angoloCieco = !mobSel.angoloCieco;
+      fatto();
+    });
     const nudge = (dx, dy) => {
       const cm = parseFloat(document.getElementById('nudge-cm')?.value) || 0;
       const mm = Math.round(cm * 10);
@@ -931,6 +936,7 @@ function blocMobileSelezionato() {
       <div class="mob-azioni-grid">
         <button id="mob-ruota" class="btn-ghost" type="button">⟳ Ruota 90°</button>
         <button id="mob-isola" class="btn-ghost ${m.isola ? 'attivo' : ''}" type="button">${m.isola ? '✓ ' : ''}🏝 Isola (libero)</button>
+        ${categoriaTipo(m.tipo) === 'base' ? `<button id="mob-cieco" class="btn-ghost ${m.angoloCieco ? 'attivo' : ''}" type="button">${m.angoloCieco ? '✓ ' : ''}⌐ Angolo cieco</button>` : ''}
         <button id="mob-misura" class="btn-ghost" type="button">Cambia misura</button>
         <button id="mob-elimina" class="btn-ghost" type="button">Elimina</button>
       </div>
