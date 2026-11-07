@@ -113,8 +113,8 @@ export function campiMobile(tipoId) {
   if (!t) return [];
   if (t.categoria === 'regletta') {
     return [
-      { campo: 'latoA_mm',  et: 'Lato 1 (mm)', tipo: 'numero', default: 30, min: 10, step: 5 },
-      { campo: 'latoB_mm',  et: 'Lato 2 (mm)', tipo: 'numero', default: 30, min: 10, step: 5 },
+      { campo: 'latoA_mm',  et: 'Larghezza (mm)', tipo: 'numero', default: 30, min: 10, step: 5, opzioni: [20, 30, 40, 50, 100] },
+      { campo: 'latoB_mm',  et: 'Profondità (mm)', tipo: 'numero', default: PROFONDITA_BASE, min: 10, step: 5, opzioni: [PROFONDITA_BASE, 350, 100, 30] },
       { campo: 'altezza_mm', et: 'Altezza (mm)', opzioni: ALTEZZE_BASE, default: ALTEZZE_BASE[0] },
     ];
   }
@@ -674,6 +674,17 @@ export function ruotaMobileLibero(progetto, id) {
 }
 export function rimuoviMobileLibero(progetto, id) {
   progetto.mobiliLiberi = progetto.mobiliLiberi.filter((m) => m.id !== id);
+}
+
+/**
+ * Sposta un mobile libero di (dx, dy) mm in modo ESATTO (per allineare bene
+ * reglette e mobili). Niente aggancio magnetico: la posizione è precisa.
+ */
+export function muoviMobileLibero(progetto, id, dx, dy) {
+  const m = trovaMobileLibero(progetto, id);
+  if (!m) return;
+  m.x = Math.round(m.x + dx);
+  m.y = Math.round(m.y + dy);
 }
 
 /**

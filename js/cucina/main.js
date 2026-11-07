@@ -18,7 +18,7 @@ import {
   ruotaPianta, specchiaPianta, inverteAngolo,
   toggleParete, muroTolto, snap, liberoPareti, generaPensiliAuto,
   spaziTraMobili, riempiSpaziReglette,
-  aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero,
+  aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
 } from './modello.js';
 import { renderPianta } from './pianta.js';
@@ -579,6 +579,19 @@ function attaccaEventiStep2() {
       riblocca(mobSel.id);
       fatto();
     });
+    const nudge = (dx, dy) => {
+      const cm = parseFloat(document.getElementById('nudge-cm')?.value) || 0;
+      const mm = Math.round(cm * 10);
+      if (!mm) return;
+      registraStoria();
+      muoviMobileLibero(progetto, mobSel.id, dx * mm, dy * mm);
+      aggiornaSoloDisegno();
+    };
+    // y della pianta è verso l'alto → "su" = +y, "giù" = -y
+    document.getElementById('nudge-su').addEventListener('click', () => nudge(0, 1));
+    document.getElementById('nudge-giu').addEventListener('click', () => nudge(0, -1));
+    document.getElementById('nudge-sx').addEventListener('click', () => nudge(-1, 0));
+    document.getElementById('nudge-dx').addEventListener('click', () => nudge(1, 0));
     document.getElementById('mob-misura').addEventListener('click', () => {
       apriScelta(mobSel.tipo, mobSel.id);
     });
@@ -920,6 +933,15 @@ function blocMobileSelezionato() {
         <button id="mob-isola" class="btn-ghost ${m.isola ? 'attivo' : ''}" type="button">${m.isola ? '✓ ' : ''}🏝 Isola (libero)</button>
         <button id="mob-misura" class="btn-ghost" type="button">Cambia misura</button>
         <button id="mob-elimina" class="btn-ghost" type="button">Elimina</button>
+      </div>
+      <div class="nudge">
+        <label class="nudge-cm">Sposta di <input id="nudge-cm" type="number" value="1" min="0.1" step="0.5" inputmode="decimal"> cm</label>
+        <div class="nudge-grid">
+          <button id="nudge-su" class="btn-ghost" type="button" title="Su">↑</button>
+          <button id="nudge-sx" class="btn-ghost" type="button" title="Sinistra">←</button>
+          <button id="nudge-dx" class="btn-ghost" type="button" title="Destra">→</button>
+          <button id="nudge-giu" class="btn-ghost" type="button" title="Giù">↓</button>
+        </div>
       </div>
       <div class="mod-vuoto">${m.isola
         ? 'Isola: posizionalo dove vuoi e ruotalo a mano. Si attacca comunque agli altri mobili.'
