@@ -922,7 +922,9 @@ function blocMobileSelezionato() {
       </div>
       <div class="mod-vuoto">${m.isola
         ? 'Isola: posizionalo dove vuoi e ruotalo a mano. Si attacca comunque agli altri mobili.'
-        : 'Trascina sulla pianta: vicino al muro si orienta da solo. Attiva “Isola” per metterlo libero al centro.'}</div>
+        : (m.orientManuale
+          ? 'Rotazione manuale: tengo l’orientamento che hai scelto (utile per le penisole). Trascinalo dove vuoi, si attacca comunque agli altri mobili.'
+          : 'Trascina sulla pianta: vicino al muro si orienta da solo. Ruotalo per una penisola, o attiva “Isola” per metterlo libero al centro.')}</div>
     </section>`;
 }
 
