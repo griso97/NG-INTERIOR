@@ -17,7 +17,7 @@ import {
   spostaModulo, problemiIngombri,
   ruotaPianta, specchiaPianta, inverteAngolo,
   toggleParete, muroTolto, snap, liberoPareti, generaPensiliAuto,
-  spaziTraMobili, riempiSpaziReglette,
+  spaziTraMobili, riempiSpaziReglette, infoAngoloCieco,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
 } from './modello.js';
@@ -581,7 +581,8 @@ function attaccaEventiStep2() {
     });
     document.getElementById('mob-cieco')?.addEventListener('click', () => {
       registraStoria();
-      mobSel.angoloCieco = !mobSel.angoloCieco;
+      // Se ora è cieco → forzalo normale; altrimenti forzalo cieco.
+      mobSel.angoloCieco = infoAngoloCieco(progetto, mobSel) ? false : true;
       fatto();
     });
     const nudge = (dx, dy) => {
@@ -936,7 +937,7 @@ function blocMobileSelezionato() {
       <div class="mob-azioni-grid">
         <button id="mob-ruota" class="btn-ghost" type="button">⟳ Ruota 90°</button>
         <button id="mob-isola" class="btn-ghost ${m.isola ? 'attivo' : ''}" type="button">${m.isola ? '✓ ' : ''}🏝 Isola (libero)</button>
-        ${categoriaTipo(m.tipo) === 'base' ? `<button id="mob-cieco" class="btn-ghost ${m.angoloCieco ? 'attivo' : ''}" type="button">${m.angoloCieco ? '✓ ' : ''}⌐ Angolo cieco</button>` : ''}
+        ${categoriaTipo(m.tipo) === 'base' && infoAngoloCieco(progetto, m) ? `<button id="mob-cieco" class="btn-ghost attivo" type="button">✓ ⌐ Angolo cieco (auto) — togli</button>` : (categoriaTipo(m.tipo) === 'base' ? `<button id="mob-cieco" class="btn-ghost" type="button">⌐ Forza angolo cieco qui</button>` : '')}
         <button id="mob-misura" class="btn-ghost" type="button">Cambia misura</button>
         <button id="mob-elimina" class="btn-ghost" type="button">Elimina</button>
       </div>

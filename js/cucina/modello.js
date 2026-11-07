@@ -836,7 +836,8 @@ function aabbMondo(m) {
  * { coveredW, latoDx (true=copertura sul lato +), corner:{x,y} }.
  */
 export function infoAngoloCieco(progetto, m) {
-  if (!m || !m.angoloCieco) return null;
+  if (!m || categoriaTipo(m.tipo) !== 'base') return null;
+  if (m.angoloCieco === false) return null;            // forzato normale
   const A = aabbMondo(m);
   let best = null;
   for (const o of (progetto.mobiliLiberi || [])) {
@@ -847,6 +848,13 @@ export function infoAngoloCieco(progetto, m) {
     const ix0 = Math.max(A.x0, B.x0), ix1 = Math.min(A.x1, B.x1);
     const iy0 = Math.max(A.y0, B.y0), iy1 = Math.min(A.y1, B.y1);
     if (ix1 - ix0 <= 5 || iy1 - iy0 <= 5) continue;    // nessuna sovrapposizione
+    // Chi è il CIECO della coppia? Chi non può aprire un'anta = il più largo
+    // (ha 2 ante, una bloccata). Override manuale con angoloCieco true/false.
+    let mCieco;
+    if (m.angoloCieco === true) mCieco = true;
+    else if (o.angoloCieco === true) mCieco = false;
+    else { const wm = A.w, wo = B.w; mCieco = wm > wo || (wm === wo && m.id < o.id); }
+    if (!mCieco) continue;
     const area = (ix1 - ix0) * (iy1 - iy0);
     let coveredW, latoDx, cornerX, cornerY;
     if (A.horiz) {                                      // larghezza lungo X
