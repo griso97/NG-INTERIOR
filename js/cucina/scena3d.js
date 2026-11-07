@@ -465,6 +465,26 @@ function lavastoviglieFronte(g, w, h, d, matAnta) {
   maniglia(g, 0, h / 2 - FUGA_H / 2 - hStrip - 20, z, true, Math.min(pw * 0.55, 320));
 }
 
+/** Pensile ad angolo (63×63): cassa quadrata + anta diagonale a 45°. */
+function pensileAngoloFronte(g, w, h, d, matAnta) {
+  const mat = (matAnta && matAnta.isMaterial)
+    ? matAnta
+    : new THREE.MeshStandardMaterial({ color: COL.anta, roughness: 0.6, metalness: 0.08 });
+  const diag = Math.min(w, d) * 1.18;              // larghezza anta diagonale
+  const geo = new THREE.BoxGeometry(diag, h - FUGA_H, 18);
+  const porta = new THREE.Mesh(geo, mat);
+  porta.rotation.y = -Math.PI / 4;                 // fronte verso l'angolo stanza
+  porta.position.set(w * 0.16, 0, d * 0.16);
+  g.add(porta);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), matOro);
+  e.position.copy(porta.position); e.rotation.copy(porta.rotation); g.add(e);
+  // Maniglia verticale sul fronte diagonale
+  const nx = Math.sin(Math.PI / 4), nz = Math.cos(Math.PI / 4);  // normale anta
+  const man = new THREE.Mesh(new THREE.BoxGeometry(16, Math.min(300, (h - FUGA_H) * 0.45), 16), matManiglia);
+  man.position.set(w * 0.16 + nx * 16 - 120 * nz, 0, d * 0.16 + nz * 16 + 120 * nx);
+  g.add(man);
+}
+
 /** Costruisce il mobile completo centrato nell'origine (corpo + fronti). */
 function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
@@ -472,6 +492,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
     : cat === 'regletta' ? COL.regletta : COL.corpo;
   g.add(corpo(w, h, d, coloreCorpo));
   if (cat === 'regletta') return g;
+  if (tipo === 'pensile-angolo') { pensileAngoloFronte(g, w, h, d, matAnta); return g; }
   if (cat === 'colonna') { colonnaFronte(g, w, h, d, m, matAnta); return g; }
   if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta); return g; }
   if (tipo === 'lavello') { ante(g, w, h, d, w >= 900 ? 2 : 1, matAnta); return g; } // lavello disegnato sopra il top
