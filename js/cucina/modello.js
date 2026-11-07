@@ -507,6 +507,22 @@ export function orientaVersoMuro(progetto, m, x, y) {
 }
 
 /**
+ * Ri-orienta tutti i mobili a parete verso l'interno (ante verso la stanza),
+ * così la rotazione salvata resta sempre corretta anche sui mobili già piazzati.
+ * Le isole/penisole (isola) mantengono l'orientamento manuale.
+ */
+export function riorientaMobili(progetto) {
+  for (const m of (progetto.mobiliLiberi || [])) {
+    delete m.orientManuale;                          // flag obsoleto
+    if (m.isola) continue;
+    const cat = categoriaTipo(m.tipo);
+    if (cat === 'costado' || cat === 'regletta') continue;
+    const rot = orientaVersoMuro(progetto, m, m.x, m.y);
+    if (rot !== null) m.rot = rot;
+  }
+}
+
+/**
  * Aggancio magnetico: se un bordo del mobile è VICINO (entro `soglia`) al bordo
  * di un altro mobile della stessa fascia di altezza e affiancato sulla stessa
  * linea, lo fa scorrere lungo il muro quel tanto che basta per farli combaciare

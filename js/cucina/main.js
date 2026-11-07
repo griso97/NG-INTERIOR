@@ -16,7 +16,7 @@ import {
   rimuoviModuloBase, rimuoviFascia,
   spostaModulo, problemiIngombri,
   ruotaPianta, specchiaPianta, inverteAngolo,
-  toggleParete, muroTolto, snap, liberoPareti, generaPensiliAuto,
+  toggleParete, muroTolto, snap, liberoPareti, generaPensiliAuto, riorientaMobili,
   spaziTraMobili, riempiSpaziReglette, infoAngoloCieco,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
@@ -888,6 +888,7 @@ function disegna() {
   }
 }
 function aggiorna() {
+  riorientaMobili(progetto);          // ante sempre verso l'interno (a parete)
   renderStepper();
   renderPannello();
   renderRiepilogo();
