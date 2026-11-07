@@ -562,6 +562,33 @@ export function posizionaVincolata(progetto, m, x, y) {
 export const LARGHEZZA_ANGOLO = 630;  // pensile d'angolo nelle cucine a L/U
 
 /**
+ * La base è appoggiata a un MURO? (serve per i pensili automatici: sopra le
+ * isole/penisole NON vanno messi pensili, sennò restano appesi nel vuoto.)
+ * Vero se il centro base è dentro la lunghezza di un muro e a breve distanza
+ * dal lato interno. Un mobile marcato "isola" non è mai a muro.
+ */
+export function baseAMuro(progetto, b) {
+  if (b.isola) return false;
+  const full = progetto.piano.pareti || [];
+  const vertici = calcolaVertici(full);
+  for (let i = 0; i < full.length; i++) {
+    const p = full[i];
+    if (p.assente) continue;
+    const a = vertici[i], c = vertici[i + 1];
+    const dx = c.x - a.x, dy = c.y - a.y;
+    const L = Math.hypot(dx, dy) || 1;
+    const ux = dx / L, uy = dy / L;
+    const sgn = p.latoInterno === 'interno' ? 1 : -1;
+    const nx = -dy / L * sgn, ny = dx / L * sgn;
+    const t = (b.x - a.x) * ux + (b.y - a.y) * uy;     // lungo il muro
+    const dist = (b.x - a.x) * nx + (b.y - a.y) * ny;  // distanza dal lato interno
+    if (t < -150 || t > L + 150) continue;             // fuori dalla lunghezza
+    if (dist >= -50 && dist <= PROFONDITA_BASE / 2 + 220) return true;
+  }
+  return false;
+}
+
+/**
  * Genera automaticamente i pensili: uno sopra ogni base (stessa larghezza,
  * allineato, appoggiato allo stesso muro) all'altezza scelta (700/900), più
  * un pensile d'angolo da 630 in ogni angolo interno (cucine a L/U).
@@ -575,9 +602,11 @@ export function generaPensiliAuto(progetto, altezzaPensile) {
   const nuovi = [];
   const OFFSET = (PROFONDITA_BASE - PROFONDITA_PENSILE) / 2; // 125 mm
 
-  // Un pensile sopra ogni base (non sopra colonne/reglette/costadi)
+  // Un pensile sopra ogni base A MURO (mai sopra isole/penisole, né sopra
+  // colonne/reglette/costadi), sennò resterebbero appesi nel vuoto.
   for (const b of progetto.mobiliLiberi) {
     if (categoriaTipo(b.tipo) !== 'base') continue;
+    if (!baseAMuro(progetto, b)) continue;
     const rad = (b.rot || 0) * Math.PI / 180;
     const nx = Math.sin(rad), ny = -Math.cos(rad); // normale verso la stanza (fronte base)
     nuovi.push({
