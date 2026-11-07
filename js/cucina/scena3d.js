@@ -440,6 +440,31 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
   }
 }
 
+/** Lavastoviglie a incasso: anta unica + striscia comandi inox in alto. */
+function lavastoviglieFronte(g, w, h, d, matAnta) {
+  const z = d / 2;
+  const pw = w - FUGA_W;
+  const hStrip = 55;                              // fascia comandi in alto
+  const ph = h - FUGA_H - hStrip;
+  const cy = -h / 2 + FUGA_H / 2 + ph / 2;        // anta sotto la fascia
+  pannello(g, 0, cy, z, pw, ph, matAnta || COL.anta);
+  // Fascia comandi inox
+  const strip = new THREE.Mesh(new THREE.BoxGeometry(pw, hStrip - 6, 22),
+    new THREE.MeshStandardMaterial({ color: 0xc8c8cc, roughness: 0.3, metalness: 0.75 }));
+  strip.position.set(0, h / 2 - FUGA_H / 2 - (hStrip - 6) / 2, z + 11);
+  g.add(strip);
+  // Spie/comandi
+  for (let i = 0; i < 3; i++) {
+    const led = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 4, 10),
+      new THREE.MeshStandardMaterial({ color: 0x3a3a40, roughness: 0.4, metalness: 0.5 }));
+    led.rotation.x = Math.PI / 2;
+    led.position.set(-pw / 2 + 40 + i * 26, h / 2 - FUGA_H / 2 - (hStrip - 6) / 2, z + 24);
+    g.add(led);
+  }
+  // Maniglia a incasso sotto la fascia comandi
+  maniglia(g, 0, h / 2 - FUGA_H / 2 - hStrip - 20, z, true, Math.min(pw * 0.55, 320));
+}
+
 /** Costruisce il mobile completo centrato nell'origine (corpo + fronti). */
 function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
@@ -450,6 +475,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   if (cat === 'colonna') { colonnaFronte(g, w, h, d, m, matAnta); return g; }
   if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta); return g; }
   if (tipo === 'lavello') { ante(g, w, h, d, w >= 900 ? 2 : 1, matAnta); return g; } // lavello disegnato sopra il top
+  if (tipo === 'lavastoviglie') { lavastoviglieFronte(g, w, h, d, matAnta); return g; }
   if (tipo === 'forno') { pannelloElettro(g, -h * 0.05, d / 2, w - 24, h * 0.7, 'forno'); return g; } // placca sopra il top
   // base con ante / pensile (il pensile può avere l'anta sporgente sotto)
   ante(g, w, h, d, w >= 900 ? 2 : 1, matAnta, opt.sporg);

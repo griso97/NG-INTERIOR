@@ -58,6 +58,7 @@ export const TIPI_MODULO_BASE = [
   { id: 'base-ante',     nome: 'Base con ante',     larghezze: LARGHEZZE_BASE },
   { id: 'base-cassetti', nome: 'Base cassetti',     larghezze: LARGHEZZE_BASE },
   { id: 'lavello',       nome: 'Lavello',           larghezze: LARGHEZZE_BASE },
+  { id: 'lavastoviglie', nome: 'Lavastoviglie',     larghezze: [450, 600] },
   { id: 'forno',         nome: 'Forno + placca',    larghezze: [600] },
 ];
 
@@ -74,6 +75,8 @@ export const CATALOGO_MOBILI = [
     larghezze: LARGHEZZE_BASE, altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
   { id: 'lavello',       nome: 'Lavello', categoria: 'base',
     larghezze: LARGHEZZE_BASE, altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
+  { id: 'lavastoviglie', nome: 'Lavastoviglie', categoria: 'base',
+    larghezze: [450, 600], altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
   { id: 'forno',         nome: 'Forno + placca', categoria: 'base',
     larghezze: [600], altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
   { id: 'pensile',       nome: 'Pensile', categoria: 'pensile',
