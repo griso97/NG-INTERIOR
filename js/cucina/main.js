@@ -598,6 +598,16 @@ function attaccaEventiStep2() {
     document.getElementById('nudge-giu').addEventListener('click', () => nudge(0, -1));
     document.getElementById('nudge-sx').addEventListener('click', () => nudge(-1, 0));
     document.getElementById('nudge-dx').addEventListener('click', () => nudge(1, 0));
+    const raBase = document.getElementById('ra-base');
+    const raSpess = document.getElementById('ra-spess');
+    const aggiornaRa = () => {
+      if (!progetto.reglettaAngolo) progetto.reglettaAngolo = { base: 30, spessore: 18 };
+      if (raBase) progetto.reglettaAngolo.base = Math.max(5, parseInt(raBase.value, 10) || 30);
+      if (raSpess) progetto.reglettaAngolo.spessore = Math.max(0, parseInt(raSpess.value, 10) || 0);
+      fatto();
+    };
+    raBase?.addEventListener('change', aggiornaRa);
+    raSpess?.addEventListener('change', aggiornaRa);
     document.getElementById('mob-misura').addEventListener('click', () => {
       apriScelta(mobSel.tipo, mobSel.id);
     });
@@ -930,6 +940,8 @@ function renderPalette() {
 function blocMobileSelezionato() {
   const m = trovaMobileLibero(progetto, step2.mobSelId);
   if (!m) return '';
+  const cieco = categoriaTipo(m.tipo) === 'base' ? infoAngoloCieco(progetto, m) : null;
+  const ra = progetto.reglettaAngolo || { base: 30, spessore: 18 };
   return `
     <section>
       <h3>Mobile selezionato</h3>
@@ -937,7 +949,7 @@ function blocMobileSelezionato() {
       <div class="mob-azioni-grid">
         <button id="mob-ruota" class="btn-ghost" type="button">⟳ Ruota 90°</button>
         <button id="mob-isola" class="btn-ghost ${m.isola ? 'attivo' : ''}" type="button">${m.isola ? '✓ ' : ''}🏝 Isola (libero)</button>
-        ${categoriaTipo(m.tipo) === 'base' && infoAngoloCieco(progetto, m) ? `<button id="mob-cieco" class="btn-ghost attivo" type="button">✓ ⌐ Angolo cieco (auto) — togli</button>` : (categoriaTipo(m.tipo) === 'base' ? `<button id="mob-cieco" class="btn-ghost" type="button">⌐ Forza angolo cieco qui</button>` : '')}
+        ${categoriaTipo(m.tipo) === 'base' && cieco ? `<button id="mob-cieco" class="btn-ghost attivo" type="button">✓ ⌐ Angolo cieco (auto) — togli</button>` : (categoriaTipo(m.tipo) === 'base' ? `<button id="mob-cieco" class="btn-ghost" type="button">⌐ Forza angolo cieco qui</button>` : '')}
         <button id="mob-misura" class="btn-ghost" type="button">Cambia misura</button>
         <button id="mob-elimina" class="btn-ghost" type="button">Elimina</button>
       </div>
@@ -951,11 +963,19 @@ function blocMobileSelezionato() {
         </div>
       </div>
       <div class="mod-vuoto">${m.isola
-        ? 'Isola: posizionalo dove vuoi e ruotalo a mano. Si attacca comunque agli altri mobili.'
-        : (m.orientManuale
-          ? 'Rotazione manuale: tengo l’orientamento che hai scelto (utile per le penisole). Trascinalo dove vuoi, si attacca comunque agli altri mobili.'
-          : 'Trascina sulla pianta: vicino al muro si orienta da solo. Ruotalo per una penisola, o attiva “Isola” per metterlo libero al centro.')}</div>
-    </section>`;
+        ? 'Isola/penisola: posizionalo dove vuoi e ruotalo a mano. Si attacca comunque agli altri mobili.'
+        : 'Vicino al muro si orienta da solo (ante verso l’interno). Per una penisola attiva “Isola (libero)” e poi ruotalo.'}</div>
+    </section>
+    ${cieco ? `
+    <section>
+      <h3>Regletta a L d'angolo</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Misura a vista e spessore anta (un pezzo è base+spessore).</div>
+      <div class="ra-campi">
+        <label>Base (mm)<input id="ra-base" type="number" value="${ra.base}" min="5" step="1" inputmode="numeric"></label>
+        <label>Spessore anta (mm)<input id="ra-spess" type="number" value="${ra.spessore}" min="0" step="1" inputmode="numeric"></label>
+      </div>
+      <div class="riga-3d" style="margin-top:4px">Pezzi: ${ra.base} mm e ${ra.base + ra.spessore} mm.</div>
+    </section>` : ''}`;
 }
 
 /**

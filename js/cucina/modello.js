@@ -35,6 +35,7 @@ export function progettoDefault() {
     coloriFronti: { base: null, pensile: null, colonna: null, costado: null },
     zoccoloColore: 'nero-opaco',
     sfondo: 'chiaro',            // sfondo vista 3D: chiaro | neutro | scuro
+    reglettaAngolo: { base: 30, spessore: 18 },  // regletta a L d'angolo (mm)
     // Stile anta pensili: 'standard' (−2 alt / −3 largh come i bassi),
     // 'sporg70' (pensili 70 → anta 72, sporge 2cm sotto),
     // 'sporg90' (pensili 90 → anta 92, sporge 2cm sotto).
@@ -371,10 +372,8 @@ export function vincolaAiMuri(progetto, m, x, y) {
       const distN = (x - a.x) * nx + (y - a.y) * ny;
       if (distN < extN) { const sp = extN - distN; x += nx * sp; y += ny * sp; }
       // (b) estremi: se il mobile è appoggiato a questo muro, resta tra 0 e L.
-      // Per un mobile ruotato a mano (penisola) NON lo blocco lungo il muro,
-      // così può sporgere verso il centro stanza.
       const distN2 = (x - a.x) * nx + (y - a.y) * ny;
-      if (!m.orientManuale && distN2 <= extN + 150) {
+      if (distN2 <= extN + 150) {
         const tC = (x - a.x) * ux + (y - a.y) * uy;
         const lo = extU, hi = L - extU;
         const target = lo > hi ? L / 2 : Math.min(hi, Math.max(lo, tC));
@@ -434,9 +433,8 @@ function muroPiuVicino(progetto, x, y) {
  */
 export function respingiDaMobili(progetto, m, x, y) {
   const rv = rangeVerticale(m);
-  // Isola o mobile ruotato a mano (penisola): niente "lungo il muro",
-  // uso la risoluzione per asse di minore compenetrazione.
-  const u = (m.isola || m.orientManuale) ? null : muroPiuVicino(progetto, x, y);
+  // Isola: niente "lungo il muro", uso l'asse di minore compenetrazione.
+  const u = m.isola ? null : muroPiuVicino(progetto, x, y);
   for (const o of (progetto.mobiliLiberi || [])) {
     if (o.id === m.id) continue;
     if (!rangeSovrappone(rv, rangeVerticale(o))) continue;
@@ -476,7 +474,7 @@ export function respingiDaMobili(progetto, m, x, y) {
  * nessun muro (allora si tiene la rotazione attuale, es. isola al centro).
  */
 export function orientaVersoMuro(progetto, m, x, y) {
-  if (m.isola || m.orientManuale) return null;     // isola/ruotato a mano: orientamento manuale
+  if (m.isola) return null;                        // isola: orientamento manuale
   const full = progetto.piano.pareti || [];
   if (full.length === 0) return null;
   const vertici = calcolaVertici(full);
@@ -522,9 +520,8 @@ function asseMobile(m) {
 
 export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
   const rv = rangeVerticale(m);
-  // Isola o ruotato a mano (penisola): uso l'asse del MOBILE; altrimenti l'asse
-  // del muro vicino. Così i mobili affiancati si agganciano anche ruotati.
-  const u = (m.isola || m.orientManuale) ? asseMobile(m) : (muroPiuVicino(progetto, x, y) || asseMobile(m));
+  // Isola: uso l'asse del MOBILE; altrimenti l'asse del muro vicino.
+  const u = m.isola ? asseMobile(m) : (muroPiuVicino(progetto, x, y) || asseMobile(m));
   const [ux, uy] = u, vx = -uy, vy = ux;
   const A = aabb(m, x, y);
   const eUm = A.hx * Math.abs(ux) + A.hy * Math.abs(uy);
@@ -665,12 +662,7 @@ export function generaPensiliAuto(progetto, altezzaPensile) {
 }
 export function ruotaMobileLibero(progetto, id) {
   const m = trovaMobileLibero(progetto, id);
-  if (m) {
-    m.rot = ((m.rot || 0) + 90) % 360;
-    // Ruotando a mano l'utente decide l'orientamento (es. penisola): da qui in
-    // poi l'app NON lo auto-orienta più verso il muro.
-    m.orientManuale = true;
-  }
+  if (m) m.rot = ((m.rot || 0) + 90) % 360;
 }
 export function rimuoviMobileLibero(progetto, id) {
   progetto.mobiliLiberi = progetto.mobiliLiberi.filter((m) => m.id !== id);

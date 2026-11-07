@@ -587,3 +587,8 @@
 #nudge-sx  { grid-column: 1; grid-row: 2; }
 #nudge-dx  { grid-column: 3; grid-row: 2; }
 #nudge-giu { grid-column: 2; grid-row: 3; }
+
+/* Campi regletta a L d'angolo */
+.ra-campi { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ra-campi label { font-size: 12px; color: var(--testo-dim); display: flex; flex-direction: column; gap: 3px; }
+.ra-campi input { padding: 6px 8px; border-radius: 4px; border: 1px solid var(--bordo); background: var(--bg-3); color: var(--testo); font-size: 14px; }

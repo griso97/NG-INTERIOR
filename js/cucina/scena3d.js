@@ -495,7 +495,9 @@ function anteCieche(g, w, h, d, matAnta, cieco) {
  * uno da 30 mm e uno da 30+spessore anta (48 con ante da 18), così uno sormonta
  * l'altro. Sta sul fronte, a filo dei due mobili.
  */
-function renderRegolettaAngolo(cieco, m, h, zocc, matAnta) {
+function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
+  const base = (dims && dims.base) || 30;
+  const spess = (dims && dims.spessore != null) ? dims.spessore : SPESSORE_ANTA;
   const o = cieco.o;
   const radM = (m.rot || 0) * Math.PI / 180, radO = (o.rot || 0) * Math.PI / 180;
   const nmx = Math.sin(radM), nmy = -Math.cos(radM);     // normale fronte m (pianta)
@@ -509,7 +511,7 @@ function renderRegolettaAngolo(cieco, m, h, zocc, matAnta) {
     ? matAnta : new THREE.MeshStandardMaterial({ color: COL.anta, roughness: 0.6, metalness: 0.08 });
   const yC = zocc + (h - FUGA_H) / 2;
   const sp = 40;                                          // spessore pezzo (verso stanza)
-  const L1 = 30 + SPESSORE_ANTA, L2 = 30;                 // 48 e 30
+  const L1 = base + spess, L2 = base;                     // es. 48 e 30
   const addPezzo = (lw, cx, cy, rotDeg) => {
     const geo = new THREE.BoxGeometry(lw, h - FUGA_H, sp);
     const mesh = new THREE.Mesh(geo, mat);
@@ -701,7 +703,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const zocc = zoccoloPerAltezza(porta);
       const cieco = infoAngoloCieco(progetto, m);
       g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d, matBase, { cieco }), cx, zocc, cz, porta, m.rot);
-      if (cieco) renderRegolettaAngolo(cieco, m, porta, zocc, matBase);
+      if (cieco) renderRegolettaAngolo(cieco, m, porta, zocc, matBase, progetto.reglettaAngolo);
       basiTop.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc, topY: zocc + porta });
       zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
       // Placca / lavello (tipi forno/lavello oppure aggiunti a mano): sopra il top
