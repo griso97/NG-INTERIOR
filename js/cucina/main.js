@@ -708,6 +708,8 @@ function renderPannelloStep3d() {
   if (sel) return renderPannelloModificaMobile(sel);
   const coloriZocc = (scena3dMod && scena3dMod.COLORI_ZOCCOLO) || [];
   const zoccSel = progetto.zoccoloColore || 'nero-opaco';
+  const materialiEnc = ((scena3dMod && scena3dMod.MATERIALI) || []).filter((mt) => mt.categoria === 'encimera');
+  const encAttuale = (progetto.encimera || {}).materiale || null;
   pannello.innerHTML = `
     <section class="step3-pannello">
       <h3>Vista 3D</h3>
@@ -718,6 +720,16 @@ function renderPannelloStep3d() {
         <strong>zoom</strong>, due dita/tasto destro per <strong>spostare</strong>.
       </div>
     </section>
+    ${materialiEnc.length ? `
+    <section class="step3-pannello">
+      <h3>Piano di lavoro (encimera)</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Il piano cambia su tutta la cucina. Ogni encimera porta il suo spessore.</div>
+      <div class="palette-colori">
+        <button type="button" class="swatch swatch-none ${!encAttuale ? 'sel' : ''}" data-enc="" title="Nero standard (4 cm)">—</button>
+        ${materialiEnc.map((mt) => `<button type="button" class="swatch ${mt.id === encAttuale ? 'sel' : ''}"
+          data-enc="${mt.id}" title="${mt.nome} (${mt.spessore || 40} mm)" style="background-image:url('${mt.thumb}')"></button>`).join('')}
+      </div>
+    </section>` : ''}
     <section class="step3-pannello">
       <h3>Colore zoccolo</h3>
       <div class="palette-zoccolo">
@@ -749,6 +761,12 @@ function renderPannelloStep3d() {
   }));
   pannello.querySelectorAll('.swatch-zocc[data-sfondo]').forEach((b) => b.addEventListener('click', () => {
     progetto.sfondo = b.dataset.sfondo;
+    aggiorna();
+  }));
+  pannello.querySelectorAll('.swatch[data-enc]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    if (!progetto.encimera) progetto.encimera = {};
+    progetto.encimera.materiale = b.dataset.enc || null;
     aggiorna();
   }));
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
