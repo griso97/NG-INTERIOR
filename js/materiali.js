@@ -96,6 +96,33 @@ export const MATERIALI = [
     thumb: 'materials/compacto-blanco-sm-thumb.jpg', colore: 0xeeeae2,
     solido: true, roughness: 1.0, metalness: 0.0,
     spessore: 12 },
+  // ---- R3 Supra Alvic (spessore 38 mm, nomi identici alle schede prodotto) ----
+  // Tinte solide: blanco, cashmere, agave (colore campionato dalla foto).
+  { id: 'r3-supra-blanco', nome: 'R3 Supra 38mm Blanco', categoria: 'encimera',
+    thumb: 'materials/r3-supra-blanco-thumb.jpg', colore: 0xfaf9f8,
+    solido: true, roughness: 1.0, metalness: 0.0, spessore: 38 },
+  { id: 'r3-supra-cashmere', nome: 'R3 Supra Cashmere Alvic', categoria: 'encimera',
+    thumb: 'materials/r3-supra-cashmere-thumb.jpg', colore: 0xcec6bd,
+    solido: true, roughness: 1.0, metalness: 0.0, spessore: 38 },
+  { id: 'r3-supra-agave', nome: 'R3 Supra Agave Alvic', categoria: 'encimera',
+    thumb: 'materials/r3-supra-agave-thumb.jpg', colore: 0xa6b0a1,
+    solido: true, roughness: 1.0, metalness: 0.0, spessore: 38 },
+  // Texture reali: cemento, marmi, legni.
+  { id: 'r3-supra-cemento-oscuro', nome: 'R3 Supra 38mm Cemento Oscuro', categoria: 'encimera',
+    thumb: 'materials/r3-supra-cemento-oscuro-thumb.jpg',
+    texture: 'materials/r3-supra-cemento-oscuro.jpg', colore: 0x3a3836, spessore: 38 },
+  { id: 'r3-supra-marmol-markina', nome: 'R3 Supra Mármol Markina Alvic', categoria: 'encimera',
+    thumb: 'materials/r3-supra-marmol-markina-thumb.jpg',
+    texture: 'materials/r3-supra-marmol-markina.jpg', colore: 0x1a1a1a, spessore: 38 },
+  { id: 'r3-supra-marmol-versilia', nome: 'R3 Supra Mármol Versilia Alvic', categoria: 'encimera',
+    thumb: 'materials/r3-supra-marmol-versilia-thumb.jpg',
+    texture: 'materials/r3-supra-marmol-versilia.jpg', colore: 0xeeeeee, spessore: 38 },
+  { id: 'r3-supra-picasso-03', nome: 'R3 Supra Picasso 03 Alvic', categoria: 'encimera',
+    thumb: 'materials/r3-supra-picasso-03-thumb.jpg',
+    texture: 'materials/r3-supra-picasso-03.jpg', colore: 0x9c7a56, spessore: 38 },
+  { id: 'r3-supra-oak', nome: 'Encimera EP141NAT ANV 02 OAK R3 Supra 620x38mm', categoria: 'encimera',
+    thumb: 'materials/r3-supra-oak-thumb.jpg',
+    texture: 'materials/r3-supra-oak.jpg', colore: 0xcdb48a, spessore: 38 },
 ];
 
 // PARTI selezionabili nel pannello materiali.
