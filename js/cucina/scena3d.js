@@ -596,10 +596,12 @@ function creaTextureBagliore(hex) {
   const ctx = canvas.getContext('2d');
   const r = (hex >> 16) & 0xff, gC = (hex >> 8) & 0xff, b = hex & 0xff;
   const grad = ctx.createLinearGradient(0, 0, 0, 256);
+  // Prima fascia (vicino alla striscia): piena a saturazione. Scende
+  // gradualmente diventando trasparente a metà/fondo.
   grad.addColorStop(0.00, `rgba(${r},${gC},${b},1.00)`);
-  grad.addColorStop(0.15, `rgba(${r},${gC},${b},0.80)`);
-  grad.addColorStop(0.45, `rgba(${r},${gC},${b},0.35)`);
-  grad.addColorStop(0.80, `rgba(${r},${gC},${b},0.08)`);
+  grad.addColorStop(0.20, `rgba(${r},${gC},${b},0.95)`);
+  grad.addColorStop(0.45, `rgba(${r},${gC},${b},0.55)`);
+  grad.addColorStop(0.80, `rgba(${r},${gC},${b},0.15)`);
   grad.addColorStop(1.00, `rgba(${r},${gC},${b},0.00)`);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 32, 256);
@@ -623,33 +625,45 @@ function aggiungiLedPensile(g, w, h, d, colore) {
   g.add(mesh);
   // STRIP CONTINUA: tante PointLight distribuite lungo la lunghezza
   // della barra. Intensita' MOLTO alta per spiccare sopra l'illuminazione
-  // ambientale della scena, come una vera strip LED forte.
+  // ambientale della scena.
   const nLed = Math.max(3, Math.min(7, Math.round(stripW / 220)));
-  const intensityEach = 250;
+  const intensityEach = 700;
   for (let i = 0; i < nLed; i++) {
     const t = nLed === 1 ? 0.5 : i / (nLed - 1);
     const x = (t - 0.5) * stripW * 0.88;
-    const pl = new THREE.PointLight(hex, intensityEach, 1800, 1.0);
+    const pl = new THREE.PointLight(hex, intensityEach, 2500, 1.0);
     pl.position.set(x, -h / 2 - 20, zStrip + 30);
     g.add(pl);
   }
-  // BAGLIORE SUL MURO DIETRO: plane con GRADIENTE verticale (texture
-  // sfumata) che si somma al muro. Nessun rettangolo netto: la texture
-  // dissolve completamente verso il basso. Come nella foto reale, si
-  // vede il bagliore della strip attenuarsi scendendo sulle piastrelle.
+  // BAGLIORE SUL MURO (gradiente sfumato): simula la luce dei LED che
+  // tinge le piastrelle di fondo, come nella foto reale.
   const tex = creaTextureBagliore(hex);
   const glowMat = new THREE.MeshBasicMaterial({
     map: tex, transparent: true, toneMapped: false,
     blending: THREE.AdditiveBlending, depthWrite: false,
   });
   const glowH = 650;
-  const glowGeo = new THREE.PlaneGeometry(stripW + 40, glowH);
+  const glowGeo = new THREE.PlaneGeometry(stripW + 60, glowH);
   const glow = new THREE.Mesh(glowGeo, glowMat);
-  // Posizionato sul piano del muro (retro del pensile), appena dietro
-  // alla cassa, con la parte piena del gradiente in alto (vicino alla
-  // striscia) e la parte trasparente in basso.
   glow.position.set(0, -h / 2 - glowH / 2 + stripH, zStrip - 1);
   g.add(glow);
+  // BAGLIORE SUL PIANO DI LAVORO sotto (gradiente sfumato orizzontale):
+  // simula la luce caduta sul top, che e' quello che si nota di piu'.
+  // Una seconda texture per avere un gradiente dall'interno (vicino alla
+  // striscia, saturo) al fronte (trasparente).
+  const texTop = creaTextureBagliore(hex);
+  const glowTopMat = new THREE.MeshBasicMaterial({
+    map: texTop, transparent: true, toneMapped: false,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const glowTopGeo = new THREE.PlaneGeometry(stripW + 40, 450);
+  const glowTop = new THREE.Mesh(glowTopGeo, glowTopMat);
+  glowTop.rotation.x = -Math.PI / 2;
+  // Il gradiente va dall'alto (vicino alla striscia LED) al basso.
+  // Dopo la rotazione X, "alto" diventa -z (verso il muro) e "basso"
+  // diventa +z (verso il fronte): perfetto per il top.
+  glowTop.position.set(0, -h / 2 - 450, zStrip + 225 - 90);
+  g.add(glowTop);
 }
 
 /** Pensile ad angolo (63×63): cassa quadrata + anta diagonale a 45°. */
