@@ -848,15 +848,25 @@ export function infoAngoloCieco(progetto, m) {
   if (!m || categoriaTipo(m.tipo) !== 'base') return null;
   if (m.angoloCieco === false) return null;            // forzato normale
   const A = aabbMondo(m);
+  const TOL = 150;                                     // mm: due basi perpendicolari entro
+                                                       // questa distanza formano un angolo a L
   let best = null;
   for (const o of (progetto.mobiliLiberi || [])) {
     if (o.id === m.id) continue;
     if (categoriaTipo(o.tipo) !== 'base') continue;
     const B = aabbMondo(o);
     if (B.horiz === A.horiz) continue;                 // non perpendicolare
+    // Separazione su ciascun asse: negativa = si sovrappongono, ~0 = si toccano,
+    // positiva = c'è spazio. Un angolo a L richiede "ingaggio" su ENTRAMBI gli assi.
+    const sepX = Math.max(B.x0 - A.x1, A.x0 - B.x1);
+    const sepY = Math.max(B.y0 - A.y1, A.y0 - B.y1);
+    if (sepX > TOL || sepY > TOL) continue;            // troppo lontani: non è un angolo
+    // Sovrapposizione reale dei footprint: se c'è, un mobile COPRE il fronte
+    // dell'altro (angolo cieco vero → serve pannello cieco). Se si toccano soltanto,
+    // entrambe le ante si aprono → serve solo la regletta a L.
     const ix0 = Math.max(A.x0, B.x0), ix1 = Math.min(A.x1, B.x1);
     const iy0 = Math.max(A.y0, B.y0), iy1 = Math.min(A.y1, B.y1);
-    if (ix1 - ix0 <= 5 || iy1 - iy0 <= 5) continue;    // nessuna sovrapposizione
+    const coperto = (ix1 - ix0 > 5) && (iy1 - iy0 > 5);
     // Chi è il CIECO della coppia? Chi non può aprire un'anta = il più largo
     // (ha 2 ante, una bloccata). Override manuale con angoloCieco true/false.
     let mCieco;
@@ -864,20 +874,23 @@ export function infoAngoloCieco(progetto, m) {
     else if (o.angoloCieco === true) mCieco = false;
     else { const wm = A.w, wo = B.w; mCieco = wm > wo || (wm === wo && m.id < o.id); }
     if (!mCieco) continue;
-    const area = (ix1 - ix0) * (iy1 - iy0);
     let coveredW, latoDx, cornerX, cornerY;
     if (A.horiz) {                                      // larghezza lungo X
-      coveredW = ix1 - ix0;
-      latoDx = (ix0 + ix1) / 2 > m.x;
-      cornerX = latoDx ? ix0 : ix1;                    // bordo interno della copertura
-      cornerY = (iy0 + iy1) / 2;
-    } else {                                           // larghezza lungo Y
-      coveredW = iy1 - iy0;
-      latoDx = (iy0 + iy1) / 2 > m.y;
-      cornerY = latoDx ? iy0 : iy1;
-      cornerX = (ix0 + ix1) / 2;
+      coveredW = coperto ? (ix1 - ix0) : Math.min(B.d, A.w);
+      latoDx = o.x > m.x;                               // l'altro mobile sta a destra?
+      cornerX = latoDx ? A.x1 : A.x0;                   // spigolo verso l'altro mobile
+      cornerY = m.y;
+    } else {                                            // larghezza lungo Y
+      coveredW = coperto ? (iy1 - iy0) : Math.min(B.d, A.w);
+      latoDx = o.y > m.y;
+      cornerY = latoDx ? A.y1 : A.y0;
+      cornerX = m.x;
     }
-    if (!best || area > best.area) best = { o, area, coveredW: Math.round(coveredW), latoDx, corner: { x: cornerX, y: cornerY } };
+    // Preferisci coperture reali; a parità, l'angolo più "stretto" (mobili più vicini).
+    const score = coperto ? (1e6 + (ix1 - ix0) * (iy1 - iy0)) : (1e3 - (sepX + sepY));
+    if (!best || score > best.score) {
+      best = { o, score, coperto, coveredW: Math.round(coveredW), latoDx, corner: { x: cornerX, y: cornerY } };
+    }
   }
   return best;
 }

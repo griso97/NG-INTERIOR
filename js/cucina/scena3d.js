@@ -562,7 +562,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
     : cat === 'regletta' ? COL.regletta : COL.corpo;
   g.add(corpo(w, h, d, coloreCorpo));
   if (cat === 'regletta') return g;
-  if (opt.cieco) { anteCieche(g, w, h, d, matAnta, opt.cieco); return g; }
+  if (opt.cieco && opt.cieco.coperto) { anteCieche(g, w, h, d, matAnta, opt.cieco); return g; }
   if (tipo === 'pensile-angolo') { pensileAngoloFronte(g, w, h, d, matAnta); return g; }
   if (cat === 'colonna') { colonnaFronte(g, w, h, d, m, matAnta); return g; }
   if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta); return g; }
