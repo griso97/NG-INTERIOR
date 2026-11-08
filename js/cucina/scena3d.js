@@ -895,12 +895,11 @@ function materialePerTop(mat) {
   const m = new THREE.MeshStandardMaterial({
     map: tex,
     color: 0xffffff,
-    // Marmo/pietra compatto: superficie molto opaca e quasi nessun riflesso
-    // ambiente, cosi' le venature del marmo restano scure e nette anche
-    // guardando il top dall'alto (dove prima si "mangiavano" nel bianco).
-    roughness: 0.92,
+    // Top completamente opaco: la texture deve apparire sul 3D come nella
+    // foto prodotto, senza essere schiarita dalla luce ambiente della scena.
+    roughness: 1.0,
     metalness: 0.0,
-    envMapIntensity: 0.18,
+    envMapIntensity: 0.0,
   });
   _matTopCache.set(mat, m);
   return m;
