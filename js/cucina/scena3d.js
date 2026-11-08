@@ -513,7 +513,7 @@ function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
   const o = cieco.o;
   const THK = 20;                                        // spessore pannello (come le ante)
   const AVANZ = 22;                                      // a filo ante (20) + 2 mm proud → sempre visibile
-  const hP = h - FUGA_H;
+  const hP = h;                                          // ALTEZZA PIENA del modulo (NO -2mm come le ante)
 
   const A = aabbPlan(m), B = aabbPlan(o);
   const fm = frontDirPlan(m), fo = frontDirPlan(o);
@@ -544,10 +544,12 @@ function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
     const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), matOro);
     e.position.copy(mesh.position); gruppo.add(e);
   };
+  // Lateralmente (dove ci sono le ante) 3 mm d'aria per lato: i bracci partono
+  // a FUGA_W dall'angolo, così c'è un reveal da 3 mm tra regletta e ante.
   // Braccio ORIZZONTALE: lungo legH in x, spesso THK in y; dall'angolo verso il lato esposto.
-  addBox(legH, THK, cornerX + dirHx * (legH / 2), planeY);
-  // Braccio VERTICALE: spesso THK in x, lungo legV in y; sfalsato di THK così "cappa" l'altro.
-  addBox(THK, legV, planeX, cornerY + dirVy * (legV / 2 + THK / 2));
+  addBox(legH, THK, cornerX + dirHx * (FUGA_W + legH / 2), planeY);
+  // Braccio VERTICALE: spesso THK in x, lungo legV in y.
+  addBox(THK, legV, planeX, cornerY + dirVy * (FUGA_W + legV / 2));
 }
 
 /** Pensile ad angolo (63×63): cassa quadrata + anta diagonale a 45°. */
