@@ -663,13 +663,9 @@ function collocaMobile(g, cx, yBottom, cz, h, rotGradi) {
 export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   if (!scene) return;
   selId = selezionato;
-  // LED accesi → ambiente abbassato drasticamente così la luce dei LED
-  // si distingue nettamente (come in una cucina reale la sera: vedi i LED
-  // perché la stanza è buia). LED spenti → tutta la luce di scena al
-  // valore pieno "giorno".
-  const ledOn = progetto && progetto.led && progetto.led.attivo;
-  const fattore = ledOn ? 0.18 : 1.0;
-  for (const { l, base } of luciAmbiente) l.intensity = base * fattore;
+  // L'illuminazione della scena resta sempre al valore pieno (giorno) sia
+  // con i LED spenti che accesi: non si vuole che i LED spengano l'ambiente.
+  for (const { l, base } of luciAmbiente) l.intensity = base;
   while (gruppo.children.length) gruppo.remove(gruppo.children[0]);
   const full = progetto.piano.pareti || [];
   const vertici = calcolaVertici(full);
