@@ -580,58 +580,22 @@ function aggiungiLedPensile(g, w, h, d, colore) {
   const stripW = Math.max(60, w - 40);
   const stripH = 6;
   const stripD = 18;
-  // Striscia emissive visibile (non tone-mapped, resta "accesa" piena).
+  // Striscia LED emissive visibile sul retro del pensile (lato muro).
   const mat = new THREE.MeshBasicMaterial({ color: hex, toneMapped: false });
   const geo = new THREE.BoxGeometry(stripW, stripH, stripD);
   const mesh = new THREE.Mesh(geo, mat);
-  // RETRO del pensile (lato muro): z locale negativo.
   const zStrip = -d / 2 + stripD / 2 + 4;
   mesh.position.set(0, -h / 2 + stripH / 2, zStrip);
   g.add(mesh);
-  // SpotLight molto forte: la scena ha gia' parecchia luce ambientale e
-  // l'ACES tone mapping tende a comprimere i picchi, servono valori alti
-  // per vedere davvero l'effetto del LED colorato.
-  const spot = new THREE.SpotLight(hex, 150, 2500, Math.PI / 2.8, 0.55, 0.9);
-  spot.position.set(0, -h / 2 - 8, zStrip);
-  spot.target.position.set(0, -h / 2 - 1000, zStrip + 260);
+  // UNA SOLA SpotLight: luce reale che illumina il piano di lavoro e la
+  // parete dietro, senza pannelli colorati sovrapposti. L'intensita' e'
+  // alta perche' la scena ha molta luce ambientale, ma il risultato
+  // resta naturale: la luce si posa dove colpisce e basta.
+  const spot = new THREE.SpotLight(hex, 90, 2200, Math.PI / 2.6, 0.75, 1.1);
+  spot.position.set(0, -h / 2 - 6, zStrip);
+  spot.target.position.set(0, -h / 2 - 1000, zStrip + 180);
   g.add(spot);
   g.add(spot.target);
-  const point = new THREE.PointLight(hex, 25, 1200, 1.0);
-  point.position.set(0, -h / 2 - 40, zStrip + 60);
-  g.add(point);
-  // "GLOW" SUL MURO DIETRO AL PENSILE (additive blending): un pannello
-  // colorato che si somma a quello che c'è dietro (piastrelle, encimera
-  // verticale, costado). Simula il bagliore della striscia LED che si
-  // riflette sulla parete, esattamente come nella cucina reale.
-  const glowMuroMat = new THREE.MeshBasicMaterial({
-    color: hex, transparent: true, opacity: 0.55, toneMapped: false,
-    blending: THREE.AdditiveBlending, depthWrite: false,
-  });
-  const glowMuroH = Math.min(500, h);              // si estende sotto il pensile
-  const glowMuroGeo = new THREE.PlaneGeometry(stripW + 60, glowMuroH);
-  const glowMuro = new THREE.Mesh(glowMuroGeo, glowMuroMat);
-  // Sul piano del muro (retro), subito sotto la striscia LED, rivolto verso
-  // il fronte (+z) così si sovrappone ai pixel del muro dietro.
-  glowMuro.position.set(0, -h / 2 - glowMuroH / 2, zStrip - 2);
-  g.add(glowMuro);
-  // GLOW SUL PIANO DI LAVORO sottostante (addittivo anche qui): un pannello
-  // orizzontale che si somma al top, dà la sensazione di luce colorata
-  // caduta sulla superficie.
-  const glowTopGeo = new THREE.PlaneGeometry(stripW + 40, 320);
-  const glowTopMat = new THREE.MeshBasicMaterial({
-    color: hex, transparent: true, opacity: 0.45, toneMapped: false,
-    blending: THREE.AdditiveBlending, depthWrite: false,
-  });
-  const glowTop = new THREE.Mesh(glowTopGeo, glowTopMat);
-  glowTop.rotation.x = -Math.PI / 2;               // orizzontale, rivolto in giu'
-  glowTop.position.set(0, -h / 2 - 480, zStrip + 110);
-  g.add(glowTop);
-  // Alone sottile subito sotto la barra.
-  const aloneMat = new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.5, toneMapped: false });
-  const aloneGeo = new THREE.BoxGeometry(stripW + 40, 2, stripD + 30);
-  const alone = new THREE.Mesh(aloneGeo, aloneMat);
-  alone.position.set(0, -h / 2 - 4, zStrip);
-  g.add(alone);
 }
 
 /** Pensile ad angolo (63×63): cassa quadrata + anta diagonale a 45°. */
