@@ -821,7 +821,30 @@ function proiettaFianco(f, c, s) {
  * - se c'è un COSTADO basso il top arriva fino alla sua faccia ESTERNA
  *   (il modulo si appoggia al costado, il top lo copre).
  */
+// Cache: dato il materiale "nudo" dell'encimera, ritorna un CLONE con la
+// texture ruotata di 90 gradi. Serve per il TOP della cucina, dove la
+// venatura del legno (o la direzione della lastra) deve andare lungo la
+// LUNGHEZZA del top, non lungo la profondita'. Le immagini-texture sono
+// generate con la fibra verticale: senza questa rotazione risulterebbero
+// trasversali al top.
+const _matTopCache = new WeakMap();
+function materialePerTop(mat) {
+  if (!mat || !mat.map) return mat;
+  const hit = _matTopCache.get(mat);
+  if (hit) return hit;
+  const tex = mat.map.clone();
+  tex.center.set(0.5, 0.5);
+  tex.rotation = Math.PI / 2;
+  tex.needsUpdate = true;
+  const m = mat.clone();
+  m.map = tex;
+  m.needsUpdate = true;
+  _matTopCache.set(mat, m);
+  return m;
+}
+
 function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null) {
+  const matTop = materialePerTop(mat);
   const gruppi = {};
   for (const b of basi) {
     const rotN = rotNorm(b.rot);
@@ -853,7 +876,7 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null) {
       const centerAlong = (endLo + endHi) / 2;
       const cx = c * centerAlong + (-s) * perp;
       const cy = s * centerAlong + c * perp;
-      const slab = corpo(len, thickness, G.d + 40, mat || COL.top);
+      const slab = corpo(len, thickness, G.d + 40, matTop || COL.top);
       gruppo.add(collocaMobile(slab, cx, topY, -cy, thickness, rotN));
     }
   }
