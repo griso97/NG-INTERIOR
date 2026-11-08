@@ -936,11 +936,9 @@ export function infoAngoloCieco(progetto, m) {
 /**
  * Spostamento automatico per l'angolo cieco (mobili che si toccano): il mobile
  * COPERTO resta fermo, l'ALTRO (quello che apre l'anta) si allontana lungo la
- * SUA PARETE (asse lungo del mobile) finché tra i due c'è esattamente `base`
- * mm di luce = la larghezza della regletta. In questo modo un mobile verticale
- * scorre SU per il muro (non si stacca dal muro verso il centro della stanza)
- * e un mobile orizzontale scorre lateralmente lungo il muro di fondo.
- * Idempotente: quando la luce è già = base non muove più nulla.
+ * sua parete finché tra i due c'è esattamente `base` mm di luce = la larghezza
+ * della regletta. Idempotente: quando la luce è già = base non muove più nulla.
+ * Cambiando `base` il mobile si riallinea (3 cm → 3 cm, 7 cm → 7 cm di stacco).
  */
 export function applicaRegletteAngolo(progetto) {
   const base = (progetto.reglettaAngolo && progetto.reglettaAngolo.base) || 30;
@@ -951,17 +949,14 @@ export function applicaRegletteAngolo(progetto) {
     const o = info.o;
     if (!o) continue;
     const C = aabbMondo(c), O = aabbMondo(o);
-    // o si sposta lungo la SUA parete: asse lungo del mobile (dove sta la
-    // larghezza). Un mobile orizzontale (horiz=true) scorre lungo X, uno
-    // verticale (horiz=false) scorre lungo Y. Mai perpendicolare al muro.
-    const axisX = O.horiz;
-    const overlap = axisX
-      ? Math.min(C.x1, O.x1) - Math.max(C.x0, O.x0)
-      : Math.min(C.y1, O.y1) - Math.max(C.y0, O.y0);
-    const delta = overlap + base;                  // porta la luce a `base`
+    const ox = Math.min(C.x1, O.x1) - Math.max(C.x0, O.x0);   // overlap su X
+    const oy = Math.min(C.y1, O.y1) - Math.max(C.y0, O.y0);   // overlap su Y
+    const sepX = ox <= oy;                         // asse di separazione (dove si toccano)
+    const cur = sepX ? ox : oy;                    // overlap attuale lungo la separazione
+    const delta = cur + base;                      // sposta o finché la luce = base
     if (Math.abs(delta) < 0.5) continue;           // già a posto → idempotente
-    const dir = (axisX ? o.x : o.y) >= (axisX ? c.x : c.y) ? 1 : -1;  // allontana o da c
-    if (axisX) o.x = Math.round(o.x + dir * delta);
+    const dir = (sepX ? o.x : o.y) >= (sepX ? c.x : c.y) ? 1 : -1;  // allontana o da c
+    if (sepX) o.x = Math.round(o.x + dir * delta);
     else o.y = Math.round(o.y + dir * delta);
   }
 }
