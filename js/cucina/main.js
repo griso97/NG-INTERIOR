@@ -208,12 +208,6 @@ function renderPannelloStep1() {
       </button>
     </section>
 
-    <section class="actions">
-      <button id="btn-conferma" class="btn-oro" type="button" style="flex:1">
-        ${progetto.pianoConfermato ? 'Sblocca pianta' : 'Conferma pianta →'}
-      </button>
-      <button id="btn-reset" class="btn-ghost" type="button">Reset</button>
-    </section>
     <div class="conferma-stato ${progetto.pianoConfermato ? 'ok' : 'non-conf'}">
       ${!progetto.pianoConfermato
         ? 'Pianta non ancora confermata'
@@ -221,6 +215,12 @@ function renderPannelloStep1() {
           ? '✓ Pianta confermata — i moduli per l\'isola arriveranno in un passo successivo'
           : '✓ Pianta confermata'}
     </div>
+    <section class="actions actions-sticky">
+      <button id="btn-conferma" class="btn-oro" type="button" style="flex:1">
+        ${progetto.pianoConfermato ? 'Sblocca pianta' : 'Conferma pianta →'}
+      </button>
+      <button id="btn-reset" class="btn-ghost" type="button">Reset</button>
+    </section>
   `;
   attaccaEventiPannello();
 }
