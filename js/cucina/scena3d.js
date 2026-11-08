@@ -509,8 +509,9 @@ function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
   const kM = m.x * nmx + m.y * nmy + dM / 2 + AVANZ;
   const kO = o.x * nox + o.y * noy + dO / 2 + AVANZ;
   const Px = nmx * kM + nox * kO, Py = nmy * kM + noy * kO;
-  const mat = (matAnta && matAnta.isMaterial)
-    ? matAnta : new THREE.MeshStandardMaterial({ color: COL.anta, roughness: 0.6, metalness: 0.08 });
+  // DEBUG: regletta BLU, così si distingue chiaramente dalle ante e si verifica
+  // che venga realmente posizionata.
+  const mat = new THREE.MeshStandardMaterial({ color: 0x1e66ff, roughness: 0.45, metalness: 0.05 });
   const yC = zocc + (h - FUGA_H) / 2;
   const sp = 20;                                          // pannellino sottile come un'anta
   const FUGA = FUGA_H;                                    // 2 mm di fuga con l'anta

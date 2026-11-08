@@ -17,7 +17,7 @@ import {
   spostaModulo, problemiIngombri,
   ruotaPianta, specchiaPianta, inverteAngolo,
   toggleParete, muroTolto, snap, liberoPareti, generaPensiliAuto, riorientaMobili,
-  spaziTraMobili, riempiSpaziReglette, infoAngoloCieco,
+  spaziTraMobili, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
 } from './modello.js';
@@ -889,6 +889,7 @@ function disegna() {
 }
 function aggiorna() {
   riorientaMobili(progetto);          // ante sempre verso l'interno (a parete)
+  applicaRegletteAngolo(progetto);    // angolo cieco: apre il gap della regletta
   renderStepper();
   renderPannello();
   renderRiepilogo();

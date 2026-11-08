@@ -896,6 +896,34 @@ export function infoAngoloCieco(progetto, m) {
 }
 
 /**
+ * Spostamento automatico per l'angolo cieco (mobili che si toccano): il mobile
+ * COPERTO resta fermo, l'ALTRO (quello che apre l'anta) si allontana lungo la
+ * sua parete finché tra i due c'è esattamente `base` mm di luce = la larghezza
+ * della regletta. Idempotente: quando la luce è già = base non muove più nulla.
+ * Cambiando `base` il mobile si riallinea (3 cm → 3 cm, 7 cm → 7 cm di stacco).
+ */
+export function applicaRegletteAngolo(progetto) {
+  const base = (progetto.reglettaAngolo && progetto.reglettaAngolo.base) || 30;
+  const mob = progetto.mobiliLiberi || [];
+  for (const c of mob) {                           // c = candidato COPERTO (resta fermo)
+    const info = infoAngoloCieco(progetto, c);
+    if (!info || info.coperto) continue;           // solo angoli "che si toccano"
+    const o = info.o;
+    if (!o) continue;
+    const C = aabbMondo(c), O = aabbMondo(o);
+    const ox = Math.min(C.x1, O.x1) - Math.max(C.x0, O.x0);   // overlap su X
+    const oy = Math.min(C.y1, O.y1) - Math.max(C.y0, O.y0);   // overlap su Y
+    const sepX = ox <= oy;                         // asse di separazione (dove si toccano)
+    const cur = sepX ? ox : oy;                    // overlap attuale lungo la separazione
+    const delta = cur + base;                      // sposta o finché la luce = base
+    if (Math.abs(delta) < 0.5) continue;           // già a posto → idempotente
+    const dir = (sepX ? o.x : o.y) >= (sepX ? c.x : c.y) ? 1 : -1;  // allontana o da c
+    if (sepX) o.x = Math.round(o.x + dir * delta);
+    else o.y = Math.round(o.y + dir * delta);
+  }
+}
+
+/**
  * Trova gli SPAZI VUOTI tra due mobili bassi affiancati sulla stessa linea
  * (stessa fila/orientamento), es. il salto di ~3 cm quando ci si allinea a un
  * pensile d'angolo da 630. Ritorna, per ogni spazio, centro (x,y), larghezza
