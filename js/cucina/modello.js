@@ -899,7 +899,7 @@ export function infoAngoloCieco(progetto, m) {
     // Preferisci coperture reali; a parità, l'angolo più "stretto" (mobili più vicini).
     const score = coperto ? (1e6 + (ix1 - ix0) * (iy1 - iy0)) : (1e3 - (sepX + sepY));
     if (!best || score > best.score) {
-      best = { o, score, coperto, coveredW: Math.round(coveredW), latoDx, corner: { x: cornerX, y: cornerY } };
+      best = { o, score, coperto, coveredW: Math.round(coveredW), latoDx, horizMe: A.horiz, corner: { x: cornerX, y: cornerY } };
     }
   }
   return best;

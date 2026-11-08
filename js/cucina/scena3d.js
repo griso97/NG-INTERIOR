@@ -471,7 +471,11 @@ function lavastoviglieFronte(g, w, h, d, matAnta) {
  */
 function anteCieche(g, w, h, d, matAnta, cieco) {
   const z = d / 2;
-  const coveredW = Math.max(40, Math.min(w - 80, cieco.coveredW));
+  // Il pannello cieco si estende di `blindExtra` verso il centro del mobile:
+  // è la striscia sotto cui passa il braccio lungo della regletta a L.
+  // Così l'anta apribile parte DOPO la regletta e la regletta resta visibile.
+  const extra = Math.max(0, cieco.blindExtra || 0);
+  const coveredW = Math.max(40, Math.min(w - 80, cieco.coveredW + extra));
   const freeW = w - coveredW;
   const latoDx = cieco.latoDx;                      // copertura sul lato +x?
   const doorCx = latoDx ? (-w / 2 + freeW / 2) : (w / 2 - freeW / 2);
@@ -534,7 +538,8 @@ function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
   const planeY = frontY + Hf[1] * (AVANZ - THK / 2);   // piano anta (faccia a filo+2)
   const planeX = frontX + Vf[0] * (AVANZ - THK / 2);
 
-  const mat = new THREE.MeshStandardMaterial({ color: 0x1e66ff, roughness: 0.45, metalness: 0.05 });
+  // Stesso materiale delle ante: la regletta si fonde con la finitura della cucina.
+  const mat = matAnta || new THREE.MeshStandardMaterial({ color: COL.anta, roughness: 0.45, metalness: 0.05 });
   const yC = zocc + hP / 2;
   const addBox = (sx, sz, cx, cy) => {
     const geo = new THREE.BoxGeometry(sx, hP, sz);
@@ -723,7 +728,16 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const porta = m.altezza_mm || 700;
       const zocc = zoccoloPerAltezza(porta);
       const cieco = infoAngoloCieco(progetto, m);
-      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d, matBase, { cieco }), cx, zocc, cz, porta, m.rot);
+      let ciecoOpt = cieco;
+      if (cieco && cieco.coperto) {
+        const rd = progetto.reglettaAngolo || { base: 30, spessore: SPESSORE_ANTA };
+        const spess = (rd.spessore != null) ? rd.spessore : SPESSORE_ANTA;
+        // Sul mobile a fronte orizzontale va il braccio lungo (base+spessore),
+        // sul mobile a fronte verticale va il braccio corto (base).
+        const legOnMe = cieco.horizMe ? (rd.base + spess) : rd.base;
+        ciecoOpt = { ...cieco, blindExtra: legOnMe + FUGA_W };
+      }
+      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d, matBase, { cieco: ciecoOpt }), cx, zocc, cz, porta, m.rot);
       if (cieco) renderRegolettaAngolo(cieco, m, porta, zocc, matBase, progetto.reglettaAngolo);
       basiTop.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc, topY: zocc + porta });
       zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
