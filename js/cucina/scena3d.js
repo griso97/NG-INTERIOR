@@ -503,14 +503,17 @@ function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
   const nmx = Math.sin(radM), nmy = -Math.cos(radM);     // normale fronte m (pianta)
   const nox = Math.sin(radO), noy = -Math.cos(radO);
   const dM = dimMobile(m).d, dO = dimMobile(o).d;
-  const kM = m.x * nmx + m.y * nmy + dM / 2;
-  const kO = o.x * nox + o.y * noy + dO / 2;
-  // Punto d'incrocio dei due piani-fronte (normali ortonormali)
+  // Piano-fronte alla PROFONDITÀ dell'anta (le ante sporgono ~20 mm): così la
+  // regletta è a filo delle ante e si vede.
+  const AVANZ = 20;
+  const kM = m.x * nmx + m.y * nmy + dM / 2 + AVANZ;
+  const kO = o.x * nox + o.y * noy + dO / 2 + AVANZ;
   const Px = nmx * kM + nox * kO, Py = nmy * kM + noy * kO;
   const mat = (matAnta && matAnta.isMaterial)
     ? matAnta : new THREE.MeshStandardMaterial({ color: COL.anta, roughness: 0.6, metalness: 0.08 });
   const yC = zocc + (h - FUGA_H) / 2;
-  const sp = 40;                                          // spessore pezzo (verso stanza)
+  const sp = 20;                                          // pannellino sottile come un'anta
+  const FUGA = FUGA_H;                                    // 2 mm di fuga con l'anta
   const L1 = base + spess, L2 = base;                     // es. 48 e 30
   const addPezzo = (lw, cx, cy, rotDeg) => {
     const geo = new THREE.BoxGeometry(lw, h - FUGA_H, sp);
@@ -526,9 +529,10 @@ function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
   const tox = Math.cos(radO), toy = Math.sin(radO);
   const dirM = ((m.x - Px) * tmx + (m.y - Py) * tmy) >= 0 ? 1 : -1;
   const dirO = ((o.x - Px) * tox + (o.y - Py) * toy) >= 0 ? 1 : -1;
-  // Pezzo lungo il fronte di m (48), e pezzo lungo il fronte di o (30)
-  addPezzo(L1, Px - nmx * (sp / 2) + tmx * dirM * (L1 / 2), Py - nmy * (sp / 2) + tmy * dirM * (L1 / 2), m.rot || 0);
-  addPezzo(L2, Px - nox * (sp / 2) + tox * dirO * (L2 / 2), Py - noy * (sp / 2) + toy * dirO * (L2 / 2), o.rot || 0);
+  // I pezzi partono a FUGA dall'angolo: 2 mm di stacco dall'anta su ogni lato.
+  const offM = L1 / 2 + FUGA, offO = L2 / 2 + FUGA;
+  addPezzo(L1, Px - nmx * (sp / 2) + tmx * dirM * offM, Py - nmy * (sp / 2) + tmy * dirM * offM, m.rot || 0);
+  addPezzo(L2, Px - nox * (sp / 2) + tox * dirO * offO, Py - noy * (sp / 2) + toy * dirO * offO, o.rot || 0);
 }
 
 /** Pensile ad angolo (63×63): cassa quadrata + anta diagonale a 45°. */
