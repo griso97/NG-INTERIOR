@@ -775,8 +775,12 @@ function renderPannelloModificaMobile(m) {
   const gruppoColore = cat === 'pensile' ? 'pensile' : cat === 'colonna' ? 'colonna'
     : cat === 'costado' ? 'costado' : isBase ? 'base' : null;
   const nomeGruppo = { base: 'mobili bassi', pensile: 'pensili', colonna: 'colonne', costado: 'costadi' }[gruppoColore];
-  const materiali = (scena3dMod && scena3dMod.MATERIALI) || [];
+  const materialiTutti = (scena3dMod && scena3dMod.MATERIALI) || [];
+  // Palette "colore ante" filtrata: niente encimere (hanno la loro sezione).
+  const materiali = materialiTutti.filter((mt) => mt.categoria !== 'encimera');
+  const materialiEncimera = materialiTutti.filter((mt) => mt.categoria === 'encimera');
   const colAttuale = (progetto.coloriFronti || {})[gruppoColore];
+  const encAttuale = (progetto.encimera || {}).materiale || null;
   pannello.innerHTML = `
     <section class="step3-pannello">
       <h3>Modulo selezionato</h3>
@@ -808,6 +812,16 @@ function renderPannelloModificaMobile(m) {
           data-mat="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`).join('')}
       </div>
     </section>` : ''}
+    ${isBase && materialiEncimera.length ? `
+    <section class="step3-pannello">
+      <h3>Piano di lavoro (encimera)</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Il piano cambia su tutta la cucina. Ogni encimera porta il suo spessore.</div>
+      <div class="palette-colori">
+        <button type="button" class="swatch swatch-none ${!encAttuale ? 'sel' : ''}" data-enc="" title="Nero standard (4 cm)">—</button>
+        ${materialiEncimera.map((mt) => `<button type="button" class="swatch ${mt.id === encAttuale ? 'sel' : ''}"
+          data-enc="${mt.id}" title="${mt.nome} (${mt.spessore || 40} mm)" style="background-image:url('${mt.thumb}')"></button>`).join('')}
+      </div>
+    </section>` : ''}
     ${cat === 'pensile' ? `
     <section class="step3-pannello">
       <h3>Ante pensili</h3>
@@ -828,10 +842,16 @@ function renderPannelloModificaMobile(m) {
     <section class="actions">
       <button id="s3-indietro" class="btn-ghost" type="button" style="flex:1">← Moduli alti</button>
     </section>`;
-  pannello.querySelectorAll('.swatch').forEach((b) => b.addEventListener('click', () => {
+  pannello.querySelectorAll('.swatch[data-mat]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     if (!progetto.coloriFronti) progetto.coloriFronti = {};
     progetto.coloriFronti[gruppoColore] = b.dataset.mat;
+    aggiorna();
+  }));
+  pannello.querySelectorAll('.swatch[data-enc]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    if (!progetto.encimera) progetto.encimera = {};
+    progetto.encimera.materiale = b.dataset.enc || null;
     aggiorna();
   }));
   pannello.querySelectorAll('.opt-anta').forEach((b) => b.addEventListener('click', () => {

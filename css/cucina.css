@@ -578,6 +578,12 @@
 }
 .palette-colori .swatch:hover { border-color: var(--oro); }
 .palette-colori .swatch.sel { border-color: var(--oro-chiaro); box-shadow: 0 0 0 2px var(--oro-chiaro); }
+/* Bottone "nessuna encimera": nero piatto con trattino centrale */
+.palette-colori .swatch-none {
+  background: linear-gradient(135deg, #1e1e1e 0%, #333 100%);
+  color: var(--testo-dim); font-size: 20px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
 
 /* Colore zoccolo: pochi campioni con etichetta accanto */
 .palette-zoccolo { display: grid; grid-template-columns: 28px 1fr; gap: 6px 10px; align-items: center; }

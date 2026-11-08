@@ -79,6 +79,13 @@ export const MATERIALI = [
   { id: 'nero-lucido',   nome: 'Nero lucido',    categoria: 'tinta',
     thumb: 'materials/nero-lucido-thumb.jpg',   colore: 0x060607,
     solido: true, roughness: 0.04, metalness: 0.0, lucido: true },
+  // ---- Encimere / piani di lavoro ----
+  // Ogni encimera porta anche il proprio spessore (mm): viene applicato al
+  // top della cucina quando questa encimera e' selezionata.
+  { id: 'compacto-negro', nome: 'Compacto negro', categoria: 'encimera',
+    thumb: 'materials/compacto-negro-thumb.jpg',
+    texture: 'materials/compacto-negro.jpg', colore: 0x1a1a1a,
+    spessore: 12 },
 ];
 
 // PARTI selezionabili nel pannello materiali.

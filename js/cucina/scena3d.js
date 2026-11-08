@@ -14,7 +14,7 @@ import {
   calcolaVertici, dimMobile, categoriaTipo,
   moduliDiParete, PROFONDITA_BASE, infoAngoloCieco, SPESSORE_ANTA,
 } from './modello.js';
-import { getMaterialeTHREE } from '../materiali.js';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js';
 import { sfondoDi } from '../sfondi.js';
 export { MATERIALI } from '../materiali.js';
@@ -654,6 +654,12 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   const matPensile = col.pensile ? getMaterialeTHREE(col.pensile, reRender) : null;
   const matColonna = col.colonna ? getMaterialeTHREE(col.colonna, reRender) : null;
   const matCostado = col.costado ? getMaterialeTHREE(col.costado, reRender) : null;
+  // Encimera (piano di lavoro): materiale e spessore dall'eventuale scelta
+  // utente. Nessuna scelta -> colore COL.top e spessore SP_TOP come prima.
+  const encId = progetto.encimera && progetto.encimera.materiale;
+  const encDef = encId ? MATERIALI.find((m) => m.id === encId) : null;
+  const matTop = encId ? getMaterialeTHREE(encId, reRender) : null;
+  const spTop = (encDef && encDef.spessore != null) ? encDef.spessore : SP_TOP;
 
   // Moduli agganciati ai muri + fasce
   full.forEach((p, i) => {
@@ -681,7 +687,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       gruppo.add(collocaMobile(g, px, zocc, -py, porta, p.angolo_gradi));
       if (mm.tipo === 'forno' || mm.tipo === 'lavello') {
         accessori.push({ id: mm.id, x: px, y: py, rot: p.angolo_gradi, w: mm.larghezza_mm, d: PROFONDITA_BASE,
-          surfaceY: zocc + porta + SP_TOP, placca: mm.tipo === 'forno', lavello: mm.tipo === 'lavello',
+          surfaceY: zocc + porta + spTop, placca: mm.tipo === 'forno', lavello: mm.tipo === 'lavello',
           fuochi: fuochiPerLarghezza(mm.larghezza_mm) });
       }
     }
@@ -753,7 +759,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const hasLavello = m.tipo === 'lavello' || m.lavello;
       if (hasPlacca || hasLavello) {
         accessori.push({ id: m.id, x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d,
-          surfaceY: zocc + porta + SP_TOP, placca: hasPlacca, lavello: hasLavello,
+          surfaceY: zocc + porta + spTop, placca: hasPlacca, lavello: hasLavello,
           fuochi: fuochiPerLarghezza(dim.w) });
       }
     }
@@ -763,7 +769,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   // Zoccolo continuo (un unico pezzo per fila: basi + colonne insieme) +
   // piano di lavoro continuo che non entra nei costadi/colonne
   renderZoccoliContinui(zoccoli, materialeZoccolo(progetto.zoccoloColore));
-  renderTopContinui(basiTop, fianchi);
+  renderTopContinui(basiTop, fianchi, spTop, matTop);
   // Lavello, piano cottura e rubinetto SOPRA il top
   for (const a of accessori) aggiungiAccessorioTop(a);
 
@@ -815,7 +821,7 @@ function proiettaFianco(f, c, s) {
  * - se c'è un COSTADO basso il top arriva fino alla sua faccia ESTERNA
  *   (il modulo si appoggia al costado, il top lo copre).
  */
-function renderTopContinui(basi, fianchi = []) {
+function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null) {
   const gruppi = {};
   for (const b of basi) {
     const rotN = rotNorm(b.rot);
@@ -847,8 +853,8 @@ function renderTopContinui(basi, fianchi = []) {
       const centerAlong = (endLo + endHi) / 2;
       const cx = c * centerAlong + (-s) * perp;
       const cy = s * centerAlong + c * perp;
-      const slab = corpo(len, SP_TOP, G.d + 40, COL.top);
-      gruppo.add(collocaMobile(slab, cx, topY, -cy, SP_TOP, rotN));
+      const slab = corpo(len, thickness, G.d + 40, mat || COL.top);
+      gruppo.add(collocaMobile(slab, cx, topY, -cy, thickness, rotN));
     }
   }
 }
