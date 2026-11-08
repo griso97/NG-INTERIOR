@@ -543,7 +543,8 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
   const A = aabb(m, x, y);
   const eUm = A.hx * Math.abs(ux) + A.hy * Math.abs(uy);
   const eVm = A.hx * Math.abs(vx) + A.hy * Math.abs(vy);
-  let best = null;
+  let best = null;      // accostamento lungo la fila (toccarsi senza spazio)
+  let align = null;     // ISOLE: allineamento perpendicolare (fronti/schiene in riga)
   for (const o of (progetto.mobiliLiberi || [])) {
     if (o.id === m.id) continue;
     if (!rangeSovrappone(rv, rangeVerticale(o))) continue;
@@ -559,8 +560,17 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
       const s = du >= 0 ? 1 : -1;             // da che lato sta m rispetto a o
       best = { gap, dx: -ux * s * gap, dy: -uy * s * gap };
     }
+    // ISOLA/PENISOLA: se è accostato a un vicino lungo la fila (entro soglia),
+    // lo allineo perpendicolarmente (dv → 0) così restano dritti in riga invece
+    // che sfalsati. Scelgo il vicino più "in asse".
+    if (m.isola && Math.abs(du) <= (eUm + eUo) + soglia) {
+      if (!align || Math.abs(dv) < align.adv) {
+        align = { adv: Math.abs(dv), dx: -vx * dv, dy: -vy * dv };
+      }
+    }
   }
   if (best) { x += best.dx; y += best.dy; }
+  if (align) { x += align.dx; y += align.dy; }   // allineamento in fila (isole)
   return { x, y };
 }
 
