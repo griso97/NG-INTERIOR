@@ -993,12 +993,7 @@ export function applicaRegletteAngolo(progetto) {
     const overlap = axisX
       ? Math.min(F.x1, M.x1) - Math.max(F.x0, M.x0)
       : Math.min(F.y1, M.y1) - Math.max(F.y0, M.y0);
-    // Agisco SOLO se i mobili si toccano o si sovrappongono (overlap >= 0):
-    // apro quel tanto che basta per lasciare `base` di luce. Se c'è già
-    // spazio, non tiro il mobile verso l'altro: l'utente lo sta ancora
-    // posizionando a mano, non mi intrometto.
-    if (overlap < 0) continue;
-    const delta = overlap + base;
+    const delta = overlap + base;                  // porta la luce a `base`
     if (Math.abs(delta) < 0.5) continue;           // già a posto → idempotente
     const dir = (axisX ? mobile.x : mobile.y) >= (axisX ? fisso.x : fisso.y) ? 1 : -1;
     if (axisX) mobile.x = Math.round(mobile.x + dir * delta);
