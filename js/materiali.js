@@ -86,6 +86,10 @@ export const MATERIALI = [
     thumb: 'materials/compacto-negro-thumb.jpg',
     texture: 'materials/compacto-negro.jpg', colore: 0x1a1a1a,
     spessore: 12 },
+  { id: 'compacto-bernini', nome: 'Compacto Bernini', categoria: 'encimera',
+    thumb: 'materials/compacto-bernini-thumb.jpg',
+    texture: 'materials/compacto-bernini.jpg', colore: 0xece7dd,
+    spessore: 12 },
 ];
 
 // PARTI selezionabili nel pannello materiali.
