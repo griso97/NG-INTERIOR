@@ -587,6 +587,28 @@ const LED_COLORI = {
  * una vera SpotLight puntata in basso che proietta luce sul piano di
  * lavoro con il colore scelto.
  */
+// Crea una texture con gradiente verticale che simula il bagliore della
+// strip LED attenuato verso il basso del muro. Niente bordi netti: il
+// plane che la riceve si dissolve naturalmente.
+function creaTextureBagliore(hex) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 32; canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const r = (hex >> 16) & 0xff, gC = (hex >> 8) & 0xff, b = hex & 0xff;
+  const grad = ctx.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0.00, `rgba(${r},${gC},${b},1.00)`);
+  grad.addColorStop(0.15, `rgba(${r},${gC},${b},0.80)`);
+  grad.addColorStop(0.45, `rgba(${r},${gC},${b},0.35)`);
+  grad.addColorStop(0.80, `rgba(${r},${gC},${b},0.08)`);
+  grad.addColorStop(1.00, `rgba(${r},${gC},${b},0.00)`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 32, 256);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 function aggiungiLedPensile(g, w, h, d, colore) {
   const hex = LED_COLORI[colore] || LED_COLORI.caldo;
   const stripW = Math.max(60, w - 40);
@@ -600,18 +622,34 @@ function aggiungiLedPensile(g, w, h, d, colore) {
   mesh.position.set(0, -h / 2 + stripH / 2, zStrip);
   g.add(mesh);
   // STRIP CONTINUA: tante PointLight distribuite lungo la lunghezza
-  // della barra. La somma delle loro sfere di luce crea l'effetto di
-  // una LINEA luminosa continua (non un singolo punto o cono), proprio
-  // come una vera strip LED. Nessun cono/rettangolo netto.
+  // della barra. Intensita' MOLTO alta per spiccare sopra l'illuminazione
+  // ambientale della scena, come una vera strip LED forte.
   const nLed = Math.max(3, Math.min(7, Math.round(stripW / 220)));
-  const intensityEach = 55;
+  const intensityEach = 250;
   for (let i = 0; i < nLed; i++) {
     const t = nLed === 1 ? 0.5 : i / (nLed - 1);
     const x = (t - 0.5) * stripW * 0.88;
-    const pl = new THREE.PointLight(hex, intensityEach, 1500, 1.1);
+    const pl = new THREE.PointLight(hex, intensityEach, 1800, 1.0);
     pl.position.set(x, -h / 2 - 20, zStrip + 30);
     g.add(pl);
   }
+  // BAGLIORE SUL MURO DIETRO: plane con GRADIENTE verticale (texture
+  // sfumata) che si somma al muro. Nessun rettangolo netto: la texture
+  // dissolve completamente verso il basso. Come nella foto reale, si
+  // vede il bagliore della strip attenuarsi scendendo sulle piastrelle.
+  const tex = creaTextureBagliore(hex);
+  const glowMat = new THREE.MeshBasicMaterial({
+    map: tex, transparent: true, toneMapped: false,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const glowH = 650;
+  const glowGeo = new THREE.PlaneGeometry(stripW + 40, glowH);
+  const glow = new THREE.Mesh(glowGeo, glowMat);
+  // Posizionato sul piano del muro (retro del pensile), appena dietro
+  // alla cassa, con la parte piena del gradiente in alto (vicino alla
+  // striscia) e la parte trasparente in basso.
+  glow.position.set(0, -h / 2 - glowH / 2 + stripH, zStrip - 1);
+  g.add(glow);
 }
 
 /** Pensile ad angolo (63×63): cassa quadrata + anta diagonale a 45°. */
