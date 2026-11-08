@@ -93,8 +93,11 @@ export const CATALOGO_MOBILI = [
   // - pannello-copertura: pannello grande per schiena/lato isole e penisole
   { id: 'regletta-grande', nome: 'Regletta grande', categoria: 'pannello',
     larghezze: [30, 50, 80, 100, 150], altezze: [2200, 2300, 900, 700], profondita: 18 },
+  // Pannello di copertura: va DIETRO ai moduli dell'isola come un costado grande.
+  // Altezza = quella dei moduli + piedini (base 70+15 = 85, base 80+10 = 90).
+  // Larghezza = somma dei moduli dell'isola (l'utente la decide di volta in volta).
   { id: 'pannello-copertura', nome: 'Pannello copertura', categoria: 'pannello',
-    larghezze: [1200, 1500, 1900, 2400], altezze: [850, 900, 1200, 2200], profondita: 18 },
+    larghezze: [1200, 1800, 2400, 3000], altezze: [850, 900], profondita: 18 },
   { id: 'costado',       nome: 'Costado', categoria: 'costado',
     larghezze: [20], altezze: ALTEZZE_COSTADO, profondita: 600 },
 ];
