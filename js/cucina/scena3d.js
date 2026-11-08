@@ -495,45 +495,59 @@ function anteCieche(g, w, h, d, matAnta, cieco) {
  * uno da 30 mm e uno da 30+spessore anta (48 con ante da 18), così uno sormonta
  * l'altro. Sta sul fronte, a filo dei due mobili.
  */
+function aabbPlan(q) {
+  const d = dimMobile(q);
+  const rotN = ((Math.round((q.rot || 0) / 90) * 90) % 360 + 360) % 360;
+  const horiz = rotN % 180 === 0;
+  const hx = (horiz ? d.w : d.d) / 2, hy = (horiz ? d.d : d.w) / 2;
+  return { x0: q.x - hx, x1: q.x + hx, y0: q.y - hy, y1: q.y + hy, cx: q.x, cy: q.y };
+}
+function frontDirPlan(q) {
+  const r = (q.rot || 0) * Math.PI / 180;
+  return [-Math.sin(r), -Math.cos(r)];               // fronte 3D in pianta
+}
+
 function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
   const base = (dims && dims.base) || 30;
   const spess = (dims && dims.spessore != null) ? dims.spessore : SPESSORE_ANTA;
   const o = cieco.o;
-  const radM = (m.rot || 0) * Math.PI / 180, radO = (o.rot || 0) * Math.PI / 180;
-  const nmx = -Math.sin(radM), nmy = -Math.cos(radM);    // normale fronte 3D m (pianta)
-  const nox = -Math.sin(radO), noy = -Math.cos(radO);
-  const dM = dimMobile(m).d, dO = dimMobile(o).d;
-  // Piano-fronte alla PROFONDITÀ dell'anta (le ante sporgono ~20 mm): così la
-  // regletta è a filo delle ante e si vede.
-  const AVANZ = 20;
-  const kM = m.x * nmx + m.y * nmy + dM / 2 + AVANZ;
-  const kO = o.x * nox + o.y * noy + dO / 2 + AVANZ;
-  const Px = nmx * kM + nox * kO, Py = nmy * kM + noy * kO;
-  // DEBUG: regletta BLU, così si distingue chiaramente dalle ante e si verifica
-  // che venga realmente posizionata.
+  const THK = 20;                                        // spessore pannello (come le ante)
+  const AVANZ = 22;                                      // a filo ante (20) + 2 mm proud → sempre visibile
+  const hP = h - FUGA_H;
+
+  const A = aabbPlan(m), B = aabbPlan(o);
+  const fm = frontDirPlan(m), fo = frontDirPlan(o);
+
+  // Quale mobile ha il fronte ORIZZONTALE (lungo ±y) e quale VERTICALE (lungo ±x).
+  // Il braccio lungo (base+spess, es. 4.8) va sul mobile a fronte orizzontale.
+  let H, Hf, V, Vf, legH, legV;
+  if (Math.abs(fm[1]) > 0.5) { H = A; Hf = fm; V = B; Vf = fo; legH = base + spess; legV = base; }
+  else { H = B; Hf = fo; V = A; Vf = fm; legH = base + spess; legV = base; }
+
+  const frontY = (Hf[1] > 0) ? H.y1 : H.y0;            // linea del fronte orizzontale
+  const frontX = (Vf[0] > 0) ? V.x1 : V.x0;            // linea del fronte verticale
+  const cornerX = frontX, cornerY = frontY;            // angolo interno (incrocio fronti)
+
+  const dirHx = (V.cx >= cornerX) ? -1 : 1;            // braccio orizz. si allontana da V
+  const dirVy = (H.cy >= cornerY) ? -1 : 1;            // braccio vert. si allontana da H
+
+  const planeY = frontY + Hf[1] * (AVANZ - THK / 2);   // piano anta (faccia a filo+2)
+  const planeX = frontX + Vf[0] * (AVANZ - THK / 2);
+
   const mat = new THREE.MeshStandardMaterial({ color: 0x1e66ff, roughness: 0.45, metalness: 0.05 });
-  const yC = zocc + (h - FUGA_H) / 2;
-  const sp = 20;                                          // pannellino sottile come un'anta
-  const FUGA = FUGA_H;                                    // 2 mm di fuga con l'anta
-  const L1 = base + spess, L2 = base;                     // es. 48 e 30
-  const addPezzo = (lw, cx, cy, rotDeg) => {
-    const geo = new THREE.BoxGeometry(lw, h - FUGA_H, sp);
+  const yC = zocc + hP / 2;
+  const addBox = (sx, sz, cx, cy) => {
+    const geo = new THREE.BoxGeometry(sx, hP, sz);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(cx, yC, -cy);
-    mesh.rotation.y = -rotDeg * Math.PI / 180;
     gruppo.add(mesh);
     const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), matOro);
-    e.position.copy(mesh.position); e.rotation.copy(mesh.rotation); gruppo.add(e);
+    e.position.copy(mesh.position); gruppo.add(e);
   };
-  // tangenti (assi larghezza) e versi verso i rispettivi mobili
-  const tmx = Math.cos(radM), tmy = Math.sin(radM);
-  const tox = Math.cos(radO), toy = Math.sin(radO);
-  const dirM = ((m.x - Px) * tmx + (m.y - Py) * tmy) >= 0 ? 1 : -1;
-  const dirO = ((o.x - Px) * tox + (o.y - Py) * toy) >= 0 ? 1 : -1;
-  // I pezzi partono a FUGA dall'angolo: 2 mm di stacco dall'anta su ogni lato.
-  const offM = L1 / 2 + FUGA, offO = L2 / 2 + FUGA;
-  addPezzo(L1, Px - nmx * (sp / 2) + tmx * dirM * offM, Py - nmy * (sp / 2) + tmy * dirM * offM, m.rot || 0);
-  addPezzo(L2, Px - nox * (sp / 2) + tox * dirO * offO, Py - noy * (sp / 2) + toy * dirO * offO, o.rot || 0);
+  // Braccio ORIZZONTALE: lungo legH in x, spesso THK in y; dall'angolo verso il lato esposto.
+  addBox(legH, THK, cornerX + dirHx * (legH / 2), planeY);
+  // Braccio VERTICALE: spesso THK in x, lungo legV in y; sfalsato di THK così "cappa" l'altro.
+  addBox(THK, legV, planeX, cornerY + dirVy * (legV / 2 + THK / 2));
 }
 
 /** Pensile ad angolo (63×63): cassa quadrata + anta diagonale a 45°. */
