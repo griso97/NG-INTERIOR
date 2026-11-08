@@ -295,6 +295,7 @@ function renderMobileLibero(m, selezionato, interattivo, bloccato = false) {
   const tipoCls = categoria === 'pensile' ? ' sv-mob-pensile' :
     categoria === 'colonna' ? ' sv-mob-colonna' :
     categoria === 'regletta' ? ' sv-mob-regletta' :
+    categoria === 'pannello' ? ' sv-mob-pannello' :
     m.tipo === 'lavello' ? ' sv-mod-lavello' :
     m.tipo === 'forno' ? ' sv-mod-forno' : '';
   g.appendChild(el('polygon', {

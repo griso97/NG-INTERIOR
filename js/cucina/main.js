@@ -937,6 +937,8 @@ function iconaMobile(id) {
     'pensile-angolo': '<path d="M10 10 H54 V54 H10 Z" fill="none"/><line x1="10" y1="34" x2="34" y2="54"/><line x1="20" y1="40" x2="28" y2="48"/>',
     colonna: '<rect x="18" y="4" width="28" height="56"/><line x1="18" y1="40" x2="46" y2="40"/><line x1="40" y1="20" x2="40" y2="26"/><line x1="40" y1="48" x2="40" y2="54"/>',
     regletta: '<polyline points="16,8 16,48 56,48" fill="none" stroke-width="7"/><polyline points="16,8 26,8 26,38 56,38 56,48" fill="none"/>',
+    'regletta-grande': '<rect x="28" y="4" width="8" height="56"/><line x1="22" y1="4" x2="28" y2="8"/><line x1="22" y1="60" x2="28" y2="56"/>',
+    'pannello-copertura': '<rect x="6" y="14" width="52" height="36"/><line x1="12" y1="20" x2="52" y2="20" stroke-dasharray="3 3"/><line x1="12" y1="44" x2="52" y2="44" stroke-dasharray="3 3"/>',
     costado: '<rect x="26" y="6" width="12" height="52"/><line x1="20" y1="6" x2="26" y2="10"/><line x1="20" y1="54" x2="26" y2="58"/>',
   };
   return `<svg viewBox="0 0 64 64" aria-hidden="true">${ic[id] || ic['base-ante']}</svg>`;

@@ -517,6 +517,9 @@
 
 /* ===== Regletta a L (filler d'angolo) ===== */
 .sv-mob-regletta { fill: rgba(227, 170, 90, 0.5); stroke: #e3aa5a; stroke-width: 8; }
+
+/* ===== Pannelli su misura (regletta grande + pannello di copertura) ===== */
+.sv-mob-pannello { fill: rgba(205, 155, 85, 0.35); stroke: #cd9b55; stroke-width: 6; }
 .sv-mob-hit { fill: rgba(0,0,0,0); stroke: none; pointer-events: all; }
 
 /* ===== Badge "libero" per muro ===== */

@@ -717,6 +717,11 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const zocc = zoccoloPerAltezza(h);
       zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
       g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, zocc, cz, h, m.rot);
+    } else if (cat === 'pannello') {
+      // Pannello su misura: box 18 mm di spessore, finitura come le ante.
+      // Va da terra fino all'altezza scelta, niente zoccolo e niente top.
+      const h = m.altezza_mm || 2200;
+      g3d = collocaMobile(corpo(dim.w, h, dim.d, matBase || COL.anta), cx, 0, cz, h, m.rot);
     } else if (cat === 'costado') {
       const h = m.altezza_mm || 850;
       const base = h >= 1500 ? Math.max(0, QUOTA_RIF - h) : 0;

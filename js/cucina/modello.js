@@ -88,6 +88,13 @@ export const CATALOGO_MOBILI = [
     larghezze: [600], altezze: ALTEZZE_COLONNA, profondita: 600 },
   { id: 'regletta',      nome: 'Regletta a L', categoria: 'regletta',
     larghezze: [30], altezze: ALTEZZE_BASE, profondita: 30 },
+  // Pannelli su misura (spessore fisso 18 mm, come le ante):
+  // - regletta-grande: tamponamento verticale a tutta altezza (es. gap frigo-muro)
+  // - pannello-copertura: pannello grande per schiena/lato isole e penisole
+  { id: 'regletta-grande', nome: 'Regletta grande', categoria: 'pannello',
+    larghezze: [30, 50, 80, 100, 150], altezze: [2200, 2300, 900, 700], profondita: 18 },
+  { id: 'pannello-copertura', nome: 'Pannello copertura', categoria: 'pannello',
+    larghezze: [1200, 1500, 1900, 2400], altezze: [850, 900, 1200, 2200], profondita: 18 },
   { id: 'costado',       nome: 'Costado', categoria: 'costado',
     larghezze: [20], altezze: ALTEZZE_COSTADO, profondita: 600 },
 ];
@@ -117,6 +124,17 @@ export function campiMobile(tipoId) {
       { campo: 'latoA_mm',  et: 'Larghezza (mm)', tipo: 'numero', default: 30, min: 10, step: 5, opzioni: [20, 30, 40, 50, 100] },
       { campo: 'latoB_mm',  et: 'Profondità (mm)', tipo: 'numero', default: PROFONDITA_BASE, min: 10, step: 5, opzioni: [PROFONDITA_BASE, 350, 100, 30] },
       { campo: 'altezza_mm', et: 'Altezza (mm)', opzioni: ALTEZZE_BASE, default: ALTEZZE_BASE[0] },
+    ];
+  }
+  if (t.categoria === 'pannello') {
+    // Pannelli su misura: larghezza e altezza ENTRAMBE libere, spessore fisso 18 mm.
+    // Le opzioni standard sono scorciatoie; il campo numerico accetta qualsiasi valore.
+    const etLarg = tipoId === 'regletta-grande' ? 'Larghezza (mm)' : 'Larghezza (mm)';
+    return [
+      { campo: 'larghezza_mm', et: etLarg, tipo: 'numero',
+        min: 20, step: 1, opzioni: t.larghezze, default: t.larghezze[0] },
+      { campo: 'altezza_mm',   et: 'Altezza (mm)', tipo: 'numero',
+        min: 50, step: 1, opzioni: t.altezze, default: t.altezze[0] },
     ];
   }
   if (t.categoria === 'costado') {
@@ -155,6 +173,9 @@ export function descrizioneMobile(m) {
   if (cat === 'regletta') {
     return `${m.latoA_mm}×${m.latoB_mm} · h${m.altezza_mm}`;
   }
+  if (cat === 'pannello') {
+    return `${m.larghezza_mm}×${m.altezza_mm} · sp 18`;
+  }
   if (cat === 'costado') {
     return `${m.altezza_mm}×${m.profondita_mm} · sp ${m.spessore_mm}`;
   }
@@ -176,6 +197,10 @@ export function dimMobile(m) {
   const cat = categoriaTipo(m.tipo);
   if (cat === 'regletta') {
     return { w: m.latoA_mm || 30, d: m.latoB_mm || 30 };
+  }
+  if (cat === 'pannello') {
+    // Il pannello ha sempre 18 mm di spessore: si vede "di faccia" sulla larghezza.
+    return { w: m.larghezza_mm || 50, d: 18 };
   }
   if (cat === 'costado') {
     return { w: m.spessore_mm || 20, d: m.profondita_mm || 600 };
