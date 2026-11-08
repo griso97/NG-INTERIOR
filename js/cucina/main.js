@@ -36,6 +36,24 @@ const riepilogo = document.getElementById('cucina-riepilogo');
 const svg = document.getElementById('pianta-svg');
 const stepInfo = document.getElementById('step-info');
 
+// Desktop: la rotellina sopra la pianta (area centrale) non scrollava nulla,
+// mentre i comandi stanno nel pannello laterale. Inoltro lo scroll della
+// rotella al pannello che deborda (sinistro o destro), così si può scorrere
+// ovunque. Sulla vista 3D la rotella serve allo zoom → lasciata stare.
+(function inoltraRotella() {
+  const vista = document.querySelector('.cucina-vista');
+  if (!vista) return;
+  vista.addEventListener('wheel', (e) => {
+    if (e.target.closest && e.target.closest('#cucina-3d')) return;  // 3D: zoom
+    const target = (pannello && pannello.scrollHeight > pannello.clientHeight + 2)
+      ? pannello
+      : (riepilogo && riepilogo.scrollHeight > riepilogo.clientHeight + 2 ? riepilogo : null);
+    if (!target) return;
+    target.scrollTop += e.deltaY;
+    e.preventDefault();
+  }, { passive: false });
+})();
+
 // Stato locale UI per Step 2
 let step2 = {
   pareteAttivaId: null,  // parete selezionata per inserire moduli
