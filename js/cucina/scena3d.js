@@ -851,8 +851,11 @@ function materialePerTop(mat) {
   const m = new THREE.MeshStandardMaterial({
     map: tex,
     color: 0xffffff,
-    roughness: mat.roughness != null ? mat.roughness : 0.6,
-    metalness: mat.metalness != null ? mat.metalness : 0.05,
+    // Marmo/pietra compatto: superficie meno lucida, meno riflessi ambiente,
+    // cosi' il bianco del marmo non "brucia" le venature nel rendering 3D.
+    roughness: 0.75,
+    metalness: 0.0,
+    envMapIntensity: 0.45,
   });
   _matTopCache.set(mat, m);
   return m;
