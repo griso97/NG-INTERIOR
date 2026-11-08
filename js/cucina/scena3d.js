@@ -580,29 +580,35 @@ function aggiungiLedPensile(g, w, h, d, colore) {
   const stripW = Math.max(60, w - 40);
   const stripH = 6;
   const stripD = 18;
-  // Striscia emissive visibile: non reagisce all'illuminazione, è sempre
-  // "accesa" con il colore della temperatura scelta.
+  // Striscia emissive visibile (non tone-mapped, resta "accesa" piena).
   const mat = new THREE.MeshBasicMaterial({ color: hex, toneMapped: false });
   const geo = new THREE.BoxGeometry(stripW, stripH, stripD);
   const mesh = new THREE.Mesh(geo, mat);
-  // Lato RETRO (verso il muro): z = -d/2 + stripD/2 + piccolo offset.
+  // RETRO del pensile (lato muro): z locale negativo.
   const zStrip = -d / 2 + stripD / 2 + 4;
   mesh.position.set(0, -h / 2 + stripH / 2, zStrip);
   g.add(mesh);
-  // LUCE REALE: SpotLight puntata in basso e leggermente in avanti (dove
-  // sta il piano di lavoro), così si vede l'alone di luce sul top.
-  const light = new THREE.SpotLight(hex, 3.5, 1800, Math.PI / 3.2, 0.7, 1.4);
-  light.position.set(0, -h / 2 - 4, zStrip);
-  light.target.position.set(0, -h / 2 - 900, zStrip + 220);
-  g.add(light);
-  g.add(light.target);
-  // Alone diffuso subito sotto la barra per dare "corpo" alla luce anche
-  // sulle facce vicine (una SpotLight da sola non illumina le facce
-  // laterali del pensile stesso).
-  const aloneMat = new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.18, toneMapped: false });
+  // SpotLight forte, decay basso: illumina il piano di lavoro sotto con il
+  // colore scelto. Puntata diritta in basso e un filo in avanti per cadere
+  // sulla parte usabile del top (la zona lavoro) e non dietro al muro.
+  const spot = new THREE.SpotLight(hex, 35, 2200, Math.PI / 3.0, 0.55, 1.0);
+  spot.position.set(0, -h / 2 - 8, zStrip);
+  spot.target.position.set(0, -h / 2 - 1000, zStrip + 260);
+  g.add(spot);
+  g.add(spot.target);
+  // PointLight ausiliaria piu' morbida: dà alone di luce anche sugli oggetti
+  // laterali (fianchi dei pensili vicini, alzata del top), così l'effetto
+  // "LED acceso" si percepisce anche senza avere una vera superficie
+  // lambertiana sotto.
+  const point = new THREE.PointLight(hex, 8, 900, 1.2);
+  point.position.set(0, -h / 2 - 30, zStrip + 40);
+  g.add(point);
+  // Alone diffuso subito sotto la barra per dare "corpo" visivo alla
+  // sorgente luminosa anche quando si guarda dal basso.
+  const aloneMat = new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.35, toneMapped: false });
   const aloneGeo = new THREE.BoxGeometry(stripW + 40, 2, stripD + 30);
   const alone = new THREE.Mesh(aloneGeo, aloneMat);
-  alone.position.set(0, -h / 2 - 5, zStrip);
+  alone.position.set(0, -h / 2 - 4, zStrip);
   g.add(alone);
 }
 
