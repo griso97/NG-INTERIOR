@@ -496,11 +496,12 @@ export function orientaVersoMuro(progetto, m, x, y) {
   }
   if (!bestN || bestDist > 900) return null;       // troppo lontano da un muro
   const [nx, ny] = bestN;
-  // Il fronte (ante) di default guarda la direzione (sin, −cos) della rotazione
+  // Il fronte (ante) in pianta, nel rendering 3D, guarda (−sin, −cos) della
+  // rotazione. Scelgo la rotazione il cui fronte 3D guarda verso l'interno.
   let bestRot = m.rot || 0, bestVal = -Infinity;
   for (const r of [0, 90, 180, 270]) {
     const rad = r * Math.PI / 180;
-    const v = Math.sin(rad) * nx + (-Math.cos(rad)) * ny;
+    const v = (-Math.sin(rad)) * nx + (-Math.cos(rad)) * ny;
     if (v > bestVal) { bestVal = v; bestRot = r; }
   }
   return bestRot;
@@ -630,7 +631,7 @@ export function generaPensiliAuto(progetto, altezzaPensile) {
     if (categoriaTipo(b.tipo) !== 'base') continue;
     if (!baseAMuro(progetto, b)) continue;
     const rad = (b.rot || 0) * Math.PI / 180;
-    const nx = Math.sin(rad), ny = -Math.cos(rad); // normale verso la stanza (fronte base)
+    const nx = -Math.sin(rad), ny = -Math.cos(rad); // normale fronte 3D (verso la stanza)
     nuovi.push({
       id: nextId++, tipo: 'pensile',
       larghezza_mm: dimMobile(b).w, altezza_mm: altezzaPensile,

@@ -500,8 +500,8 @@ function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
   const spess = (dims && dims.spessore != null) ? dims.spessore : SPESSORE_ANTA;
   const o = cieco.o;
   const radM = (m.rot || 0) * Math.PI / 180, radO = (o.rot || 0) * Math.PI / 180;
-  const nmx = Math.sin(radM), nmy = -Math.cos(radM);     // normale fronte m (pianta)
-  const nox = Math.sin(radO), noy = -Math.cos(radO);
+  const nmx = -Math.sin(radM), nmy = -Math.cos(radM);    // normale fronte 3D m (pianta)
+  const nox = -Math.sin(radO), noy = -Math.cos(radO);
   const dM = dimMobile(m).d, dO = dimMobile(o).d;
   // Piano-fronte alla PROFONDITÀ dell'anta (le ante sporgono ~20 mm): così la
   // regletta è a filo delle ante e si vede.
