@@ -559,6 +559,44 @@ function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
   addBox(THK, legV, planeX, cornerY + dirVy * (FUGA_W + legV / 2));
 }
 
+// Colori LED per temperatura (K approssimativi): caldo ~3000K, medio ~4000K,
+// freddo ~6500K. Valori scelti per leggibilita' sul 3D, non riflettenti
+// perche' le strisce LED viste di sotto appaiono molto luminose.
+const LED_COLORI = {
+  caldo:  0xffb878,   // bianco caldo (giallo/ambra)
+  medio:  0xffe8c8,   // bianco neutro (crema)
+  freddo: 0xc8dcff,   // bianco freddo (azzurrino)
+};
+
+/**
+ * Strip LED sotto un pensile: una barra sottile emissiva appesa al bordo
+ * inferiore della cassa, leggermente spostata verso il fronte. Si vede
+ * anche con la camera dal basso e non interferisce con il magnete o
+ * la geometria del mobile.
+ */
+function aggiungiLedPensile(g, w, h, d, colore) {
+  const hex = LED_COLORI[colore] || LED_COLORI.caldo;
+  const stripW = Math.max(60, w - 40);              // un filo piu' stretta della cassa
+  const stripH = 6;                                 // sottile
+  const stripD = 18;                                // profondita' della barra
+  // Materiale "pieno" di colore (non reagisce all'illuminazione): la barra
+  // appare sempre ben visibile anche in scene scure.
+  const mat = new THREE.MeshBasicMaterial({ color: hex, toneMapped: false });
+  const geo = new THREE.BoxGeometry(stripW, stripH, stripD);
+  const mesh = new THREE.Mesh(geo, mat);
+  // Posizione: sotto la cassa (y = -h/2 + mezza barra), spinta verso il
+  // fronte del pensile (+z nella locale del mobile).
+  mesh.position.set(0, -h / 2 + stripH / 2, d / 2 - stripD / 2 - 4);
+  g.add(mesh);
+  // Un alone piu' largo e meno saturo poco sotto per suggerire la luce
+  // proiettata (senza usare una luce reale, che sarebbe pesante).
+  const aloneMat = new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.22, toneMapped: false });
+  const aloneGeo = new THREE.BoxGeometry(stripW + 60, 2, stripD + 40);
+  const alone = new THREE.Mesh(aloneGeo, aloneMat);
+  alone.position.set(0, -h / 2 - 6, d / 2 - (stripD + 40) / 2 - 4);
+  g.add(alone);
+}
+
 /** Pensile ad angolo (63×63): cassa quadrata + anta diagonale a 45°. */
 function pensileAngoloFronte(g, w, h, d, matAnta) {
   const mat = (matAnta && matAnta.isMaterial)
@@ -711,7 +749,13 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       // altrimenti resta appeso all'altezza standard (140 cm da terra).
       const base = topLine != null ? (topLine - h) : MONTAGGIO_PENSILE;
       const sporg = antaPensileSporge(progetto.antaPensile, h);
-      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matPensile, { sporg }), cx, base, cz, h, m.rot);
+      const gPens = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matPensile, { sporg });
+      // LED sotto i pensili (opzionale, con scelta temperatura colore).
+      // Il pensile-angolo (diagonale) non lo prende: ha una geometria dedicata.
+      if (progetto.led && progetto.led.attivo && m.tipo !== 'pensile-angolo') {
+        aggiungiLedPensile(gPens, dim.w, h, dim.d, progetto.led.colore);
+      }
+      g3d = collocaMobile(gPens, cx, base, cz, h, m.rot);
     } else if (cat === 'colonna') {
       // L'altezza della colonna (es. 2200) è la CASSA; il totale è cassa +
       // zoccolo. Così un costado da 2350 (= 2200 + 15 di piedini) combacia.

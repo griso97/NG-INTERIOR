@@ -747,6 +747,24 @@ function renderPannelloStep3d() {
       </div>
     </section>
     <section class="step3-pannello">
+      <h3>LED sotto i pensili</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Striscia di luce sotto ogni pensile. Scegli la temperatura della luce.</div>
+      <div class="opzioni-anta">
+        ${(() => {
+          const led = progetto.led || { attivo: false, colore: 'caldo' };
+          const opts = [
+            { id: 'off',    et: 'Nessun LED' },
+            { id: 'caldo',  et: '💡 Luce calda (3000K)' },
+            { id: 'medio',  et: '💡 Luce neutra (4000K)' },
+            { id: 'freddo', et: '💡 Luce fredda (6500K)' },
+          ];
+          const current = led.attivo ? led.colore : 'off';
+          return opts.map((o) => `<button type="button" class="btn-ghost opt-led ${current === o.id ? 'attivo' : ''}"
+            data-led="${o.id}">${current === o.id ? '✓ ' : ''}${o.et}</button>`).join('');
+        })()}
+      </div>
+    </section>
+    <section class="step3-pannello">
       <h3>Immagine</h3>
       <div class="riga-3d" style="margin-bottom:6px">Salva una foto del rendering in alta qualità (PNG).</div>
       <button id="s3-salva-img" class="btn-ghost" type="button" style="width:100%">📷 Salva immagine HD</button>
@@ -767,6 +785,13 @@ function renderPannelloStep3d() {
     registraStoria();
     if (!progetto.encimera) progetto.encimera = {};
     progetto.encimera.materiale = b.dataset.enc || null;
+    aggiorna();
+  }));
+  pannello.querySelectorAll('.opt-led').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    const v = b.dataset.led;
+    if (v === 'off') progetto.led = { attivo: false, colore: (progetto.led && progetto.led.colore) || 'caldo' };
+    else progetto.led = { attivo: true, colore: v };
     aggiorna();
   }));
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
