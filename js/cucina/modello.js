@@ -934,35 +934,70 @@ export function infoAngoloCieco(progetto, m) {
 }
 
 /**
- * Spostamento automatico per l'angolo cieco (mobili che si toccano): il mobile
- * COPERTO resta fermo, l'ALTRO (quello che apre l'anta) si allontana lungo la
- * SUA PARETE (asse lungo del mobile) finché tra i due c'è esattamente `base`
- * mm di luce = la larghezza della regletta. In questo modo un mobile verticale
- * scorre SU per il muro (non si stacca dal muro verso il centro della stanza)
- * e un mobile orizzontale scorre lateralmente lungo il muro di fondo.
+ * Conta i mobili base allineati sulla stessa FILA di m (stesso orientamento e
+ * stessa coordinata di profondità). Serve a capire se m appartiene a una fila
+ * principale (più mobili attaccati) o è un pezzo isolato: nell'angolo cieco,
+ * chi è in fila con altri resta fermo, chi è isolato si sposta.
+ */
+function contaInFila(progetto, m) {
+  if (categoriaTipo(m.tipo) !== 'base') return 0;
+  const A = aabbMondo(m);
+  const rotN = ((Math.round((m.rot || 0) / 90) * 90) % 360 + 360) % 360;
+  const horizM = rotN % 180 === 0;
+  let count = 0;
+  for (const o of (progetto.mobiliLiberi || [])) {
+    if (o.id === m.id) continue;
+    if (categoriaTipo(o.tipo) !== 'base') continue;
+    const rotO = ((Math.round((o.rot || 0) / 90) * 90) % 360 + 360) % 360;
+    if ((rotO % 180 === 0) !== horizM) continue;         // stesso orientamento
+    const B = aabbMondo(o);
+    // In fila se i bordi di profondità sono allineati (tolleranza 50 mm).
+    if (horizM) {
+      if (Math.abs(A.y0 - B.y0) > 50 && Math.abs(A.y1 - B.y1) > 50) continue;
+    } else {
+      if (Math.abs(A.x0 - B.x0) > 50 && Math.abs(A.x1 - B.x1) > 50) continue;
+    }
+    count++;
+  }
+  return count;
+}
+
+/**
+ * Spostamento automatico per l'angolo cieco (mobili che si toccano): resta
+ * fermo il mobile che ha più vicini sulla sua stessa fila (= quello della
+ * fila principale, già collegato ad altri armadi). L'altro, quello isolato
+ * nell'angolo, si sposta lungo la SUA PARETE (asse lungo del mobile) finché
+ * tra i due c'è esattamente `base` mm di luce = la larghezza della regletta.
+ * Esempio: fila orizzontale di 3 basi + 1 armadio verticale nell'angolo in
+ * alto: si sposta l'armadio verticale verso l'alto, la fila resta ferma.
  * Idempotente: quando la luce è già = base non muove più nulla.
  */
 export function applicaRegletteAngolo(progetto) {
   const base = (progetto.reglettaAngolo && progetto.reglettaAngolo.base) || 30;
   const mob = progetto.mobiliLiberi || [];
-  for (const c of mob) {                           // c = candidato COPERTO (resta fermo)
+  for (const c of mob) {
     const info = infoAngoloCieco(progetto, c);
     if (!info || info.coperto) continue;           // solo angoli "che si toccano"
     const o = info.o;
     if (!o) continue;
-    const C = aabbMondo(c), O = aabbMondo(o);
-    // o si sposta lungo la SUA parete: asse lungo del mobile (dove sta la
-    // larghezza). Un mobile orizzontale (horiz=true) scorre lungo X, uno
-    // verticale (horiz=false) scorre lungo Y. Mai perpendicolare al muro.
-    const axisX = O.horiz;
+    // Decido chi resta fermo e chi si sposta in base ai VICINI:
+    // più vicini in fila = fila principale = resta fermo.
+    const nc = contaInFila(progetto, c);
+    const no = contaInFila(progetto, o);
+    let fisso, mobile;
+    if (no > nc) { fisso = o; mobile = c; }
+    else { fisso = c; mobile = o; }
+    const F = aabbMondo(fisso), M = aabbMondo(mobile);
+    // il mobile scorre lungo la sua parete (asse lungo del mobile)
+    const axisX = M.horiz;
     const overlap = axisX
-      ? Math.min(C.x1, O.x1) - Math.max(C.x0, O.x0)
-      : Math.min(C.y1, O.y1) - Math.max(C.y0, O.y0);
+      ? Math.min(F.x1, M.x1) - Math.max(F.x0, M.x0)
+      : Math.min(F.y1, M.y1) - Math.max(F.y0, M.y0);
     const delta = overlap + base;                  // porta la luce a `base`
     if (Math.abs(delta) < 0.5) continue;           // già a posto → idempotente
-    const dir = (axisX ? o.x : o.y) >= (axisX ? c.x : c.y) ? 1 : -1;  // allontana o da c
-    if (axisX) o.x = Math.round(o.x + dir * delta);
-    else o.y = Math.round(o.y + dir * delta);
+    const dir = (axisX ? mobile.x : mobile.y) >= (axisX ? fisso.x : fisso.y) ? 1 : -1;
+    if (axisX) mobile.x = Math.round(mobile.x + dir * delta);
+    else mobile.y = Math.round(mobile.y + dir * delta);
   }
 }
 
