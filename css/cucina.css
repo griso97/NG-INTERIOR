@@ -56,9 +56,20 @@
 .cucina-app {
   display: grid;
   grid-template-columns: 340px 1fr 320px;
-  grid-template-rows: 1fr;
+  /* minmax(0,1fr): la riga NON cresce col contenuto → i pannelli scorrono
+     internamente e la pianta resta contenuta (centrata) invece di tagliarsi. */
+  grid-template-rows: minmax(0, 1fr);
   /* altezza = finestra − header (~61px) − stepper (~47px) */
   height: calc(100vh - 108px);
+}
+/* Ogni colonna non deve sforare la riga: così lo scroll interno funziona. */
+.cucina-app > * { min-height: 0; }
+/* Desktop: altezza esatta via flex (niente numero magico header+stepper).
+   La app riempie ESATTAMENTE lo spazio sotto header e stepper, qualunque
+   sia la loro altezza → la barra "Conferma pianta" cade sempre dentro. */
+@media (min-width: 981px) {
+  .cucina-body { height: 100vh; display: flex; flex-direction: column; }
+  .cucina-app { flex: 1 1 auto; height: auto; min-height: 0; }
 }
 @media (max-width: 1200px) {
   .cucina-app { grid-template-columns: 300px 1fr 280px; }
@@ -82,6 +93,8 @@
   border-left: 1px solid var(--bordo);
   display: flex;
   flex-direction: column;
+  min-height: 0;        /* non crescere oltre la riga della griglia */
+  overflow: hidden;     /* la pianta resta contenuta, non sborda */
 }
 .vista-strumenti {
   padding: 10px 16px;
@@ -99,6 +112,8 @@
 #pianta-svg {
   flex: 1;
   width: 100%;
+  height: 100%;
+  min-height: 0;        /* l'SVG si adatta all'area (si centra), non la sfonda */
   background:
     linear-gradient(to right, rgba(201,169,74,.05) 1px, transparent 1px) 0 0 / 10% 10%,
     linear-gradient(to bottom, rgba(201,169,74,.05) 1px, transparent 1px) 0 0 / 10% 10%,
