@@ -599,19 +599,19 @@ function aggiungiLedPensile(g, w, h, d, colore) {
   const zStrip = -d / 2 + stripD / 2 + 4;
   mesh.position.set(0, -h / 2 + stripH / 2, zStrip);
   g.add(mesh);
-  // SpotLight DIFFUSA: angolo ampio + penumbra 1 → nessun cono netto,
-  // la luce sfuma gradualmente sui bordi, come un vero LED strip.
-  const spot = new THREE.SpotLight(hex, 120, 2500, Math.PI / 1.8, 1.0, 0.8);
-  spot.position.set(0, -h / 2 - 6, zStrip);
-  spot.target.position.set(0, -h / 2 - 1000, zStrip + 150);
-  g.add(spot);
-  g.add(spot.target);
-  // PointLight ausiliaria: diffonde luce colorata a 360° a corto raggio
-  // (tipico della sorgente diffusa di un LED strip), illuminando anche
-  // l'alzata del muro dietro e i fianchi vicini.
-  const point = new THREE.PointLight(hex, 35, 1400, 1.1);
-  point.position.set(0, -h / 2 - 40, zStrip + 80);
-  g.add(point);
+  // STRIP CONTINUA: tante PointLight distribuite lungo la lunghezza
+  // della barra. La somma delle loro sfere di luce crea l'effetto di
+  // una LINEA luminosa continua (non un singolo punto o cono), proprio
+  // come una vera strip LED. Nessun cono/rettangolo netto.
+  const nLed = Math.max(3, Math.min(7, Math.round(stripW / 220)));
+  const intensityEach = 55;
+  for (let i = 0; i < nLed; i++) {
+    const t = nLed === 1 ? 0.5 : i / (nLed - 1);
+    const x = (t - 0.5) * stripW * 0.88;
+    const pl = new THREE.PointLight(hex, intensityEach, 1500, 1.1);
+    pl.position.set(x, -h / 2 - 20, zStrip + 30);
+    g.add(pl);
+  }
 }
 
 /** Pensile ad angolo (63×63): cassa quadrata + anta diagonale a 45°. */
@@ -663,11 +663,12 @@ function collocaMobile(g, cx, yBottom, cz, h, rotGradi) {
 export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   if (!scene) return;
   selId = selezionato;
-  // LED accesi → ambiente abbassato così la luce dei LED risalta davvero
-  // (come in una cucina reale la sera: vedi i LED perché la stanza è meno
-  // illuminata). LED spenti → tutta la luce di scena al valore pieno.
+  // LED accesi → ambiente abbassato drasticamente così la luce dei LED
+  // si distingue nettamente (come in una cucina reale la sera: vedi i LED
+  // perché la stanza è buia). LED spenti → tutta la luce di scena al
+  // valore pieno "giorno".
   const ledOn = progetto && progetto.led && progetto.led.attivo;
-  const fattore = ledOn ? 0.35 : 1.0;
+  const fattore = ledOn ? 0.18 : 1.0;
   for (const { l, base } of luciAmbiente) l.intensity = base * fattore;
   while (gruppo.children.length) gruppo.remove(gruppo.children[0]);
   const full = progetto.piano.pareti || [];
