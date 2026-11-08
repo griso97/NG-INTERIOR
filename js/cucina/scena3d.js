@@ -40,6 +40,8 @@ let scene, camera, renderer, controls, gruppo, canvasEl;
 let animazioneAttiva = false;
 let selId = null;             // mobile evidenziato (selezionato nel 3D)
 let ultimoProgetto = null;    // ultimo progetto reso (per ricostruire al caricamento texture)
+let luciAmbiente = [];        // luci di scena con la loro intensita' base
+                              // (per abbassarle quando i LED pensili sono accesi)
 const texCache = {};
 
 /** Evidenzia un gruppo: bordi bianchi + leggero bagliore sul corpo. */
@@ -188,14 +190,24 @@ export function montaScena3d(canvas, progetto) {
   // Illuminazione d'ambiente (image-based) per riflessi e materiali reali
   scene.environment = creaAmbiente(renderer);
 
-  scene.add(new THREE.HemisphereLight(0xfff4e0, 0x403828, 1.6));
-  scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+  const hemi = new THREE.HemisphereLight(0xfff4e0, 0x403828, 1.6);
+  const amb = new THREE.AmbientLight(0xffffff, 0.65);
   const key = new THREE.DirectionalLight(0xfff0d8, 2.2);
-  key.position.set(3000, 6000, 4000); scene.add(key);
+  key.position.set(3000, 6000, 4000);
   const fill = new THREE.DirectionalLight(0xdfe6ff, 0.9);
-  fill.position.set(-4000, 3000, -2000); scene.add(fill);
+  fill.position.set(-4000, 3000, -2000);
   const rim = new THREE.DirectionalLight(0xffffff, 0.6);
-  rim.position.set(0, 2000, -5000); scene.add(rim);
+  rim.position.set(0, 2000, -5000);
+  scene.add(hemi); scene.add(amb); scene.add(key); scene.add(fill); scene.add(rim);
+  // Memorizzo le intensita' base per poterle abbassare quando i LED sono
+  // accesi, cosi' la differenza "LED off / LED on" si vede davvero.
+  luciAmbiente = [
+    { l: hemi, base: 1.6 },
+    { l: amb,  base: 0.65 },
+    { l: key,  base: 2.2 },
+    { l: fill, base: 0.9 },
+    { l: rim,  base: 0.6 },
+  ];
 
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
@@ -587,15 +599,19 @@ function aggiungiLedPensile(g, w, h, d, colore) {
   const zStrip = -d / 2 + stripD / 2 + 4;
   mesh.position.set(0, -h / 2 + stripH / 2, zStrip);
   g.add(mesh);
-  // UNA SOLA SpotLight: luce reale che illumina il piano di lavoro e la
-  // parete dietro, senza pannelli colorati sovrapposti. L'intensita' e'
-  // alta perche' la scena ha molta luce ambientale, ma il risultato
-  // resta naturale: la luce si posa dove colpisce e basta.
-  const spot = new THREE.SpotLight(hex, 90, 2200, Math.PI / 2.6, 0.75, 1.1);
+  // SpotLight DIFFUSA: angolo ampio + penumbra 1 → nessun cono netto,
+  // la luce sfuma gradualmente sui bordi, come un vero LED strip.
+  const spot = new THREE.SpotLight(hex, 120, 2500, Math.PI / 1.8, 1.0, 0.8);
   spot.position.set(0, -h / 2 - 6, zStrip);
-  spot.target.position.set(0, -h / 2 - 1000, zStrip + 180);
+  spot.target.position.set(0, -h / 2 - 1000, zStrip + 150);
   g.add(spot);
   g.add(spot.target);
+  // PointLight ausiliaria: diffonde luce colorata a 360° a corto raggio
+  // (tipico della sorgente diffusa di un LED strip), illuminando anche
+  // l'alzata del muro dietro e i fianchi vicini.
+  const point = new THREE.PointLight(hex, 35, 1400, 1.1);
+  point.position.set(0, -h / 2 - 40, zStrip + 80);
+  g.add(point);
 }
 
 /** Pensile ad angolo (63×63): cassa quadrata + anta diagonale a 45°. */
@@ -647,6 +663,12 @@ function collocaMobile(g, cx, yBottom, cz, h, rotGradi) {
 export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   if (!scene) return;
   selId = selezionato;
+  // LED accesi → ambiente abbassato così la luce dei LED risalta davvero
+  // (come in una cucina reale la sera: vedi i LED perché la stanza è meno
+  // illuminata). LED spenti → tutta la luce di scena al valore pieno.
+  const ledOn = progetto && progetto.led && progetto.led.attivo;
+  const fattore = ledOn ? 0.35 : 1.0;
+  for (const { l, base } of luciAmbiente) l.intensity = base * fattore;
   while (gruppo.children.length) gruppo.remove(gruppo.children[0]);
   const full = progetto.piano.pareti || [];
   const vertici = calcolaVertici(full);
