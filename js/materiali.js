@@ -90,6 +90,12 @@ export const MATERIALI = [
     thumb: 'materials/compacto-bernini-thumb.jpg',
     texture: 'materials/compacto-bernini.jpg', colore: 0xece7dd,
     spessore: 12 },
+  // Tinta solida bianca opaca (nessuna texture, solo colore + matte):
+  // usa la logica "solido" del getMaterialeTHREE come i colori delle ante.
+  { id: 'compacto-blanco-sm', nome: 'Compacto Blanco SM', categoria: 'encimera',
+    thumb: 'materials/compacto-blanco-sm-thumb.jpg', colore: 0xeeeae2,
+    solido: true, roughness: 1.0, metalness: 0.0,
+    spessore: 12 },
 ];
 
 // PARTI selezionabili nel pannello materiali.
