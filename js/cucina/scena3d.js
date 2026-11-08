@@ -821,24 +821,39 @@ function proiettaFianco(f, c, s) {
  * - se c'è un COSTADO basso il top arriva fino alla sua faccia ESTERNA
  *   (il modulo si appoggia al costado, il top lo copre).
  */
-// Cache: dato il materiale "nudo" dell'encimera, ritorna un CLONE con la
-// texture ruotata di 90 gradi. Serve per il TOP della cucina, dove la
-// venatura del legno (o la direzione della lastra) deve andare lungo la
+// Cache: dato il materiale "nudo" dell'encimera, ritorna un nuovo materiale
+// con la texture ruotata di 90 gradi. Serve per il TOP della cucina, dove
+// la venatura del legno (o la direzione della lastra) deve andare lungo la
 // LUNGHEZZA del top, non lungo la profondita'. Le immagini-texture sono
-// generate con la fibra verticale: senza questa rotazione risulterebbero
+// generate con la fibra verticale: senza rotazione risulterebbero
 // trasversali al top.
+// Nota: NON cloniamo il materiale originale (mat.clone() di Three.js puo'
+// perdere setting specifici). Ricostruiamo un materiale standard da zero
+// copiando solo map / color / roughness / metalness. E' sufficiente qui.
 const _matTopCache = new WeakMap();
+const _texTopCache = new WeakMap();
 function materialePerTop(mat) {
   if (!mat || !mat.map) return mat;
+  let tex = _texTopCache.get(mat.map);
+  if (!tex) {
+    tex = mat.map.clone();
+    tex.colorSpace = mat.map.colorSpace || THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.anisotropy = mat.map.anisotropy || 4;
+    tex.center.set(0.5, 0.5);
+    tex.rotation = Math.PI / 2;
+    tex.needsUpdate = true;
+    _texTopCache.set(mat.map, tex);
+  }
   const hit = _matTopCache.get(mat);
-  if (hit) return hit;
-  const tex = mat.map.clone();
-  tex.center.set(0.5, 0.5);
-  tex.rotation = Math.PI / 2;
-  tex.needsUpdate = true;
-  const m = mat.clone();
-  m.map = tex;
-  m.needsUpdate = true;
+  if (hit) { hit.map = tex; hit.needsUpdate = true; return hit; }
+  const m = new THREE.MeshStandardMaterial({
+    map: tex,
+    color: 0xffffff,
+    roughness: mat.roughness != null ? mat.roughness : 0.6,
+    metalness: mat.metalness != null ? mat.metalness : 0.05,
+  });
   _matTopCache.set(mat, m);
   return m;
 }
