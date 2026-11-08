@@ -538,8 +538,10 @@ function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
   const planeY = frontY + Hf[1] * (AVANZ - THK / 2);   // piano anta (faccia a filo+2)
   const planeX = frontX + Vf[0] * (AVANZ - THK / 2);
 
-  // Stesso materiale delle ante: la regletta si fonde con la finitura della cucina.
-  const mat = matAnta || new THREE.MeshStandardMaterial({ color: COL.anta, roughness: 0.45, metalness: 0.05 });
+  // Regletta BLU di debug: lasciata appositamente visibile per verificare a
+  // occhio che sia posizionata bene dopo il restringimento del pannello cieco.
+  // Da rimettere matAnta/COL.anta solo quando confermato OK.
+  const mat = new THREE.MeshStandardMaterial({ color: 0x1e66ff, roughness: 0.45, metalness: 0.05 });
   const yC = zocc + hP / 2;
   const addBox = (sx, sz, cx, cy) => {
     const geo = new THREE.BoxGeometry(sx, hP, sz);
