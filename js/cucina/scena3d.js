@@ -570,30 +570,39 @@ const LED_COLORI = {
 
 /**
  * Strip LED sotto un pensile: una barra sottile emissiva appesa al bordo
- * inferiore della cassa, leggermente spostata verso il fronte. Si vede
- * anche con la camera dal basso e non interferisce con il magnete o
- * la geometria del mobile.
+ * inferiore RETRO della cassa (lato muro), così non intralcia l'anta
+ * sporgente che a volte si prende sotto per aprire. Sotto la barra c'è
+ * una vera SpotLight puntata in basso che proietta luce sul piano di
+ * lavoro con il colore scelto.
  */
 function aggiungiLedPensile(g, w, h, d, colore) {
   const hex = LED_COLORI[colore] || LED_COLORI.caldo;
-  const stripW = Math.max(60, w - 40);              // un filo piu' stretta della cassa
-  const stripH = 6;                                 // sottile
-  const stripD = 18;                                // profondita' della barra
-  // Materiale "pieno" di colore (non reagisce all'illuminazione): la barra
-  // appare sempre ben visibile anche in scene scure.
+  const stripW = Math.max(60, w - 40);
+  const stripH = 6;
+  const stripD = 18;
+  // Striscia emissive visibile: non reagisce all'illuminazione, è sempre
+  // "accesa" con il colore della temperatura scelta.
   const mat = new THREE.MeshBasicMaterial({ color: hex, toneMapped: false });
   const geo = new THREE.BoxGeometry(stripW, stripH, stripD);
   const mesh = new THREE.Mesh(geo, mat);
-  // Posizione: sotto la cassa (y = -h/2 + mezza barra), spinta verso il
-  // fronte del pensile (+z nella locale del mobile).
-  mesh.position.set(0, -h / 2 + stripH / 2, d / 2 - stripD / 2 - 4);
+  // Lato RETRO (verso il muro): z = -d/2 + stripD/2 + piccolo offset.
+  const zStrip = -d / 2 + stripD / 2 + 4;
+  mesh.position.set(0, -h / 2 + stripH / 2, zStrip);
   g.add(mesh);
-  // Un alone piu' largo e meno saturo poco sotto per suggerire la luce
-  // proiettata (senza usare una luce reale, che sarebbe pesante).
-  const aloneMat = new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.22, toneMapped: false });
-  const aloneGeo = new THREE.BoxGeometry(stripW + 60, 2, stripD + 40);
+  // LUCE REALE: SpotLight puntata in basso e leggermente in avanti (dove
+  // sta il piano di lavoro), così si vede l'alone di luce sul top.
+  const light = new THREE.SpotLight(hex, 3.5, 1800, Math.PI / 3.2, 0.7, 1.4);
+  light.position.set(0, -h / 2 - 4, zStrip);
+  light.target.position.set(0, -h / 2 - 900, zStrip + 220);
+  g.add(light);
+  g.add(light.target);
+  // Alone diffuso subito sotto la barra per dare "corpo" alla luce anche
+  // sulle facce vicine (una SpotLight da sola non illumina le facce
+  // laterali del pensile stesso).
+  const aloneMat = new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.18, toneMapped: false });
+  const aloneGeo = new THREE.BoxGeometry(stripW + 40, 2, stripD + 30);
   const alone = new THREE.Mesh(aloneGeo, aloneMat);
-  alone.position.set(0, -h / 2 - 6, d / 2 - (stripD + 40) / 2 - 4);
+  alone.position.set(0, -h / 2 - 5, zStrip);
   g.add(alone);
 }
 
