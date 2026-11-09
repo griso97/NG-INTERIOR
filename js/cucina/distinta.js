@@ -11,7 +11,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261109r';
+} from './modello.js?v=20261109s';
 
 const SP = 18;        // pannelli carcassa e ante/fronti (mm)
 const SP_SK = 4;      // schiena (mm)
@@ -79,7 +79,8 @@ function pezziDiModulo(progetto, m) {
   const d = dimMobile(m);
   const L = d.w;
   const H = m.altezza_mm || 720;
-  const mod = `#${m.id} ${nomeTipo(m.tipo)} · ${L}${m.altezza_mm ? '×' + m.altezza_mm : ''}`
+  // Etichetta semplice: "Modulo da <altezza>×<larghezza>".
+  const mod = `Modulo da ${m.altezza_mm ? `${m.altezza_mm}×${L}` : L}`
     + (m.fuoriMisura ? ' ⚠ da tagliare' : '');
   const pz = [];
 
@@ -142,6 +143,7 @@ function pezziDiModulo(progetto, m) {
     // fallback generico
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(L), altezza: H, spessore: SP, materiale: 'carcassa', quantita: 1 });
   }
+  for (const p of pz) p.moduloId = m.id;             // chiave di raggruppamento univoca
   return pz;
 }
 

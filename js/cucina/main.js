@@ -21,11 +21,11 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile,
-} from './modello.js?v=20261109r';
-import { renderPianta } from './pianta.js?v=20261109r';
-import { calcolaDistintaCucina } from './distinta.js?v=20261109r';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109r';
-import { agganciaTema } from '../tema.js?v=20261109r';
+} from './modello.js?v=20261109s';
+import { renderPianta } from './pianta.js?v=20261109s';
+import { calcolaDistintaCucina } from './distinta.js?v=20261109s';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109s';
+import { agganciaTema } from '../tema.js?v=20261109s';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1010,8 +1010,9 @@ function mostraDistinta() {
   const gruppi = [];
   const idx = new Map();
   for (const p of pezzi) {
-    if (!idx.has(p.modulo)) { idx.set(p.modulo, gruppi.length); gruppi.push({ modulo: p.modulo, righe: [] }); }
-    gruppi[idx.get(p.modulo)].righe.push(p);
+    const key = p.moduloId != null ? p.moduloId : p.modulo;   // moduli uguali = gruppi distinti
+    if (!idx.has(key)) { idx.set(key, gruppi.length); gruppi.push({ modulo: p.modulo, righe: [] }); }
+    gruppi[idx.get(key)].righe.push(p);
   }
   const corpo = document.getElementById('distinta-corpo');
   corpo.innerHTML = (gruppi.length ? gruppi.map((g) => `
@@ -1067,7 +1068,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109r');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109s');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
