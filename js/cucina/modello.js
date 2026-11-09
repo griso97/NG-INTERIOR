@@ -905,6 +905,19 @@ export function problemiMobiliLiberi(progetto) {
       }
     }
   }
+  // CASSETTIERA NELL'ANGOLO CIECO: una base cassetti non può essere il mobile
+  // "coperto" dell'angolo. La parte di fronte nascosta dall'altro mobile
+  // resterebbe senza cassetti (sarebbero larghi pochi cm = impossibili da
+  // costruire). Serve una base ad ante, oppure va spostata fuori dall'angolo.
+  for (const m of (progetto.mobiliLiberi || [])) {
+    if (m.tipo !== 'base-cassetti') continue;
+    const info = infoAngoloCieco(progetto, m);
+    if (info && info.coperto) {
+      out.push({ tipo: 'cassettiera-angolo', messaggio:
+        `❓ ${nomeTipo(m.tipo)} nell'angolo: impossibile creare cassettiera così piccola. ` +
+        `Nell'angolo cieco mettici una base ad ante, oppure sposta la cassettiera fuori dall'angolo.` });
+    }
+  }
   return out;
 }
 
