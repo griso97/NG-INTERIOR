@@ -145,6 +145,10 @@
 }
 .riep-riga span { color: var(--testo-dim); }
 .riep-riga strong { color: var(--oro-chiaro); font-family: 'Playfair Display', Georgia, serif; }
+/* Modulo da tagliare su misura: riga evidenziata in rosso */
+.riep-riga.avviso-taglio { border-left: 3px solid #e05a4a; padding-left: 8px; }
+.riep-riga.avviso-taglio span { color: #e58a7e; font-weight: 600; }
+.riep-riga.avviso-taglio strong { color: #e05a4a; }
 
 /* ----- Griglia preset tipologia ----- */
 .tipo-grid {

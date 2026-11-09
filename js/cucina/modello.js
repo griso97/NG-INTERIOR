@@ -685,6 +685,33 @@ export function baseAMuro(progetto, b) {
  * un pensile d'angolo da 630 in ogni angolo interno (cucine a L/U).
  * Sostituisce i pensili esistenti. Ritorna quanti ne ha creati.
  */
+/**
+ * Accorcia un pensile (centro px,py, larghezza w lungo l'asse ax,ay della
+ * parete) rimuovendo la parte che entra nell'ingombro del pensile d'angolo
+ * `ang`. Serve a coprire con un pensile la parte di base che la L non copre.
+ * Ritorna {px,py,w} aggiornati, oppure null se non c'è sovrapposizione.
+ */
+function accorciaPensileControAngolo(px, py, w, ax, ay, ang) {
+  const A = aabb(ang, ang.x, ang.y);
+  const sC = px * ax + py * ay, sAng = ang.x * ax + ang.y * ay;
+  const angHalf = A.hx * Math.abs(ax) + A.hy * Math.abs(ay);
+  const angLo = sAng - angHalf, angHi = sAng + angHalf;
+  const pLo = sC - w / 2, pHi = sC + w / 2;
+  // Stessa fila (vicini in perpendicolare)?
+  const qx = -ay, qy = ax;
+  const perpC = px * qx + py * qy, perpAng = ang.x * qx + ang.y * qy;
+  const perpHalf = A.hx * Math.abs(qx) + A.hy * Math.abs(qy);
+  if (Math.abs(perpC - perpAng) > perpHalf + PROFONDITA_PENSILE / 2 - 20) return null;
+  if (Math.min(pHi, angHi) - Math.max(pLo, angLo) <= 1) return null;  // no overlap
+  let nLo = pLo, nHi = pHi;
+  if (sC >= sAng) nLo = Math.max(pLo, angHi);        // taglia lato verso l'angolo
+  else nHi = Math.min(pHi, angLo);
+  const nw = nHi - nLo;
+  if (nw <= 1) return { px, py, w: 0 };
+  const nC = (nLo + nHi) / 2;
+  return { px: px + ax * (nC - sC), py: py + ay * (nC - sC), w: nw };
+}
+
 export function generaPensiliAuto(progetto, altezzaPensile) {
   // Via i pensili attuali, riparto da zero
   progetto.mobiliLiberi = (progetto.mobiliLiberi || [])
@@ -728,30 +755,29 @@ export function generaPensiliAuto(progetto, altezzaPensile) {
     nuovi.push(p);
   }
 
-  // 2) Un pensile sopra ogni base A MURO (1:1, stessa larghezza, allineato
-  //    alla base — mai accorciato). Si SALTA solo dove c'è già il pensile
-  //    d'angolo a L (che copre quella zona), così non ci si sovrappone.
+  // 2) Un pensile sopra ogni base A MURO, allineato alla base. Dove c'è un
+  //    pensile d'angolo a L, il pensile viene ACCORCIATO alla parte di base
+  //    che la L non copre (es. base 100 + L 63 -> pensile da 37), così si
+  //    copre tutta la base. Se la larghezza che ne risulta non e' standard,
+  //    il pensile viene marcato "fuoriMisura" (da tagliare).
   for (const b of progetto.mobiliLiberi) {
     if (categoriaTipo(b.tipo) !== 'base') continue;
     if (!baseAMuro(progetto, b)) continue;
     const rad = (b.rot || 0) * Math.PI / 180;
     const nx = -Math.sin(rad), ny = -Math.cos(rad); // normale fronte (verso stanza)
-    const w = dimMobile(b).w;
-    const px = b.x - nx * OFFSET, py = b.y - ny * OFFSET;
-    const pen = { tipo: 'pensile', larghezza_mm: w, rot: b.rot || 0 };
-    const P = aabb(pen, px, py);
-    // Coperto per più di metà da un pensile d'angolo → lo salto (c'è la L).
-    const copertoDaAngolo = angolari.some((ang) => {
-      const B = aabb(ang, ang.x, ang.y);
-      const ox = (P.hx + B.hx) - Math.abs(px - ang.x);
-      const oy = (P.hy + B.hy) - Math.abs(py - ang.y);
-      if (ox <= 0 || oy <= 0) return false;
-      const areaOv = Math.min(ox, 2 * P.hx) * Math.min(oy, 2 * P.hy);
-      return areaOv > (2 * P.hx) * (2 * P.hy) * 0.5;
-    });
-    if (copertoDaAngolo) continue;
-    nuovi.push({ id: nextId++, tipo: 'pensile', larghezza_mm: w,
-      altezza_mm: altezzaPensile, x: px, y: py, rot: b.rot || 0 });
+    const ax = Math.cos(rad), ay = Math.sin(rad);   // asse larghezza (lungo parete)
+    let w = dimMobile(b).w;
+    let px = b.x - nx * OFFSET, py = b.y - ny * OFFSET;
+    for (const ang of angolari) {
+      const r = accorciaPensileControAngolo(px, py, w, ax, ay, ang);
+      if (r) { px = r.px; py = r.py; w = r.w; }
+    }
+    if (w < 80) continue;                            // residuo troppo piccolo
+    const wr = Math.round(w);
+    const standard = LARGHEZZE_BASE.includes(wr);
+    nuovi.push({ id: nextId++, tipo: 'pensile', larghezza_mm: wr,
+      altezza_mm: altezzaPensile, x: px, y: py, rot: b.rot || 0,
+      fuoriMisura: !standard });
   }
 
   progetto.mobiliLiberi.push(...nuovi);

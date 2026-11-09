@@ -20,10 +20,10 @@ import {
   spaziTraMobili, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
-} from './modello.js?v=20261109j';
-import { renderPianta } from './pianta.js?v=20261109j';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109j';
-import { agganciaTema } from '../tema.js?v=20261109j';
+} from './modello.js?v=20261109k';
+import { renderPianta } from './pianta.js?v=20261109k';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109k';
+import { agganciaTema } from '../tema.js?v=20261109k';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -925,6 +925,8 @@ function renderRiepilogoStep3d() {
     const k = nomeTipo(m.tipo);
     conta[k] = (conta[k] || 0) + 1;
   }
+  // Moduli fuori misura (da tagliare): larghezza non standard.
+  const daTagliare = (progetto.mobiliLiberi || []).filter((m) => m.fuoriMisura);
   riepilogo.innerHTML = `
     <h3>Mobili in scena</h3>
     ${Object.keys(conta).length === 0
@@ -932,6 +934,11 @@ function renderRiepilogoStep3d() {
       : Object.entries(conta).map(([k, v]) =>
         `<div class="riep-riga"><span>${k}</span><strong>×${v}</strong></div>`).join('')}
     <div class="riep-riga"><span>Totale pezzi</span><strong>${(progetto.mobiliLiberi || []).length}</strong></div>
+    ${daTagliare.length ? `
+    <h3 style="margin-top:18px">⚠ Da tagliare su misura</h3>
+    <div class="riga-3d" style="margin-bottom:6px">Misura non standard: questi moduli vanno tagliati.</div>
+    ${daTagliare.map((m) => `<div class="riep-riga avviso-taglio"><span>⚠ ${nomeTipo(m.tipo)}</span><strong>${m.larghezza_mm} mm</strong></div>`).join('')}
+    ` : ''}
   `;
 }
 
@@ -946,7 +953,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109j');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109k');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
