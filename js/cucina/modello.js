@@ -538,6 +538,31 @@ export function orientaVersoMuro(progetto, m, x, y) {
 }
 
 /**
+ * Orienta un pensile ad angolo a L (ingombro w×w) così che la sua parte
+ * PIENA (baricentro spostato verso l'angolo interno) guardi il vertice
+ * dell'angolo della stanza. Prova le 4 rotazioni e sceglie quella che
+ * avvicina di più il baricentro pieno al vertice.
+ */
+export function orientaLVersoAngolo(cx, cy, vertice, w, prof) {
+  const hw = w / 2;
+  const Ainc = (w - prof) * (w - prof);
+  const AL = w * w - Ainc;
+  // Baricentro della parte piena in coordinate locali (incavo in lx>0, ly<0).
+  const cxInc = prof / 2, cyInc = -prof / 2;
+  const gx = (-cxInc * Ainc) / AL;
+  const gy = (-cyInc * Ainc) / AL;
+  let bestRot = 0, bestDist = Infinity;
+  for (const r of [0, 90, 180, 270]) {
+    const rad = r * Math.PI / 180, c = Math.cos(rad), s = Math.sin(rad);
+    const wx = cx + gx * c - gy * s;
+    const wy = cy + gx * s + gy * c;
+    const dist = Math.hypot(wx - vertice.x, wy - vertice.y);
+    if (dist < bestDist) { bestDist = dist; bestRot = r; }
+  }
+  return bestRot;
+}
+
+/**
  * Ri-orienta tutti i mobili a parete verso l'interno (ante verso la stanza),
  * così la rotazione salvata resta sempre corretta anche sui mobili già piazzati.
  * Le isole/penisole (isola) mantengono l'orientamento manuale.
@@ -548,6 +573,9 @@ export function riorientaMobili(progetto) {
     if (m.isola) continue;
     const cat = categoriaTipo(m.tipo);
     if (cat === 'costado' || cat === 'regletta') continue;
+    // I pensili d'angolo (L / Ciaflan) hanno un orientamento dedicato: non
+    // vanno ri-orientati "verso il muro" o perderebbero la forma d'angolo.
+    if (String(m.tipo).startsWith('pensile-angolo')) continue;
     const rot = orientaVersoMuro(progetto, m, m.x, m.y);
     if (rot !== null) m.rot = rot;
   }
@@ -694,9 +722,10 @@ export function generaPensiliAuto(progetto, altezzaPensile) {
     const cAlong = LARGHEZZA_ANGOLO / 2;
     const cx = a2.x + ux * cAlong + nx * (PROFONDITA_PENSILE / 2);
     const cy = a2.y + uy * cAlong + ny * (PROFONDITA_PENSILE / 2);
-    const p = { id: nextId++, tipo: 'pensile', larghezza_mm: LARGHEZZA_ANGOLO, altezza_mm: altezzaPensile, x: cx, y: cy, rot: 0 };
-    const rot = orientaVersoMuro(progetto, p, cx, cy);
-    if (rot !== null) p.rot = rot;
+    // Pensile d'angolo a L (pezzo unico da 63x63): la parte piena della L
+    // va verso il vertice dell'angolo, i due bracci lungo i due muri.
+    const p = { id: nextId++, tipo: 'pensile-angolo', larghezza_mm: LARGHEZZA_ANGOLO, altezza_mm: altezzaPensile, x: cx, y: cy, rot: 0 };
+    p.rot = orientaLVersoAngolo(cx, cy, a2, LARGHEZZA_ANGOLO, PROFONDITA_PENSILE);
     // Niente modulo d'angolo se l'angolo è occupato da una colonna
     // (la colonna è a tutta altezza: il pensile ci finirebbe dentro)
     const A = aabb(p, p.x, p.y);
