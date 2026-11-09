@@ -707,9 +707,13 @@ export function generaPensiliAuto(progetto, altezzaPensile) {
     const ux = dx / L2, uy = dy / L2;
     const sgn = b.latoInterno === 'interno' ? 1 : -1;
     const nx = -dy / L2 * sgn, ny = dx / L2 * sgn;
-    const cAlong = LARGHEZZA_ANGOLO / 2;
-    const cx = a2.x + ux * cAlong + nx * (PROFONDITA_PENSILE / 2);
-    const cy = a2.y + uy * cAlong + ny * (PROFONDITA_PENSILE / 2);
+    // Il pensile L e' 63x63: il centro va a mezza L (315) da ENTRAMBI i muri,
+    // cosi' l'angolo esterno della L tocca il vertice e NON entra nel muro
+    // (prima la componente perpendicolare usava mezza profondita' pensile = 175
+    // e la L sforava di 140 mm dentro la parete).
+    const cHalf = LARGHEZZA_ANGOLO / 2;
+    const cx = a2.x + ux * cHalf + nx * cHalf;
+    const cy = a2.y + uy * cHalf + ny * cHalf;
     const p = { id: nextId++, tipo: 'pensile-angolo', larghezza_mm: LARGHEZZA_ANGOLO, altezza_mm: altezzaPensile, x: cx, y: cy, rot: 0 };
     p.rot = orientaLVersoAngolo(cx, cy, a2, LARGHEZZA_ANGOLO, PROFONDITA_PENSILE);
     // Niente modulo d'angolo se l'angolo è occupato da una colonna.
