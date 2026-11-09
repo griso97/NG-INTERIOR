@@ -498,6 +498,39 @@
 }
 .modale-opzioni button:hover { border-color: var(--oro); color: var(--oro-chiaro); }
 
+/* ===== Distinta di taglio ===== */
+.distinta-box {
+  background: var(--bg-2);
+  border: 1px solid var(--bordo);
+  border-radius: 4px;
+  width: min(920px, 100%);
+  max-height: 90vh;
+  display: flex; flex-direction: column;
+}
+.distinta-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 16px 18px; border-bottom: 1px solid var(--bordo); flex-wrap: wrap;
+}
+.distinta-head h3 { margin: 0; font-size: 14px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--oro-chiaro); }
+.distinta-azioni { display: flex; gap: 8px; }
+.distinta-corpo { padding: 14px 18px; overflow: auto; }
+.distinta-modulo { margin-bottom: 18px; }
+.distinta-modulo h4 {
+  margin: 0 0 6px; font-size: 12px; letter-spacing: 1px; color: var(--oro-chiaro);
+  border-left: 3px solid var(--oro-scuro); padding-left: 8px;
+}
+.distinta-tab { width: 100%; border-collapse: collapse; font-size: 13px; }
+.distinta-tab th, .distinta-tab td { padding: 6px 8px; border-bottom: 1px solid var(--bordo); text-align: left; }
+.distinta-tab th { color: var(--testo-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+.distinta-tab .n { text-align: right; font-variant-numeric: tabular-nums; }
+.distinta-tab td.n { color: var(--testo); }
+.distinta-riepilogo {
+  display: flex; flex-wrap: wrap; gap: 10px 22px; padding-top: 10px; border-top: 1px solid var(--oro-scuro);
+}
+.distinta-riepilogo div { display: flex; flex-direction: column; }
+.distinta-riepilogo span { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--testo-dim); }
+.distinta-riepilogo strong { font-size: 16px; color: var(--oro-chiaro); font-family: 'Playfair Display', Georgia, serif; }
+
 /* ===== Orientamento pianta (ruota / specchia) ===== */
 .orienta-row { display: flex; gap: 6px; margin-bottom: 12px; }
 .orienta-row button { flex: 1; font-size: 11px; padding: 8px 4px; }

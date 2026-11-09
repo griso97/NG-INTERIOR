@@ -21,10 +21,11 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile,
-} from './modello.js?v=20261109q';
-import { renderPianta } from './pianta.js?v=20261109q';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109q';
-import { agganciaTema } from '../tema.js?v=20261109q';
+} from './modello.js?v=20261109r';
+import { renderPianta } from './pianta.js?v=20261109r';
+import { calcolaDistintaCucina } from './distinta.js?v=20261109r';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109r';
+import { agganciaTema } from '../tema.js?v=20261109r';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -989,12 +990,70 @@ function renderRiepilogoStep3d() {
       : Object.entries(conta).map(([k, v]) =>
         `<div class="riep-riga"><span>${k}</span><strong>×${v}</strong></div>`).join('')}
     <div class="riep-riga"><span>Totale pezzi</span><strong>${(progetto.mobiliLiberi || []).length}</strong></div>
+    ${(progetto.mobiliLiberi || []).length ? `
+    <button id="apri-distinta" class="btn-oro" type="button" style="width:100%;margin-top:14px">📋 Distinta di taglio</button>
+    <div class="riga-3d" style="margin-top:6px">L'elenco dei pezzi di ogni modulo (fianchi, ante, ripiani…), con le misure.</div>` : ''}
     ${daTagliare.length ? `
     <h3 style="margin-top:18px">⚠ Da tagliare su misura</h3>
     <div class="riga-3d" style="margin-bottom:6px">Misura non standard: questi moduli vanno tagliati.</div>
     ${daTagliare.map((m) => `<div class="riep-riga avviso-taglio"><span>⚠ ${nomeTipo(m.tipo)}</span><strong>${m.larghezza_mm} mm</strong></div>`).join('')}
     ` : ''}
   `;
+  document.getElementById('apri-distinta')?.addEventListener('click', mostraDistinta);
+}
+
+// --------- DISTINTA DI TAGLIO (elenco pezzi per modulo) ---------
+const NOME_MATERIALE = { carcassa: 'Carcassa', anta: 'Anta/Fronte', schiena: 'Schiena', zoccolo: 'Zoccolo' };
+function mostraDistinta() {
+  const { pezzi, riepilogo } = calcolaDistintaCucina(progetto);
+  // Raggruppa per modulo mantenendo l'ordine di comparsa.
+  const gruppi = [];
+  const idx = new Map();
+  for (const p of pezzi) {
+    if (!idx.has(p.modulo)) { idx.set(p.modulo, gruppi.length); gruppi.push({ modulo: p.modulo, righe: [] }); }
+    gruppi[idx.get(p.modulo)].righe.push(p);
+  }
+  const corpo = document.getElementById('distinta-corpo');
+  corpo.innerHTML = (gruppi.length ? gruppi.map((g) => `
+    <div class="distinta-modulo">
+      <h4>${escHtml(g.modulo)}</h4>
+      <table class="distinta-tab">
+        <thead><tr><th>Pezzo</th><th class="n">Largh.</th><th class="n">Alt./Lung.</th><th class="n">Sp.</th><th>Materiale</th><th class="n">Qtà</th></tr></thead>
+        <tbody>${g.righe.map((p) => `<tr>
+          <td>${escHtml(p.nome)}</td>
+          <td class="n">${p.larghezza}</td>
+          <td class="n">${p.altezza}</td>
+          <td class="n">${p.spessore}</td>
+          <td>${NOME_MATERIALE[p.materiale] || p.materiale}</td>
+          <td class="n">${p.quantita}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>`).join('') : '<div class="riga-3d">Nessun modulo in scena.</div>')
+    + `<div class="distinta-riepilogo">
+        <div><span>Moduli</span><strong>${riepilogo.moduli}</strong></div>
+        <div><span>Pezzi totali</span><strong>${riepilogo.totalePezzi}</strong></div>
+        <div><span>m² carcassa</span><strong>${riepilogo.mqCarcassa.toFixed(2)}</strong></div>
+        <div><span>m² ante</span><strong>${riepilogo.mqAnte.toFixed(2)}</strong></div>
+        <div><span>m² schiena</span><strong>${riepilogo.mqSchiena.toFixed(2)}</strong></div>
+      </div>`;
+  const ov = document.getElementById('distinta-overlay');
+  if (ov) ov.hidden = false;
+}
+function chiudiDistinta() { const ov = document.getElementById('distinta-overlay'); if (ov) ov.hidden = true; }
+function esportaDistintaCSV() {
+  const { pezzi } = calcolaDistintaCucina(progetto);
+  const qc = (s) => `"${String(s).replace(/"/g, '""')}"`;
+  const righe = [['Modulo', 'Pezzo', 'Larghezza_mm', 'Altezza_mm', 'Spessore_mm', 'Materiale', 'Quantita']];
+  for (const p of pezzi) righe.push([p.modulo, p.nome, p.larghezza, p.altezza, p.spessore, p.materiale, p.quantita]);
+  const csv = righe.map((r) => r.map(qc).join(',')).join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `distinta-cucina-${nomeFileData()}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 // Mostra/nasconde pianta 2D vs vista 3D e tiene aggiornata la scena
@@ -1008,7 +1067,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109q');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109r');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1256,6 +1315,9 @@ function riblocca(id) {
 function chiudiModale() { modale.hidden = true; }
 document.getElementById('modale-annulla').addEventListener('click', chiudiModale);
 modale.addEventListener('click', (e) => { if (e.target === modale) chiudiModale(); });
+document.getElementById('distinta-csv')?.addEventListener('click', esportaDistintaCSV);
+document.getElementById('distinta-chiudi')?.addEventListener('click', chiudiDistinta);
+document.getElementById('distinta-overlay')?.addEventListener('click', (e) => { if (e.target.id === 'distinta-overlay') chiudiDistinta(); });
 
 /** Coordinate di un evento puntatore in mm di pianta (y in su). */
 function puntoMm(e) {
