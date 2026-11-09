@@ -20,10 +20,10 @@ import {
   spaziTraMobili, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
-} from './modello.js?v=20261109h';
-import { renderPianta } from './pianta.js?v=20261109h';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109h';
-import { agganciaTema } from '../tema.js?v=20261109h';
+} from './modello.js?v=20261109i';
+import { renderPianta } from './pianta.js?v=20261109i';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109i';
+import { agganciaTema } from '../tema.js?v=20261109i';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -397,7 +397,7 @@ function renderPannelloModuli() {
       <h3>Parete attiva</h3>
       <div class="sel-parete-row">
         ${pareti.map((p, i) => {
-          const conProblemi = problemi.some((x) => x.pareti.includes(p.id));
+          const conProblemi = problemi.some((x) => x.pareti && x.pareti.includes(p.id));
           if (p.assente) return `<button type="button" class="sel-parete-pill assente" disabled>Parete ${i + 1} · tolto</button>`;
           return `<button type="button" class="sel-parete-pill ${p.id === parete.id ? 'sel' : ''}"
             data-id="${p.id}">Parete ${i + 1}${conProblemi ? ' ⚠' : ''}</button>`;
@@ -946,7 +946,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109h');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109i');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
