@@ -192,7 +192,13 @@ export function descrizioneMobile(m) {
   if (m.tipo === 'base-cassetti') {
     return `${m.larghezza_mm}×${m.altezza_mm} · ${m.cassetti || 3} cassetti${extra}`;
   }
-  return (m.altezza_mm ? `${m.larghezza_mm}×${m.altezza_mm}` : `${m.larghezza_mm}`) + extra;
+  const dim = m.altezza_mm ? `${m.larghezza_mm}×${m.altezza_mm}` : `${m.larghezza_mm}`;
+  if (m.tipo === 'base-ante' || m.tipo === 'pensile') {
+    const na = anteDiMobile(m);
+    const ante = na === 1 ? `1 anta ${m.antaLato === 'sx' ? 'sx' : 'dx'}` : '2 ante';
+    return `${dim} · ${ante}${extra}`;
+  }
+  return dim + extra;
 }
 
 /**
@@ -777,9 +783,14 @@ export function generaPensiliAuto(progetto, altezzaPensile) {
     if (w < 80) continue;                            // residuo troppo piccolo
     const wr = Math.round(w);
     const standard = LARGHEZZE_BASE.includes(wr);
-    nuovi.push({ id: nextId++, tipo: 'pensile', larghezza_mm: wr,
+    const pens = { id: nextId++, tipo: 'pensile', larghezza_mm: wr,
       altezza_mm: altezzaPensile, x: px, y: py, rot: b.rot || 0,
-      fuoriMisura: !standard });
+      fuoriMisura: !standard, sopraBase: b.id };
+    // Eredita la configurazione ante dalla base sotto (numero solo se stessa
+    // larghezza; lato di apertura sempre).
+    if (b.antaLato != null) pens.antaLato = b.antaLato;
+    if (wr === Math.round(dimMobile(b).w) && b.ante != null) pens.ante = b.ante;
+    nuovi.push(pens);
   }
 
   progetto.mobiliLiberi.push(...nuovi);
@@ -795,6 +806,31 @@ export function generaPensiliAuto(progetto, altezzaPensile) {
 export function ruotaMobileLibero(progetto, id) {
   const m = trovaMobileLibero(progetto, id);
   if (m) m.rot = ((m.rot || 0) + 90) % 360;
+}
+
+/**
+ * Numero di ante di un modulo (base con ante / pensile): 1 o 2.
+ * Se l'utente non ha scelto, default automatico per larghezza (≥900 → 2).
+ */
+export function anteDiMobile(m) {
+  if (m.ante === 1 || m.ante === 2) return m.ante;
+  return (m.larghezza_mm || 600) >= 900 ? 2 : 1;
+}
+
+/**
+ * Copia la configurazione ante (numero + lato apertura) da una base al pensile
+ * generato SOPRA di essa, così l'armadio alto rispecchia quello basso.
+ * Il numero di ante si copia solo a parità di larghezza (il pensile accorciato
+ * contro l'angolo ha meno spazio); il lato di apertura si copia sempre.
+ */
+export function sincronizzaAntePensile(progetto, base) {
+  if (!base || categoriaTipo(base.tipo) !== 'base') return;
+  const pensile = (progetto.mobiliLiberi || []).find(
+    (p) => p.tipo === 'pensile' && p.sopraBase === base.id);
+  if (!pensile) return;
+  const stessaLargh = Math.round(dimMobile(pensile).w) === Math.round(dimMobile(base).w);
+  if (stessaLargh) { if (base.ante != null) pensile.ante = base.ante; else delete pensile.ante; }
+  if (base.antaLato != null) pensile.antaLato = base.antaLato; else delete pensile.antaLato;
 }
 export function rimuoviMobileLibero(progetto, id) {
   progetto.mobiliLiberi = progetto.mobiliLiberi.filter((m) => m.id !== id);

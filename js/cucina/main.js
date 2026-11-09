@@ -20,10 +20,11 @@ import {
   spaziTraMobili, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
-} from './modello.js?v=20261109p';
-import { renderPianta } from './pianta.js?v=20261109p';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109p';
-import { agganciaTema } from '../tema.js?v=20261109p';
+  anteDiMobile, sincronizzaAntePensile,
+} from './modello.js?v=20261109q';
+import { renderPianta } from './pianta.js?v=20261109q';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109q';
+import { agganciaTema } from '../tema.js?v=20261109q';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -840,6 +841,10 @@ function renderPannelloModificaMobile(m) {
   const cat = categoriaTipo(m.tipo);
   const isBase = cat === 'base';
   const puoAgg = m.tipo === 'base-ante' || m.tipo === 'base-cassetti';
+  // Configurazione ante (numero + lato apertura): vale per base con ante e pensili
+  const puoAnte = m.tipo === 'base-ante' || m.tipo === 'pensile';
+  const nAnte = anteDiMobile(m);
+  const latoAnta = m.antaLato === 'sx' ? 'sx' : 'dx';
   const fuochi = (m.larghezza_mm || 600) < 600 ? 2 : 4;
   const sinkCm = Math.max(30, Math.round(((m.larghezza_mm || 600) - 100) / 10));
   const gruppoColore = cat === 'pensile' ? 'pensile' : cat === 'colonna' ? 'colonna'
@@ -856,6 +861,23 @@ function renderPannelloModificaMobile(m) {
       <h3>Modulo selezionato</h3>
       <div class="mod-row ${m.tipo}"><span>${nomeTipo(m.tipo)} · <strong>${descrizioneMobile(m)}</strong></span></div>
     </section>
+    ${puoAnte ? `
+    <section class="step3-pannello">
+      <h3>Ante del modulo</h3>
+      <div class="opzioni-anta">
+        <button type="button" class="btn-ghost opt-nante ${nAnte === 1 ? 'attivo' : ''}" data-nante="1">${nAnte === 1 ? '✓ ' : ''}1 anta</button>
+        <button type="button" class="btn-ghost opt-nante ${nAnte === 2 ? 'attivo' : ''}" data-nante="2">${nAnte === 2 ? '✓ ' : ''}2 ante</button>
+      </div>
+      ${nAnte === 1 ? `
+      <div class="riga-3d" style="margin:8px 0 6px">Lato di apertura (maniglia):</div>
+      <div class="opzioni-anta">
+        <button type="button" class="btn-ghost opt-lato ${latoAnta === 'sx' ? 'attivo' : ''}" data-lato="sx">${latoAnta === 'sx' ? '✓ ' : ''}← Sinistra</button>
+        <button type="button" class="btn-ghost opt-lato ${latoAnta === 'dx' ? 'attivo' : ''}" data-lato="dx">${latoAnta === 'dx' ? '✓ ' : ''}Destra →</button>
+      </div>` : ''}
+      <div class="riga-3d" style="margin-top:6px">${isBase
+        ? 'Il pensile sopra questa base prende la stessa configurazione.'
+        : 'Ereditato dalla base sotto; puoi comunque modificarlo qui.'}</div>
+    </section>` : ''}
     ${puoAgg ? `
     <section class="step3-pannello">
       <h3>Aggiungi al modulo</h3>
@@ -929,6 +951,18 @@ function renderPannelloModificaMobile(m) {
     progetto.antaPensile = b.dataset.anta;
     aggiorna();
   }));
+  pannello.querySelectorAll('.opt-nante').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    m.ante = Number(b.dataset.nante);              // 1 o 2 ante su QUESTO modulo
+    if (isBase) sincronizzaAntePensile(progetto, m); // il pensile sopra segue
+    aggiorna();
+  }));
+  pannello.querySelectorAll('.opt-lato').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    m.antaLato = b.dataset.lato;                    // lato apertura anta singola
+    if (isBase) sincronizzaAntePensile(progetto, m);
+    aggiorna();
+  }));
   document.getElementById('tog-placca')?.addEventListener('click', () => {
     registraStoria(); m.placca = !m.placca; if (m.placca) m.lavello = false; aggiorna();
   });
@@ -974,7 +1008,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109p');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109q');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste

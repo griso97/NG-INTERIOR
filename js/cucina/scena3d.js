@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109p';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109q';
 import {
-  calcolaVertici, dimMobile, categoriaTipo,
+  calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261109p';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109p';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109p';
-import { sfondoDi } from '../sfondi.js?v=20261109p';
-export { MATERIALI } from '../materiali.js?v=20261109p';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261109p';
+} from './modello.js?v=20261109q';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109q';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109q';
+import { sfondoDi } from '../sfondi.js?v=20261109q';
+export { MATERIALI } from '../materiali.js?v=20261109q';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261109q';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -367,20 +367,25 @@ function pannelloElettro(g, py, z, pw, ph, tipo) {
 // Fughe reali delle ante: in LARGHEZZA si toglie 3 mm totali (1,5 per lato),
 // in ALTEZZA 2 mm (1 sopra, 1 sotto). GAP = fuga fra due ante/cassetti.
 const FUGA_W = 3, FUGA_H = 2, GAP_ANTE = 3;
-function ante(g, w, h, d, n, matAnta, sporg) {
+function ante(g, w, h, d, n, matAnta, sporg, lato) {
   const z = d / 2;
   const uw = w - FUGA_W;
   const pw = (uw - (n - 1) * GAP_ANTE) / n;
   // sporgente: anta = h + 20 che avanza 2 cm SOTTO (bordo alto a filo).
   const ph = sporg ? (h + 20) : (h - FUGA_H);
   const py = sporg ? -10 : 0;
+  // Anta singola: la maniglia (= lato di apertura) va a destra di default,
+  // a sinistra se l'utente lo sceglie (antaLato = 'sx').
+  const sx = lato === 'sx';
   for (let i = 0; i < n; i++) {
     const px = -uw / 2 + pw / 2 + i * (pw + GAP_ANTE);
     pannello(g, px, py, z, pw, ph, matAnta || COL.anta);
     // Anta sporgente sotto (gola integrata): si apre prendendola da sotto,
     // quindi NIENTE maniglia nella parte alta.
     if (!sporg) {
-      const hx = n === 1 ? px + pw / 2 - 35 : (i === 0 ? px + pw / 2 - 22 : px - pw / 2 + 22);
+      const hx = n === 1
+        ? (sx ? px - pw / 2 + 35 : px + pw / 2 - 35)
+        : (i === 0 ? px + pw / 2 - 22 : px - pw / 2 + 22);
       maniglia(g, hx, py, z, false, Math.min(260, ph * 0.5));
     }
   }
@@ -703,7 +708,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   if (tipo === 'lavastoviglie') { lavastoviglieFronte(g, w, h, d, matAnta); return g; }
   if (tipo === 'forno') { pannelloElettro(g, -h * 0.05, d / 2, w - 24, h * 0.7, 'forno'); return g; } // placca sopra il top
   // base con ante / pensile (il pensile può avere l'anta sporgente sotto)
-  ante(g, w, h, d, w >= 900 ? 2 : 1, matAnta, opt.sporg);
+  ante(g, w, h, d, anteDiMobile(m), matAnta, opt.sporg, m.antaLato);
   return g;
 }
 
