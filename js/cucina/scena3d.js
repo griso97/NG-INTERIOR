@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {
   calcolaVertici, dimMobile, categoriaTipo,
-  moduliDiParete, PROFONDITA_BASE, infoAngoloCieco, SPESSORE_ANTA,
+  moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
 } from './modello.js';
 import { getMaterialeTHREE, MATERIALI } from '../materiali.js';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js';
@@ -617,6 +617,44 @@ function aggiungiLedPensile(g, w, h, d, colore) {
   g.add(point);
 }
 
+/**
+ * Pensile ad angolo a L (pezzo unico): due bracci perpendicolari, ingombro
+ * w×d (63×63), ciascun braccio profondo come un pensile normale. Un'anta
+ * sul fronte interno di ogni braccio. L'angolo pieno sta verso il retro-
+ * sinistra (lato muri); l'utente ruota il modulo per l'angolo giusto.
+ */
+function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta) {
+  const prof = PROFONDITA_PENSILE;                   // profondità di ogni braccio
+  const matCorpo = (coloreCorpo && coloreCorpo.isMaterial) ? coloreCorpo
+    : new THREE.MeshStandardMaterial({ color: coloreCorpo, roughness: 0.7, metalness: 0.05 });
+  const mkBox = (bw, bd, cx, cz) => {
+    const geo = new THREE.BoxGeometry(bw, h, bd);
+    const mesh = new THREE.Mesh(geo, matCorpo);
+    mesh.position.set(cx, 0, cz);
+    g.add(mesh);
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), matOro);
+    e.position.copy(mesh.position); g.add(e);
+  };
+  // Braccio A: lungo X, addossato al retro (-z).
+  mkBox(w, prof, 0, -d / 2 + prof / 2);
+  // Braccio B: lungo Z, addossato al lato sinistro (-x).
+  mkBox(prof, d, -w / 2 + prof / 2, 0);
+  // Anta A: sul fronte del braccio A (+z), sulla parte non coperta dal braccio B.
+  const antaAw = w - prof;
+  const antaAcx = (-w / 2 + prof + w / 2) / 2;
+  const zA = -d / 2 + prof;
+  pannello(g, antaAcx, 0, zA, antaAw - FUGA_W, h - FUGA_H, matAnta || COL.anta);
+  maniglia(g, antaAcx - antaAw / 2 + 30, 0, zA, false, Math.min(300, (h - FUGA_H) * 0.5));
+  // Anta B: sul fronte del braccio B (+x), in un subgruppo ruotato +90°.
+  const subB = new THREE.Group();
+  const antaBw = d - prof;
+  pannello(subB, 0, 0, 0, antaBw - FUGA_W, h - FUGA_H, matAnta || COL.anta);
+  maniglia(subB, antaBw / 2 - 30, 0, 0, false, Math.min(300, (h - FUGA_H) * 0.5));
+  subB.rotation.y = Math.PI / 2;                     // fronte +z locale → +x mondo
+  subB.position.set(-w / 2 + prof, 0, (-d / 2 + prof + d / 2) / 2);
+  g.add(subB);
+}
+
 /** Pensile ad angolo (63×63): cassa quadrata + anta diagonale a 45°. */
 function pensileAngoloFronte(g, w, h, d, matAnta) {
   const mat = (matAnta && matAnta.isMaterial)
@@ -642,10 +680,12 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
   const coloreCorpo = cat === 'pensile' ? COL.pensile : cat === 'colonna' ? COL.colonna
     : cat === 'regletta' ? COL.regletta : COL.corpo;
+  // Pensile angolo a L: corpo a L (due bracci), non il box quadrato.
+  if (tipo === 'pensile-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta); return g; }
   g.add(corpo(w, h, d, coloreCorpo));
   if (cat === 'regletta') return g;
   if (opt.cieco && opt.cieco.coperto) { anteCieche(g, w, h, d, matAnta, opt.cieco); return g; }
-  if (tipo === 'pensile-angolo') { pensileAngoloFronte(g, w, h, d, matAnta); return g; }
+  if (tipo === 'pensile-angolo-45') { pensileAngoloFronte(g, w, h, d, matAnta); return g; }
   if (cat === 'colonna') { colonnaFronte(g, w, h, d, m, matAnta); return g; }
   if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta); return g; }
   if (tipo === 'lavello') { ante(g, w, h, d, w >= 900 ? 2 : 1, matAnta); return g; } // lavello disegnato sopra il top
@@ -775,7 +815,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const gPens = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matPensile, { sporg });
       // LED sotto i pensili (opzionale, con scelta temperatura colore).
       // Il pensile-angolo (diagonale) non lo prende: ha una geometria dedicata.
-      if (progetto.led && progetto.led.attivo && m.tipo !== 'pensile-angolo') {
+      if (progetto.led && progetto.led.attivo && !String(m.tipo).startsWith('pensile-angolo')) {
         aggiungiLedPensile(gPens, dim.w, h, dim.d, progetto.led.colore);
       }
       g3d = collocaMobile(gPens, cx, base, cz, h, m.rot);

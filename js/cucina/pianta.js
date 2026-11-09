@@ -8,7 +8,7 @@
 
 import {
   calcolaVertici, bboxPerimetro,
-  moduliDiParete, nomeTipo, PROFONDITA_BASE, angoloInterno,
+  moduliDiParete, nomeTipo, PROFONDITA_BASE, PROFONDITA_PENSILE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
   dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili,
 } from './modello.js';
@@ -291,7 +291,17 @@ function renderMobileLibero(m, selezionato, interattivo, bloccato = false) {
     cx: hcx, cy: hcy, r: Math.max(hw, hd, 90) + 70,
     class: 'sv-mob-hit', 'data-mob-id': m.id,
   }));
-  const corners = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(([x, y]) => versoSvg(x, y));
+  // Pensile angolo a L: contorno a 6 vertici (incavo fronte-destra), coerente
+  // con la geometria 3D a L. Gli altri mobili: rettangolo a 4 vertici.
+  let cornersLocali;
+  if (m.tipo === 'pensile-angolo') {
+    const prof = PROFONDITA_PENSILE;
+    const xi = -hw + prof, yi = hd - prof;
+    cornersLocali = [[-hw, -hd], [xi, -hd], [xi, yi], [hw, yi], [hw, hd], [-hw, hd]];
+  } else {
+    cornersLocali = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]];
+  }
+  const corners = cornersLocali.map(([x, y]) => versoSvg(x, y));
   const tipoCls = categoria === 'pensile' ? ' sv-mob-pensile' :
     categoria === 'colonna' ? ' sv-mob-colonna' :
     categoria === 'regletta' ? ' sv-mob-regletta' :

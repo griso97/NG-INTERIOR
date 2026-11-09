@@ -84,6 +84,8 @@ export const CATALOGO_MOBILI = [
     larghezze: LARGHEZZE_BASE, altezze: ALTEZZE_PENSILE, profondita: PROFONDITA_PENSILE },
   { id: 'pensile-angolo', nome: 'Pensile angolo', categoria: 'pensile',
     larghezze: [630], altezze: ALTEZZE_PENSILE, profondita: 630 },
+  { id: 'pensile-angolo-45', nome: 'Pensile angolo 45°', categoria: 'pensile',
+    larghezze: [630], altezze: ALTEZZE_PENSILE, profondita: 630 },
   { id: 'colonna',       nome: 'Colonna', categoria: 'colonna',
     larghezze: [600], altezze: ALTEZZE_COLONNA, profondita: 600 },
   { id: 'regletta',      nome: 'Regletta a L', categoria: 'regletta',
