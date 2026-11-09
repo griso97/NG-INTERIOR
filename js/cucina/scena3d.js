@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109o';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109p';
 import {
   calcolaVertici, dimMobile, categoriaTipo,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261109o';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109o';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109o';
-import { sfondoDi } from '../sfondi.js?v=20261109o';
-export { MATERIALI } from '../materiali.js?v=20261109o';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261109o';
+} from './modello.js?v=20261109p';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109p';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109p';
+import { sfondoDi } from '../sfondi.js?v=20261109p';
+export { MATERIALI } from '../materiali.js?v=20261109p';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261109p';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -544,10 +544,13 @@ function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
   const fm = frontDirPlan(m), fo = frontDirPlan(o);
 
   // Quale mobile ha il fronte ORIZZONTALE (lungo ±y) e quale VERTICALE (lungo ±x).
-  // Il braccio lungo (base+spess, es. 4.8) va sul mobile a fronte orizzontale.
-  let H, Hf, V, Vf, legH, legV;
-  if (Math.abs(fm[1]) > 0.5) { H = A; Hf = fm; V = B; Vf = fo; legH = base + spess; legV = base; }
-  else { H = B; Hf = fo; V = A; Vf = fm; legH = base + spess; legV = base; }
+  // Bracci UGUALI: entrambi lunghi `base` (3 cm) così la L è identica da
+  // qualsiasi angolo. Vicino allo spigolo i due bracci si sovrappongono, quindi
+  // l'angolo interno resta chiuso senza buchi.
+  let H, Hf, V, Vf;
+  if (Math.abs(fm[1]) > 0.5) { H = A; Hf = fm; V = B; Vf = fo; }
+  else { H = B; Hf = fo; V = A; Vf = fm; }
+  const legH = base, legV = base;
 
   const frontY = (Hf[1] > 0) ? H.y1 : H.y0;            // linea del fronte orizzontale
   const frontX = (Vf[0] > 0) ? V.x1 : V.x0;            // linea del fronte verticale
