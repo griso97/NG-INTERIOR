@@ -36,6 +36,7 @@ export function progettoDefault() {
     zoccoloColore: 'nero-opaco',
     sfondo: 'chiaro',            // sfondo vista 3D: chiaro | neutro | scuro
     reglettaAngolo: { base: 30, spessore: 18 },  // regletta a L d'angolo (mm)
+    autoRegletta: true,          // regletta d'angolo automatica (3×3 cm) on/off
     // Stile anta pensili: 'standard' (−2 alt / −3 largh come i bassi),
     // 'sporg70' (pensili 70 → anta 72, sporge 2cm sotto),
     // 'sporg90' (pensili 90 → anta 92, sporge 2cm sotto).
@@ -919,6 +920,25 @@ export function problemiMobiliLiberi(progetto) {
         `Nell'angolo cieco mettici una base ad ante, oppure sposta la cassettiera fuori dall'angolo.` });
     }
   }
+  // SPAZIO REGLETTA D'ANGOLO: la regletta non può essere più piccola dello
+  // spessore dell'anta. Se due mobili d'angolo (che "si toccano") sono troppo
+  // vicini, la regletta non si riesce a fare → avviso. Solo con auto-regletta.
+  if (progetto.autoRegletta !== false) {
+    const ra = progetto.reglettaAngolo || {};
+    const spess = ra.spessore != null ? ra.spessore : 18;
+    const vistiReg = new Set();
+    for (const m of (progetto.mobiliLiberi || [])) {
+      const info = infoAngoloCieco(progetto, m);
+      if (!info || info.coperto) continue;            // solo angoli "che si toccano"
+      if (info.gap == null || info.gap >= spess) continue;
+      const key = m.id < info.o.id ? `${m.id}-${info.o.id}` : `${info.o.id}-${m.id}`;
+      if (vistiReg.has(key)) continue;
+      vistiReg.add(key);
+      out.push({ tipo: 'regletta-stretta', messaggio:
+        `⚠ Manca spazio per la regletta nell'angolo: tra gli armadi ci sono ${Math.max(0, info.gap)} mm ` +
+        `ma la regletta non può essere più sottile dello spessore anta (${spess} mm). Allontana un armadio.` });
+    }
+  }
   return out;
 }
 
@@ -1051,7 +1071,9 @@ export function infoAngoloCieco(progetto, m) {
     // Preferisci coperture reali; a parità, l'angolo più "stretto" (mobili più vicini).
     const score = coperto ? (1e6 + (ix1 - ix0) * (iy1 - iy0)) : (1e3 - (sepX + sepY));
     if (!best || score > best.score) {
-      best = { o, score, coperto, coveredW: Math.round(coveredW), latoDx, horizMe: A.horiz, corner: { x: cornerX, y: cornerY } };
+      best = { o, score, coperto, coveredW: Math.round(coveredW), latoDx, horizMe: A.horiz,
+        gap: Math.round(Math.max(sepX, sepY)),   // luce tra i due mobili (mm): spazio per la regletta
+        corner: { x: cornerX, y: cornerY } };
     }
   }
   return best;

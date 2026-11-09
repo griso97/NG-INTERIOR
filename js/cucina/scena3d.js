@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109n';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109o';
 import {
   calcolaVertici, dimMobile, categoriaTipo,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261109n';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109n';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109n';
-import { sfondoDi } from '../sfondi.js?v=20261109n';
-export { MATERIALI } from '../materiali.js?v=20261109n';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261109n';
+} from './modello.js?v=20261109o';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109o';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109o';
+import { sfondoDi } from '../sfondi.js?v=20261109o';
+export { MATERIALI } from '../materiali.js?v=20261109o';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261109o';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -528,11 +528,16 @@ function frontDirPlan(q) {
 }
 
 function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
-  const base = (dims && dims.base) || 30;
+  const baseCfg = (dims && dims.base) || 30;
   const spess = (dims && dims.spessore != null) ? dims.spessore : SPESSORE_ANTA;
+  // Parte visibile = luce reale tra gli armadi (così spostando i mobili la
+  // regletta cambia). Di default (auto) la luce = baseCfg = 3 cm. Mai sotto lo
+  // spessore anta (sotto non si può fare; l'avviso lo segnala a parte).
+  const base = (!cieco.coperto && cieco.gap != null && cieco.gap > 0)
+    ? Math.max(spess, cieco.gap) : baseCfg;
   const o = cieco.o;
   const THK = 20;                                        // spessore pannello (come le ante)
-  const AVANZ = 22;                                      // a filo ante (20) + 2 mm proud → sempre visibile
+  const AVANZ = 20;                                      // a filo esatto con le ante (stesso livello)
   const hP = h;                                          // ALTEZZA PIENA del modulo (NO -2mm come le ante)
 
   const A = aabbPlan(m), B = aabbPlan(o);
@@ -870,7 +875,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
         ciecoOpt = { ...cieco, blindExtra: legOnMe + FUGA_W };
       }
       g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d, matBase, { cieco: ciecoOpt }), cx, zocc, cz, porta, m.rot);
-      if (cieco) renderRegolettaAngolo(cieco, m, porta, zocc, matBase, progetto.reglettaAngolo);
+      if (cieco && progetto.autoRegletta !== false) renderRegolettaAngolo(cieco, m, porta, zocc, matBase, progetto.reglettaAngolo);
       basiTop.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc, topY: zocc + porta });
       zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
       // Placca / lavello (tipi forno/lavello oppure aggiunti a mano): sopra il top
