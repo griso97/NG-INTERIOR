@@ -20,17 +20,12 @@ import {
   spaziTraMobili, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
-} from './modello.js?v=20261109g';
-import { renderPianta } from './pianta.js?v=20261109g';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109g';
-import { agganciaTema } from '../tema.js?v=20261109g';
+} from './modello.js?v=20261109h';
+import { renderPianta } from './pianta.js?v=20261109h';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109h';
+import { agganciaTema } from '../tema.js?v=20261109h';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
-// cucina.html?reset svuota lo stato salvato e riparte pulito: serve a
-// sbloccare un progetto corrotto senza dover usare la finestra in incognito.
-try {
-  if (new URLSearchParams(location.search).has('reset')) resetProgetto();
-} catch (e) { /* no-op */ }
 let progetto = caricaProgetto() || progettoDefault();
 if (!progetto.stepCorrente) progetto.stepCorrente = 1;
 // Progetti salvati con versioni precedenti: completo i campi mancanti
@@ -951,7 +946,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109g');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109h');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -980,19 +975,16 @@ function disegna() {
   }
 }
 function aggiorna() {
-  // Ogni passo è protetto: se uno fallisce, gli altri proseguono comunque
-  // (la UI non si blocca del tutto) e l'errore finisce in console per il debug.
-  const safe = (nome, fn) => { try { fn(); } catch (e) { console.error('[aggiorna] ' + nome, e); } };
-  safe('riorientaMobili', () => riorientaMobili(progetto));   // ante verso l'interno
-  safe('applicaRegletteAngolo', () => applicaRegletteAngolo(progetto)); // gap regletta
-  safe('renderStepper', renderStepper);
-  safe('renderPannello', renderPannello);
-  safe('renderRiepilogo', renderRiepilogo);
-  safe('renderPalette', renderPalette);
-  safe('disegna', disegna);
-  safe('aggiornaVista', aggiornaVista);
-  safe('aggiornaBottoniStoria', aggiornaBottoniStoria);
-  safe('salvaProgetto', () => salvaProgetto(progetto));
+  riorientaMobili(progetto);          // ante sempre verso l'interno (a parete)
+  applicaRegletteAngolo(progetto);    // angolo cieco: apre il gap della regletta
+  renderStepper();
+  renderPannello();
+  renderRiepilogo();
+  renderPalette();
+  disegna();
+  aggiornaVista();
+  aggiornaBottoniStoria();
+  salvaProgetto(progetto);
 }
 function aggiornaSoloDisegno() {
   // Durante l'input continuo (es. digitazione) non rirenderizzo il pannello
