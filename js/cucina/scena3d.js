@@ -583,134 +583,38 @@ const LED_COLORI = {
 /**
  * Strip LED sotto un pensile: una barra sottile emissiva appesa al bordo
  * inferiore RETRO della cassa (lato muro), così non intralcia l'anta
- * sporgente che a volte si prende sotto per aprire. Sotto la barra c'è
- * una vera SpotLight puntata in basso che proietta luce sul piano di
- * lavoro con il colore scelto.
+ * sporgente che a volte si prende sotto per aprire. Sotto la barra ci sono
+ * vere luci (SpotLight + PointLight) che illuminano il piano di lavoro e
+ * la parete di fondo con il colore della temperatura scelta.
+ * Niente pannelli/texture colorati sovrapposti: facevano "rettangoli" e
+ * distorcevano ciò che c'era dietro. Solo luce reale sulle superfici.
  */
-// Texture "strip LED continua" vista dal basso: una riga molto luminosa
-// al centro orizzontale, sfumata sopra/sotto e ai bordi laterali. Applicata
-// a un plane orizzontale sotto il pensile da' l'illusione di una vera
-// striscia unica di luce, senza "puntini" delle PointLight sparse.
-function creaTextureStrip(hex) {
-  const W = 512, H = 64;
-  const canvas = document.createElement('canvas');
-  canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext('2d');
-  const r = (hex >> 16) & 0xff, gC = (hex >> 8) & 0xff, b = hex & 0xff;
-  // Gradiente verticale: luce sulla linea centrale, trasparente sopra/sotto.
-  const gradV = ctx.createLinearGradient(0, 0, 0, H);
-  gradV.addColorStop(0.00, `rgba(${r},${gC},${b},0.00)`);
-  gradV.addColorStop(0.35, `rgba(${r},${gC},${b},0.50)`);
-  gradV.addColorStop(0.50, `rgba(${r},${gC},${b},1.00)`);
-  gradV.addColorStop(0.65, `rgba(${r},${gC},${b},0.50)`);
-  gradV.addColorStop(1.00, `rgba(${r},${gC},${b},0.00)`);
-  ctx.fillStyle = gradV;
-  ctx.fillRect(0, 0, W, H);
-  // Sfumatura laterale: attenua l'alpha ai due estremi X così la linea
-  // non ha bordi netti in lunghezza.
-  const gradH = ctx.createLinearGradient(0, 0, W, 0);
-  gradH.addColorStop(0.00, 'rgba(0,0,0,0)');
-  gradH.addColorStop(0.08, 'rgba(0,0,0,1)');
-  gradH.addColorStop(0.92, 'rgba(0,0,0,1)');
-  gradH.addColorStop(1.00, 'rgba(0,0,0,0)');
-  ctx.globalCompositeOperation = 'destination-in';
-  ctx.fillStyle = gradH;
-  ctx.fillRect(0, 0, W, H);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-// Crea una texture con gradiente verticale che simula il bagliore della
-// strip LED attenuato verso il basso del muro. Niente bordi netti: il
-// plane che la riceve si dissolve naturalmente.
-function creaTextureBagliore(hex) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 32; canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  const r = (hex >> 16) & 0xff, gC = (hex >> 8) & 0xff, b = hex & 0xff;
-  const grad = ctx.createLinearGradient(0, 0, 0, 256);
-  // Prima fascia (vicino alla striscia): piena a saturazione. Scende
-  // gradualmente diventando trasparente a metà/fondo.
-  grad.addColorStop(0.00, `rgba(${r},${gC},${b},1.00)`);
-  grad.addColorStop(0.20, `rgba(${r},${gC},${b},0.95)`);
-  grad.addColorStop(0.45, `rgba(${r},${gC},${b},0.55)`);
-  grad.addColorStop(0.80, `rgba(${r},${gC},${b},0.15)`);
-  grad.addColorStop(1.00, `rgba(${r},${gC},${b},0.00)`);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 32, 256);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.needsUpdate = true;
-  return tex;
-}
-
 function aggiungiLedPensile(g, w, h, d, colore) {
   const hex = LED_COLORI[colore] || LED_COLORI.caldo;
   const stripW = Math.max(60, w - 40);
   const stripH = 6;
   const stripD = 18;
-  // Striscia LED emissive visibile sul retro del pensile (lato muro).
+  // Striscia LED emissive visibile (barra accesa, sempre al colore pieno).
   const mat = new THREE.MeshBasicMaterial({ color: hex, toneMapped: false });
   const geo = new THREE.BoxGeometry(stripW, stripH, stripD);
   const mesh = new THREE.Mesh(geo, mat);
   const zStrip = -d / 2 + stripD / 2 + 4;
   mesh.position.set(0, -h / 2 + stripH / 2, zStrip);
   g.add(mesh);
-  // Poche PointLight molto forti (non piu' 5-7 "puntini" sparsi).
-  // Con 2 luci laterali ad alta intensita' la zona si illumina
-  // uniformemente senza creare hotspot visibili.
-  for (let i = 0; i < 2; i++) {
-    const x = (i === 0 ? -1 : 1) * stripW * 0.3;
-    const pl = new THREE.PointLight(hex, 1800, 2800, 1.0);
-    pl.position.set(x, -h / 2 - 20, zStrip + 30);
-    g.add(pl);
-  }
-  // STRIP VISIVA CONTINUA: un plane orizzontale appena sotto la barra,
-  // facing down, con texture a "riga luminosa" (centro saturo, sfumato ai
-  // bordi del lato lungo e corto). Vista dal basso o di lato, da'
-  // l'impressione di una sola linea di luce continua, come una vera
-  // strip LED accesa.
-  const texStrip = creaTextureStrip(hex);
-  const stripGlowMat = new THREE.MeshBasicMaterial({
-    map: texStrip, transparent: true, toneMapped: false,
-    blending: THREE.AdditiveBlending, depthWrite: false,
-  });
-  const stripGlowGeo = new THREE.PlaneGeometry(stripW + 20, stripD + 40);
-  const stripGlow = new THREE.Mesh(stripGlowGeo, stripGlowMat);
-  stripGlow.rotation.x = Math.PI / 2;              // orizzontale, facing down
-  stripGlow.position.set(0, -h / 2 - 2, zStrip);
-  g.add(stripGlow);
-  // BAGLIORE SUL MURO (gradiente sfumato): simula la luce dei LED che
-  // tinge le piastrelle di fondo, come nella foto reale.
-  const tex = creaTextureBagliore(hex);
-  const glowMat = new THREE.MeshBasicMaterial({
-    map: tex, transparent: true, toneMapped: false,
-    blending: THREE.AdditiveBlending, depthWrite: false,
-  });
-  const glowH = 650;
-  const glowGeo = new THREE.PlaneGeometry(stripW + 60, glowH);
-  const glow = new THREE.Mesh(glowGeo, glowMat);
-  glow.position.set(0, -h / 2 - glowH / 2 + stripH, zStrip - 1);
-  g.add(glow);
-  // BAGLIORE SUL PIANO DI LAVORO sotto (gradiente sfumato orizzontale):
-  // simula la luce caduta sul top, che e' quello che si nota di piu'.
-  // Una seconda texture per avere un gradiente dall'interno (vicino alla
-  // striscia, saturo) al fronte (trasparente).
-  const texTop = creaTextureBagliore(hex);
-  const glowTopMat = new THREE.MeshBasicMaterial({
-    map: texTop, transparent: true, toneMapped: false,
-    blending: THREE.AdditiveBlending, depthWrite: false,
-  });
-  const glowTopGeo = new THREE.PlaneGeometry(stripW + 40, 450);
-  const glowTop = new THREE.Mesh(glowTopGeo, glowTopMat);
-  glowTop.rotation.x = -Math.PI / 2;
-  // Il gradiente va dall'alto (vicino alla striscia LED) al basso.
-  // Dopo la rotazione X, "alto" diventa -z (verso il muro) e "basso"
-  // diventa +z (verso il fronte): perfetto per il top.
-  glowTop.position.set(0, -h / 2 - 450, zStrip + 225 - 90);
-  g.add(glowTop);
+  // SpotLight diffusa (penumbra 1 = bordi morbidi, nessun cono/rettangolo
+  // netto) puntata in basso sul piano di lavoro: la luce si posa sul top
+  // in modo naturale, con il colore scelto.
+  const spot = new THREE.SpotLight(hex, 900, 2600, Math.PI / 2.1, 1.0, 1.0);
+  spot.position.set(0, -h / 2 - 6, zStrip + 10);
+  spot.target.position.set(0, -h / 2 - 1000, zStrip + 120);
+  g.add(spot);
+  g.add(spot.target);
+  // PointLight morbida verso la parete di fondo: dà il bagliore del LED
+  // sul muro/alzata, come nella cucina reale, diffondendosi sulla
+  // superficie vera senza pannelli sovrapposti.
+  const point = new THREE.PointLight(hex, 500, 1600, 1.0);
+  point.position.set(0, -h / 2 - 30, zStrip - 12);
+  g.add(point);
 }
 
 /** Pensile ad angolo (63×63): cassa quadrata + anta diagonale a 45°. */
