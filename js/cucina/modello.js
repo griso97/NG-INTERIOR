@@ -685,6 +685,36 @@ export function baseAMuro(progetto, b) {
  * un pensile d'angolo da 630 in ogni angolo interno (cucine a L/U).
  * Sostituisce i pensili esistenti. Ritorna quanti ne ha creati.
  */
+/**
+ * Accorcia un pensile (centro px,py, larghezza w lungo l'asse ax,ay della
+ * parete) rimuovendo la parte che entra nell'ingombro del pensile d'angolo
+ * `ang`. Così il pensile parte dal bordo della L e non ci si sovrappone.
+ * Ritorna {px,py,w} aggiornati, oppure null se non c'è sovrapposizione.
+ */
+function accorciaPensileControAngolo(px, py, w, ax, ay, ang) {
+  const A = aabb(ang, ang.x, ang.y);
+  // Proiezione lungo l'asse del pensile (ax,ay) e perpendicolare.
+  const sC = px * ax + py * ay, sAng = ang.x * ax + ang.y * ay;
+  const angHalf = A.hx * Math.abs(ax) + A.hy * Math.abs(ay);
+  const angLo = sAng - angHalf, angHi = sAng + angHalf;
+  const pLo = sC - w / 2, pHi = sC + w / 2;
+  // Devono stare sulla stessa fila (vicini in perpendicolare).
+  const qx = -ay, qy = ax;
+  const perpC = px * qx + py * qy, perpAng = ang.x * qx + ang.y * qy;
+  const perpHalf = A.hx * Math.abs(qx) + A.hy * Math.abs(qy);
+  if (Math.abs(perpC - perpAng) > perpHalf + PROFONDITA_PENSILE / 2 - 20) return null;
+  // Sovrapposizione lungo l'asse?
+  if (Math.min(pHi, angHi) - Math.max(pLo, angLo) <= 1) return null;
+  // Accorcio dal lato verso l'angolo.
+  let nLo = pLo, nHi = pHi;
+  if (sC >= sAng) nLo = Math.max(pLo, angHi);
+  else nHi = Math.min(pHi, angLo);
+  const nw = nHi - nLo;
+  if (nw <= 1) return { px, py, w: 0 };
+  const nC = (nLo + nHi) / 2;
+  return { px: px + ax * (nC - sC), py: py + ay * (nC - sC), w: nw };
+}
+
 export function generaPensiliAuto(progetto, altezzaPensile) {
   // Via i pensili attuali, riparto da zero
   progetto.mobiliLiberi = (progetto.mobiliLiberi || [])
@@ -693,21 +723,9 @@ export function generaPensiliAuto(progetto, altezzaPensile) {
   const nuovi = [];
   const OFFSET = (PROFONDITA_BASE - PROFONDITA_PENSILE) / 2; // 125 mm
 
-  // Un pensile sopra ogni base A MURO (mai sopra isole/penisole, né sopra
-  // colonne/reglette/costadi), sennò resterebbero appesi nel vuoto.
-  for (const b of progetto.mobiliLiberi) {
-    if (categoriaTipo(b.tipo) !== 'base') continue;
-    if (!baseAMuro(progetto, b)) continue;
-    const rad = (b.rot || 0) * Math.PI / 180;
-    const nx = -Math.sin(rad), ny = -Math.cos(rad); // normale fronte 3D (verso la stanza)
-    nuovi.push({
-      id: nextId++, tipo: 'pensile',
-      larghezza_mm: dimMobile(b).w, altezza_mm: altezzaPensile,
-      x: b.x - nx * OFFSET, y: b.y - ny * OFFSET, rot: b.rot || 0,
-    });
-  }
-
-  // Pensile d'angolo (630) in ogni angolo interno
+  // 1) PRIMA i pensili d'angolo a L (630) in ogni angolo interno, così i
+  //    pensili normali sanno dove sono e possono "cedere" lo spazio d'angolo.
+  const angolari = [];
   const full = progetto.piano.pareti || [];
   const vertici = calcolaVertici(full);
   for (let i = 0; i < full.length - 1; i++) {
@@ -722,12 +740,9 @@ export function generaPensiliAuto(progetto, altezzaPensile) {
     const cAlong = LARGHEZZA_ANGOLO / 2;
     const cx = a2.x + ux * cAlong + nx * (PROFONDITA_PENSILE / 2);
     const cy = a2.y + uy * cAlong + ny * (PROFONDITA_PENSILE / 2);
-    // Pensile d'angolo a L (pezzo unico da 63x63): la parte piena della L
-    // va verso il vertice dell'angolo, i due bracci lungo i due muri.
     const p = { id: nextId++, tipo: 'pensile-angolo', larghezza_mm: LARGHEZZA_ANGOLO, altezza_mm: altezzaPensile, x: cx, y: cy, rot: 0 };
     p.rot = orientaLVersoAngolo(cx, cy, a2, LARGHEZZA_ANGOLO, PROFONDITA_PENSILE);
-    // Niente modulo d'angolo se l'angolo è occupato da una colonna
-    // (la colonna è a tutta altezza: il pensile ci finirebbe dentro)
+    // Niente modulo d'angolo se l'angolo è occupato da una colonna.
     const A = aabb(p, p.x, p.y);
     const angoloOccupato = progetto.mobiliLiberi.some((o) => {
       if (categoriaTipo(o.tipo) !== 'colonna') return false;
@@ -735,13 +750,36 @@ export function generaPensiliAuto(progetto, altezzaPensile) {
       return Math.abs(p.x - o.x) < A.hx + B.hx - 20 && Math.abs(p.y - o.y) < A.hy + B.hy - 20;
     });
     if (angoloOccupato) { nextId--; continue; }
+    angolari.push(p);
     nuovi.push(p);
   }
 
+  // 2) Un pensile sopra ogni base A MURO, ACCORCIATO dove incontra un pensile
+  //    d'angolo: parte dal bordo della L, così non ci si sovrappone mai.
+  for (const b of progetto.mobiliLiberi) {
+    if (categoriaTipo(b.tipo) !== 'base') continue;
+    if (!baseAMuro(progetto, b)) continue;
+    const rad = (b.rot || 0) * Math.PI / 180;
+    const nx = -Math.sin(rad), ny = -Math.cos(rad); // normale fronte (verso stanza)
+    const ax = Math.cos(rad), ay = Math.sin(rad);   // asse larghezza (lungo parete)
+    let w = dimMobile(b).w;
+    let px = b.x - nx * OFFSET, py = b.y - ny * OFFSET;
+    for (const ang of angolari) {
+      const r = accorciaPensileControAngolo(px, py, w, ax, ay, ang);
+      if (r) { px = r.px; py = r.py; w = r.w; }
+    }
+    if (w >= 150) {
+      nuovi.push({ id: nextId++, tipo: 'pensile', larghezza_mm: Math.round(w),
+        altezza_mm: altezzaPensile, x: px, y: py, rot: b.rot || 0 });
+    }
+  }
+
   progetto.mobiliLiberi.push(...nuovi);
-  // Assesto (muri + niente sovrapposizioni fra loro)
+  // Assesto solo ai muri (i pensili normali sono già coordinati con gli
+  // angolari, quindi niente repulsione che li sparpaglierebbe).
   for (const p of nuovi) {
-    const v = posizionaVincolata(progetto, p, p.x, p.y);
+    if (p.tipo === 'pensile-angolo') continue;     // L: posizione già calcolata
+    const v = vincolaAiMuri(progetto, p, p.x, p.y);
     p.x = snap(v.x); p.y = snap(v.y);
   }
   return nuovi.length;
