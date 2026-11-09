@@ -844,6 +844,41 @@ export function problemiIngombri(progetto) {
 }
 
 /**
+ * VALIDAZIONE MOBILI LIBERI: rileva mobili dello stesso livello (basso/alto)
+ * che si SOVRAPPONGONO. Ritorna un array di { tipo, messaggio }.
+ * Per le forme ad angolo (L) l'AABB sovrastima (c'è l'incavo), quindi si usa
+ * una soglia di compenetrazione più alta per non dare falsi allarmi.
+ */
+export function problemiMobiliLiberi(progetto) {
+  const out = [];
+  const mob = (progetto.mobiliLiberi || []).filter((m) => {
+    const c = categoriaTipo(m.tipo);
+    return c === 'base' || c === 'pensile' || c === 'colonna';
+  });
+  const visti = new Set();
+  for (let i = 0; i < mob.length; i++) {
+    for (let j = i + 1; j < mob.length; j++) {
+      const a = mob[i], b = mob[j];
+      if (livelloDiMobile(a) !== livelloDiMobile(b)) continue;
+      const A = aabb(a, a.x, a.y), B = aabb(b, b.x, b.y);
+      const ox = (A.hx + B.hx) - Math.abs(a.x - b.x);
+      const oy = (A.hy + B.hy) - Math.abs(a.y - b.y);
+      if (ox <= 0 || oy <= 0) continue;
+      const angolare = String(a.tipo).startsWith('pensile-angolo') || String(b.tipo).startsWith('pensile-angolo');
+      const soglia = angolare ? 200 : 25;          // mm di compenetrazione
+      if (ox > soglia && oy > soglia) {
+        const key = a.id < b.id ? `${a.id}-${b.id}` : `${b.id}-${a.id}`;
+        if (visti.has(key)) continue;
+        visti.add(key);
+        out.push({ tipo: 'sovrapposizione', messaggio:
+          `⚠ ${nomeTipo(a.tipo)} e ${nomeTipo(b.tipo)} si sovrappongono — spostane uno o riduci la misura.` });
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * True se l'angolo tra la parete a e la successiva b "chiude" verso il lato
  * dove stanno i mobili (quindi le due file di moduli condividono l'angolo).
  */

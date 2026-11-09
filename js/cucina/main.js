@@ -14,7 +14,7 @@ import {
   spazioLiberoParete, moduliDiParete,
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
-  spostaModulo, problemiIngombri,
+  spostaModulo, problemiIngombri, problemiMobiliLiberi,
   ruotaPianta, specchiaPianta, inverteAngolo,
   toggleParete, muroTolto, snap, liberoPareti, generaPensiliAuto, riorientaMobili,
   spaziTraMobili, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo,
@@ -385,7 +385,7 @@ function renderPannelloModuli() {
     step2.larghezzaSelezionata = tipo.larghezze.includes(600) ? 600 : tipo.larghezze[0];
   }
   const mods = moduliDiParete(progetto, parete.id);
-  const problemi = problemiIngombri(progetto);
+  const problemi = [...problemiIngombri(progetto), ...problemiMobiliLiberi(progetto)];
   const haContenuto = (progetto.mobiliLiberi || []).length > 0;
   const livello = livelloStep();
   const spaziGaps = spaziTraMobili(progetto);
@@ -710,7 +710,13 @@ function renderPannelloStep3d() {
   const zoccSel = progetto.zoccoloColore || 'nero-opaco';
   const materialiEnc = ((scena3dMod && scena3dMod.MATERIALI) || []).filter((mt) => mt.categoria === 'encimera');
   const encAttuale = (progetto.encimera || {}).materiale || null;
+  const avvisi = problemiMobiliLiberi(progetto);
   pannello.innerHTML = `
+    ${avvisi.length ? `
+    <section class="step3-pannello">
+      <h3>Da sistemare</h3>
+      ${avvisi.map((x) => `<div class="avviso-pannello">${x.messaggio}</div>`).join('')}
+    </section>` : ''}
     <section class="step3-pannello">
       <h3>Vista 3D</h3>
       <div class="riga-3d">
