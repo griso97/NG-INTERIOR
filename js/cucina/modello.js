@@ -571,6 +571,7 @@ export function riorientaMobili(progetto) {
   for (const m of (progetto.mobiliLiberi || [])) {
     delete m.orientManuale;                          // flag obsoleto
     if (m.isola) continue;
+    if (m.posManuale) continue;                      // posizione confermata a mano: non toccare
     const cat = categoriaTipo(m.tipo);
     if (cat === 'costado' || cat === 'regletta') continue;
     // I pensili d'angolo (L / Ciaflan) hanno un orientamento dedicato: non
@@ -1103,6 +1104,9 @@ export function applicaRegletteAngolo(progetto) {
     if (!info || info.coperto) continue;           // solo angoli "che si toccano"
     const o = info.o;
     if (!o) continue;
+    // Angolo sistemato a mano: se uno dei due mobili è stato spostato e
+    // confermato dall'utente, non ritocco il gap (resta come l'ha messo lui).
+    if (c.posManuale || o.posManuale) continue;
     // Decido chi resta fermo e chi si sposta in base ai VICINI:
     // più vicini in fila = fila principale = resta fermo.
     const nc = contaInFila(progetto, c);

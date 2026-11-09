@@ -20,10 +20,10 @@ import {
   spaziTraMobili, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
-} from './modello.js?v=20261109m';
-import { renderPianta } from './pianta.js?v=20261109m';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109m';
-import { agganciaTema } from '../tema.js?v=20261109m';
+} from './modello.js?v=20261109n';
+import { renderPianta } from './pianta.js?v=20261109n';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109n';
+import { agganciaTema } from '../tema.js?v=20261109n';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -62,6 +62,8 @@ let step2 = {
   fasciaLarghezza: 100,
   errore: null,
   mobSelId: null,        // mobile libero selezionato sulla pianta
+  movePending: null,     // { id, prima:{x,y,rot,posManuale} } spostamento da confermare
+  nudgeCm: 1,            // ultimo passo (cm) usato dalle frecce di spostamento
 };
 let pareteSelId = null;  // muro toccato nello Step 1
 let trascinamento = null; // { id, dx, dy, mosso } mentre si sposta un mobile
@@ -516,6 +518,9 @@ function attaccaEventiStep2() {
     step2.errore = res && res.ok === false ? res.errore : null;
     aggiorna();
   };
+  // Barra di conferma spostamento (compare dopo aver trascinato/mosso un mobile)
+  document.getElementById('sposta-ok')?.addEventListener('click', confermaSpostamento);
+  document.getElementById('sposta-annulla')?.addEventListener('click', annullaSpostamento);
   pannello.querySelectorAll('.sel-parete-pill').forEach((btn) => {
     btn.addEventListener('click', () => {
       step2.pareteAttivaId = Number(btn.dataset.id);
@@ -605,11 +610,13 @@ function attaccaEventiStep2() {
     });
     const nudge = (dx, dy) => {
       const cm = parseFloat(document.getElementById('nudge-cm')?.value) || 0;
+      step2.nudgeCm = cm || step2.nudgeCm;          // ricorda il passo scelto
       const mm = Math.round(cm * 10);
       if (!mm) return;
       registraStoria();
+      avviaSpostamento(mobSel);                     // fotografa partenza + blocca auto-layout
       muoviMobileLibero(progetto, mobSel.id, dx * mm, dy * mm);
-      aggiornaSoloDisegno();
+      aggiorna();                                   // mostra la barra Conferma/Annulla
     };
     // y della pianta è verso l'alto → "su" = +y, "giù" = -y
     document.getElementById('nudge-su').addEventListener('click', () => nudge(0, 1));
@@ -953,7 +960,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109m');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109n');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1041,7 +1048,16 @@ function blocMobileSelezionato() {
   if (!m) return '';
   const cieco = categoriaTipo(m.tipo) === 'base' ? infoAngoloCieco(progetto, m) : null;
   const ra = progetto.reglettaAngolo || { base: 30, spessore: 18 };
+  const pend = step2.movePending && step2.movePending.id === m.id;
   return `
+    ${pend ? `
+    <section class="sposta-conferma">
+      <div class="sposta-conferma-txt">✋ Hai spostato <strong>${nomeTipo(m.tipo)}</strong>. Confermi la nuova posizione?</div>
+      <div class="orienta-row" style="margin-top:8px">
+        <button id="sposta-ok" class="btn-oro" type="button" style="flex:1">✓ Conferma spostamento</button>
+        <button id="sposta-annulla" class="btn-ghost" type="button" style="flex:1">↩ Annulla</button>
+      </div>
+    </section>` : ''}
     <section>
       <h3>Mobile selezionato</h3>
       <div class="mod-row ${m.tipo}"><span>${nomeTipo(m.tipo)} · <strong>${descrizioneMobile(m)}</strong></span></div>
@@ -1053,7 +1069,7 @@ function blocMobileSelezionato() {
         <button id="mob-elimina" class="btn-ghost" type="button">Elimina</button>
       </div>
       <div class="nudge">
-        <label class="nudge-cm">Sposta di <input id="nudge-cm" type="number" value="1" min="0.1" step="0.5" inputmode="decimal"> cm</label>
+        <label class="nudge-cm">Sposta di <input id="nudge-cm" type="number" value="${step2.nudgeCm ?? 1}" min="0.1" step="0.5" inputmode="decimal"> cm</label>
         <div class="nudge-grid">
           <button id="nudge-su" class="btn-ghost" type="button" title="Su">↑</button>
           <button id="nudge-sx" class="btn-ghost" type="button" title="Sinistra">←</button>
@@ -1201,6 +1217,35 @@ function puntoMm(e) {
   return { x: q.x, y: -q.y };
 }
 
+// --------- SPOSTAMENTO MOBILE CON CONFERMA ---------
+// Un mobile spostato a mano viene "bloccato" (posManuale) così l'auto-layout
+// (orientamento verso il muro, regletta d'angolo) NON lo rimette al suo posto
+// quando si cambia schermata: resta dove l'utente l'ha messo. Prima di salvare
+// in modo definitivo compare una barra Conferma/Annulla.
+function avviaSpostamento(m) {
+  // Fotografa la posizione di PARTENZA una sola volta (per poter annullare).
+  if (!step2.movePending || step2.movePending.id !== m.id) {
+    step2.movePending = { id: m.id, prima: { x: m.x, y: m.y, rot: m.rot, posManuale: !!m.posManuale } };
+  }
+  m.posManuale = true;                 // blocca l'auto-layout su questo mobile
+}
+function confermaSpostamento() {
+  step2.movePending = null;            // la posizione (posManuale=true) resta salvata
+  aggiorna();
+}
+function annullaSpostamento() {
+  const mp = step2.movePending;
+  if (mp) {
+    const m = trovaMobileLibero(progetto, mp.id);
+    if (m) {
+      m.x = mp.prima.x; m.y = mp.prima.y; m.rot = mp.prima.rot;
+      if (mp.prima.posManuale) m.posManuale = true; else delete m.posManuale;
+    }
+  }
+  step2.movePending = null;
+  aggiorna();
+}
+
 svg.addEventListener('pointerdown', (e) => {
   const mobEl = e.target.closest && e.target.closest('[data-mob-id]');
   const inModuli = progetto.stepCorrente === 2 || progetto.stepCorrente === 3;
@@ -1209,9 +1254,12 @@ svg.addEventListener('pointerdown', (e) => {
     if (!m) return;
     // Solo i mobili del livello attivo sono spostabili: gli altri sono bloccati
     if (livelloDiMobile(m) !== livelloStep()) return;
+    // Spostamento in sospeso su un ALTRO mobile: resta confermato (posManuale).
+    if (step2.movePending && step2.movePending.id !== m.id) step2.movePending = null;
     const p = puntoMm(e);
     registraStoria();
-    trascinamento = { id: m.id, dx: m.x - p.x, dy: m.y - p.y, mosso: false };
+    trascinamento = { id: m.id, dx: m.x - p.x, dy: m.y - p.y, mosso: false,
+      prima: { x: m.x, y: m.y, rot: m.rot, posManuale: !!m.posManuale } };
     try { svg.setPointerCapture(e.pointerId); } catch (_) { /* puntatore non attivo */ }
     e.preventDefault();
     step2.mobSelId = m.id;
@@ -1225,8 +1273,8 @@ svg.addEventListener('pointerdown', (e) => {
     return;
   }
   // tocco sul vuoto: deseleziona
-  if (step2.mobSelId !== null || pareteSelId !== null) {
-    step2.mobSelId = null; pareteSelId = null; aggiorna();
+  if (step2.mobSelId !== null || pareteSelId !== null || step2.movePending) {
+    step2.mobSelId = null; pareteSelId = null; step2.movePending = null; aggiorna();
   }
 });
 svg.addEventListener('pointermove', (e) => {
@@ -1252,9 +1300,18 @@ svg.addEventListener('pointermove', (e) => {
 const fineTrascinamento = () => {
   if (!trascinamento) return;
   const mosso = trascinamento.mosso;
+  const prima = trascinamento.prima;
+  const id = trascinamento.id;
   trascinamento = null;
-  // Tap senza spostamento: annullo lo snapshot registrato al pointerdown
-  if (!mosso && storiaPast.length) storiaPast.pop();
+  if (!mosso) {
+    // Tap senza spostamento: annullo lo snapshot registrato al pointerdown
+    if (storiaPast.length) storiaPast.pop();
+    aggiorna();
+    return;
+  }
+  // Mosso: blocca la posizione e chiedi conferma (barra Conferma/Annulla).
+  const m = trovaMobileLibero(progetto, id);
+  if (m) { m.posManuale = true; step2.movePending = { id, prima }; }
   aggiorna();
 };
 svg.addEventListener('pointerup', fineTrascinamento);

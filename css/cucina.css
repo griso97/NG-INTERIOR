@@ -235,6 +235,15 @@
 .conferma-stato.ok { background: rgba(108, 192, 122, 0.08); color: var(--ok); border: 1px solid rgba(108, 192, 122, 0.3); }
 .conferma-stato.non-conf { background: var(--bg-3); color: var(--testo-dim); border: 1px solid var(--bordo); }
 
+/* Barra di conferma spostamento mobile (trascinamento / frecce) */
+.sposta-conferma {
+  background: rgba(198, 160, 94, 0.10);
+  border: 1px solid var(--oro-scuro);
+  border-radius: 4px;
+  padding: 12px;
+}
+.sposta-conferma-txt { font-size: 13px; color: var(--oro-chiaro); line-height: 1.4; }
+
 /* Barra azioni della pianta SEMPRE visibile in fondo al pannello (desktop):
    il bottone "Conferma pianta" resta raggiungibile anche senza scrollare. */
 .cucina-body #cucina-pannello { padding-bottom: 0; }

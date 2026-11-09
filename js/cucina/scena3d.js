@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109m';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109n';
 import {
   calcolaVertici, dimMobile, categoriaTipo,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261109m';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109m';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109m';
-import { sfondoDi } from '../sfondi.js?v=20261109m';
-export { MATERIALI } from '../materiali.js?v=20261109m';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261109m';
+} from './modello.js?v=20261109n';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109n';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109n';
+import { sfondoDi } from '../sfondi.js?v=20261109n';
+export { MATERIALI } from '../materiali.js?v=20261109n';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261109n';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
