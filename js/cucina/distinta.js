@@ -11,7 +11,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261109s';
+} from './modello.js?v=20261109t';
 
 const SP = 18;        // pannelli carcassa e ante/fronti (mm)
 const SP_SK = 4;      // schiena (mm)
@@ -147,11 +147,52 @@ function pezziDiModulo(progetto, m) {
   return pz;
 }
 
+// Categoria del pezzo per la lista raggruppata (ante, reglette, costadi, ...).
+const ORDINE_GRUPPI = ['Ante / Fronti', 'Reglette', 'Costadi', 'Pannelli',
+  'Fianchi', 'Top / Fondi', 'Ripiani', 'Schiene', 'Zoccoli', 'Cassetti', 'Varie'];
+function gruppoPezzo(p) {
+  const n = String(p.nome).toLowerCase();
+  if (n.includes('regletta')) return 'Reglette';
+  if (n.includes('costado')) return 'Costadi';
+  if (n.includes('pannello cieco') || n.includes('anta') || n.includes('fronte cassetto')) return 'Ante / Fronti';
+  if (n.includes('pannello di copertura')) return 'Pannelli';
+  if (n.includes('cassetto')) return 'Cassetti';
+  if (n.includes('fianco')) return 'Fianchi';
+  if (n.includes('ripiano')) return 'Ripiani';
+  if (n.includes('schiena')) return 'Schiene';
+  if (n.includes('zoccolo')) return 'Zoccoli';
+  if (n.includes('fondo') || n.includes('top') || n.includes('reggitop') || n.includes('cielo')) return 'Top / Fondi';
+  return 'Varie';
+}
+
 export function calcolaDistintaCucina(progetto) {
   const mobili = (progetto.mobiliLiberi || []);
-  const pezzi = [];
-  for (const m of mobili) pezzi.push(...pezziDiModulo(progetto, m));
 
+  // 1) LISTA MODULI: aggrega i moduli uguali (stessa etichetta + tipo).
+  const modMap = new Map();
+  for (const m of mobili) {
+    const L = dimMobile(m).w;
+    const nome = `Modulo da ${m.altezza_mm ? `${m.altezza_mm}×${L}` : L}`;
+    const key = `${nome}|${m.tipo}|${m.fuoriMisura ? 1 : 0}`;
+    if (!modMap.has(key)) modMap.set(key, { nome, tipo: nomeTipo(m.tipo), fuoriMisura: !!m.fuoriMisura, quantita: 0 });
+    modMap.get(key).quantita++;
+  }
+  const moduli = [...modMap.values()];
+
+  // 2) LISTA PEZZI: tutti i pezzi di tutti i moduli, aggregati per tipo+misura.
+  const raw = [];
+  for (const m of mobili) raw.push(...pezziDiModulo(progetto, m));
+  const aggMap = new Map();
+  for (const p of raw) {
+    const gruppo = gruppoPezzo(p);
+    const key = [gruppo, p.nome, p.larghezza, p.altezza, p.spessore, p.materiale].join('|');
+    if (!aggMap.has(key)) aggMap.set(key, { gruppo, nome: p.nome, larghezza: p.larghezza, altezza: p.altezza, spessore: p.spessore, materiale: p.materiale, quantita: 0 });
+    aggMap.get(key).quantita += p.quantita;
+  }
+  const pezzi = [...aggMap.values()].sort((a, b) =>
+    (ORDINE_GRUPPI.indexOf(a.gruppo) - ORDINE_GRUPPI.indexOf(b.gruppo)) || (b.larghezza - a.larghezza));
+
+  // 3) Riepilogo.
   let totalePezzi = 0, mqCarcassa = 0, mqAnte = 0, mqSchiena = 0;
   for (const p of pezzi) {
     totalePezzi += p.quantita;
@@ -160,12 +201,11 @@ export function calcolaDistintaCucina(progetto) {
     else if (p.materiale === 'anta') mqAnte += mq;
     else mqCarcassa += mq;                            // carcassa + zoccolo
   }
+
   return {
+    moduli,
     pezzi,
-    riepilogo: {
-      moduli: mobili.length,
-      totalePezzi,
-      mqCarcassa, mqAnte, mqSchiena,
-    },
+    gruppiOrdine: ORDINE_GRUPPI,
+    riepilogo: { moduli: mobili.length, totalePezzi, mqCarcassa, mqAnte, mqSchiena },
   };
 }

@@ -524,6 +524,9 @@
 .distinta-tab th { color: var(--testo-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
 .distinta-tab .n { text-align: right; font-variant-numeric: tabular-nums; }
 .distinta-tab td.n { color: var(--testo); }
+.distinta-sez { margin: 20px 0 8px; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--oro-chiaro); border-bottom: 1px solid var(--oro-scuro); padding-bottom: 6px; }
+.distinta-gruppo { margin: 0 0 6px; font-size: 12px; letter-spacing: 1px; color: var(--oro-chiaro); border-left: 3px solid var(--oro-scuro); padding-left: 8px; }
+.dist-warn { color: #e0564a; font-size: 11px; letter-spacing: 0.5px; }
 .distinta-riepilogo {
   display: flex; flex-wrap: wrap; gap: 10px 22px; padding-top: 10px; border-top: 1px solid var(--oro-scuro);
 }
