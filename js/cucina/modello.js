@@ -225,10 +225,17 @@ export function livelloDiMobile(m) {
   return 'basso';
 }
 
+// Cache: infoTipo e' chiamata migliaia di volte (da categoriaTipo, dimMobile,
+// ecc.) a ogni render. Il find lineare sul catalogo, ripetuto cosi' tanto,
+// rallentava le transizioni di step. La cache lo rende immediato.
+const _infoTipoCache = new Map();
 export function infoTipo(tipoId) {
-  return CATALOGO_MOBILI.find((t) => t.id === tipoId)
+  if (_infoTipoCache.has(tipoId)) return _infoTipoCache.get(tipoId);
+  const r = CATALOGO_MOBILI.find((t) => t.id === tipoId)
     || TIPI_MODULO_BASE.find((t) => t.id === tipoId)
     || null;
+  _infoTipoCache.set(tipoId, r);
+  return r;
 }
 export function profonditaTipo(tipoId) { return infoTipo(tipoId)?.profondita || PROFONDITA_BASE; }
 export function categoriaTipo(tipoId) { return infoTipo(tipoId)?.categoria || 'base'; }
