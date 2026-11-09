@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109c';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109d';
 import {
   calcolaVertici, dimMobile, categoriaTipo,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261109c';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109c';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109c';
-import { sfondoDi } from '../sfondi.js?v=20261109c';
-export { MATERIALI } from '../materiali.js?v=20261109c';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261109c';
+} from './modello.js?v=20261109d';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109d';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109d';
+import { sfondoDi } from '../sfondi.js?v=20261109d';
+export { MATERIALI } from '../materiali.js?v=20261109d';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261109d';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -38,6 +38,8 @@ const H_MICRO = 380;
 
 let scene, camera, renderer, controls, gruppo, canvasEl;
 let animazioneAttiva = false;
+let needsRender = true;        // render on-demand: si disegna solo quando serve
+export function richiediRender() { needsRender = true; }
 let selId = null;             // mobile evidenziato (selezionato nel 3D)
 let ultimoProgetto = null;    // ultimo progetto reso (per ricostruire al caricamento texture)
 let luciAmbiente = [];        // luci di scena con la loro intensita' base
@@ -226,8 +228,15 @@ export function montaScena3d(canvas, progetto) {
 function animate() {
   if (!animazioneAttiva) return;
   requestAnimationFrame(animate);
-  controls.update();
-  renderer.render(scene, camera);
+  // controls.update() ritorna true quando la camera si è mossa (anche per
+  // il damping dopo un trascinamento). Renderizzo SOLO allora o quando il
+  // progetto è cambiato: a scena ferma non si disegna nulla → niente carico
+  // continuo su CPU/GPU e batteria.
+  const mossa = controls.update();
+  if (mossa || needsRender) {
+    renderer.render(scene, camera);
+    needsRender = false;
+  }
 }
 
 export function forzaResize3d() {
@@ -237,6 +246,7 @@ export function forzaResize3d() {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h, false);
+  needsRender = true;
 }
 
 /** Salva l'immagine del rendering in ALTA QUALITÀ (PNG). */
@@ -605,20 +615,14 @@ function aggiungiLedPensile(g, w, h, d, colore) {
   const zStrip = -d / 2 + stripD / 2 + 4;
   mesh.position.set(0, -h / 2 + stripH / 2, zStrip);
   g.add(mesh);
-  // SpotLight diffusa (penumbra 1 = bordi morbidi, nessun cono/rettangolo
-  // netto) puntata in basso sul piano di lavoro: la luce si posa sul top
-  // in modo naturale, con il colore scelto.
-  const spot = new THREE.SpotLight(hex, 2000, 2800, Math.PI / 2.1, 1.0, 1.0);
+  // UNA sola SpotLight diffusa per pensile (prima erano due luci: pesava
+  // molto su mobile con tanti pensili). Penumbra 1 = bordi morbidi, nessun
+  // cono netto; illumina il piano di lavoro e un po' la parete di fondo.
+  const spot = new THREE.SpotLight(hex, 2600, 2800, Math.PI / 2.1, 1.0, 1.0);
   spot.position.set(0, -h / 2 - 6, zStrip + 10);
   spot.target.position.set(0, -h / 2 - 1000, zStrip + 120);
   g.add(spot);
   g.add(spot.target);
-  // PointLight morbida verso la parete di fondo: dà il bagliore del LED
-  // sul muro/alzata, come nella cucina reale, diffondendosi sulla
-  // superficie vera senza pannelli sovrapposti.
-  const point = new THREE.PointLight(hex, 1200, 1800, 1.0);
-  point.position.set(0, -h / 2 - 30, zStrip - 12);
-  g.add(point);
 }
 
 /**
@@ -894,6 +898,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   for (const a of accessori) aggiungiAccessorioTop(a);
 
   if (reframe) inquadra(bb);
+  needsRender = true;                 // scena cambiata → un render al prossimo frame
   if (renderer) renderer.render(scene, camera);
 }
 
