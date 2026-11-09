@@ -377,8 +377,12 @@ function ante(g, w, h, d, n, matAnta, sporg) {
   for (let i = 0; i < n; i++) {
     const px = -uw / 2 + pw / 2 + i * (pw + GAP_ANTE);
     pannello(g, px, py, z, pw, ph, matAnta || COL.anta);
-    const hx = n === 1 ? px + pw / 2 - 35 : (i === 0 ? px + pw / 2 - 22 : px - pw / 2 + 22);
-    maniglia(g, hx, py, z, false, Math.min(260, ph * 0.5));
+    // Anta sporgente sotto (gola integrata): si apre prendendola da sotto,
+    // quindi NIENTE maniglia nella parte alta.
+    if (!sporg) {
+      const hx = n === 1 ? px + pw / 2 - 35 : (i === 0 ? px + pw / 2 - 22 : px - pw / 2 + 22);
+      maniglia(g, hx, py, z, false, Math.min(260, ph * 0.5));
+    }
   }
 }
 function cassetti(g, w, h, d, n, matAnta) {
