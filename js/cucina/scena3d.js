@@ -604,7 +604,7 @@ function aggiungiLedPensile(g, w, h, d, colore) {
   // SpotLight diffusa (penumbra 1 = bordi morbidi, nessun cono/rettangolo
   // netto) puntata in basso sul piano di lavoro: la luce si posa sul top
   // in modo naturale, con il colore scelto.
-  const spot = new THREE.SpotLight(hex, 900, 2600, Math.PI / 2.1, 1.0, 1.0);
+  const spot = new THREE.SpotLight(hex, 2000, 2800, Math.PI / 2.1, 1.0, 1.0);
   spot.position.set(0, -h / 2 - 6, zStrip + 10);
   spot.target.position.set(0, -h / 2 - 1000, zStrip + 120);
   g.add(spot);
@@ -612,7 +612,7 @@ function aggiungiLedPensile(g, w, h, d, colore) {
   // PointLight morbida verso la parete di fondo: dà il bagliore del LED
   // sul muro/alzata, come nella cucina reale, diffondendosi sulla
   // superficie vera senza pannelli sovrapposti.
-  const point = new THREE.PointLight(hex, 500, 1600, 1.0);
+  const point = new THREE.PointLight(hex, 1200, 1800, 1.0);
   point.position.set(0, -h / 2 - 30, zStrip - 12);
   g.add(point);
 }
