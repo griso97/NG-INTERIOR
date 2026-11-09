@@ -11,7 +11,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261109t';
+} from './modello.js?v=20261109u';
 
 const SP = 18;        // pannelli carcassa e ante/fronti (mm)
 const SP_SK = 4;      // schiena (mm)
@@ -48,10 +48,17 @@ function ripiani(pz, mod, L, prof, n) {
   pz.push({ modulo: mod, nome: 'Ripiano', larghezza: round(L - 2 * SP - 2), altezza: round(prof - 20), spessore: SP, materiale: 'carcassa', quantita: n });
 }
 
-function anteModulo(pz, mod, L, H, N, lato) {
+// L'anta del pensile sporge 2 cm sotto (70→72, 90→92) con l'opzione attiva.
+function pensileAntaSporge(opt, h) {
+  if (opt === 'sporg70') return Math.abs(h - 700) < 40;
+  if (opt === 'sporg90') return Math.abs(h - 900) < 40;
+  return false;
+}
+
+function anteModulo(pz, mod, L, H, N, lato, altAnta, sporg) {
   const a = dimAnta(L, H, N);
-  const nota = N === 1 ? ` (apertura ${lato === 'sx' ? 'sx' : 'dx'})` : '';
-  pz.push({ modulo: mod, nome: `Anta${nota}`, larghezza: a.w, altezza: a.h, spessore: SP, materiale: 'anta', quantita: N });
+  const nota = (N === 1 ? ` (apertura ${lato === 'sx' ? 'sx' : 'dx'})` : '') + (sporg ? ' sporgente' : '');
+  pz.push({ modulo: mod, nome: `Anta${nota}`, larghezza: a.w, altezza: altAnta != null ? altAnta : a.h, spessore: SP, materiale: 'anta', quantita: N });
 }
 
 function zoccolo(pz, mod, L, H) {
@@ -123,7 +130,9 @@ function pezziDiModulo(progetto, m) {
       const profCassa = prof - 20;
       carcassa(pz, mod, L, H, profCassa, false);
       ripiani(pz, mod, L, profCassa, 1);
-      anteModulo(pz, mod, L, H, anteDiMobile(m), m.antaLato);
+      // Pensile 70/90: con l'anta sporgente la porta è 72/92 (H + 20), altrimenti H − 2.
+      const sporg = pensileAntaSporge(progetto.antaPensile, H);
+      anteModulo(pz, mod, L, H, anteDiMobile(m), m.antaLato, sporg ? H + 20 : null, sporg);
     }
   } else if (cat === 'colonna') {
     const prof = (d.d || 600) - 20;
