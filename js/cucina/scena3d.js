@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109k';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109l';
 import {
   calcolaVertici, dimMobile, categoriaTipo,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261109k';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109k';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109k';
-import { sfondoDi } from '../sfondi.js?v=20261109k';
-export { MATERIALI } from '../materiali.js?v=20261109k';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261109k';
+} from './modello.js?v=20261109l';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109l';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109l';
+import { sfondoDi } from '../sfondi.js?v=20261109l';
+export { MATERIALI } from '../materiali.js?v=20261109l';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261109l';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -554,10 +554,9 @@ function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
   const planeY = frontY + Hf[1] * (AVANZ - THK / 2);   // piano anta (faccia a filo+2)
   const planeX = frontX + Vf[0] * (AVANZ - THK / 2);
 
-  // Regletta BLU di debug: lasciata appositamente visibile per verificare a
-  // occhio che sia posizionata bene dopo il restringimento del pannello cieco.
-  // Da rimettere matAnta/COL.anta solo quando confermato OK.
-  const mat = new THREE.MeshStandardMaterial({ color: 0x1e66ff, roughness: 0.45, metalness: 0.05 });
+  // Stesso materiale delle ante: la regletta si confonde con la finitura
+  // della cucina (il blu di debug era solo per verificare il posizionamento).
+  const mat = matAnta || new THREE.MeshStandardMaterial({ color: COL.anta, roughness: 0.45, metalness: 0.05 });
   const yC = zocc + hP / 2;
   const addBox = (sx, sz, cx, cy) => {
     const geo = new THREE.BoxGeometry(sx, hP, sz);
