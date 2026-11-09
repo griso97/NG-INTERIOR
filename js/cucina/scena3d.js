@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109d';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109e';
 import {
   calcolaVertici, dimMobile, categoriaTipo,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261109d';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109d';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109d';
-import { sfondoDi } from '../sfondi.js?v=20261109d';
-export { MATERIALI } from '../materiali.js?v=20261109d';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261109d';
+} from './modello.js?v=20261109e';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109e';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109e';
+import { sfondoDi } from '../sfondi.js?v=20261109e';
+export { MATERIALI } from '../materiali.js?v=20261109e';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261109e';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -225,13 +225,19 @@ export function montaScena3d(canvas, progetto) {
   animate();
 }
 
+const FPS_CAP = 30;                 // non serve più di 30fps per un configuratore
+const MS_PER_FRAME = 1000 / FPS_CAP;
+let ultimoFrame = 0;
 function animate() {
   if (!animazioneAttiva) return;
   requestAnimationFrame(animate);
+  // Throttle a 30fps: anche durante il movimento non si disegna più spesso.
+  const ora = performance.now();
+  if (ora - ultimoFrame < MS_PER_FRAME) return;
+  ultimoFrame = ora;
   // controls.update() ritorna true quando la camera si è mossa (anche per
   // il damping dopo un trascinamento). Renderizzo SOLO allora o quando il
-  // progetto è cambiato: a scena ferma non si disegna nulla → niente carico
-  // continuo su CPU/GPU e batteria.
+  // progetto è cambiato: a scena ferma non si disegna nulla → niente carico.
   const mossa = controls.update();
   if (mossa || needsRender) {
     renderer.render(scene, camera);
