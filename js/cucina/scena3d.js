@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109b';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109c';
 import {
   calcolaVertici, dimMobile, categoriaTipo,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261109b';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109b';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109b';
-import { sfondoDi } from '../sfondi.js?v=20261109b';
-export { MATERIALI } from '../materiali.js?v=20261109b';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261109b';
+} from './modello.js?v=20261109c';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109c';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109c';
+import { sfondoDi } from '../sfondi.js?v=20261109c';
+export { MATERIALI } from '../materiali.js?v=20261109c';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261109c';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -822,7 +822,16 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       if (progetto.led && progetto.led.attivo && !String(m.tipo).startsWith('pensile-angolo')) {
         aggiungiLedPensile(gPens, dim.w, h, dim.d, progetto.led.colore);
       }
-      g3d = collocaMobile(gPens, cx, base, cz, h, m.rot);
+      if (m.tipo === 'pensile-angolo') {
+        // La L è asimmetrica: il 3D usa -rot e la pianta +rot, quindi con
+        // collocaMobile apparirebbe specchiata/girata agli angoli ruotati
+        // (90/270). Uso +rot così la L 3D combacia con la pianta.
+        gPens.position.set(cx, base + h / 2, cz);
+        gPens.rotation.y = (m.rot || 0) * Math.PI / 180;
+        g3d = gPens;
+      } else {
+        g3d = collocaMobile(gPens, cx, base, cz, h, m.rot);
+      }
     } else if (cat === 'colonna') {
       // L'altezza della colonna (es. 2200) è la CASSA; il totale è cassa +
       // zoccolo. Così un costado da 2350 (= 2200 + 15 di piedini) combacia.
