@@ -609,12 +609,16 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
   const A = aabb(m, x, y);
   const eUm = A.hx * Math.abs(ux) + A.hy * Math.abs(uy);
   const eVm = A.hx * Math.abs(vx) + A.hy * Math.abs(vy);
-  // Allineamento in fila: SEMPRE lungo l'asse del MOBILE (robusto anche in
-  // mezzo alla stanza, es. isole), così mobili affiancati restano in linea.
+  // Allineamento in fila: lungo l'asse del MOBILE (robusto anche in mezzo alla
+  // stanza, es. isole). È GENTILE: scatta solo se sei già vicino alla linea
+  // (SNAP_ALLINEA), così puoi comunque posizionare dove vuoi. Costadi e reglette
+  // (pezzi sottili di finitura) NON si allineano: vanno messi a mano.
+  const SNAP_ALLINEA = 70;      // mm: zona di aggancio perpendicolare (piccola)
+  const catM = categoriaTipo(m.tipo);
+  const puoAllineare = catM !== 'costado' && catM !== 'regletta';
   const [sx, sy] = asseMobile(m);
   const pvx = -sy, pvy = sx;                   // perpendicolare (profondità)
   const eUmS = A.hx * Math.abs(sx) + A.hy * Math.abs(sy);
-  const eVmS = A.hx * Math.abs(pvx) + A.hy * Math.abs(pvy);
   let best = null;      // accostamento lungo la fila (toccarsi senza spazio)
   let align = null;     // allineamento perpendicolare (fronti/schiene in riga)
   for (const o of (progetto.mobiliLiberi || [])) {
@@ -633,18 +637,20 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
         best = { gap, dx: -ux * s * gap, dy: -uy * s * gap };
       }
     }
-    // Allineamento in fila: stessa orientazione e affiancati lungo la fila →
-    // li metto sulla stessa linea (offset perpendicolare → 0).
-    const ao = asseMobile(o);
-    const stessaOrient = Math.abs(sx * ao[0] + sy * ao[1]) > 0.9;
-    if (stessaOrient) {
-      const eUoS = B.hx * Math.abs(sx) + B.hy * Math.abs(sy);
-      const eVoS = B.hx * Math.abs(pvx) + B.hy * Math.abs(pvy);
-      const duS = (x - o.x) * sx + (y - o.y) * sy;
-      const dvS = (x - o.x) * pvx + (y - o.y) * pvy;
-      if (Math.abs(duS) <= (eUmS + eUoS) + soglia && Math.abs(dvS) < (eVmS + eVoS)) {
-        if (!align || Math.abs(dvS) < align.adv) {
-          align = { adv: Math.abs(dvS), dx: -pvx * dvS, dy: -pvy * dvS };
+    // Allineamento in fila: stessa orientazione, affiancati lungo la fila e GIÀ
+    // VICINI alla linea (entro SNAP_ALLINEA) → snap gentile sulla stessa linea.
+    const catO = categoriaTipo(o.tipo);
+    if (puoAllineare && catO !== 'costado' && catO !== 'regletta') {
+      const ao = asseMobile(o);
+      const stessaOrient = Math.abs(sx * ao[0] + sy * ao[1]) > 0.9;
+      if (stessaOrient) {
+        const eUoS = B.hx * Math.abs(sx) + B.hy * Math.abs(sy);
+        const duS = (x - o.x) * sx + (y - o.y) * sy;
+        const dvS = (x - o.x) * pvx + (y - o.y) * pvy;
+        if (Math.abs(duS) <= (eUmS + eUoS) + soglia && Math.abs(dvS) > 1 && Math.abs(dvS) <= SNAP_ALLINEA) {
+          if (!align || Math.abs(dvS) < align.adv) {
+            align = { adv: Math.abs(dvS), dx: -pvx * dvS, dy: -pvy * dvS };
+          }
         }
       }
     }
