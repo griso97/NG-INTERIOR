@@ -21,11 +21,11 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile,
-} from './modello.js?v=20261109v';
-import { renderPianta } from './pianta.js?v=20261109v';
-import { calcolaDistintaCucina } from './distinta.js?v=20261109v';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109v';
-import { agganciaTema } from '../tema.js?v=20261109v';
+} from './modello.js?v=20261109w';
+import { renderPianta } from './pianta.js?v=20261109w';
+import { calcolaDistintaCucina } from './distinta.js?v=20261109w';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109w';
+import { agganciaTema } from '../tema.js?v=20261109w';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1091,7 +1091,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109v');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109w');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1209,8 +1209,8 @@ function blocMobileSelezionato() {
         </div>
       </div>
       <div class="mod-vuoto">${m.isola
-        ? 'Isola/penisola: posizionalo dove vuoi e ruotalo a mano. Si attacca comunque agli altri mobili.'
-        : 'Vicino al muro si orienta da solo (ante verso l’interno). Per una penisola attiva “Isola (libero)” e poi ruotalo.'}</div>
+        ? 'Isola/penisola: posizionalo dove vuoi e ruotalo a mano. Si attacca e si allinea agli altri mobili.'
+        : 'Vicino al muro si orienta da solo (ante verso l’interno). Per una penisola attiva “Isola (libero)” e poi ruotalo.'}<br><strong>Tieni premuto Ctrl</strong> mentre trascini per spostarlo libero (senza calamita).</div>
     </section>
     ${cieco ? `
     <section>
@@ -1419,12 +1419,15 @@ svg.addEventListener('pointermove', (e) => {
   // Aggancio alla griglia fine SOLO sulla posizione del dito; dopo i vincoli
   // (muri e collisioni) non ri-aggancio, così il mobile tocca il vicino esatto.
   const rx = snap(p.x + trascinamento.dx), ry = snap(p.y + trascinamento.dy);
+  // Ctrl (o Cmd) tenuto premuto: spostamento LIBERO, senza calamita né
+  // riorientamento automatico (micro-aggiustamenti precisi).
+  const libera = !!(e.ctrlKey || e.metaKey);
   // Orienta le ante verso l'interno (solo i mobili con un fronte, non costadi/reglette)
   const haFronte = !['costado', 'regletta'].includes(categoriaTipo(m.tipo));
-  const rot = haFronte ? orientaVersoMuro(progetto, m, rx, ry) : null;
+  const rot = (!libera && haFronte) ? orientaVersoMuro(progetto, m, rx, ry) : null;
   const rotCambiata = rot !== null && rot !== m.rot;
   if (rotCambiata) m.rot = rot;
-  const v = posizionaVincolata(progetto, m, rx, ry);
+  const v = posizionaVincolata(progetto, m, rx, ry, libera);
   if (v.x !== m.x || v.y !== m.y || rotCambiata) {
     m.x = v.x; m.y = v.y;
     trascinamento.mosso = true;

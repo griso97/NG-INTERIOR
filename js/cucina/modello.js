@@ -603,14 +603,20 @@ function asseMobile(m) {
 
 export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
   const rv = rangeVerticale(m);
-  // Isola: uso l'asse del MOBILE; altrimenti l'asse del muro vicino.
+  // Accostamento: lungo l'asse del muro vicino (mobili a parete) o del mobile.
   const u = m.isola ? asseMobile(m) : (muroPiuVicino(progetto, x, y) || asseMobile(m));
   const [ux, uy] = u, vx = -uy, vy = ux;
   const A = aabb(m, x, y);
   const eUm = A.hx * Math.abs(ux) + A.hy * Math.abs(uy);
   const eVm = A.hx * Math.abs(vx) + A.hy * Math.abs(vy);
+  // Allineamento in fila: SEMPRE lungo l'asse del MOBILE (robusto anche in
+  // mezzo alla stanza, es. isole), così mobili affiancati restano in linea.
+  const [sx, sy] = asseMobile(m);
+  const pvx = -sy, pvy = sx;                   // perpendicolare (profondità)
+  const eUmS = A.hx * Math.abs(sx) + A.hy * Math.abs(sy);
+  const eVmS = A.hx * Math.abs(pvx) + A.hy * Math.abs(pvy);
   let best = null;      // accostamento lungo la fila (toccarsi senza spazio)
-  let align = null;     // ISOLE: allineamento perpendicolare (fronti/schiene in riga)
+  let align = null;     // allineamento perpendicolare (fronti/schiene in riga)
   for (const o of (progetto.mobiliLiberi || [])) {
     if (o.id === m.id) continue;
     if (!rangeSovrappone(rv, rangeVerticale(o))) continue;
@@ -619,24 +625,32 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
     const eVo = B.hx * Math.abs(vx) + B.hy * Math.abs(vy);
     const du = (x - o.x) * ux + (y - o.y) * uy;
     const dv = (x - o.x) * vx + (y - o.y) * vy;
-    // Devono stare affiancati sulla stessa linea: sovrapposti in perpendicolare
-    if (Math.abs(dv) >= (eVm + eVo) - 1) continue;
-    const gap = Math.abs(du) - (eUm + eUo);   // >0 = spazio tra i bordi
-    if (gap > 1 && gap <= soglia && (!best || gap < best.gap)) {
-      const s = du >= 0 ? 1 : -1;             // da che lato sta m rispetto a o
-      best = { gap, dx: -ux * s * gap, dy: -uy * s * gap };
+    // Accostamento: affiancati sulla stessa linea (sovrapposti in perpendicolare).
+    if (Math.abs(dv) < (eVm + eVo) - 1) {
+      const gap = Math.abs(du) - (eUm + eUo);   // >0 = spazio tra i bordi
+      if (gap > 1 && gap <= soglia && (!best || gap < best.gap)) {
+        const s = du >= 0 ? 1 : -1;             // da che lato sta m rispetto a o
+        best = { gap, dx: -ux * s * gap, dy: -uy * s * gap };
+      }
     }
-    // ISOLA/PENISOLA: se è accostato a un vicino lungo la fila (entro soglia),
-    // lo allineo perpendicolarmente (dv → 0) così restano dritti in riga invece
-    // che sfalsati. Scelgo il vicino più "in asse".
-    if (m.isola && Math.abs(du) <= (eUm + eUo) + soglia) {
-      if (!align || Math.abs(dv) < align.adv) {
-        align = { adv: Math.abs(dv), dx: -vx * dv, dy: -vy * dv };
+    // Allineamento in fila: stessa orientazione e affiancati lungo la fila →
+    // li metto sulla stessa linea (offset perpendicolare → 0).
+    const ao = asseMobile(o);
+    const stessaOrient = Math.abs(sx * ao[0] + sy * ao[1]) > 0.9;
+    if (stessaOrient) {
+      const eUoS = B.hx * Math.abs(sx) + B.hy * Math.abs(sy);
+      const eVoS = B.hx * Math.abs(pvx) + B.hy * Math.abs(pvy);
+      const duS = (x - o.x) * sx + (y - o.y) * sy;
+      const dvS = (x - o.x) * pvx + (y - o.y) * pvy;
+      if (Math.abs(duS) <= (eUmS + eUoS) + soglia && Math.abs(dvS) < (eVmS + eVoS)) {
+        if (!align || Math.abs(dvS) < align.adv) {
+          align = { adv: Math.abs(dvS), dx: -pvx * dvS, dy: -pvy * dvS };
+        }
       }
     }
   }
   if (best) { x += best.dx; y += best.dy; }
-  if (align) { x += align.dx; y += align.dy; }   // allineamento in fila (isole)
+  if (align) { x += align.dx; y += align.dy; }   // allineamento in fila
   return { x, y };
 }
 
@@ -645,10 +659,16 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
  * ai muri, così si assesta rispettando tutto. Infine aggancio magnetico ai
  * mobili vicini, così si accostano combaciando senza lasciare spazio.
  */
-export function posizionaVincolata(progetto, m, x, y) {
+export function posizionaVincolata(progetto, m, x, y, libera = false) {
   // Isola/libero: niente vincolo ai muri (posizione libera), ma SEMPRE respinta
   // dagli altri mobili e aggancio magnetico (si attaccano perfetti tra loro).
   const libero = !!m.isola;
+  // libera = true (Ctrl): spostamento totalmente libero — niente calamita né
+  // respinta dai vicini. Resta solo il vincolo ai muri (non esce dalla stanza).
+  if (libera) {
+    if (!libero) ({ x, y } = vincolaAiMuri(progetto, m, x, y));
+    return { x, y };
+  }
   for (let pass = 0; pass < 6; pass++) {
     ({ x, y } = respingiDaMobili(progetto, m, x, y));
     if (!libero) ({ x, y } = vincolaAiMuri(progetto, m, x, y));
