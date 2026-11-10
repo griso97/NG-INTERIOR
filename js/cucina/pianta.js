@@ -11,7 +11,7 @@ import {
   moduliDiParete, nomeTipo, PROFONDITA_BASE, PROFONDITA_PENSILE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
   dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili,
-} from './modello.js?v=20261109z';
+} from './modello.js?v=20261110a';
 
 const NS = 'http://www.w3.org/2000/svg';
 const el = (tag, attrs = {}) => {
@@ -20,7 +20,6 @@ const el = (tag, attrs = {}) => {
   return e;
 };
 
-const MARGINE_MM = 800;        // margine attorno al perimetro (mm)
 const PASSO_GRIGLIA = 100;     // mm (passo primario)
 const PASSO_GRIGLIA_MAGG = 1000; // mm (linea più visibile ogni 1 m)
 
@@ -36,15 +35,72 @@ export function renderPianta(svg, progetto, opts = {}) {
   const pareti = progetto.piano.pareti || [];
   const vertici = calcolaVertici(pareti);
 
-  // Calcolo viewBox in mm (asse Y invertito per SVG: y positivo va in basso)
+  // --- viewBox in mm (asse Y invertito per SVG: y positivo va in basso) ---
+  // La pianta si adatta allo schermo e tiene la fila a muro verso il bordo
+  // (dietro al muro non si mette nulla), lasciando tutto lo spazio verso
+  // l'INTERNO per posizionare l'isola.
   const bb = bboxPerimetro(pareti);
   if (pareti.length === 0) {
     bb.minX = 0; bb.maxX = 2000; bb.minY = 0; bb.maxY = 1500;
   }
-  const w = (bb.maxX - bb.minX) + 2 * MARGINE_MM;
-  const h = (bb.maxY - bb.minY) + 2 * MARGINE_MM;
-  const vbX = bb.minX - MARGINE_MM;
-  const vbY = -(bb.maxY + MARGINE_MM); // y SVG parte dall'alto → invertito
+
+  // Direzione "interno" (dove stanno i moduli e dove va l'isola):
+  // somma delle normali interne delle pareti, pesata per lunghezza.
+  let inX = 0, inY = 0;
+  for (let i = 0; i < pareti.length; i++) {
+    const a = vertici[i], b = vertici[i + 1];
+    if (!a || !b) continue;
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const L = Math.hypot(dx, dy) || 1;
+    const sgn = pareti[i].latoInterno === 'interno' ? 1 : -1;
+    inX += (-dy / L) * sgn * L;   // normale interna × lunghezza
+    inY += (dx / L) * sgn * L;
+  }
+  const inLen = Math.hypot(inX, inY);
+  const ivx = inLen ? inX / inLen : 0;   // versore interno (0,0 se incerto)
+  const ivy = inLen ? inY / inLen : 0;
+
+  // Contenuto = pareti + profondità moduli base sul lato interno + isole.
+  const cb = { minX: bb.minX, maxX: bb.maxX, minY: bb.minY, maxY: bb.maxY };
+  const PROF = PROFONDITA_BASE;
+  if (ivx > 0) cb.maxX += PROF * ivx; else if (ivx < 0) cb.minX += PROF * ivx;
+  if (ivy > 0) cb.maxY += PROF * ivy; else if (ivy < 0) cb.minY += PROF * ivy;
+  for (const m of (progetto.mobiliLiberi || [])) {
+    const d = dimMobile(m);
+    const r = Math.hypot(d.w || 600, d.d || 600) / 2;  // raggio (robusto alla rotazione)
+    cb.minX = Math.min(cb.minX, m.x - r); cb.maxX = Math.max(cb.maxX, m.x + r);
+    cb.minY = Math.min(cb.minY, m.y - r); cb.maxY = Math.max(cb.maxY, m.y + r);
+  }
+
+  // Margine piccolo attorno al contenuto (quote, badge "libero").
+  const MARG = 350;
+  let X0 = cb.minX - MARG, X1 = cb.maxX + MARG;
+  let Y0 = cb.minY - MARG, Y1 = cb.maxY + MARG;
+
+  // Adatta all'aspect ratio dello schermo: lo spazio extra va verso l'interno,
+  // così la fila a muro resta sul bordo e davanti c'è spazio per l'isola.
+  const MAX_INTERNO = 3500;   // mm max di spazio libero riservato all'isola
+  const cw = svg.clientWidth, ch = svg.clientHeight;
+  const AR = (cw > 0 && ch > 0) ? cw / ch : 1.4;
+  const Wc = X1 - X0, Hc = Y1 - Y0;
+  if (Wc / Hc < AR) {
+    // Box troppo "alto" per lo schermo → aggiungo LARGHEZZA verso l'interno.
+    const extra = Math.min(AR * Hc - Wc, MAX_INTERNO);
+    if (ivx > 0.2) X1 += extra;
+    else if (ivx < -0.2) X0 -= extra;
+    else { X0 -= extra / 2; X1 += extra / 2; }
+  } else {
+    // Box troppo "largo" → aggiungo ALTEZZA verso l'interno.
+    const extra = Math.min(Wc / AR - Hc, MAX_INTERNO);
+    if (ivy > 0.2) Y1 += extra;          // interno in alto (world +y) → muro in basso
+    else if (ivy < -0.2) Y0 -= extra;    // interno in basso → muro in alto
+    else { Y0 -= extra / 2; Y1 += extra / 2; }
+  }
+
+  const w = X1 - X0;
+  const h = Y1 - Y0;
+  const vbX = X0;
+  const vbY = -Y1;        // y SVG parte dall'alto → invertito
   svg.setAttribute('viewBox', `${vbX} ${vbY} ${w} ${h}`);
   svg.innerHTML = '';
 
