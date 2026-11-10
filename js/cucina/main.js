@@ -21,11 +21,11 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile,
-} from './modello.js?v=20261110d';
-import { renderPianta } from './pianta.js?v=20261110d';
-import { calcolaDistintaCucina } from './distinta.js?v=20261110d';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261110d';
-import { agganciaTema } from '../tema.js?v=20261110d';
+} from './modello.js?v=20261110e';
+import { renderPianta } from './pianta.js?v=20261110e';
+import { calcolaDistintaCucina } from './distinta.js?v=20261110e';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261110e';
+import { agganciaTema } from '../tema.js?v=20261110e';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1003,7 +1003,7 @@ function renderRiepilogoStep3d() {
 }
 
 // --------- DISTINTA DI TAGLIO (lista moduli + lista pezzi per tipo) ---------
-const NOME_MATERIALE = { carcassa: 'Carcassa', anta: 'Anta/Fronte', schiena: 'Schiena', zoccolo: 'Zoccolo' };
+const NOME_MATERIALE = { carcassa: 'Carcassa', anta: 'Anta/Fronte', schiena: 'Schiena', zoccolo: 'Zoccolo', melaminico: 'Melaminico bianco' };
 function mostraDistinta() {
   const { moduli, pezzi, gruppiOrdine, riepilogo } = calcolaDistintaCucina(progetto);
   const corpo = document.getElementById('distinta-corpo');
@@ -1053,6 +1053,7 @@ function mostraDistinta() {
       <div><span>m² carcassa</span><strong>${riepilogo.mqCarcassa.toFixed(2)}</strong></div>
       <div><span>m² ante</span><strong>${riepilogo.mqAnte.toFixed(2)}</strong></div>
       <div><span>m² schiena</span><strong>${riepilogo.mqSchiena.toFixed(2)}</strong></div>
+      ${riepilogo.mqMelaminico ? `<div><span>m² melaminico</span><strong>${riepilogo.mqMelaminico.toFixed(2)}</strong></div>` : ''}
     </div>`;
   const ov = document.getElementById('distinta-overlay');
   if (ov) ov.hidden = false;
@@ -1091,7 +1092,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261110d');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261110e');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste

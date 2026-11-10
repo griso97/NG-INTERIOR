@@ -11,10 +11,11 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261110d';
+} from './modello.js?v=20261110e';
 
 const SP = 18;        // pannelli carcassa e ante/fronti (mm)
 const SP_SK = 4;      // schiena (mm)
+const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
 const round = (n) => Math.round(n);
 const zoccoloH = (h) => (h >= 800 ? 100 : 150);
@@ -65,6 +66,16 @@ function zoccolo(pz, mod, L, H) {
   pz.push({ modulo: mod, nome: 'Zoccolo (frontale)', larghezza: round(L), altezza: zoccoloH(H), spessore: SP, materiale: 'zoccolo', quantita: 1 });
 }
 
+// Fondo + trasera del cassetto in MELAMINICO BIANCO (guide metalliche: niente
+// sponde di legno). Misure FISSE: fondo profondità 480; trasera alta 59 se il
+// cassetto è basso (≤155) o 155 se è alto (>155). La LUNGHEZZA varia col
+// modulo: fondo = L−53, trasera = L−72. `hCassetto` = altezza del fronte.
+function cassettoMelaminico(pz, mod, L, hCassetto, nc) {
+  const grande = hCassetto > 155;
+  pz.push({ modulo: mod, nome: 'Cassetto · fondo', larghezza: round(L - 53), altezza: 480, spessore: SP_MEL, materiale: 'melaminico', quantita: nc });
+  pz.push({ modulo: mod, nome: `Cassetto · trasera ${grande ? 'grande' : 'ridotta'}`, larghezza: round(L - 72), altezza: grande ? 155 : 59, spessore: SP_MEL, materiale: 'melaminico', quantita: nc });
+}
+
 // Regletta d'angolo (o pannello cieco) sul modulo "cieco" dell'angolo.
 function reglettaAngolo(pz, mod, progetto, m, H) {
   if (progetto.autoRegletta === false) return;
@@ -98,11 +109,12 @@ function pezziDiModulo(progetto, m) {
       carcassa(pz, mod, L, H, profCassa, true);
       zoccolo(pz, mod, L, H);
       const nc = Math.max(1, m.cassetti || 3);
-      const hf = round((H - (nc - 1) * 3) / nc - 2);
+      const hf = round((H - (nc - 1) * 3) / nc - 2);   // altezza del fronte cassetto
       pz.push({ modulo: mod, nome: 'Fronte cassetto', larghezza: round(L - 3), altezza: hf, spessore: SP, materiale: 'anta', quantita: nc });
-      // scatola cassetto (semplificata)
-      pz.push({ modulo: mod, nome: 'Cassetto · fianco', larghezza: round(profCassa - 30), altezza: 120, spessore: SP, materiale: 'carcassa', quantita: 2 * nc });
-      pz.push({ modulo: mod, nome: 'Cassetto · fondo/schiena', larghezza: round(L - 2 * SP - 30), altezza: 120, spessore: SP, materiale: 'carcassa', quantita: 2 * nc });
+      // Fondo e trasera del cassetto in MELAMINICO BIANCO.
+      // Misure FISSE: fondo prof. 480 · trasera 59 (cassetto basso) o 155 (alto).
+      // Misura VARIABILE: la lunghezza, in base al modulo (fondo = L−53, trasera = L−72).
+      cassettoMelaminico(pz, mod, L, hf, nc);
     } else if (m.tipo === 'forno') {
       carcassa(pz, mod, L, H, profCassa, true);
       zoccolo(pz, mod, L, H);
@@ -203,12 +215,13 @@ export function calcolaDistintaCucina(progetto) {
     (ORDINE_GRUPPI.indexOf(a.gruppo) - ORDINE_GRUPPI.indexOf(b.gruppo)) || (b.larghezza - a.larghezza));
 
   // 3) Riepilogo.
-  let totalePezzi = 0, mqCarcassa = 0, mqAnte = 0, mqSchiena = 0;
+  let totalePezzi = 0, mqCarcassa = 0, mqAnte = 0, mqSchiena = 0, mqMelaminico = 0;
   for (const p of pezzi) {
     totalePezzi += p.quantita;
     const mq = (p.larghezza * p.altezza * p.quantita) / 1e6;
     if (p.materiale === 'schiena') mqSchiena += mq;
     else if (p.materiale === 'anta') mqAnte += mq;
+    else if (p.materiale === 'melaminico') mqMelaminico += mq;
     else mqCarcassa += mq;                            // carcassa + zoccolo
   }
 
@@ -216,6 +229,6 @@ export function calcolaDistintaCucina(progetto) {
     moduli,
     pezzi,
     gruppiOrdine: ORDINE_GRUPPI,
-    riepilogo: { moduli: mobili.length, totalePezzi, mqCarcassa, mqAnte, mqSchiena },
+    riepilogo: { moduli: mobili.length, totalePezzi, mqCarcassa, mqAnte, mqSchiena, mqMelaminico },
   };
 }
