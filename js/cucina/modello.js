@@ -601,7 +601,7 @@ function asseMobile(m) {
   return [Math.cos(r), Math.sin(r)];
 }
 
-export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
+export function aggancioMagnetico(progetto, m, x, y, soglia = 45) {
   const rv = rangeVerticale(m);
   // Accostamento: lungo l'asse del muro vicino (mobili a parete) o del mobile.
   const u = m.isola ? asseMobile(m) : (muroPiuVicino(progetto, x, y) || asseMobile(m));
@@ -613,7 +613,7 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
   // stanza, es. isole). È GENTILE: scatta solo se sei già vicino alla linea
   // (SNAP_ALLINEA), così puoi comunque posizionare dove vuoi. Costadi e reglette
   // (pezzi sottili di finitura) NON si allineano: vanno messi a mano.
-  const SNAP_ALLINEA = 70;      // mm: zona di aggancio perpendicolare (piccola)
+  const SNAP_ALLINEA = 35;      // mm: zona di aggancio perpendicolare (leggera)
   const catM = categoriaTipo(m.tipo);
   const puoAllineare = catM !== 'costado' && catM !== 'regletta';
   const [sx, sy] = asseMobile(m);

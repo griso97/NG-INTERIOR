@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109x';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109y';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261109x';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109x';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109x';
-import { sfondoDi } from '../sfondi.js?v=20261109x';
-export { MATERIALI } from '../materiali.js?v=20261109x';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261109x';
+} from './modello.js?v=20261109y';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109y';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109y';
+import { sfondoDi } from '../sfondi.js?v=20261109y';
+export { MATERIALI } from '../materiali.js?v=20261109y';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261109y';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -179,8 +179,11 @@ export function montaScena3d(canvas, progetto) {
   scene.background = new THREE.Color(0xe9e6df);
   const w = canvas.clientWidth || 800, h = canvas.clientHeight || 600;
   camera = new THREE.PerspectiveCamera(50, w / h, 10, 60000);
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+  // Pixel ratio limitato a 1.5: su schermi ad alta densità (retina/telefoni)
+  // 2x significa 4× pixel da disegnare ogni frame → scatti. 1.5 è fluido e
+  // resta nitido (l'export immagine usa un percorso separato ad alta qualità).
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.setSize(w, h, false);
   // Resa più realistica: tone mapping cinematografico + colori sRGB
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
