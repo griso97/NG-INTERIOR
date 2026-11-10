@@ -601,7 +601,7 @@ function asseMobile(m) {
   return [Math.cos(r), Math.sin(r)];
 }
 
-export function aggancioMagnetico(progetto, m, x, y, soglia = 45) {
+export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
   const rv = rangeVerticale(m);
   // Accostamento: lungo l'asse del muro vicino (mobili a parete) o del mobile.
   const u = m.isola ? asseMobile(m) : (muroPiuVicino(progetto, x, y) || asseMobile(m));
@@ -609,13 +609,13 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 45) {
   const A = aabb(m, x, y);
   const eUm = A.hx * Math.abs(ux) + A.hy * Math.abs(uy);
   const eVm = A.hx * Math.abs(vx) + A.hy * Math.abs(vy);
-  // Allineamento in fila: lungo l'asse del MOBILE (robusto anche in mezzo alla
-  // stanza, es. isole). È GENTILE: scatta solo se sei già vicino alla linea
-  // (SNAP_ALLINEA), così puoi comunque posizionare dove vuoi. Costadi e reglette
-  // (pezzi sottili di finitura) NON si allineano: vanno messi a mano.
-  const SNAP_ALLINEA = 35;      // mm: zona di aggancio perpendicolare (leggera)
+  // Allineamento in fila SOLO per le ISOLE (mobili liberi, senza parete dietro):
+  // lì serve una "connessione" forte così i moduli restano in riga perfetta.
+  // I mobili normali (a parete) NON si allineano: vanno dove li metti. Costadi e
+  // reglette (pezzi sottili di finitura) non si allineano mai.
+  const SNAP_ALLINEA = 300;     // mm: zona di aggancio perpendicolare (forte, solo isole)
   const catM = categoriaTipo(m.tipo);
-  const puoAllineare = catM !== 'costado' && catM !== 'regletta';
+  const puoAllineare = !!m.isola && catM !== 'costado' && catM !== 'regletta';
   const [sx, sy] = asseMobile(m);
   const pvx = -sy, pvy = sx;                   // perpendicolare (profondità)
   const eUmS = A.hx * Math.abs(sx) + A.hy * Math.abs(sy);
@@ -1188,9 +1188,9 @@ export function applicaRegletteAngolo(progetto) {
     if (!info || info.coperto) continue;           // solo angoli "che si toccano"
     const o = info.o;
     if (!o) continue;
-    // Angolo sistemato a mano: se uno dei due mobili è stato spostato e
-    // confermato dall'utente, non ritocco il gap (resta come l'ha messo lui).
-    if (c.posManuale || o.posManuale) continue;
+    // Auto-regletta attiva → il gap d'angolo si apre SEMPRE in automatico,
+    // anche se i mobili sono stati messi a mano: così la regletta ci sta
+    // sempre (niente avviso "0 spazio" da risolvere a mano).
     // Decido chi resta fermo e chi si sposta in base ai VICINI:
     // più vicini in fila = fila principale = resta fermo.
     const nc = contaInFila(progetto, c);

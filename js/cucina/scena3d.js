@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109y';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261109z';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261109y';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109y';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109y';
-import { sfondoDi } from '../sfondi.js?v=20261109y';
-export { MATERIALI } from '../materiali.js?v=20261109y';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261109y';
+} from './modello.js?v=20261109z';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261109z';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261109z';
+import { sfondoDi } from '../sfondi.js?v=20261109z';
+export { MATERIALI } from '../materiali.js?v=20261109z';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261109z';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -867,7 +867,10 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       g3d = collocaMobile(corpo(dim.w, h, dim.d, matBase || COL.anta), cx, 0, cz, h, m.rot);
     } else if (cat === 'costado') {
       const h = m.altezza_mm || 850;
-      const base = h >= 1500 ? Math.max(0, QUOTA_RIF - h) : 0;
+      // Costado "alto" (profondità da pensile): sta in alto, appeso all'altezza
+      // di montaggio dei pensili, non per terra.
+      const alto = (m.profondita_mm || 620) < 500;
+      const base = alto ? MONTAGGIO_PENSILE : (h >= 1500 ? Math.max(0, QUOTA_RIF - h) : 0);
       fianchi.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, h, cat: 'costado' });
       g3d = collocaMobile(corpo(dim.w, h, dim.d, matCostado || COL.costado), cx, base, cz, h, m.rot);
     } else {

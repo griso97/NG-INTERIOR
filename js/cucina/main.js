@@ -21,11 +21,11 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile,
-} from './modello.js?v=20261109y';
-import { renderPianta } from './pianta.js?v=20261109y';
-import { calcolaDistintaCucina } from './distinta.js?v=20261109y';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109y';
-import { agganciaTema } from '../tema.js?v=20261109y';
+} from './modello.js?v=20261109z';
+import { renderPianta } from './pianta.js?v=20261109z';
+import { calcolaDistintaCucina } from './distinta.js?v=20261109z';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261109z';
+import { agganciaTema } from '../tema.js?v=20261109z';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1091,7 +1091,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109y');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261109z');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1238,9 +1238,11 @@ function apriScelta(tipoId, mobId = null) {
   for (const c of campi) {
     valori[c.campo] = esistente && esistente[c.campo] != null ? esistente[c.campo] : c.default;
   }
-  // Costado nuovo negli "alti": profondità di default 350 (pensili); nei bassi 600
+  // Costado nuovo negli "alti": profondità 350 (pensili) e altezza 700 come un
+  // pensile, così nasce ALTO (appeso) e non per terra. Nei bassi resta 620.
   if (tipoId === 'costado' && !esistente && livelloStep() === 'alto') {
     valori.profondita_mm = 350;
+    valori.altezza_mm = 700;
   }
   sceltaModale = { tipoId, mobId, campi, valori };
   document.getElementById('modale-titolo').textContent = `${tipo.nome}: che misura?`;
