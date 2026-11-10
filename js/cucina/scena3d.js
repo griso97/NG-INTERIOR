@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261110c';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261110d';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261110c';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261110c';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261110c';
-import { sfondoDi } from '../sfondi.js?v=20261110c';
-export { MATERIALI } from '../materiali.js?v=20261110c';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261110c';
+} from './modello.js?v=20261110d';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261110d';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261110d';
+import { sfondoDi } from '../sfondi.js?v=20261110d';
+export { MATERIALI } from '../materiali.js?v=20261110d';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261110d';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -1036,11 +1036,28 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null) {
           endLo = (f.cat === 'costado' && !tall) ? pf.near : lo;
         }
       }
+      // Profondità del piano: normalmente = profondità dei moduli; ma se sulla
+      // stessa fila ci sono COSTADI bassi più profondi dei moduli (es. isola),
+      // il piano si estende ALL'INDIETRO per coprirli — il fronte (lato porte)
+      // resta dov'è. Copro l'unione delle impronte moduli + costadi.
+      let pMin = perp - G.d / 2, pMax = perp + G.d / 2;
+      for (const f of fianchi) {
+        if (f.cat !== 'costado' || (f.h || 0) >= 1500) continue;   // solo costadi bassi
+        const pf = proiettaFianco(f, c, s);
+        if (pf.far < endLo - 90 || pf.near > endHi + 90) continue;  // non su questa fila
+        const fco = Math.cos((f.rot || 0) * Math.PI / 180), fso = Math.sin((f.rot || 0) * Math.PI / 180);
+        const hV = (f.w / 2) * Math.abs(fso * c - fco * s) + (f.d / 2) * Math.abs(fco * c + fso * s);
+        const fMin = pf.perp - hV, fMax = pf.perp + hV;
+        if (fMax < perp - G.d / 2 - 20 || fMin > perp + G.d / 2 + 20) continue; // non condivide il fronte
+        pMin = Math.min(pMin, fMin); pMax = Math.max(pMax, fMax);
+      }
+      const depth = (pMax - pMin) + 40;
+      const perpTop = (pMin + pMax) / 2;
       const len = endHi - endLo;
       const centerAlong = (endLo + endHi) / 2;
-      const cx = c * centerAlong + (-s) * perp;
-      const cy = s * centerAlong + c * perp;
-      const slab = corpo(len, thickness, G.d + 40, matTop || COL.top);
+      const cx = c * centerAlong + (-s) * perpTop;
+      const cy = s * centerAlong + c * perpTop;
+      const slab = corpo(len, thickness, depth, matTop || COL.top);
       gruppo.add(collocaMobile(slab, cx, topY, -cy, thickness, rotN));
     }
   }
