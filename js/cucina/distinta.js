@@ -11,7 +11,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261110b';
+} from './modello.js?v=20261110c';
 
 const SP = 18;        // pannelli carcassa e ante/fronti (mm)
 const SP_SK = 4;      // schiena (mm)
@@ -138,7 +138,8 @@ function pezziDiModulo(progetto, m) {
     const prof = (d.d || 600) - 20;
     carcassa(pz, mod, L, H, prof, false);
     ripiani(pz, mod, L, prof, 4);
-    zoccolo(pz, mod, L, 700);
+    // Zoccolo della colonna: segue la porta bassa (70→150, 80→100), come i mobili bassi.
+    zoccolo(pz, mod, L, m.altezzaBassa_mm || 700);
     // due ante (sopra/sotto) sulla colonna
     const a = dimAnta(L, H / 2, 1);
     pz.push({ modulo: mod, nome: 'Anta', larghezza: a.w, altezza: a.h, spessore: SP, materiale: 'anta', quantita: 2 });
