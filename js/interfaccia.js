@@ -140,7 +140,7 @@ export function renderPannello(contenitore, config, onChange) {
         </label>
         <label class="radio">
           <input type="radio" name="mod-tipo" value="personalizzati" ${config.moduliPersonalizzati ? 'checked' : ''} />
-          <span>Dimensioni personalizzate</span>
+          <span>Moduli diversi (misura e ante per modulo)</span>
         </label>
       </div>
       <div id="moduli-larghezze"></div>
@@ -152,7 +152,7 @@ export function renderPannello(contenitore, config, onChange) {
       <h3>Cassettiere</h3>
       <div id="cass-list"></div>
       <button id="btn-cass-add" class="btn-oro" type="button" style="margin-top:8px">+ Aggiungi cassettiera</button>
-      <p class="hint">Vale per TUTTI i moduli (sono identici). Battente: sez. 5BIS · Scorrevole: sez. 5 (con opzione maniglia).</p>
+      <p class="hint">Scegli in quali moduli metterla con i pulsanti "Modulo N". Battente: sez. 5BIS · Scorrevole: sez. 5 (con opzione maniglia).</p>
     </section>
 
     <section>
@@ -308,6 +308,38 @@ function renderModuli(config) {
   const wrap = document.getElementById('moduli-list');
   if (!wrap) return;
   const scorrevole = config.tipoArmadio === 'scorrevole';
+
+  // --- MODALITÀ "DIMENSIONI PERSONALIZZATE": una card per OGNI modulo ---
+  // Ogni modulo è indipendente: larghezza, nº ante, nº ripiani e riduzione
+  // propri. La larghezza ha un tetto massimo = spazio ancora libero, così
+  // la somma dei moduli non può mai superare la larghezza totale.
+  if (config.moduliPersonalizzati) {
+    wrap.innerHTML = config.moduli.map((m, i) => `
+      <div class="modulo-card" data-i="${i}">
+        <header>Modulo ${i + 1}</header>
+        <div class="grid-2">
+          <label>Larghezza (mm)
+            <input type="number" class="m-lar" data-i="${i}" value="${m.larghezza}"
+              min="100" max="${maxLarghezzaModulo(config, i)}" step="1" />
+          </label>
+          ${scorrevole ? '' : `
+          <label>Nº ante
+            <input type="number" class="m-ante" data-i="${i}" value="${m.numeroAnte}" min="1" max="6" step="1" />
+          </label>`}
+          <label>Nº ripiani
+            <input type="number" class="m-ripiani" data-i="${i}" value="${m.ripiani}" min="0" max="20" step="1" />
+          </label>
+          <label>Riduzione ripiano (mm)
+            <input type="number" class="m-rid" data-i="${i}" value="${m.riduzioneRipiano || 0}" min="0" step="1" />
+          </label>
+        </div>
+      </div>
+    `).join('');
+    aggiornaControlloSommaModuli(config);
+    return;
+  }
+
+  // --- MODALITÀ "TUTTI UGUALI": UNA sola card condivisa (vale per tutti) ---
   const m = config.moduli[0] || { numeroAnte: 2, ripiani: 3, riduzioneRipiano: 0, cassettiere: [] };
   const larModulo = m.larghezza || Math.round(config.larghezzaTotale / config.moduli.length);
   wrap.innerHTML = `
@@ -330,11 +362,66 @@ function renderModuli(config) {
 }
 
 /**
- * Gli eventi della card "impostazioni modulo" scrivono il valore su TUTTI
- * i moduli della config (sono tutti identici per impostazione).
+ * Massima larghezza assegnabile al modulo `i` senza superare la larghezza
+ * totale dell'armadio: totale − somma di TUTTI gli altri moduli.
+ * (Il "resto" disponibile per questo modulo.)
+ */
+function maxLarghezzaModulo(config, i) {
+  const altri = config.moduli.reduce(
+    (s, m, k) => s + (k === i ? 0 : (m.larghezza || 0)), 0);
+  return Math.max(0, config.larghezzaTotale - altri);
+}
+
+/**
+ * Collega gli eventi delle card dei moduli.
+ * - "Moduli diversi": ogni card scrive solo sul proprio modulo (indipendenti),
+ *   con tetto sulla larghezza per non superare il totale.
+ * - "Tutti uguali": una sola card, scrive su TUTTI i moduli insieme.
  */
 function attaccaEventiModuli(contenitore, config, onChange) {
-  const card = contenitore.querySelector('.modulo-card');
+  // --- MODALITÀ "DIMENSIONI PERSONALIZZATE": eventi PER-MODULO ---
+  if (config.moduliPersonalizzati) {
+    contenitore.querySelectorAll('#moduli-list .modulo-card').forEach((card) => {
+      const i = Number(card.dataset.i);
+      const mod = config.moduli[i];
+      if (!mod) return;
+      const lar = card.querySelector('.m-lar');
+      const ante = card.querySelector('.m-ante');
+      const rip = card.querySelector('.m-ripiani');
+      const rid = card.querySelector('.m-rid');
+
+      if (lar) lar.addEventListener('input', (e) => {
+        // Tetto: non superare mai la larghezza totale (= resto disponibile).
+        const maxW = maxLarghezzaModulo(config, i);
+        const minW = Math.min(100, maxW);
+        let v = Math.max(minW, Math.floor(Number(e.target.value) || 0));
+        if (v > maxW) { v = maxW; e.target.value = v; }   // blocca lo sforamento
+        mod.larghezza = v;
+        // Aggiorna il tetto massimo degli altri input in base alla nuova somma.
+        contenitore.querySelectorAll('#moduli-list .m-lar').forEach((inp) => {
+          inp.max = maxLarghezzaModulo(config, Number(inp.dataset.i));
+        });
+        aggiornaControlloSommaModuli(config);
+        onChange(config);
+      });
+      if (ante) ante.addEventListener('input', (e) => {
+        mod.numeroAnte = Math.max(1, Math.round(Number(e.target.value) || 1));
+        onChange(config);
+      });
+      if (rip) rip.addEventListener('input', (e) => {
+        mod.ripiani = Math.max(0, Math.round(Number(e.target.value) || 0));
+        onChange(config);
+      });
+      if (rid) rid.addEventListener('input', (e) => {
+        mod.riduzioneRipiano = Math.max(0, Math.round(Number(e.target.value) || 0));
+        onChange(config);
+      });
+    });
+    return;
+  }
+
+  // --- MODALITÀ "TUTTI UGUALI": una card, scrive su TUTTI i moduli ---
+  const card = contenitore.querySelector('#moduli-list .modulo-card');
   if (!card) return;
 
   const anteInput = card.querySelector('.m-ante');
@@ -527,14 +614,30 @@ function ripartisciModuli(config, n = config.moduli.length) {
   const nuovi = [];
 
   if (config.moduliPersonalizzati) {
-    // Mantiene le larghezze esistenti; i nuovi ricevono una larghezza di
-    // default = floor(L/n) (l'utente poi li ritoccherà manualmente).
-    const def = Math.floor(config.larghezzaTotale / n);
+    // Mantiene larghezza E impostazioni (ante/ripiani/riduzione) di OGNI
+    // modulo esistente — ognuno è indipendente.
+    // I moduli NUOVI prendono lo SPAZIO LIBERO rimasto (diviso tra loro), così
+    // la somma non supera il totale e le larghezze già scelte non si toccano.
+    // Se però lo spazio libero non basta (i moduli esistenti riempiono già
+    // tutto) o il totale è stato ridotto sotto la somma attuale, si ri-divide
+    // tutto in parti uguali così NESSUN modulo nasce a 0.
+    const MIN = 100;
+    const total = config.larghezzaTotale;
+    const esistenti = Math.min(vecchi.length, n);
+    const sommaTenuti = vecchi.slice(0, esistenti)
+      .reduce((s, m) => s + (m.larghezza || 0), 0);
+    const nuoviCount = n - esistenti;
+    const restante = total - sommaTenuti;
+    const riparti = (nuoviCount > 0 && restante < nuoviCount * MIN) || sommaTenuti > total;
+    const larEqua = Math.floor(total / n);
+    const defNuovo = nuoviCount > 0 ? Math.max(MIN, Math.floor(restante / nuoviCount)) : larEqua;
     for (let i = 0; i < n; i++) {
+      const v = vecchi[i];
       nuovi.push({
-        larghezza: vecchi[i]?.larghezza ?? def,
-        numeroAnte: t.numeroAnte, ripiani: t.ripiani,
-        riduzioneRipiano: t.riduzioneRipiano,
+        larghezza: riparti ? larEqua : (v?.larghezza ?? defNuovo),
+        numeroAnte: v?.numeroAnte ?? t.numeroAnte,
+        ripiani: v?.ripiani ?? t.ripiani,
+        riduzioneRipiano: v?.riduzioneRipiano ?? t.riduzioneRipiano,
         cassettiere: (t.cassettiere || []).map((c) => ({ ...c })),
       });
     }
@@ -611,44 +714,25 @@ function attaccaEventiMateriali(contenitore, config, onChange) {
 }
 
 /**
- * In modalità "dimensioni personalizzate" mostra un input per la larghezza
- * di OGNI modulo + un riepilogo della somma vs larghezza totale.
+ * Il controllo "somma larghezze vs totale".
+ * Gli input delle larghezze ora stanno dentro le card dei moduli
+ * (vedi renderModuli), quindi qui svuotiamo il vecchio contenitore e ci
+ * limitiamo ad aggiornare il riepilogo della somma.
  */
 function renderLarghezzeModuli(config) {
   const wrap = document.getElementById('moduli-larghezze');
+  if (wrap) wrap.innerHTML = '';
   const check = document.getElementById('moduli-check');
-  if (!wrap) return;
   if (!config.moduliPersonalizzati) {
-    wrap.innerHTML = '';
-    if (check) check.textContent = '';
+    if (check) { check.textContent = ''; check.className = 'hint'; }
     return;
   }
-  wrap.innerHTML = `
-    <div class="larghezze-grid">
-      ${config.moduli.map((m, i) => `
-        <label>Modulo ${i + 1} (mm)
-          <input type="number" class="m-lar" data-i="${i}"
-            value="${m.larghezza}" min="100" step="1" />
-        </label>
-      `).join('')}
-    </div>`;
   aggiornaControlloSommaModuli(config);
 }
 
-function attaccaEventiLarghezzeModuli(contenitore, config, onChange) {
-  if (!config.moduliPersonalizzati) return;
-  contenitore.querySelectorAll('#moduli-larghezze .m-lar').forEach((inp) => {
-    inp.addEventListener('input', (e) => {
-      const i = Number(e.target.dataset.i);
-      const v = Math.max(100, Math.floor(Number(e.target.value) || 100));
-      config.moduli[i].larghezza = v;
-      aggiornaControlloSommaModuli(config);
-      renderModuli(config);                             // aggiorna header "Modulo N · XXX mm"
-      attaccaEventiModuli(contenitore, config, onChange);
-      onChange(config);
-    });
-  });
-}
+// Gli eventi delle larghezze sono gestiti direttamente in attaccaEventiModuli
+// (gli input vivono nelle card dei moduli). Funzione mantenuta per i call site.
+function attaccaEventiLarghezzeModuli() { /* no-op */ }
 
 function aggiornaControlloSommaModuli(config) {
   const check = document.getElementById('moduli-check');
