@@ -109,9 +109,10 @@ export const CATALOGO_MOBILI = [
 export const H_VANO_FORNO = 600;                 // vano forno da incasso (modificabile)
 export const H_VANO_MICRO = 380;                 // vano microonde da incasso (modificabile)
 export const VARIANTI_COLONNA = [
-  { id: 'porta',     nome: 'Porta unica' },
-  { id: 'forno',     nome: 'Forno + porta' },
-  { id: 'microonde', nome: 'Microonde + porta' },
+  { id: 'porta',       nome: 'Porta unica' },
+  { id: 'forno',       nome: 'Forno + porta' },
+  { id: 'microonde',   nome: 'Microonde + porta' },
+  { id: 'forno-micro', nome: 'Forno + microonde + porta' },
 ];
 export function nomeVarianteColonna(id) {
   return VARIANTI_COLONNA.find((v) => v.id === id)?.nome || id;

@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261110a';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261110b';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261110a';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261110a';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261110a';
-import { sfondoDi } from '../sfondi.js?v=20261110a';
-export { MATERIALI } from '../materiali.js?v=20261110a';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261110a';
+} from './modello.js?v=20261110b';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261110b';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261110b';
+import { sfondoDi } from '../sfondi.js?v=20261110b';
+export { MATERIALI } from '../materiali.js?v=20261110b';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261110b';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -459,6 +459,14 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
     const ho = Math.min(H_MICRO, rem - 300);
     pannelloElettro(g, y0 + ho / 2, z, pw, ho - 10, 'microonde');
     porta(y0 + ho, rem - ho);
+  } else if (m.variante === 'forno-micro') {
+    // Porta bassa → forno → microonde → porta nello spazio che avanza.
+    const hf = Math.max(200, Math.min(H_FORNO, rem - H_MICRO - 250));
+    pannelloElettro(g, y0 + hf / 2, z, pw, hf - 10, 'forno');
+    const hm = Math.max(150, Math.min(H_MICRO, rem - hf - 200));
+    pannelloElettro(g, y0 + hf + hm / 2, z, pw, hm - 10, 'microonde');
+    const top = rem - hf - hm;
+    if (top > 60) porta(y0 + hf + hm, top);
   } else {
     porta(y0, rem);                  // porta unica a tutta altezza
   }
