@@ -102,7 +102,7 @@ export const CATALOGO_MOBILI = [
   { id: 'pannello-copertura', nome: 'Pannello copertura', categoria: 'pannello',
     larghezze: [1200, 1800, 2400, 3000], altezze: [850, 900], profondita: 18 },
   { id: 'costado',       nome: 'Costado', categoria: 'costado',
-    larghezze: [20], altezze: ALTEZZE_COSTADO, profondita: 600 },
+    larghezze: [20], altezze: ALTEZZE_COSTADO, profondita: 620 },
 ];
 
 // Colonne (armadi a tutta altezza)
@@ -147,7 +147,7 @@ export function campiMobile(tipoId) {
     // Tutti liberi (modalità custom); i valori standard sono scorciatoie
     return [
       { campo: 'altezza_mm',    et: 'Altezza (mm)', tipo: 'numero', default: 850, min: 50, step: 10, opzioni: ALTEZZE_COSTADO },
-      { campo: 'profondita_mm', et: 'Profondità (mm)', tipo: 'numero', default: 600, min: 50, step: 10, opzioni: [600, 350] },
+      { campo: 'profondita_mm', et: 'Profondità (mm)', tipo: 'numero', default: 620, min: 50, step: 10, opzioni: [620, 600, 350] },
       { campo: 'spessore_mm',   et: 'Spessore (mm)', tipo: 'numero', default: 18, min: 5, step: 1, opzioni: [18, 20, 25, 30] },
     ];
   }
@@ -215,7 +215,7 @@ export function dimMobile(m) {
     return { w: m.larghezza_mm || 50, d: 18 };
   }
   if (cat === 'costado') {
-    return { w: m.spessore_mm || 20, d: m.profondita_mm || 600 };
+    return { w: m.spessore_mm || 20, d: m.profondita_mm || 620 };
   }
   return { w: m.larghezza_mm, d: profonditaTipo(m.tipo) };
 }
@@ -228,7 +228,7 @@ export function dimMobile(m) {
 export function livelloDiMobile(m) {
   const cat = categoriaTipo(m.tipo);
   if (cat === 'pensile') return 'alto';
-  if (cat === 'costado') return (m.profondita_mm || 600) >= 500 ? 'basso' : 'alto';
+  if (cat === 'costado') return (m.profondita_mm || 620) >= 500 ? 'basso' : 'alto';
   return 'basso';
 }
 

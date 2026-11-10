@@ -11,7 +11,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261109u';
+} from './modello.js?v=20261109v';
 
 const SP = 18;        // pannelli carcassa e ante/fronti (mm)
 const SP_SK = 4;      // schiena (mm)
@@ -143,7 +143,7 @@ function pezziDiModulo(progetto, m) {
     const a = dimAnta(L, H / 2, 1);
     pz.push({ modulo: mod, nome: 'Anta', larghezza: a.w, altezza: a.h, spessore: SP, materiale: 'anta', quantita: 2 });
   } else if (cat === 'costado') {
-    pz.push({ modulo: mod, nome: 'Pannello fianco (costado)', larghezza: round(m.profondita_mm || d.d || 600), altezza: H, spessore: m.spessore_mm || 20, materiale: 'anta', quantita: 1 });
+    pz.push({ modulo: mod, nome: 'Pannello fianco (costado)', larghezza: round(m.profondita_mm || d.d || 620), altezza: H, spessore: m.spessore_mm || 20, materiale: 'anta', quantita: 1 });
   } else if (cat === 'pannello') {
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(m.larghezza_mm || L), altezza: H, spessore: SP, materiale: 'anta', quantita: 1 });
   } else if (cat === 'regletta') {
