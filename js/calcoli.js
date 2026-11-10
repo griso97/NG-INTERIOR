@@ -207,7 +207,9 @@ export function pezziAnteModulo(config, modulo, indiceModulo) {
   const altAnta = config.altezzaEsterna - 4;
   return [{
     modulo: `Modulo ${indiceModulo + 1}`,
-    nome: N === 1 ? 'Anta' : `Anta (×${N})`,
+    nome: N === 1
+      ? `Anta (apertura ${modulo.antaLato === 'sx' ? 'sx' : 'dx'})`
+      : `Anta (×${N})`,
     larghezza: larAnta,
     altezza: altAnta,
     spessore: config.spessoreAnte,

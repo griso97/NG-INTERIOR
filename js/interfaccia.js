@@ -23,8 +23,8 @@ export function configDefault() {
     moduliPersonalizzati: false, // false = tutti uguali (L/N); true = l'utente sceglie ogni larghezza
     materiali: materialiDefault(),
     moduli: [
-      { larghezza: 1000, numeroAnte: 2, ripiani: 3, riduzioneRipiano: 0, cassettiere: [] },
-      { larghezza: 1000, numeroAnte: 2, ripiani: 3, riduzioneRipiano: 0, cassettiere: [] },
+      { larghezza: 1000, numeroAnte: 2, antaLato: 'dx', ripiani: 3, riduzioneRipiano: 0, cassettiere: [] },
+      { larghezza: 1000, numeroAnte: 2, antaLato: 'dx', ripiani: 3, riduzioneRipiano: 0, cassettiere: [] },
     ],
     scorrevole: {
       anteModulo: 2, // ante per modulo (default: 2, scorrono una davanti all'altra)
@@ -325,7 +325,8 @@ function renderModuli(config) {
           ${scorrevole ? '' : `
           <label>Nº ante
             <input type="number" class="m-ante" data-i="${i}" value="${m.numeroAnte}" min="1" max="6" step="1" />
-          </label>`}
+          </label>
+          ${campoLatoApertura(m)}`}
           <label>Nº ripiani
             <input type="number" class="m-ripiani" data-i="${i}" value="${m.ripiani}" min="0" max="20" step="1" />
           </label>
@@ -349,7 +350,8 @@ function renderModuli(config) {
         ${scorrevole ? '' : `
         <label>Nº ante per modulo
           <input type="number" class="m-ante" value="${m.numeroAnte}" min="1" max="6" step="1" />
-        </label>`}
+        </label>
+        ${campoLatoApertura(m)}`}
         <label>Nº ripiani
           <input type="number" class="m-ripiani" value="${m.ripiani}" min="0" max="20" step="1" />
         </label>
@@ -359,6 +361,24 @@ function renderModuli(config) {
       </div>
     </div>
   `;
+}
+
+/**
+ * Controllo "lato di apertura" per l'anta SINGOLA (solo battente).
+ * `antaLato`: 'dx' (maniglia a destra, cardine a sinistra — default) oppure
+ * 'sx' (maniglia a sinistra, cardine a destra). È visibile solo quando il
+ * modulo ha 1 anta; con 2+ ante viene nascosto (le ante si aprono a coppia).
+ */
+function campoLatoApertura(modulo) {
+  const visibile = (modulo.numeroAnte || 1) === 1;
+  const lato = modulo.antaLato === 'sx' ? 'sx' : 'dx';
+  return `
+    <label class="m-lato-wrap"${visibile ? '' : ' style="display:none"'}>Apertura (1 anta)
+      <select class="m-lato">
+        <option value="dx"${lato === 'dx' ? ' selected' : ''}>Destra (maniglia dx)</option>
+        <option value="sx"${lato === 'sx' ? ' selected' : ''}>Sinistra (maniglia sx)</option>
+      </select>
+    </label>`;
 }
 
 /**
@@ -389,6 +409,8 @@ function attaccaEventiModuli(contenitore, config, onChange) {
       const ante = card.querySelector('.m-ante');
       const rip = card.querySelector('.m-ripiani');
       const rid = card.querySelector('.m-rid');
+      const lato = card.querySelector('.m-lato');
+      const latoWrap = card.querySelector('.m-lato-wrap');
 
       if (lar) lar.addEventListener('input', (e) => {
         // Tetto: non superare mai la larghezza totale (= resto disponibile).
@@ -406,6 +428,12 @@ function attaccaEventiModuli(contenitore, config, onChange) {
       });
       if (ante) ante.addEventListener('input', (e) => {
         mod.numeroAnte = Math.max(1, Math.round(Number(e.target.value) || 1));
+        // Il lato apertura ha senso solo con 1 anta: mostra/nascondi al volo.
+        if (latoWrap) latoWrap.style.display = mod.numeroAnte === 1 ? '' : 'none';
+        onChange(config);
+      });
+      if (lato) lato.addEventListener('change', (e) => {
+        mod.antaLato = e.target.value === 'sx' ? 'sx' : 'dx';
         onChange(config);
       });
       if (rip) rip.addEventListener('input', (e) => {
@@ -425,10 +453,20 @@ function attaccaEventiModuli(contenitore, config, onChange) {
   if (!card) return;
 
   const anteInput = card.querySelector('.m-ante');
+  const latoWrap = card.querySelector('.m-lato-wrap');
+  const latoSel = card.querySelector('.m-lato');
   if (anteInput) {
     anteInput.addEventListener('input', (e) => {
       const n = Math.max(1, Math.round(Number(e.target.value) || 1));
       config.moduli.forEach((m) => { m.numeroAnte = n; });
+      if (latoWrap) latoWrap.style.display = n === 1 ? '' : 'none';
+      onChange(config);
+    });
+  }
+  if (latoSel) {
+    latoSel.addEventListener('change', (e) => {
+      const l = e.target.value === 'sx' ? 'sx' : 'dx';
+      config.moduli.forEach((m) => { m.antaLato = l; });
       onChange(config);
     });
   }
@@ -608,7 +646,7 @@ function attaccaEventiTamponamenti(contenitore, config, onChange) {
 function ripartisciModuli(config, n = config.moduli.length) {
   // Template = primo modulo (le impostazioni valgono per tutti)
   const t = config.moduli[0] || {
-    numeroAnte: 2, ripiani: 3, riduzioneRipiano: 0, cassettiere: [],
+    numeroAnte: 2, antaLato: 'dx', ripiani: 3, riduzioneRipiano: 0, cassettiere: [],
   };
   const vecchi = config.moduli;
   const nuovi = [];
@@ -636,6 +674,7 @@ function ripartisciModuli(config, n = config.moduli.length) {
       nuovi.push({
         larghezza: riparti ? larEqua : (v?.larghezza ?? defNuovo),
         numeroAnte: v?.numeroAnte ?? t.numeroAnte,
+        antaLato: v?.antaLato ?? t.antaLato ?? 'dx',
         ripiani: v?.ripiani ?? t.ripiani,
         riduzioneRipiano: v?.riduzioneRipiano ?? t.riduzioneRipiano,
         cassettiere: (t.cassettiere || []).map((c) => ({ ...c })),
@@ -648,7 +687,7 @@ function ripartisciModuli(config, n = config.moduli.length) {
     for (let i = 0; i < n; i++) {
       nuovi.push({
         larghezza: larModulo,
-        numeroAnte: t.numeroAnte, ripiani: t.ripiani,
+        numeroAnte: t.numeroAnte, antaLato: t.antaLato ?? 'dx', ripiani: t.ripiani,
         riduzioneRipiano: t.riduzioneRipiano,
         cassettiere: (t.cassettiere || []).map((c) => ({ ...c })),
       });

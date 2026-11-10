@@ -446,8 +446,13 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
     const altAnta = H - 4;
     for (let k = 0; k < N; k++) {
       const xStart = xOffset + 2 + k * (larAnta + 2); // bordo sinistro
-      // Regola cardini: prima metà a sinistra, seconda metà a destra
-      const cardineSx = k < Math.ceil(N / 2);
+      // Regola cardini:
+      // - 1 anta: lato scelto dall'utente (antaLato). 'dx' (maniglia a destra)
+      //   = cardine a sinistra; 'sx' (maniglia a sinistra) = cardine a destra.
+      // - 2+ ante: prima metà a sinistra, seconda metà a destra.
+      const cardineSx = (N === 1)
+        ? (modulo.antaLato !== 'sx')
+        : (k < Math.ceil(N / 2));
       const hingeX = cardineSx ? xStart : xStart + larAnta;
       const rotAperta = cardineSx ? -Math.PI * 0.55 : Math.PI * 0.55; // ~100°
 
