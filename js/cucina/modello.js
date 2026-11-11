@@ -484,6 +484,7 @@ export function respingiDaMobili(progetto, m, x, y) {
   const u = m.isola ? null : muroPiuVicino(progetto, x, y);
   for (const o of (progetto.mobiliLiberi || [])) {
     if (o.id === m.id) continue;
+    if (categoriaTipo(o.tipo) === 'oggetto') continue;   // l'arredo non respinge i mobili
     if (!rangeSovrappone(rv, rangeVerticale(o))) continue;
     const A = aabb(m, x, y), B = aabb(o, o.x, o.y);
     if (u) {
@@ -633,6 +634,7 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
   let align = null;     // allineamento perpendicolare (fronti/schiene in riga)
   for (const o of (progetto.mobiliLiberi || [])) {
     if (o.id === m.id) continue;
+    if (categoriaTipo(o.tipo) === 'oggetto') continue;   // niente aggancio magnetico all'arredo
     if (!rangeSovrappone(rv, rangeVerticale(o))) continue;
     const B = aabb(o, o.x, o.y);
     const eUo = B.hx * Math.abs(ux) + B.hy * Math.abs(uy);
@@ -676,6 +678,10 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
  * mobili vicini, così si accostano combaciando senza lasciare spazio.
  */
 export function posizionaVincolata(progetto, m, x, y, libera = false) {
+  // Oggetti d'arredo (sgabelli, decor): posizione TOTALMENTE libera, si mettono
+  // a mano dove si vuole — niente vincolo ai muri, niente respinta, niente
+  // aggancio magnetico ai mobili.
+  if (categoriaTipo(m.tipo) === 'oggetto') return { x, y };
   // Isola/libero: niente vincolo ai muri (posizione libera), ma SEMPRE respinta
   // dagli altri mobili e aggancio magnetico (si attaccano perfetti tra loro).
   const libero = !!m.isola;
