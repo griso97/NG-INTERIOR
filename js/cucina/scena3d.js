@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111a';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111b';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261111a';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261111a';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111a';
-import { sfondoDi } from '../sfondi.js?v=20261111a';
-export { MATERIALI } from '../materiali.js?v=20261111a';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261111a';
+} from './modello.js?v=20261111b';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261111b';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111b';
+import { sfondoDi } from '../sfondi.js?v=20261111b';
+export { MATERIALI } from '../materiali.js?v=20261111b';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261111b';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -81,6 +81,15 @@ function evidenzia(g) {
   });
 }
 
+/** Dimensioni e posizione della vasca del lavello (condivise fra il 3D del
+ *  lavello e il FORO che va ritagliato nel piano di lavoro). */
+function dimVasca(w, d) {
+  const vw = Math.min(w * 0.56, 500);
+  const vd = Math.min(d * 0.52, 400);
+  const zc = -d * 0.03;                 // leggermente arretrata rispetto al centro
+  return { vw, vd, zc };
+}
+
 /** Lavello / piano cottura / rubinetto posati SOPRA la superficie del top. */
 function aggiungiAccessorioTop(a) {
   const g = new THREE.Group();
@@ -108,9 +117,9 @@ function aggiungiAccessorioTop(a) {
   }
   if (a.lavello) {
     const matInox = new THREE.MeshStandardMaterial({ color: 0xcacace, roughness: 0.18, metalness: 0.9 });
-    const matInt = new THREE.MeshStandardMaterial({ color: 0x9a9a9e, roughness: 0.25, metalness: 0.85 });
-    const vw = Math.min(a.w * 0.56, 500), vd = Math.min(a.d * 0.52, 400);
-    const prof = 180, t = 14, zc = -a.d * 0.03;
+    const matInt = new THREE.MeshStandardMaterial({ color: 0x8d8d92, roughness: 0.22, metalness: 0.9 });
+    const { vw, vd, zc } = dimVasca(a.w, a.d);
+    const prof = 190, t = 14;
     const iw = vw - 2 * t, id = vd - 2 * t;        // apertura interna
     // Cornice a filo del top (4 lati) → l'apertura centrale resta VUOTA (si vede la vasca)
     const br = 28;                                   // larghezza cornice
@@ -177,6 +186,14 @@ const COL = {
 // Linee di contorno discrete (niente oro): un filo scuro che fa da fuga/ombra.
 const matOro = new THREE.LineBasicMaterial({ color: 0x3b3833, transparent: true, opacity: 0.55 });
 const matManiglia = new THREE.MeshStandardMaterial({ color: 0xcfcfcf, roughness: 0.35, metalness: 0.6 });
+
+// Materiali per gli elettrodomestici (forno / microonde) in 3D reale.
+const matElInox    = new THREE.MeshStandardMaterial({ color: 0xcfd0d4, roughness: 0.3,  metalness: 0.9 });
+const matElVetro   = new THREE.MeshStandardMaterial({ color: 0x08090c, roughness: 0.06, metalness: 0.55 });
+const matElCorpo   = new THREE.MeshStandardMaterial({ color: 0x161619, roughness: 0.55, metalness: 0.35 });
+const matElCavita  = new THREE.MeshStandardMaterial({ color: 0x26272e, roughness: 0.4,  metalness: 0.2 });
+const matElDisplay = new THREE.MeshStandardMaterial({ color: 0x173640, emissive: 0x1f6f86, emissiveIntensity: 0.7, roughness: 0.3, metalness: 0.1 });
+const matElButton  = new THREE.MeshStandardMaterial({ color: 0x3a3a42, roughness: 0.45, metalness: 0.5 });
 
 // Ambiente IBL: gradiente (soffitto chiaro → pavimento scuro) per riflessi soft.
 function creaAmbiente(rnd) {
@@ -403,49 +420,106 @@ function canaleFingerPull(g, cx, cy, z, length, thick, orizz, matAnta) {
 }
 
 /** Immagine "standard" di forno o microonde su canvas → texture. */
-function texElettro(tipo) {
-  if (texCache[tipo]) return texCache[tipo];
-  const c = document.createElement('canvas');
-  c.width = 256; c.height = tipo === 'microonde' ? 150 : 200;
-  const x = c.getContext('2d');
-  x.fillStyle = '#17171a'; x.fillRect(0, 0, c.width, c.height);
-  const grd = x.createLinearGradient(0, 0, 0, c.height);
-  grd.addColorStop(0, '#34343a'); grd.addColorStop(0.5, '#1c1c20'); grd.addColorStop(1, '#101014');
-  if (tipo === 'forno') {
-    x.fillStyle = '#0c0c0d'; x.fillRect(0, 0, c.width, 34);
-    x.fillStyle = '#c9a94a';
-    for (let i = 0; i < 4; i++) { x.beginPath(); x.arc(40 + i * 56, 17, 8, 0, Math.PI * 2); x.fill(); }
-    x.fillStyle = grd; x.fillRect(18, 48, c.width - 36, c.height - 64);
-    x.strokeStyle = '#3a3a40'; x.lineWidth = 2; x.strokeRect(30, 60, c.width - 60, c.height - 88);
-    x.fillStyle = '#d8d8d8'; x.fillRect(18, 40, c.width - 36, 7);
-  } else {
-    x.fillStyle = grd; x.fillRect(10, 10, c.width - 78, c.height - 20);
-    x.strokeStyle = '#3a3a40'; x.lineWidth = 2; x.strokeRect(22, 22, c.width - 102, c.height - 44);
-    x.fillStyle = '#0c0c0d'; x.fillRect(c.width - 62, 10, 52, c.height - 20);
-    x.fillStyle = '#c9a94a';
-    for (let i = 0; i < 3; i++) x.fillRect(c.width - 52, 24 + i * 24, 32, 9);
-    x.fillStyle = '#2a2a30';
-    for (let i = 0; i < 2; i++) x.fillRect(c.width - 52, 110 + i * 14, 32, 8);
-    x.fillStyle = '#d8d8d8'; x.fillRect(c.width - 70, 14, 6, c.height - 28);
+// Telaio inox (4 lati) a filo del fronte, con un'apertura centrale.
+function telaioInox(grp, pw, ph, Zf, fb, frameD) {
+  for (const [fx, fy, fw, fh] of [
+    [0, ph / 2 - fb / 2, pw, fb],
+    [0, -ph / 2 + fb / 2, pw, fb],
+    [-pw / 2 + fb / 2, 0, fb, ph - 2 * fb],
+    [pw / 2 - fb / 2, 0, fb, ph - 2 * fb],
+  ]) {
+    const fr = new THREE.Mesh(new THREE.BoxGeometry(fw, fh, frameD), matElInox);
+    fr.position.set(fx, fy, Zf - frameD / 2);
+    fr.castShadow = true; grp.add(fr);
   }
-  const t = new THREE.CanvasTexture(c);
-  texCache[tipo] = t;
-  return t;
 }
 
-/** Pannello elettrodomestico con immagine (forno/microonde). */
+/**
+ * Elettrodomestico da incasso REALE (forno / microonde): corpo incassato,
+ * telaio inox, porta a vetro scuro arretrata, comandi (manopole/display) e
+ * maniglia che sporge. Niente immagine piatta. Il fronte è al piano Zf = z.
+ */
 function pannelloElettro(g, py, z, pw, ph, tipo) {
-  const tex = texElettro(tipo);
-  const geo = new THREE.BoxGeometry(pw, ph, 22);
-  const matFronte = new THREE.MeshBasicMaterial({ map: tex });
-  const matLato = new THREE.MeshStandardMaterial({ color: 0x15151a, roughness: 0.6 });
-  // Ordine facce BoxGeometry: +X,-X,+Y,-Y,+Z,-Z → la texture solo sul +Z
-  const mats = [matLato, matLato, matLato, matLato, matFronte, matLato];
-  const mesh = new THREE.Mesh(geo, mats);
-  mesh.position.set(0, py, z + 11);
-  g.add(mesh);
-  const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), matOro);
-  e.position.copy(mesh.position); g.add(e);
+  const grp = new THREE.Group();
+  grp.position.set(0, py, 0);
+  const Zf = z;
+  const bodyD = tipo === 'microonde' ? 300 : 460;
+  // Corpo incassato (scatola scura dietro il frontale)
+  const corpoM = new THREE.Mesh(new THREE.BoxGeometry(Math.max(40, pw - 16), Math.max(40, ph - 16), bodyD), matElCorpo);
+  corpoM.position.set(0, 0, Zf - bodyD / 2 - 4); grp.add(corpoM);
+
+  if (tipo === 'forno') {
+    const fb = 18;                                   // bordo inox
+    telaioInox(grp, pw, ph, Zf, fb, 22);
+    // Fascia comandi inox in alto (manopole + display)
+    const topH = Math.min(ph * 0.22, 95);
+    const topY = ph / 2 - fb - topH / 2;
+    const fascia = new THREE.Mesh(new THREE.BoxGeometry(pw - 2 * fb, topH, 20), matElInox);
+    fascia.position.set(0, topY, Zf - 10); grp.add(fascia);
+    const disp = new THREE.Mesh(new THREE.BoxGeometry(pw * 0.24, topH * 0.4, 4), matElDisplay);
+    disp.position.set(0, topY, Zf + 1); grp.add(disp);
+    const knobR = Math.min(topH * 0.28, 18);
+    for (const kx of [-pw * 0.37, -pw * 0.26, pw * 0.26, pw * 0.37]) {
+      const knob = new THREE.Mesh(new THREE.CylinderGeometry(knobR, knobR * 0.85, 20, 20), matElInox);
+      knob.rotation.x = Math.PI / 2;
+      knob.position.set(kx, topY, Zf + 8); grp.add(knob);
+    }
+    // Porta a vetro (sotto la fascia), arretrata dietro al telaio
+    const doorTop = topY - topH / 2 - 4;
+    const doorBot = -ph / 2 + fb;
+    const doorH = doorTop - doorBot;
+    const doorY = (doorTop + doorBot) / 2;
+    const vetro = new THREE.Mesh(new THREE.BoxGeometry(pw - 2 * fb, doorH, 8), matElVetro);
+    vetro.position.set(0, doorY, Zf - 10); grp.add(vetro);
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(pw - 2 * fb - 70, Math.max(30, doorH - 70), 3), matElCavita);
+    fin.position.set(0, doorY, Zf - 13); grp.add(fin);
+    // Maniglia orizzontale (barra inox) in cima alla porta
+    const barL = pw - 2 * fb - 40;
+    const barY = doorTop - 14;
+    const barra = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, barL, 16), matElInox);
+    barra.rotation.z = Math.PI / 2;
+    barra.position.set(0, barY, Zf + 28); grp.add(barra);
+    for (const sx of [-barL / 2 + 8, barL / 2 - 8]) {
+      const sup = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 34, 12), matElInox);
+      sup.rotation.x = Math.PI / 2;
+      sup.position.set(sx, barY, Zf + 13); grp.add(sup);
+    }
+  } else {
+    // MICROONDE: vetro a sinistra, pannello comandi a destra, maniglia verticale
+    const fb = 14;
+    telaioInox(grp, pw, ph, Zf, fb, 18);
+    const inW = pw - 2 * fb, inH = ph - 2 * fb;
+    const panW = Math.min(inW * 0.32, 150);
+    const glassW = inW - panW - 6;
+    const glassCx = -inW / 2 + glassW / 2;
+    const vetro = new THREE.Mesh(new THREE.BoxGeometry(glassW, inH, 8), matElVetro);
+    vetro.position.set(glassCx, 0, Zf - 8); grp.add(vetro);
+    const cav = new THREE.Mesh(new THREE.BoxGeometry(Math.max(30, glassW - 50), Math.max(30, inH - 50), 3), matElCavita);
+    cav.position.set(glassCx, 0, Zf - 11); grp.add(cav);
+    // Pannello comandi a destra (inox scuro) con display e bottoni
+    const panCx = inW / 2 - panW / 2;
+    const pan = new THREE.Mesh(new THREE.BoxGeometry(panW, inH, 8), matElCorpo);
+    pan.position.set(panCx, 0, Zf - 7); grp.add(pan);
+    const disp = new THREE.Mesh(new THREE.BoxGeometry(panW * 0.78, inH * 0.1, 3), matElDisplay);
+    disp.position.set(panCx, inH * 0.32, Zf - 2); grp.add(disp);
+    const br = Math.min(panW * 0.12, 8);
+    for (let r = 0; r < 3; r++) for (let cc = 0; cc < 2; cc++) {
+      const bt = new THREE.Mesh(new THREE.CylinderGeometry(br, br, 4, 12), matElButton);
+      bt.rotation.x = Math.PI / 2;
+      bt.position.set(panCx + (cc ? br * 2.2 : -br * 2.2), inH * 0.05 - r * br * 3.2, Zf - 1); grp.add(bt);
+    }
+    // Maniglia verticale (barra) sul bordo del vetro
+    const barH = inH - 24;
+    const barX = glassCx + glassW / 2 - 6;
+    const barra = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, barH, 14), matElInox);
+    barra.position.set(barX, 0, Zf + 20); grp.add(barra);
+    for (const sy of [-barH / 2 + 8, barH / 2 - 8]) {
+      const sup = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 26, 12), matElInox);
+      sup.rotation.x = Math.PI / 2;
+      sup.position.set(barX, sy, Zf + 10); grp.add(sup);
+    }
+  }
+  g.add(grp);
 }
 
 // ---------------------------------------------------------------------------
@@ -1038,7 +1112,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   // Zoccolo continuo (un unico pezzo per fila: basi + colonne insieme) +
   // piano di lavoro continuo che non entra nei costadi/colonne
   renderZoccoliContinui(zoccoli, materialeZoccolo(progetto.zoccoloColore));
-  renderTopContinui(basiTop, fianchi, spTop, matTop);
+  renderTopContinui(basiTop, fianchi, spTop, matTop, accessori.filter((a) => a.lavello));
   // Lavello, piano cottura e rubinetto SOPRA il top
   for (const a of accessori) aggiungiAccessorioTop(a);
 
@@ -1130,7 +1204,36 @@ function materialePerTop(mat) {
   return m;
 }
 
-function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null) {
+/** Piano di lavoro con uno o più FORI rettangolari (lavelli): invece di una
+ *  lastra piena, si compone con riquadri attorno ai fori, così la vasca del
+ *  lavello si vede davvero in profondità. Coordinate locali centrate:
+ *  u = lungo la fila, v = profondità; foro = { u, v, w, d }. */
+function slabConFori(len, thickness, depth, mat, fori) {
+  const g = new THREE.Group();
+  const halfU = len / 2, halfV = depth / 2;
+  const hs = fori.map((f) => ({
+    u0: Math.max(-halfU, f.u - f.w / 2), u1: Math.min(halfU, f.u + f.w / 2),
+    v0: Math.max(-halfV, f.v - f.d / 2), v1: Math.min(halfV, f.v + f.d / 2),
+  })).filter((h) => h.u1 > h.u0 && h.v1 > h.v0).sort((a, b) => a.u0 - b.u0);
+  if (!hs.length) { const m = corpo(len, thickness, depth, mat); return m; }
+  const add = (uc, wU, vc, wV) => {
+    if (wU < 1 || wV < 1) return;
+    const m = corpo(wU, thickness, wV, mat);
+    m.position.set(uc, 0, vc);
+    g.add(m);
+  };
+  let cur = -halfU;
+  for (const h of hs) {
+    if (h.u0 > cur) add((cur + h.u0) / 2, h.u0 - cur, 0, depth);      // pieno fra i fori
+    add((h.u0 + h.u1) / 2, h.u1 - h.u0, (h.v1 + halfV) / 2, halfV - h.v1);  // striscia dietro
+    add((h.u0 + h.u1) / 2, h.u1 - h.u0, (-halfV + h.v0) / 2, h.v0 + halfV); // striscia davanti
+    cur = Math.max(cur, h.u1);
+  }
+  if (cur < halfU) add((cur + halfU) / 2, halfU - cur, 0, depth);
+  return g;
+}
+
+function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, lavelli = []) {
   const matTop = materialePerTop(mat);
   const gruppi = {};
   for (const b of basi) {
@@ -1180,7 +1283,20 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null) {
       const centerAlong = (endLo + endHi) / 2;
       const cx = c * centerAlong + (-s) * perpTop;
       const cy = s * centerAlong + c * perpTop;
-      const slab = corpo(len, thickness, depth, matTop || COL.top);
+      // Fori dei lavelli che cadono su questo tratto (stessa fila/quota).
+      const fori = [];
+      for (const lv of lavelli) {
+        if (rotNorm(lv.rot) !== rotN) continue;
+        const alongS = lv.x * c + lv.y * s;
+        const perpS = lv.x * (-s) + lv.y * c;
+        if (Math.abs(perpS - perpTop) > depth / 2 + 50) continue;
+        if (alongS < endLo - 10 || alongS > endHi + 10) continue;
+        const { vw, vd, zc } = dimVasca(lv.w, lv.d);
+        fori.push({ u: alongS - centerAlong, v: (perpS - perpTop) + zc, w: vw + 10, d: vd + 10 });
+      }
+      const slab = fori.length
+        ? slabConFori(len, thickness, depth, matTop || COL.top, fori)
+        : corpo(len, thickness, depth, matTop || COL.top);
       gruppo.add(collocaMobile(slab, cx, topY, -cy, thickness, rotN));
     }
   }

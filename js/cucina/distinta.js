@@ -11,7 +11,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261111a';
+} from './modello.js?v=20261111b';
 
 const SP = 18;        // pannelli carcassa e ante/fronti (mm)
 const SP_SK = 4;      // schiena (mm)
