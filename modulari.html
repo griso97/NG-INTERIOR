@@ -9,9 +9,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
   <!-- Tema chiaro/scuro: applicato subito per evitare lo "sfarfallio" -->
   <script>(function(){try{var t=localStorage.getItem('ng-tema')||'scuro';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
-  <link rel="stylesheet" href="css/style.css?v=20261112a" />
-  <link rel="stylesheet" href="css/cucina.css?v=20261112a" />
-  <link rel="stylesheet" href="css/modulari.css?v=20261112a" />
+  <link rel="stylesheet" href="css/style.css?v=20261112b" />
+  <link rel="stylesheet" href="css/cucina.css?v=20261112b" />
+  <link rel="stylesheet" href="css/modulari.css?v=20261112b" />
 </head>
 <body class="cucina-body">
   <header class="app-header">
@@ -29,16 +29,16 @@
   </header>
 
   <nav class="stepper" id="stepper">
-    <button class="step attivo" data-step="1" aria-current="step">
+    <button class="step" data-step="1" type="button">
       <span class="step-n">1</span><span class="step-nome">Forma del vano</span>
     </button>
-    <button class="step disabilitato" data-step="2" disabled>
+    <button class="step" data-step="2" type="button">
       <span class="step-n">2</span><span class="step-nome">Moduli</span>
     </button>
-    <button class="step disabilitato" data-step="3" disabled>
+    <button class="step disabilitato" data-step="3" type="button" disabled title="In arrivo">
       <span class="step-n">3</span><span class="step-nome">Rendering 3D</span>
     </button>
-    <button class="step disabilitato" data-step="4" disabled>
+    <button class="step" data-step="4" type="button">
       <span class="step-n">4</span><span class="step-nome">Distinta</span>
     </button>
   </nav>
@@ -54,6 +54,21 @@
     <aside id="mod-riepilogo" class="riepilogo-panel"></aside>
   </main>
 
-  <script type="module" src="js/modulari/main.js?v=20261112a"></script>
+  <!-- Distinta di taglio -->
+  <div id="distinta-overlay" class="modale-fondo" hidden>
+    <div class="distinta-box" role="dialog" aria-modal="true" aria-labelledby="distinta-titolo">
+      <div class="distinta-head">
+        <h3 id="distinta-titolo">Distinta di taglio</h3>
+        <div class="distinta-azioni">
+          <button id="distinta-xlsx" class="btn-oro" type="button">Esporta Excel</button>
+          <button id="distinta-modello" class="btn-ghost" type="button">⚙ Modello Excel</button>
+          <button id="distinta-chiudi" class="btn-ghost" type="button">Chiudi</button>
+        </div>
+      </div>
+      <div id="distinta-corpo" class="distinta-corpo"></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/modulari/main.js?v=20261112b"></script>
 </body>
 </html>

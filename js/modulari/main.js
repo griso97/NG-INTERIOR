@@ -1,8 +1,9 @@
 // =============================================================================
-// MOBILI MODULARI — Passo 1: forma del vano in vista frontale
+// MOBILI MODULARI — Passo 1 (forma del vano) + navigazione tra i passi
 // =============================================================================
-import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261112a';
-import { agganciaTema } from '../tema.js?v=20261112a';
+import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261112b';
+import { renderPasso2, apriDistinta, stiliTema } from './passo2.js?v=20261112b';
+import { agganciaTema } from '../tema.js?v=20261112b';
 
 const KEY = 'ng-modulari-v1';
 const pannello = document.getElementById('mod-pannello');
@@ -13,12 +14,30 @@ const svg = document.getElementById('mod-svg');
 // Stato (salvato nel browser)
 // ---------------------------------------------------------------------------
 function statoIniziale() {
-  return { formaId: 'triangolo', valori: JSON.parse(JSON.stringify(VALORI_ESEMPIO)), specchia: false, profondita: 600 };
+  return {
+    step: 1,
+    formaId: 'triangolo', valori: JSON.parse(JSON.stringify(VALORI_ESEMPIO)), specchia: false, profondita: 600,
+    modalita: 'moduli',                       // 'moduli' (come armadi) | 'cubi' (liberi)
+    spessori: { carcassa: 18, schiena: 10, ante: 18 },
+    moduli: { uguali: true, numero: 3, larghezzaUsata: null, comune: { ante: 1, lato: 'dx', ripiani: 1 }, lista: [] },
+    cubi: [], cuboSel: null,
+    nuovoCubo: { w: 400, h: 400, fronte: 'aperto', ripiani: 0 },
+  };
 }
 function carica() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (s && s.formaId) { const base = statoIniziale(); return { ...base, ...s, valori: { ...base.valori, ...(s.valori || {}) } }; }
+    if (s && s.formaId) {
+      const base = statoIniziale();
+      return {
+        ...base, ...s,
+        valori: { ...base.valori, ...(s.valori || {}) },
+        spessori: { ...base.spessori, ...(s.spessori || {}) },
+        moduli: { ...base.moduli, ...(s.moduli || {}), comune: { ...base.moduli.comune, ...((s.moduli || {}).comune || {}) } },
+        nuovoCubo: { ...base.nuovoCubo, ...(s.nuovoCubo || {}) },
+        cubi: Array.isArray(s.cubi) ? s.cubi : [],
+      };
+    }
   } catch { /* stato rovinato: riparto */ }
   return statoIniziale();
 }
@@ -229,7 +248,7 @@ function renderDisegno(r) {
     ${pareti}${angoli}${quote}
     ${pts.map((p) => `<circle cx="${p.x}" cy="${Y(p.y)}" r="${sw * 2.6}" fill="var(--mod-acc)"/>`).join('')}`;
   // I colori del tema (var(--…)) vanno come stile: negli attributi SVG non tutti i browser li leggono.
-  svg.innerHTML = html.replace(/(fill|stroke)="(var\(--[a-z-]+\))"/g, 'style="$1:$2"');
+  svg.innerHTML = stiliTema(html);
 }
 
 // ---------------------------------------------------------------------------
@@ -268,12 +287,43 @@ function renderRiepilogo(r) {
     ${colmo}
     <div class="riep-riga"><span>Profondità</span><strong>${fmt(stato.profondita)} mm</strong></div>
     <div class="riep-riga"><span>Superficie frontale</span><strong>${fmt(r.area_m2)} m²</strong></div>
-    <button type="button" class="btn-oro" style="width:100%;margin-top:14px" disabled>Avanti: moduli →</button>
-    <p class="mod-prossimo">Il passo 2 (riempire il vano con i moduli) è in costruzione.</p>`;
+    <button type="button" class="btn-oro" id="vai-moduli" style="width:100%;margin-top:14px">Avanti: moduli →</button>`;
+  document.getElementById('vai-moduli').addEventListener('click', () => vaiA(2));
 }
+
+// ---------------------------------------------------------------------------
+// Navigazione tra i passi
+// ---------------------------------------------------------------------------
+const NOMI_PASSI = { 1: 'Passo 1 — Forma del vano (vista frontale)', 2: 'Passo 2 — Moduli dentro il vano' };
+function vaiA(n) {
+  const r = risultato();
+  if (n >= 2 && !r.ok) { stato.step = 1; salva(); aggiorna(); return; }
+  if (n === 4) { if (stato.step !== 2) { stato.step = 2; salva(); aggiorna(); } apriDistinta(); return; }
+  stato.step = n; salva(); aggiorna();
+}
+function aggiornaStepper(r) {
+  document.querySelectorAll('#stepper .step').forEach((b) => {
+    const n = Number(b.dataset.step);
+    b.classList.toggle('attivo', n === stato.step);
+    if (n === stato.step) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
+    if (n === 2 || n === 4) { b.disabled = !r.ok; b.classList.toggle('disabilitato', !r.ok); }
+  });
+  const info = document.getElementById('step-info');
+  if (info) info.textContent = NOMI_PASSI[stato.step] || '';
+}
+document.querySelectorAll('#stepper .step').forEach((b) => b.addEventListener('click', () => {
+  const n = Number(b.dataset.step);
+  if (n === 1 || n === 2 || n === 4) vaiA(n);
+}));
 
 function aggiorna() {
   const r = risultato();
+  if (stato.step === 2 && !r.ok) stato.step = 1;
+  aggiornaStepper(r);
+  if (stato.step === 2) {
+    renderPasso2({ stato, salva, aggiorna, forma: r, svg, pannello, riepilogo, esc, fmt });
+    return;
+  }
   renderPannello(r); renderDisegno(r); renderRiepilogo(r);
 }
 

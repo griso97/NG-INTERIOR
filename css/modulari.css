@@ -50,3 +50,13 @@
 .tab-pareti td.num { text-align: right; font-variant-numeric: tabular-nums; color: var(--oro-chiaro); white-space: nowrap; }
 .tab-pareti .calc { font-size: 10px; color: var(--testo-dim); display: block; }
 .mod-prossimo { font-size: 12px; color: var(--testo-dim); margin-top: 8px; line-height: 1.45; }
+
+/* Passo 2 */
+.mod-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mod-switch .btn-ghost { padding: 10px 6px; line-height: 1.3; text-transform: none; letter-spacing: .5px; }
+.mod-switch small { color: var(--testo-dim); font-size: 11px; }
+.mod-card { border: 1px solid var(--bordo); background: var(--bg-3); padding: 8px 10px 2px; margin-bottom: 8px; border-radius: 3px; }
+.mod-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12px; color: var(--oro-chiaro); }
+.pannello select { display: block; width: 100%; margin-top: 4px; padding: 8px 10px; background: var(--bg-3); border: 1px solid var(--bordo); color: var(--testo); font: inherit; font-size: 13px; border-radius: 2px; }
+.chips-misura { display: flex; flex-wrap: wrap; gap: 6px; margin: -2px 0 10px; }
+.mod-svg { touch-action: none; }
