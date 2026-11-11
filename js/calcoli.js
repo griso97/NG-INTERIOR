@@ -218,6 +218,26 @@ export function pezziAnteModulo(config, modulo, indiceModulo) {
   }];
 }
 
+// Spessore del melaminico bianco (fondo + trasera cassetto).
+const SP_MEL_ARM = 16;
+
+/**
+ * Fondo + trasera del cassetto in MELAMINICO BIANCO (guide metalliche: niente
+ * scatola di legno). Come in cucina, ma il FONDO cambia profondità in base
+ * alla guida scorrevole: fondo = guida − 20 (guida 500→480, 400→380, 350→330).
+ * Fisse: trasera 59 (cassetto basso, fronte ≤155) o 155 (alto). La lunghezza
+ * varia col modulo: fondo = Lm−53, trasera = Lm−72. `altF` = altezza fronte.
+ */
+function _cassettoMelArmadio(pezzi, nomeModulo, Lm, altF, guida, N) {
+  const grande = altF > 155;
+  pezzi.push({ modulo: nomeModulo, nome: 'Cassetto · fondo',
+    larghezza: Math.round(Lm - 53), altezza: Math.round(guida - 20),
+    spessore: SP_MEL_ARM, materiale: 'melaminico', quantita: N });
+  pezzi.push({ modulo: nomeModulo, nome: `Cassetto · trasera ${grande ? 'grande' : 'ridotta'}`,
+    larghezza: Math.round(Lm - 72), altezza: grande ? 155 : 59,
+    spessore: SP_MEL_ARM, materiale: 'melaminico', quantita: N });
+}
+
 /**
  * Costruisce i pezzi di UNA cassettiera scorrevole in UN modulo.
  * La cassettiera non è più "per modulo" ma globale: viene replicata
@@ -228,35 +248,18 @@ function _pezziCasScorrevole(config, cassettiera, modulo, indiceModulo) {
   const nomeModulo = `Modulo ${indiceModulo + 1}`;
   const Lm = modulo.larghezza;
   const sC = config.spessoreCarcassa;
-  const Pcas = profonditaFiancoInterno(config);
-  const Pscatola = Pcas - sC - 2;
-
   const c = cassettiera;
   const N = Math.max(1, c.numCassetti || 4);
   const AltMax = Math.max(100, c.altMax || 800);
-  const M = c.maniglia?.attiva ? (c.maniglia.M ?? 50) : 0;
-  const larTF = Lm - 4 * sC;
-  const profScatolaM = Pscatola - M;
-  const altFianchi = AltMax - 4 * sC;
+  const guida = c.guida || 500;
   const As = AltMax - 2 * sC;
-  const larFronte = larTF - 4;
-  const altFronte = (As - (N + 1) * 2) / N;
+  const larFronte = (Lm - 4 * sC) - 4;
+  const altFronte = Math.round((As - (N + 1) * 2) / N);
 
-  pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Top / Fondo',
-    larghezza: larTF, altezza: profScatolaM,
-    spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura', quantita: 2 });
-  pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fianco',
-    larghezza: profScatolaM, altezza: altFianchi,
-    spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura', quantita: 2 });
-  pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fascetta laterale',
-    larghezza: 50, altezza: AltMax - sC,
-    spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura', quantita: 2 });
-  pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fascetta sotto',
-    larghezza: larTF, altezza: 50,
-    spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura', quantita: 2 });
   pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fronte cassetto',
-    larghezza: larFronte, altezza: altFronte,
+    larghezza: Math.round(larFronte), altezza: altFronte,
     spessore: sC, materiale: 'carcassa', parteMateriale: 'cassFronti', quantita: N });
+  _cassettoMelArmadio(pezzi, nomeModulo, Lm, altFronte, guida, N);
   return pezzi;
 }
 
@@ -268,33 +271,18 @@ function _pezziCasBattente(config, cassettiera, modulo, indiceModulo) {
   const nomeModulo = `Modulo ${indiceModulo + 1}`;
   const Lm = modulo.larghezza;
   const sC = config.spessoreCarcassa;
-  const Pc = profonditaCarcassa(config);
-  const Pscatola = Pc - 80 - sC;
-
   const c = cassettiera;
   const N = Math.max(1, c.numCassetti || 4);
   const AltMax = Math.max(100, c.altMax || 800);
-  const larTF = Lm - 2 * sC - 80;
-  const altFianchi = AltMax - 4 * sC;
+  const guida = c.guida || 500;
   const As = AltMax - 2 * sC;
-  const larFronte = larTF - 4;
-  const altFronte = (As - (N + 1) * 2) / N;
+  const larFronte = (Lm - 2 * sC - 80) - 4;
+  const altFronte = Math.round((As - (N + 1) * 2) / N);
 
-  pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Top / Fondo',
-    larghezza: larTF, altezza: Pscatola,
-    spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura', quantita: 2 });
-  pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fianco',
-    larghezza: Pscatola, altezza: altFianchi,
-    spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura', quantita: 2 });
-  pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fascetta laterale',
-    larghezza: 40, altezza: AltMax - sC,
-    spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura', quantita: 2 });
-  pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fascetta sotto',
-    larghezza: larTF, altezza: 40,
-    spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura', quantita: 2 });
   pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fronte cassetto',
-    larghezza: larFronte, altezza: altFronte,
+    larghezza: Math.round(larFronte), altezza: altFronte,
     spessore: sC, materiale: 'carcassa', parteMateriale: 'cassFronti', quantita: N });
+  _cassettoMelArmadio(pezzi, nomeModulo, Lm, altFronte, guida, N);
   return pezzi;
 }
 
@@ -673,6 +661,7 @@ export function calcolaRiepilogo(pezzi) {
     mqCarcassa: totali.carcassa,
     mqSchiena: totali.schiena,
     mqAnte: totali.ante,
+    mqMelaminico: totali.melaminico || 0,
   };
 }
 

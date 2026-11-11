@@ -512,6 +512,13 @@ function renderCassettiere(config) {
             <input type="number" class="c-alt" value="${c.altMax ?? 800}" min="100" step="1" />
           </label>
         </div>
+        <label>Guida scorrevole (mm)
+          <select class="c-guida">
+            <option value="500" ${(c.guida ?? 500) === 500 ? 'selected' : ''}>500 — fondo 480</option>
+            <option value="400" ${(c.guida ?? 500) === 400 ? 'selected' : ''}>400 — fondo 380</option>
+            <option value="350" ${(c.guida ?? 500) === 350 ? 'selected' : ''}>350 — fondo 330</option>
+          </select>
+        </label>
         ${scorrevole ? `
         <label class="chk">
           <input type="checkbox" class="c-man-on" ${man.attiva ? 'checked' : ''} />
@@ -539,7 +546,7 @@ function attaccaEventiCassettiere(contenitore, config, onChange) {
   const btnAdd = contenitore.querySelector('#btn-cass-add');
   if (btnAdd) {
     btnAdd.onclick = () => {
-      const base = { numCassetti: 4, altMax: 800,
+      const base = { numCassetti: 4, altMax: 800, guida: 500,
         moduli: config.moduli.map((_, i) => i) }; // di default in tutti
       const nuova = scorrevole
         ? { ...base, maniglia: { attiva: true, M: 50 } }
@@ -565,10 +572,15 @@ function attaccaEventiCassettiere(contenitore, config, onChange) {
     if (!cas) return;
     const num = row.querySelector('.c-num');
     const alt = row.querySelector('.c-alt');
+    const guida = row.querySelector('.c-guida');
     const manOn = row.querySelector('.c-man-on');
     const manM = row.querySelector('.c-man-m');
     if (num) num.oninput = (e) => {
       cas.numCassetti = Math.max(1, Math.round(Number(e.target.value) || 1));
+      onChange(config);
+    };
+    if (guida) guida.onchange = (e) => {
+      cas.guida = Number(e.target.value) || 500;
       onChange(config);
     };
     if (alt) alt.oninput = (e) => {

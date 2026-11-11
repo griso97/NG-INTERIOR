@@ -13,6 +13,7 @@ import { trovaMateriale } from './materiali.js';
  * Esempi: "carcassa" → "Roble Hera", "ante" → "Roble Denver".
  */
 function nomeMaterialeDelPezzo(pezzo, config) {
+  if (pezzo.materiale === 'melaminico') return 'Melaminico bianco';
   const mat = config?.materiali || {};
   let id;
   if (pezzo.parteMateriale) {
@@ -71,6 +72,7 @@ export function renderDistinta(contenitore, distinta, config) {
       <div><span>m² carcassa</span><strong>${riepilogo.mqCarcassa.toFixed(2)}</strong></div>
       <div><span>m² ante</span><strong>${riepilogo.mqAnte.toFixed(2)}</strong></div>
       <div><span>m² schiena</span><strong>${riepilogo.mqSchiena.toFixed(2)}</strong></div>
+      ${riepilogo.mqMelaminico ? `<div><span>m² melaminico</span><strong>${riepilogo.mqMelaminico.toFixed(2)}</strong></div>` : ''}
     </div>
   `;
 }
