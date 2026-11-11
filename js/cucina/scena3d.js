@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261110m';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111a';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261110m';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261110m';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261110m';
-import { sfondoDi } from '../sfondi.js?v=20261110m';
-export { MATERIALI } from '../materiali.js?v=20261110m';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261110m';
+} from './modello.js?v=20261111a';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261111a';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111a';
+import { sfondoDi } from '../sfondi.js?v=20261111a';
+export { MATERIALI } from '../materiali.js?v=20261111a';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261111a';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -26,11 +26,35 @@ const SP_TOP = 40;
 //  porta 70 → zoccolo 150 mm · porta 80 → zoccolo 100 mm
 function zoccoloPerAltezza(h) { return h >= 800 ? 100 : 150; }
 
+// Altezza dominante dei mobili BASSI della cucina (quelli che poggiano a terra
+// con piedini + piano: base, lavello, forno, cassettiera...). Serve per far
+// adattare i piedini della colonna ai mobili bassi: se i bassi sono da 80
+// (piedini 100), anche la colonna deve stare su piedini da 100, non 150.
+const CAT_NON_BASSE = new Set(['pensile', 'colonna', 'regletta', 'pannello', 'costado']);
+function altezzaBaseDominante(progetto) {
+  const conteggio = new Map();
+  for (const m of (progetto.mobiliLiberi || [])) {
+    if (CAT_NON_BASSE.has(categoriaTipo(m.tipo))) continue;
+    const h = m.altezza_mm || 700;
+    conteggio.set(h, (conteggio.get(h) || 0) + 1);
+  }
+  if (!conteggio.size) return null;
+  let best = null, bestN = -1;
+  for (const [h, n] of conteggio) if (n > bestN) { bestN = n; best = h; }
+  return best;
+}
+// Piedini della colonna: adattati ai mobili bassi della cucina; se non ce ne
+// sono, si usa la porta bassa della colonna stessa come riferimento.
+function zoccoloColonna(progetto, m) {
+  const baseH = altezzaBaseDominante(progetto);
+  return zoccoloPerAltezza(baseH != null ? baseH : (m.altezzaBassa_mm || 700));
+}
+
 // Quota della cima delle colonne (cassa + zoccolo). null se non ci sono colonne.
 function quotaAltaColonne(progetto) {
   const cols = (progetto.mobiliLiberi || []).filter((m) => categoriaTipo(m.tipo) === 'colonna');
   if (cols.length === 0) return null;
-  return Math.max(...cols.map((c) => (c.altezza_mm || 2200) + zoccoloPerAltezza(c.altezzaBassa_mm || 700)));
+  return Math.max(...cols.map((c) => (c.altezza_mm || 2200) + zoccoloColonna(progetto, c)));
 }
 const ALT_MURO = 2600;
 const H_FORNO = 600;
@@ -958,7 +982,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       // L'altezza della colonna (es. 2200) è la CASSA; il totale è cassa +
       // zoccolo. Così un costado da 2350 (= 2200 + 15 di piedini) combacia.
       const h = m.altezza_mm || 2200;
-      const zocc = zoccoloPerAltezza(m.altezzaBassa_mm || 700);
+      const zocc = zoccoloColonna(progetto, m);
       zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
       fianchi.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, h: h + zocc, cat: 'colonna' });
       g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matColonna), cx, zocc, cz, h, m.rot);
