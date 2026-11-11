@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111s';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111t';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261111s';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261111s';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111s';
-import { sfondoDi } from '../sfondi.js?v=20261111s';
-export { MATERIALI } from '../materiali.js?v=20261111s';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261111s';
+} from './modello.js?v=20261111t';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261111t';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111t';
+import { sfondoDi } from '../sfondi.js?v=20261111t';
+export { MATERIALI } from '../materiali.js?v=20261111t';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261111t';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -690,28 +690,39 @@ function ripianoColonna(g, w, d, y) {
 }
 
 /** Lavastoviglie a incasso: anta unica + striscia comandi inox in alto. */
-function lavastoviglieFronte(g, w, h, d, matAnta) {
-  const z = d / 2;
-  const pw = w - FUGA_W;
-  const hStrip = 55;                              // fascia comandi in alto
-  const ph = h - FUGA_H - hStrip;
-  const cy = -h / 2 + FUGA_H / 2 + ph / 2;        // anta sotto la fascia
-  pannello(g, 0, cy, z, pw, ph, matAnta || COL.anta);
-  // Fascia comandi inox
-  const strip = new THREE.Mesh(new THREE.BoxGeometry(pw, hStrip - 6, 22),
-    new THREE.MeshStandardMaterial({ color: 0xc8c8cc, roughness: 0.3, metalness: 0.75 }));
-  strip.position.set(0, h / 2 - FUGA_H / 2 - (hStrip - 6) / 2, z + 11);
-  g.add(strip);
-  // Spie/comandi
-  for (let i = 0; i < 3; i++) {
-    const led = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 4, 10),
-      new THREE.MeshStandardMaterial({ color: 0x3a3a40, roughness: 0.4, metalness: 0.5 }));
+/**
+ * Fronte LAVASTOVIGLIE a vista: sportello in ACCIAIO INOX con fascia comandi
+ * NERA in alto (schermo + spie) e maniglia a barra — stile Bosch/Siemens.
+ * Costruito DAVANTI alla faccia del mobile (Z0) per non essere coperto.
+ */
+function lavastoviglieFronte(g, w, h, d) {
+  const z = d / 2, Z0 = z + 2;
+  const matInox = new THREE.MeshStandardMaterial({ color: 0xc2c3c7, roughness: 0.38, metalness: 0.55, envMapIntensity: 0.45 });
+  const box = (bw, bh, bd, x, y, zFront, mat) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(2, bw), Math.max(2, bh), bd), mat);
+    m.position.set(x, y, zFront - bd / 2); m.castShadow = true; g.add(m); return m;
+  };
+  // Sportello inox (tutto il fronte)
+  box(w - 6, h - 6, 6, 0, 0, Z0, matInox);
+  // Fascia comandi NERA in alto (schermo nero) — unlit, sempre nera
+  const hStrip = Math.min(h * 0.11, 64);
+  const topY = h / 2 - 6 - hStrip / 2;
+  box(w - 12, hStrip, 4, 0, topY, Z0 + 2, matElCorpo);
+  // Display + spie
+  box((w - 12) * 0.2, hStrip * 0.42, 3, -(w - 12) * 0.18, topY, Z0 + 4, matElDisplay);
+  for (let i = 0; i < 4; i++) {
+    const led = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 3, 10), matElButton);
     led.rotation.x = Math.PI / 2;
-    led.position.set(-pw / 2 + 40 + i * 26, h / 2 - FUGA_H / 2 - (hStrip - 6) / 2, z + 24);
-    g.add(led);
+    led.position.set((w - 12) * 0.05 + i * 16, topY, Z0 + 4); g.add(led);
   }
-  // Maniglia a incasso sotto la fascia comandi
-  maniglia(g, 0, h / 2 - FUGA_H / 2 - hStrip - 20, z, true, Math.min(pw * 0.55, 320));
+  // Maniglia a barra inox sotto la fascia
+  const barL = Math.min(w * 0.55, 420), barY = topY - hStrip / 2 - 16;
+  const barra = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, barL, 14), matInox);
+  barra.rotation.z = Math.PI / 2; barra.position.set(0, barY, Z0 + 12); g.add(barra);
+  for (const sx of [-barL / 2 + 8, barL / 2 - 8]) {
+    const sup = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 28, 12), matInox);
+    sup.rotation.x = Math.PI / 2; sup.position.set(sx, barY, Z0 + 2); g.add(sup);
+  }
 }
 
 /**
@@ -966,7 +977,8 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
   _fingerPull = fpCat(_fpByCat, cat);   // finger-pull per categoria del mobile
   const coloreCorpo = cat === 'pensile' ? COL.pensile : cat === 'colonna' ? COL.colonna
-    : cat === 'regletta' ? COL.regletta : cat === 'lavatrice' ? 0x17181d : COL.corpo;
+    : cat === 'regletta' ? COL.regletta : cat === 'lavatrice' ? 0x17181d
+    : cat === 'lavastoviglie' ? 0xbcbdc2 : COL.corpo;
   // Pensile angolo a L: corpo a L (due bracci), non il box quadrato.
   if (tipo === 'pensile-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta); return g; }
   // Colonna con VANO APERTO: carcassa a fronte aperto (si vede dentro);
@@ -979,7 +991,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   if (cat === 'colonna') { colonnaFronte(g, w, h, d, m, matAnta); return g; }
   if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta); return g; }
   if (tipo === 'lavello') { ante(g, w, h, d, w >= 900 ? 2 : 1, matAnta); return g; } // lavello disegnato sopra il top
-  if (tipo === 'lavastoviglie') { lavastoviglieFronte(g, w, h, d, matAnta); return g; }
+  if (tipo === 'lavastoviglie') { lavastoviglieFronte(g, w, h, d); return g; }
   if (cat === 'lavatrice') { lavatriceFronte(g, w, h, d); return g; }
   if (tipo === 'forno') { pannelloElettro(g, -h * 0.05, d / 2, w - 24, h * 0.7, 'forno'); return g; } // placca sopra il top
   // base con ante / pensile (il pensile può avere l'anta sporgente sotto)
