@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261110h';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261110i';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261110h';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261110h';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261110h';
-import { sfondoDi } from '../sfondi.js?v=20261110h';
-export { MATERIALI } from '../materiali.js?v=20261110h';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261110h';
+} from './modello.js?v=20261110i';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261110i';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261110i';
+import { sfondoDi } from '../sfondi.js?v=20261110i';
+export { MATERIALI } from '../materiali.js?v=20261110i';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261110i';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -319,6 +319,19 @@ function maniglia(g, x, y, z, orizz, lung) {
   g.add(m);
 }
 
+// Finger-pull: quando attivo, invece della maniglia si disegna una GOLA scura
+// a filo del bordo (in alto su ante/cassetti, a tutta altezza sulle colonne).
+// Il flag è impostato a ogni render da progetto.fingerPull.
+let _fingerPull = false;
+const matGola = new THREE.MeshStandardMaterial({ color: 0x1b1b1f, roughness: 0.85, metalness: 0.1 });
+function golaFingerPull(g, cx, cy, z, orizz, length, span = 22) {
+  const geo = orizz ? new THREE.BoxGeometry(Math.max(40, length), span, 12)
+                    : new THREE.BoxGeometry(span, Math.max(40, length), 12);
+  const mesh = new THREE.Mesh(geo, matGola);
+  mesh.position.set(cx, cy, z + 2);
+  g.add(mesh);
+}
+
 /** Immagine "standard" di forno o microonde su canvas → texture. */
 function texElettro(tipo) {
   if (texCache[tipo]) return texCache[tipo];
@@ -386,10 +399,14 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
     // Anta sporgente sotto (gola integrata): si apre prendendola da sotto,
     // quindi NIENTE maniglia nella parte alta.
     if (!sporg) {
-      const hx = n === 1
-        ? (sx ? px - pw / 2 + 35 : px + pw / 2 - 35)
-        : (i === 0 ? px + pw / 2 - 22 : px - pw / 2 + 22);
-      maniglia(g, hx, py, z, false, Math.min(260, ph * 0.5));
+      if (_fingerPull) {
+        golaFingerPull(g, px, py + ph / 2 - 11, z, true, pw);   // gola in alto
+      } else {
+        const hx = n === 1
+          ? (sx ? px - pw / 2 + 35 : px + pw / 2 - 35)
+          : (i === 0 ? px + pw / 2 - 22 : px - pw / 2 + 22);
+        maniglia(g, hx, py, z, false, Math.min(260, ph * 0.5));
+      }
     }
   }
 }
@@ -400,7 +417,8 @@ function cassetti(g, w, h, d, n, matAnta) {
   for (let i = 0; i < n; i++) {
     const py = -uh / 2 + ph / 2 + i * (ph + GAP_ANTE);
     pannello(g, 0, py, z, uw, ph, matAnta || COL.cassetto);
-    maniglia(g, 0, py + ph / 2 - Math.min(28, ph * 0.3), z, true, Math.min(uw * 0.5, 320));
+    if (_fingerPull) golaFingerPull(g, 0, py + ph / 2 - 11, z, true, uw);
+    else maniglia(g, 0, py + ph / 2 - Math.min(28, ph * 0.3), z, true, Math.min(uw * 0.5, 320));
   }
 }
 // Numero di fuochi in base alla larghezza del mobile: piccolo → 2, grande → 4.
@@ -446,7 +464,8 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
   const porta = (yB, segH) => {
     const cyc = yB + segH / 2;
     pannello(g, 0, cyc, z, pw, segH - FUGA_H, matAnta || COL.anta);
-    maniglia(g, pw / 2 - 30, cyc, z, false, Math.min(260, (segH - FUGA_H) * 0.4));
+    if (_fingerPull) golaFingerPull(g, pw / 2 - 11, cyc, z, false, segH - FUGA_H); // gola a tutta altezza
+    else maniglia(g, pw / 2 - 30, cyc, z, false, Math.min(260, (segH - FUGA_H) * 0.4));
   };
   porta(bottom, ab);                 // porta bassa
   let y0 = bottom + ab;
@@ -750,6 +769,7 @@ function collocaMobile(g, cx, yBottom, cz, h, rotGradi) {
 export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   if (!scene) return;
   selId = selezionato;
+  _fingerPull = !!progetto.fingerPull;
   // L'illuminazione della scena resta sempre al valore pieno (giorno) sia
   // con i LED spenti che accesi: non si vuole che i LED spengano l'ambiente.
   for (const { l, base } of luciAmbiente) l.intensity = base;
