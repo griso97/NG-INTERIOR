@@ -5,18 +5,19 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261111a';
+import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261111b';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo,
-} from './scena3d.js?v=20261111a';
-import { SFONDI_LISTA } from './sfondi.js?v=20261111a';
-import { agganciaTema } from './tema.js?v=20261111a';
-import { renderPannello, configDefault } from './interfaccia.js?v=20261111a';
-import { renderDistinta } from './distinta.js?v=20261111a';
-import { esportaCSV, esportaPDF } from './esportazione.js?v=20261111a';
+} from './scena3d.js?v=20261111b';
+import { SFONDI_LISTA } from './sfondi.js?v=20261111b';
+import { agganciaTema } from './tema.js?v=20261111b';
+import { renderPannello, configDefault } from './interfaccia.js?v=20261111b';
+import { renderDistinta } from './distinta.js?v=20261111b';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261111b';
+import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261111b';
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js?v=20261111a';
+} from './storage.js?v=20261111b';
 
 // Config iniziale: ultima salvata, oppure default
 let config = caricaLocale() || configDefault();
@@ -96,6 +97,18 @@ function agganciaExport(distinta) {
   const btnPdf = document.getElementById('btn-pdf');
   if (btnCsv) btnCsv.onclick = () => esportaCSV(distinta, config.meta, config);
   if (btnPdf) btnPdf.onclick = () => esportaPDF(distinta, config, config.meta);
+  // Excel con il modello del programma di taglio (vedi modello-export.js)
+  const pezziModello = () => distinta.pezzi.map((p) => ({
+    nome: p.nome, larghezza: p.larghezza, altezza: p.altezza, spessore: p.spessore, quantita: p.quantita,
+    materiale: nomeMaterialeCsv(p, config), modulo: p.modulo || '', gruppo: '' }));
+  const progettoNome = (config.meta && config.meta.cliente) || 'Armadio';
+  const btnXlsx = document.getElementById('btn-xlsx');
+  if (btnXlsx) btnXlsx.onclick = () => {
+    const d = new Date(); const p2 = (n) => String(n).padStart(2, '0');
+    esportaExcel(pezziModello(), { nomeFile: `NG_${progettoNome}_${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}`, progetto: progettoNome });
+  };
+  const btnMod = document.getElementById('btn-modello');
+  if (btnMod) btnMod.onclick = () => apriModelloExcel({ pezzi: pezziModello(), progetto: progettoNome });
   const btnImg = document.getElementById('btn-img');
   if (btnImg) btnImg.onclick = () => {
     const d = new Date(); const p = (n) => String(n).padStart(2, '0');

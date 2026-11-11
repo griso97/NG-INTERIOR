@@ -21,11 +21,12 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA,
-} from './modello.js?v=20261111w';
-import { renderPianta } from './pianta.js?v=20261111w';
-import { calcolaDistintaCucina } from './distinta.js?v=20261111w';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111w';
-import { agganciaTema } from '../tema.js?v=20261111w';
+} from './modello.js?v=20261111x';
+import { renderPianta } from './pianta.js?v=20261111x';
+import { calcolaDistintaCucina } from './distinta.js?v=20261111x';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
+import { agganciaTema } from '../tema.js?v=20261111x';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261111x';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1178,13 +1179,24 @@ function esportaDistintaCSV() {
   righe.push(['PEZZI']);
   righe.push(['Gruppo', 'Pezzo', 'Larghezza_mm', 'Altezza_mm', 'Spessore_mm', 'Materiale', 'Quantita']);
   for (const p of pezzi) righe.push([p.gruppo, p.nome, p.larghezza, p.altezza, p.spessore, p.materiale, p.quantita]);
-  const csv = righe.map((r) => r.map(qc).join(',')).join('\r\n');
+  const csv = righe.map((r) => r.map(qc).join(';')).join('\r\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = `distinta-cucina-${nomeFileData()}.csv`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+// Pezzi della distinta nel formato comune del "Modello Excel".
+const NOMI_MAT_CUCINA = { carcassa: 'Carcassa', anta: 'Ante / frontali', schiena: 'Schiena',
+  zoccolo: 'Zoccolo', melaminico: 'Melaminico bianco' };
+function pezziPerModello() {
+  const { pezzi } = calcolaDistintaCucina(progetto);
+  return pezzi.map((p) => ({ nome: p.nome, larghezza: p.larghezza, altezza: p.altezza, spessore: p.spessore,
+    quantita: p.quantita, materiale: NOMI_MAT_CUCINA[p.materiale] || p.materiale, modulo: '', gruppo: p.gruppo }));
+}
+function esportaDistintaExcel() {
+  esportaExcel(pezziPerModello(), { nomeFile: `distinta-cucina-${nomeFileData()}`, progetto: progetto.nome || 'Cucina' });
 }
 function escHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1201,7 +1213,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261111w');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261111x');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1454,6 +1466,9 @@ function chiudiModale() { modale.hidden = true; }
 document.getElementById('modale-annulla').addEventListener('click', chiudiModale);
 modale.addEventListener('click', (e) => { if (e.target === modale) chiudiModale(); });
 document.getElementById('distinta-csv')?.addEventListener('click', esportaDistintaCSV);
+document.getElementById('distinta-xlsx')?.addEventListener('click', esportaDistintaExcel);
+document.getElementById('distinta-modello')?.addEventListener('click', () =>
+  apriModelloExcel({ pezzi: pezziPerModello(), progetto: progetto.nome || 'Cucina' }));
 document.getElementById('distinta-chiudi')?.addEventListener('click', chiudiDistinta);
 document.getElementById('distinta-overlay')?.addEventListener('click', (e) => { if (e.target.id === 'distinta-overlay') chiudiDistinta(); });
 
