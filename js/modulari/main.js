@@ -1,9 +1,9 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 1 (forma del vano) + navigazione tra i passi
 // =============================================================================
-import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261112b';
-import { renderPasso2, apriDistinta, stiliTema } from './passo2.js?v=20261112b';
-import { agganciaTema } from '../tema.js?v=20261112b';
+import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261112c';
+import { renderPasso2, apriDistinta, stiliTema } from './passo2.js?v=20261112c';
+import { agganciaTema } from '../tema.js?v=20261112c';
 
 const KEY = 'ng-modulari-v1';
 const pannello = document.getElementById('mod-pannello');
@@ -118,6 +118,8 @@ function renderPannello(r) {
       <label>Profondità (mm) — servirà per i moduli
         <input type="number" inputmode="decimal" min="100" step="10" id="mod-prof" value="${esc(stato.profondita)}">
       </label>
+      <button type="button" class="btn-oro" id="vai-moduli-2" style="width:100%;margin-top:6px">Avanti: moduli →</button>
+      <div class="mod-msg err" id="vai-moduli-err" hidden></div>
     </section>`;
 
   pannello.querySelectorAll('.forma-card').forEach((b) => b.addEventListener('click', () => {
@@ -141,6 +143,14 @@ function renderPannello(r) {
   });
   const prof = document.getElementById('mod-prof');
   prof.addEventListener('change', () => { const n = Number(prof.value); stato.profondita = n > 0 ? n : 600; salva(); aggiorna(); });
+  // Secondo pulsante "Avanti" qui sotto: da telefono il riepilogo è in fondo alla pagina.
+  document.getElementById('vai-moduli-2').addEventListener('click', () => {
+    const r2 = risultato();
+    const box = document.getElementById('vai-moduli-err');
+    if (!r2.ok) { box.textContent = r2.errori.join(' '); box.hidden = false; return; }
+    vaiA(2);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 }
 
 /** Aggiorna solo le scritte "= … calcolata" sotto i campi (senza ridisegnare il pannello). */
