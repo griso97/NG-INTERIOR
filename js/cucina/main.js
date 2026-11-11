@@ -21,11 +21,11 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA,
-} from './modello.js?v=20261111r';
-import { renderPianta } from './pianta.js?v=20261111r';
-import { calcolaDistintaCucina } from './distinta.js?v=20261111r';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111r';
-import { agganciaTema } from '../tema.js?v=20261111r';
+} from './modello.js?v=20261111s';
+import { renderPianta } from './pianta.js?v=20261111s';
+import { calcolaDistintaCucina } from './distinta.js?v=20261111s';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111s';
+import { agganciaTema } from '../tema.js?v=20261111s';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1201,7 +1201,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261111r');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261111s');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1257,6 +1257,7 @@ function iconaMobile(id) {
     lavello: '<rect x="8" y="6" width="48" height="52"/><rect x="16" y="16" width="32" height="22" rx="3"/><line x1="32" y1="8" x2="32" y2="14"/>',
     lavastoviglie: '<rect x="8" y="6" width="48" height="52"/><line x1="8" y1="18" x2="56" y2="18"/><circle cx="18" cy="12" r="1.8"/><circle cx="26" cy="12" r="1.8"/><rect x="18" y="26" width="28" height="24" rx="2"/><line x1="26" y1="38" x2="38" y2="38"/>',
     forno: '<rect x="8" y="6" width="48" height="52"/><rect x="16" y="22" width="32" height="24" rx="2"/><line x1="16" y1="14" x2="48" y2="14"/><circle cx="20" cy="10" r="1.5"/><circle cx="28" cy="10" r="1.5"/><circle cx="36" cy="10" r="1.5"/>',
+    lavatrice: '<rect x="8" y="6" width="48" height="52"/><line x1="8" y1="18" x2="56" y2="18"/><circle cx="32" cy="38" r="13"/><circle cx="32" cy="38" r="7"/><rect x="38" y="9" width="12" height="5" rx="1"/><circle cx="16" cy="12" r="1.8"/>',
     pensile: '<rect x="8" y="14" width="48" height="36"/><line x1="32" y1="14" x2="32" y2="50"/><line x1="26" y1="28" x2="26" y2="36"/><line x1="38" y1="28" x2="38" y2="36"/>',
     'pensile-angolo': '<path d="M8 8 H30 V30 H56 V56 H8 Z" fill="none"/><line x1="18" y1="16" x2="18" y2="24"/><line x1="44" y1="40" x2="44" y2="48"/>',
     'pensile-angolo-45': '<path d="M10 10 H54 V54 H10 Z" fill="none"/><line x1="10" y1="34" x2="34" y2="54"/><line x1="20" y1="40" x2="28" y2="48"/>',

@@ -11,7 +11,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261111r';
+} from './modello.js?v=20261111s';
 
 const SP = 18;        // pannelli carcassa e ante/fronti (mm)
 const SP_SK = 4;      // schiena (mm)
@@ -185,7 +185,11 @@ function pezziDiModulo(progetto, m) {
   } else if (cat === 'regletta') {
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(m.latoA_mm || 30), altezza: H, spessore: SP, materiale: 'anta', quantita: 1 });
   } else if (cat === 'lavatrice') {
-    // Elettrodomestico: niente pezzi in legno (non entra nella distinta di taglio).
+    // Elettrodomestico: NON si tagliano carcassa/ante (è un apparecchio comprato).
+    // Ma va calcolato come un modulo da 45/60 per le MISURE: occupa il suo spazio
+    // (già nel conteggio moduli e nel 3D con piano sopra) e dà la sua quota di
+    // ZOCCOLO, così lo zoccolo continuo della cucina ha la lunghezza giusta.
+    zoccolo(pz, mod, L, H);
   } else {
     // fallback generico
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(L), altezza: H, spessore: SP, materiale: 'carcassa', quantita: 1 });
