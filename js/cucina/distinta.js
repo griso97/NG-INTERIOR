@@ -11,7 +11,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261111p';
+} from './modello.js?v=20261111q';
 
 const SP = 18;        // pannelli carcassa e ante/fronti (mm)
 const SP_SK = 4;      // schiena (mm)
@@ -184,6 +184,8 @@ function pezziDiModulo(progetto, m) {
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(m.larghezza_mm || L), altezza: H, spessore: SP, materiale: 'anta', quantita: 1 });
   } else if (cat === 'regletta') {
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(m.latoA_mm || 30), altezza: H, spessore: SP, materiale: 'anta', quantita: 1 });
+  } else if (cat === 'lavatrice') {
+    // Elettrodomestico: niente pezzi in legno (non entra nella distinta di taglio).
   } else {
     // fallback generico
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(L), altezza: H, spessore: SP, materiale: 'carcassa', quantita: 1 });

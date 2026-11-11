@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111p';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111q';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261111p';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261111p';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111p';
-import { sfondoDi } from '../sfondi.js?v=20261111p';
-export { MATERIALI } from '../materiali.js?v=20261111p';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261111p';
+} from './modello.js?v=20261111q';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261111q';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111q';
+import { sfondoDi } from '../sfondi.js?v=20261111q';
+export { MATERIALI } from '../materiali.js?v=20261111q';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261111q';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -715,6 +715,48 @@ function lavastoviglieFronte(g, w, h, d, matAnta) {
 }
 
 /**
+ * Fronte LAVATRICE realistico: corpo bianco, fascia comandi in alto (cassetto
+ * detersivo + display + manopola), e OBLÒ tondo con anello cromato e vetro
+ * scuro. Costruito DAVANTI alla faccia del mobile (Z0) per non essere coperto.
+ */
+function lavatriceFronte(g, w, h, d) {
+  const z = d / 2, Z0 = z + 2;
+  const matBody = new THREE.MeshStandardMaterial({ color: 0xeaeaee, roughness: 0.5, metalness: 0.12, envMapIntensity: 0.4 });
+  const box = (bw, bh, bd, x, y, zFront, mat) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(2, bw), Math.max(2, bh), bd), mat);
+    m.position.set(x, y, zFront - bd / 2); m.castShadow = true; g.add(m); return m;
+  };
+  // Fronte bianco (copre la faccia del corpo)
+  box(w - 6, h - 6, 6, 0, 0, Z0, matBody);
+  // Fascia comandi in alto (inox)
+  const hStrip = Math.min(h * 0.17, 100);
+  const topY = h / 2 - 8 - hStrip / 2;
+  box(w - 16, hStrip, 4, 0, topY, Z0 + 2, matElInox);
+  // Cassetto detersivo (sx) con maniglietta
+  box((w - 16) * 0.34, hStrip * 0.6, 4, -(w - 16) * 0.28, topY, Z0 + 3, matElCavita);
+  box((w - 16) * 0.22, 6, 4, -(w - 16) * 0.28, topY - hStrip * 0.22, Z0 + 4, matElInox);
+  // Display (centro) + bottoni
+  box((w - 16) * 0.22, hStrip * 0.3, 3, -2, topY + hStrip * 0.1, Z0 + 4, matElDisplay);
+  for (let i = 0; i < 3; i++) {
+    const bt = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 4, 12), matElButton);
+    bt.rotation.x = Math.PI / 2; bt.position.set(-30 + i * 22, topY - hStrip * 0.18, Z0 + 4); g.add(bt);
+  }
+  // Manopola programmi (dx)
+  const manR = Math.min(hStrip * 0.3, 20);
+  const man = new THREE.Mesh(new THREE.CylinderGeometry(manR, manR * 0.88, 14, 20), matElInox);
+  man.rotation.x = Math.PI / 2; man.position.set((w - 16) * 0.38, topY, Z0 + 9); g.add(man);
+  // OBLÒ tondo (porta): anello cromato + vetro scuro + cestello più chiaro
+  const oblY = -hStrip / 2 - 6;
+  const oblR = Math.min(w * 0.33, (h - hStrip) * 0.33);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(oblR, 13, 18, 48), matElInox);
+  ring.position.set(0, oblY, Z0 + 5); ring.castShadow = true; g.add(ring);
+  const glass = new THREE.Mesh(new THREE.CircleGeometry(oblR - 4, 48), matElVetro);
+  glass.position.set(0, oblY, Z0 + 3); g.add(glass);
+  const drum = new THREE.Mesh(new THREE.CircleGeometry(oblR - 30, 44), matElCavita);
+  drum.position.set(0, oblY, Z0 + 3.4); g.add(drum);
+}
+
+/**
  * Fronte di un mobile ad ANGOLO CIECO: anta apribile sulla parte libera +
  * pannello cieco (fisso, senza maniglia) sulla parte coperta dall'altro mobile.
  */
@@ -924,7 +966,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
   _fingerPull = fpCat(_fpByCat, cat);   // finger-pull per categoria del mobile
   const coloreCorpo = cat === 'pensile' ? COL.pensile : cat === 'colonna' ? COL.colonna
-    : cat === 'regletta' ? COL.regletta : COL.corpo;
+    : cat === 'regletta' ? COL.regletta : cat === 'lavatrice' ? 0xe9e9ec : COL.corpo;
   // Pensile angolo a L: corpo a L (due bracci), non il box quadrato.
   if (tipo === 'pensile-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta); return g; }
   // Colonna con VANO APERTO: carcassa a fronte aperto (si vede dentro);
@@ -938,6 +980,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta); return g; }
   if (tipo === 'lavello') { ante(g, w, h, d, w >= 900 ? 2 : 1, matAnta); return g; } // lavello disegnato sopra il top
   if (tipo === 'lavastoviglie') { lavastoviglieFronte(g, w, h, d, matAnta); return g; }
+  if (cat === 'lavatrice') { lavatriceFronte(g, w, h, d); return g; }
   if (tipo === 'forno') { pannelloElettro(g, -h * 0.05, d / 2, w - 24, h * 0.7, 'forno'); return g; } // placca sopra il top
   // base con ante / pensile (il pensile può avere l'anta sporgente sotto)
   ante(g, w, h, d, anteDiMobile(m), matAnta, opt.sporg, m.antaLato);
