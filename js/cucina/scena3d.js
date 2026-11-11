@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261110k';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261110l';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261110k';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261110k';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261110k';
-import { sfondoDi } from '../sfondi.js?v=20261110k';
-export { MATERIALI } from '../materiali.js?v=20261110k';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261110k';
+} from './modello.js?v=20261110l';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261110l';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261110l';
+import { sfondoDi } from '../sfondi.js?v=20261110l';
+export { MATERIALI } from '../materiali.js?v=20261110l';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261110l';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -355,15 +355,27 @@ function fpCat(fp, cat) {
   if (fp === true) return true;
   return !!(fp && typeof fp === 'object' && fp[key]);
 }
-const matGola = new THREE.MeshStandardMaterial({ color: 0x08080a, roughness: 1.0, metalness: 0.0 });
-// Gola finger-pull: scanalatura scura NETTA a filo del bordo, ben visibile.
-// La faccia dell'anta è a z+20: la gola va DAVANTI (z+21) come banda scura.
-function golaFingerPull(g, cx, cy, z, orizz, length, span = 34) {
+// Canale finger-pull: una scanalatura RIENTRANTE (stesso colore del fronte,
+// arretrata → in ombra), con una riga d'ombra nel punto più profondo. Come
+// nella realtà: il fronte è accorciato e in cima/di lato c'è il canale.
+// La faccia del fronte è a z+20; il fondo del canale è arretrato a z+6.
+const matCanaleOmbra = new THREE.MeshStandardMaterial({ color: 0x2b2b30, roughness: 1.0, metalness: 0 });
+function canaleFingerPull(g, cx, cy, z, length, thick, orizz, matAnta) {
   const L = Math.max(40, length);
-  const geo = orizz ? new THREE.BoxGeometry(L, span, 8) : new THREE.BoxGeometry(span, L, 8);
-  const mesh = new THREE.Mesh(geo, matGola);
-  mesh.position.set(cx, cy, z + 21);
-  g.add(mesh);
+  const mat = (matAnta && matAnta.isMaterial) ? matAnta
+    : new THREE.MeshStandardMaterial({ color: matAnta || COL.anta, roughness: 0.6, metalness: 0.08 });
+  // Fondo del canale, arretrato rispetto alla faccia (recessed).
+  const backGeo = orizz ? new THREE.BoxGeometry(L, thick, 10) : new THREE.BoxGeometry(thick, L, 10);
+  const back = new THREE.Mesh(backGeo, mat);
+  back.position.set(cx, cy, z + 6);
+  back.castShadow = true; back.receiveShadow = true;
+  g.add(back);
+  // Riga d'ombra sottile nel punto più profondo del canale (dove entra il dito).
+  const sLen = orizz ? L : 8;
+  const sTh = orizz ? 8 : L;
+  const shadow = new THREE.Mesh(new THREE.BoxGeometry(sLen, sTh, 6), matCanaleOmbra);
+  shadow.position.set(orizz ? cx : cx + thick / 2 - 4, orizz ? cy + thick / 2 - 4 : cy, z + 9);
+  g.add(shadow);
 }
 
 /** Immagine "standard" di forno o microonde su canvas → texture. */
@@ -429,13 +441,14 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
   const sx = lato === 'sx';
   for (let i = 0; i < n; i++) {
     const px = -uw / 2 + pw / 2 + i * (pw + GAP_ANTE);
-    pannello(g, px, py, z, pw, ph, matAnta || COL.anta);
-    // Anta sporgente sotto (gola integrata): si apre prendendola da sotto,
-    // quindi NIENTE maniglia nella parte alta.
-    if (!sporg) {
-      if (_fingerPull) {
-        golaFingerPull(g, px, py + ph / 2 - 11, z, true, pw);   // gola in alto
-      } else {
+    // Anta sporgente sotto (gola integrata): si apre da sotto, niente maniglia.
+    if (!sporg && _fingerPull) {
+      const CH = 30;                                 // altezza del canale in alto
+      pannello(g, px, py - CH / 2, z, pw, Math.max(60, ph - CH), matAnta || COL.anta);
+      canaleFingerPull(g, px, py + ph / 2 - CH / 2, z, pw, CH, true, matAnta);
+    } else {
+      pannello(g, px, py, z, pw, ph, matAnta || COL.anta);
+      if (!sporg) {
         const hx = n === 1
           ? (sx ? px - pw / 2 + 35 : px + pw / 2 - 35)
           : (i === 0 ? px + pw / 2 - 22 : px - pw / 2 + 22);
@@ -450,9 +463,14 @@ function cassetti(g, w, h, d, n, matAnta) {
   const ph = (uh - (n - 1) * GAP_ANTE) / n;
   for (let i = 0; i < n; i++) {
     const py = -uh / 2 + ph / 2 + i * (ph + GAP_ANTE);
-    pannello(g, 0, py, z, uw, ph, matAnta || COL.cassetto);
-    if (_fingerPull) golaFingerPull(g, 0, py + ph / 2 - 11, z, true, uw);
-    else maniglia(g, 0, py + ph / 2 - Math.min(28, ph * 0.3), z, true, Math.min(uw * 0.5, 320));
+    if (_fingerPull) {
+      const CH = Math.min(26, ph * 0.35);
+      pannello(g, 0, py - CH / 2, z, uw, Math.max(40, ph - CH), matAnta || COL.cassetto);
+      canaleFingerPull(g, 0, py + ph / 2 - CH / 2, z, uw, CH, true, matAnta);
+    } else {
+      pannello(g, 0, py, z, uw, ph, matAnta || COL.cassetto);
+      maniglia(g, 0, py + ph / 2 - Math.min(28, ph * 0.3), z, true, Math.min(uw * 0.5, 320));
+    }
   }
 }
 // Numero di fuochi in base alla larghezza del mobile: piccolo → 2, grande → 4.
@@ -497,9 +515,15 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
   const bottom = -h / 2;
   const porta = (yB, segH) => {
     const cyc = yB + segH / 2;
-    pannello(g, 0, cyc, z, pw, segH - FUGA_H, matAnta || COL.anta);
-    if (_fingerPull) golaFingerPull(g, pw / 2 - 11, cyc, z, false, segH - FUGA_H); // gola a tutta altezza
-    else maniglia(g, pw / 2 - 30, cyc, z, false, Math.min(260, (segH - FUGA_H) * 0.4));
+    const ph = segH - FUGA_H;
+    if (_fingerPull) {
+      const CW = 30;                                 // larghezza del canale (a dx)
+      pannello(g, -CW / 2, cyc, z, pw - CW, ph, matAnta || COL.anta);
+      canaleFingerPull(g, pw / 2 - CW / 2, cyc, z, ph, CW, false, matAnta);
+    } else {
+      pannello(g, 0, cyc, z, pw, ph, matAnta || COL.anta);
+      maniglia(g, pw / 2 - 30, cyc, z, false, Math.min(260, ph * 0.4));
+    }
   };
   porta(bottom, ab);                 // porta bassa
   let y0 = bottom + ab;
