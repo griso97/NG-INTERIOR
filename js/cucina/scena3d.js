@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261110j';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261110k';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261110j';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261110j';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261110j';
-import { sfondoDi } from '../sfondi.js?v=20261110j';
-export { MATERIALI } from '../materiali.js?v=20261110j';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261110j';
+} from './modello.js?v=20261110k';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261110k';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261110k';
+import { sfondoDi } from '../sfondi.js?v=20261110k';
+export { MATERIALI } from '../materiali.js?v=20261110k';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261110k';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -346,12 +346,23 @@ function maniglia(g, x, y, z, orizz, lung) {
 // a filo del bordo (in alto su ante/cassetti, a tutta altezza sulle colonne).
 // Il flag è impostato a ogni render da progetto.fingerPull.
 let _fingerPull = false;
-const matGola = new THREE.MeshStandardMaterial({ color: 0x1b1b1f, roughness: 0.85, metalness: 0.1 });
-function golaFingerPull(g, cx, cy, z, orizz, length, span = 22) {
-  const geo = orizz ? new THREE.BoxGeometry(Math.max(40, length), span, 12)
-                    : new THREE.BoxGeometry(span, Math.max(40, length), 12);
+let _fpByCat = {};
+// Finger-pull per categoria: progetto.fingerPull può essere un oggetto
+// { base, pensile, colonna } oppure (vecchio) un booleano = vale per tutto.
+function fpCat(fp, cat) {
+  const key = cat === 'base' ? 'base' : cat === 'pensile' ? 'pensile' : cat === 'colonna' ? 'colonna' : null;
+  if (!key) return false;
+  if (fp === true) return true;
+  return !!(fp && typeof fp === 'object' && fp[key]);
+}
+const matGola = new THREE.MeshStandardMaterial({ color: 0x08080a, roughness: 1.0, metalness: 0.0 });
+// Gola finger-pull: scanalatura scura NETTA a filo del bordo, ben visibile.
+// La faccia dell'anta è a z+20: la gola va DAVANTI (z+21) come banda scura.
+function golaFingerPull(g, cx, cy, z, orizz, length, span = 34) {
+  const L = Math.max(40, length);
+  const geo = orizz ? new THREE.BoxGeometry(L, span, 8) : new THREE.BoxGeometry(span, L, 8);
   const mesh = new THREE.Mesh(geo, matGola);
-  mesh.position.set(cx, cy, z + 2);
+  mesh.position.set(cx, cy, z + 21);
   g.add(mesh);
 }
 
@@ -764,6 +775,7 @@ function pensileAngoloFronte(g, w, h, d, matAnta) {
 /** Costruisce il mobile completo centrato nell'origine (corpo + fronti). */
 function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
+  _fingerPull = fpCat(_fpByCat, cat);   // finger-pull per categoria del mobile
   const coloreCorpo = cat === 'pensile' ? COL.pensile : cat === 'colonna' ? COL.colonna
     : cat === 'regletta' ? COL.regletta : COL.corpo;
   // Pensile angolo a L: corpo a L (due bracci), non il box quadrato.
@@ -795,7 +807,7 @@ function collocaMobile(g, cx, yBottom, cz, h, rotGradi) {
 export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   if (!scene) return;
   selId = selezionato;
-  _fingerPull = !!progetto.fingerPull;
+  _fpByCat = progetto.fingerPull || {};
   // L'illuminazione della scena resta sempre al valore pieno (giorno) sia
   // con i LED spenti che accesi: non si vuole che i LED spengano l'ambiente.
   for (const { l, base } of luciAmbiente) l.intensity = base;

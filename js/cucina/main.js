@@ -21,11 +21,11 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile,
-} from './modello.js?v=20261110j';
-import { renderPianta } from './pianta.js?v=20261110j';
-import { calcolaDistintaCucina } from './distinta.js?v=20261110j';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261110j';
-import { agganciaTema } from '../tema.js?v=20261110j';
+} from './modello.js?v=20261110k';
+import { renderPianta } from './pianta.js?v=20261110k';
+import { calcolaDistintaCucina } from './distinta.js?v=20261110k';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261110k';
+import { agganciaTema } from '../tema.js?v=20261110k';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -849,14 +849,6 @@ function renderPannelloStep3d() {
       </div>
     </section>
     <section class="step3-pannello">
-      <h3>Apertura ante</h3>
-      <div class="riga-3d" style="margin-bottom:6px">Maniglia classica, oppure gola <strong>finger-pull</strong> (senza maniglia): in alto sulle ante e sui cassetti, a tutta altezza sulle colonne.</div>
-      <div class="opzioni-anta">
-        <button type="button" class="btn-ghost opt-fp ${!progetto.fingerPull ? 'attivo' : ''}" data-fp="0">${!progetto.fingerPull ? '✓ ' : ''}Maniglia</button>
-        <button type="button" class="btn-ghost opt-fp ${progetto.fingerPull ? 'attivo' : ''}" data-fp="1">${progetto.fingerPull ? '✓ ' : ''}Finger-pull (gola)</button>
-      </div>
-    </section>
-    <section class="step3-pannello">
       <h3>Immagine</h3>
       <div class="riga-3d" style="margin-bottom:6px">Salva una foto del rendering in alta qualità (PNG).</div>
       <button id="s3-salva-img" class="btn-ghost" type="button" style="width:100%">📷 Salva immagine HD</button>
@@ -884,11 +876,6 @@ function renderPannelloStep3d() {
     const v = b.dataset.led;
     if (v === 'off') progetto.led = { attivo: false, colore: (progetto.led && progetto.led.colore) || 'caldo' };
     else progetto.led = { attivo: true, colore: v };
-    aggiorna();
-  }));
-  pannello.querySelectorAll('.opt-fp[data-fp]').forEach((b) => b.addEventListener('click', () => {
-    registraStoria();
-    progetto.fingerPull = b.dataset.fp === '1';
     aggiorna();
   }));
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -973,6 +960,20 @@ function renderPannelloModificaMobile(m) {
           data-mat="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`).join('')}
       </div>
     </section>` : ''}
+    ${(() => {
+      if (!(gruppoColore === 'base' || gruppoColore === 'pensile' || gruppoColore === 'colonna')) return '';
+      const fp = progetto.fingerPull;
+      const on = fp === true || !!(fp && typeof fp === 'object' && fp[gruppoColore]);
+      return `
+    <section class="step3-pannello">
+      <h3>Apertura · ${nomeGruppo}</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Maniglia classica oppure gola <strong>finger-pull</strong> (senza maniglia). Vale per tutti i ${nomeGruppo}.</div>
+      <div class="opzioni-anta">
+        <button type="button" class="btn-ghost opt-fp ${!on ? 'attivo' : ''}" data-fp="0">${!on ? '✓ ' : ''}Maniglia</button>
+        <button type="button" class="btn-ghost opt-fp ${on ? 'attivo' : ''}" data-fp="1">${on ? '✓ ' : ''}Finger-pull</button>
+      </div>
+    </section>`;
+    })()}
     ${isBase && materialiEncimera.length ? `
     <section class="step3-pannello">
       <h3>Piano di lavoro (encimera)</h3>
@@ -1030,6 +1031,16 @@ function renderPannelloModificaMobile(m) {
     registraStoria();
     m.antaLato = b.dataset.lato;                    // lato apertura anta singola
     if (isBase) sincronizzaAntePensile(progetto, m);
+    aggiorna();
+  }));
+  pannello.querySelectorAll('.opt-fp[data-fp]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    // Maniglia/finger-pull per CATEGORIA (bassi/colonne/alti), indipendenti.
+    if (typeof progetto.fingerPull !== 'object' || progetto.fingerPull === null) {
+      const old = progetto.fingerPull === true;
+      progetto.fingerPull = { base: old, pensile: old, colonna: old };
+    }
+    progetto.fingerPull[gruppoColore] = b.dataset.fp === '1';
     aggiorna();
   }));
   document.getElementById('tog-placca')?.addEventListener('click', () => {
@@ -1160,7 +1171,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261110j');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261110k');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
