@@ -20,12 +20,12 @@ import {
   spaziTraMobili, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
-  anteDiMobile, sincronizzaAntePensile,
-} from './modello.js?v=20261110l';
-import { renderPianta } from './pianta.js?v=20261110l';
-import { calcolaDistintaCucina } from './distinta.js?v=20261110l';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261110l';
-import { agganciaTema } from '../tema.js?v=20261110l';
+  anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA,
+} from './modello.js?v=20261110m';
+import { renderPianta } from './pianta.js?v=20261110m';
+import { calcolaDistintaCucina } from './distinta.js?v=20261110m';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261110m';
+import { agganciaTema } from '../tema.js?v=20261110m';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -917,6 +917,19 @@ function renderPannelloModificaMobile(m) {
       <h3>Modulo selezionato</h3>
       <div class="mod-row ${m.tipo}"><span>${nomeTipo(m.tipo)} · <strong>${descrizioneMobile(m)}</strong></span></div>
     </section>
+    ${cat === 'colonna' ? `
+    <section class="step3-pannello">
+      <h3>Colonna · parte alta</h3>
+      <div class="opzioni-anta">
+        ${(VARIANTI_COLONNA || []).map((v) => `<button type="button" class="btn-ghost opt-colvar ${(m.variante || 'porta') === v.id ? 'attivo' : ''}" data-colvar="${v.id}">${(m.variante || 'porta') === v.id ? '✓ ' : ''}${v.nome}</button>`).join('')}
+      </div>
+      ${(m.variante || 'porta') === 'vano' ? `
+      <div class="riga-3d" style="margin:8px 0 4px">Altezza del vano aperto (mm) — modifica a mano o scegli una misura:</div>
+      <input type="number" id="vano-h" class="modale-num" value="${m.altezzaVano_mm || 600}" min="100" step="10" style="width:100%" />
+      <div class="opzioni-anta" style="margin-top:6px">
+        ${[300, 400, 450, 600, 700].map((v) => `<button type="button" class="btn-ghost opt-vanoh ${(m.altezzaVano_mm || 600) === v ? 'attivo' : ''}" data-vanoh="${v}">${v / 10} cm</button>`).join('')}
+      </div>` : ''}
+    </section>` : ''}
     ${puoAnte ? `
     <section class="step3-pannello">
       <h3>Ante del modulo</h3>
@@ -1043,6 +1056,23 @@ function renderPannelloModificaMobile(m) {
     progetto.fingerPull[gruppoColore] = b.dataset.fp === '1';
     aggiorna();
   }));
+  // Colonna: variante "parte alta" e altezza del vano aperto.
+  pannello.querySelectorAll('.opt-colvar[data-colvar]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    m.variante = b.dataset.colvar;
+    aggiorna();
+  }));
+  pannello.querySelectorAll('.opt-vanoh[data-vanoh]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    m.altezzaVano_mm = Number(b.dataset.vanoh);
+    aggiorna();
+  }));
+  const vanoInp = document.getElementById('vano-h');
+  if (vanoInp) vanoInp.addEventListener('change', () => {
+    registraStoria();
+    m.altezzaVano_mm = Math.max(100, Math.round(Number(vanoInp.value) || 600));
+    aggiorna();
+  });
   document.getElementById('tog-placca')?.addEventListener('click', () => {
     registraStoria(); m.placca = !m.placca; if (m.placca) m.lavello = false; aggiorna();
   });
@@ -1171,7 +1201,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261110l');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261110m');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
