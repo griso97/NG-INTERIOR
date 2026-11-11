@@ -1,9 +1,9 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 1 (forma del vano) + navigazione tra i passi
 // =============================================================================
-import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261112c';
-import { renderPasso2, apriDistinta, stiliTema } from './passo2.js?v=20261112c';
-import { agganciaTema } from '../tema.js?v=20261112c';
+import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261112d';
+import { renderPasso2, apriDistinta, stiliTema } from './passo2.js?v=20261112d';
+import { agganciaTema } from '../tema.js?v=20261112d';
 
 const KEY = 'ng-modulari-v1';
 const pannello = document.getElementById('mod-pannello');
