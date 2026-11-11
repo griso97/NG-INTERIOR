@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261110i';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261110j';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261110i';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261110i';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261110i';
-import { sfondoDi } from '../sfondi.js?v=20261110i';
-export { MATERIALI } from '../materiali.js?v=20261110i';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261110i';
+} from './modello.js?v=20261110j';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261110j';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261110j';
+import { sfondoDi } from '../sfondi.js?v=20261110j';
+export { MATERIALI } from '../materiali.js?v=20261110j';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261110j';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -297,6 +297,29 @@ function corpo(w, h, d, coloreOMat) {
 }
 
 /** Pannello (anta/cassetto) sporgente sul fronte locale (+Z). */
+// Carcassa della colonna a FRONTE APERTO (schiena + fianchi + top + fondo,
+// SENZA faccia frontale): serve per il "vano aperto", dove si deve vedere
+// dentro. Le porte (dove ci sono) coprono comunque il fronte.
+function carcassaColonna(w, h, d, coloreOMat) {
+  const g = new THREE.Group();
+  const t = 18;
+  const mat = (coloreOMat && coloreOMat.isMaterial) ? coloreOMat
+    : new THREE.MeshStandardMaterial({ color: coloreOMat, roughness: 0.7, metalness: 0.05 });
+  const panel = (pw, ph, pd, x, y, z) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(pw, ph, pd), mat);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    g.add(mesh);
+  };
+  panel(w, h, t, 0, 0, -d / 2 + t / 2);           // schiena
+  panel(t, h, d, -w / 2 + t / 2, 0, 0);           // fianco sx
+  panel(t, h, d,  w / 2 - t / 2, 0, 0);           // fianco dx
+  panel(w - 2 * t, t, d, 0,  h / 2 - t / 2, 0);   // top
+  panel(w - 2 * t, t, d, 0, -h / 2 + t / 2, 0);   // fondo
+  g.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)), matOro));
+  return g;
+}
+
 function pannello(g, px, py, z, pw, ph, mat) {
   // Anta: uso direttamente il materiale (legno con texture o tinta piena),
   // così la venatura compare su tutte le facce dell'anta.
@@ -745,7 +768,10 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
     : cat === 'regletta' ? COL.regletta : COL.corpo;
   // Pensile angolo a L: corpo a L (due bracci), non il box quadrato.
   if (tipo === 'pensile-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta); return g; }
-  g.add(corpo(w, h, d, coloreCorpo));
+  // Colonna con VANO APERTO: carcassa a fronte aperto (si vede dentro);
+  // le altre colonne/mobili restano scatola piena.
+  const colonnaVano = cat === 'colonna' && m && m.variante === 'vano';
+  g.add(colonnaVano ? carcassaColonna(w, h, d, coloreCorpo) : corpo(w, h, d, coloreCorpo));
   if (cat === 'regletta') return g;
   if (opt.cieco && opt.cieco.coperto) { anteCieche(g, w, h, d, matAnta, opt.cieco); return g; }
   if (tipo === 'pensile-angolo-45') { pensileAngoloFronte(g, w, h, d, matAnta); return g; }
