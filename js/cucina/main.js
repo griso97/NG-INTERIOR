@@ -21,11 +21,11 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile,
-} from './modello.js?v=20261110g';
-import { renderPianta } from './pianta.js?v=20261110g';
-import { calcolaDistintaCucina } from './distinta.js?v=20261110g';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261110g';
-import { agganciaTema } from '../tema.js?v=20261110g';
+} from './modello.js?v=20261110h';
+import { renderPianta } from './pianta.js?v=20261110h';
+import { calcolaDistintaCucina } from './distinta.js?v=20261110h';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261110h';
+import { agganciaTema } from '../tema.js?v=20261110h';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -74,6 +74,7 @@ const modale = document.getElementById('modale');
 
 // --------- STORIA (Annulla / Rifai) ---------
 let storiaPast = [], storiaFuture = [];
+let clipboardMobile = null;              // mobile copiato (Ctrl+C / Ctrl+V)
 function registraStoria() {
   storiaPast.push(JSON.stringify(progetto));
   if (storiaPast.length > 60) storiaPast.shift();
@@ -100,6 +101,60 @@ function aggiornaBottoniStoria() {
 }
 document.getElementById('btn-annulla')?.addEventListener('click', annullaStoria);
 document.getElementById('btn-rifai')?.addEventListener('click', rifaiStoria);
+
+// Incolla il mobile dalla clipboard (sfalsato così non si sovrappone).
+function incollaMobileClip() {
+  if (!clipboardMobile) return;
+  registraStoria();
+  const ids = (progetto.mobiliLiberi || []).map((x) => x.id);
+  const nuovo = JSON.parse(JSON.stringify(clipboardMobile));
+  nuovo.id = (ids.length ? Math.max(...ids) : 0) + 1;
+  nuovo.x = (nuovo.x || 0) + 200;
+  nuovo.y = (nuovo.y || 0) - 200;
+  nuovo.posManuale = true;
+  progetto.mobiliLiberi = progetto.mobiliLiberi || [];
+  progetto.mobiliLiberi.push(nuovo);
+  step2.mobSelId = nuovo.id;
+  aggiorna();
+}
+
+// --------- SCORCIATOIE DA TASTIERA ---------
+// Ctrl+Z annulla · Ctrl+Y / Ctrl+Shift+Z rifai · Ctrl+C copia · Ctrl+V incolla
+// · Ctrl+D duplica · Canc/Backspace elimina · R ruota · frecce sposta 1 cm · Esc deseleziona.
+document.addEventListener('keydown', (e) => {
+  const tag = (e.target && e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target && e.target.isContentEditable)) return;
+  if (!document.getElementById('modale')?.hidden) return;   // modale aperta: non intercettare
+
+  const ctrl = e.ctrlKey || e.metaKey;
+  const k = (e.key || '').toLowerCase();
+
+  // Annulla / Rifai (ovunque)
+  if (ctrl && k === 'z' && !e.shiftKey) { e.preventDefault(); annullaStoria(); return; }
+  if (ctrl && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); rifaiStoria(); return; }
+
+  const m = trovaMobileLibero(progetto, step2.mobSelId);
+
+  if (ctrl && k === 'c') { if (m) clipboardMobile = JSON.parse(JSON.stringify(m)); e.preventDefault(); return; }
+  if (ctrl && k === 'v') { e.preventDefault(); incollaMobileClip(); return; }
+  if (ctrl && k === 'd') { e.preventDefault(); if (m) { clipboardMobile = JSON.parse(JSON.stringify(m)); incollaMobileClip(); } return; }
+
+  if ((k === 'delete' || k === 'backspace') && m) {
+    e.preventDefault(); registraStoria(); rimuoviMobileLibero(progetto, m.id); step2.mobSelId = null; aggiorna(); return;
+  }
+  if (k === 'r' && !ctrl && m) {
+    e.preventDefault(); registraStoria(); ruotaMobileLibero(progetto, m.id); riblocca(m.id); aggiorna(); return;
+  }
+  if (k === 'escape') { if (step2.mobSelId != null) { step2.mobSelId = null; aggiorna(); } return; }
+  if (m && (k === 'arrowup' || k === 'arrowdown' || k === 'arrowleft' || k === 'arrowright')) {
+    e.preventDefault();
+    const d = { arrowup: [0, 1], arrowdown: [0, -1], arrowleft: [-1, 0], arrowright: [1, 0] }[k];
+    registraStoria();
+    muoviMobileLibero(progetto, m.id, d[0] * 10, d[1] * 10);   // 1 cm
+    m.posManuale = true;
+    aggiorna();
+  }
+});
 
 // --------- DISPATCH principale: sceglie lo step attivo ---------
 // Step 1 Pianta · 2 Moduli bassi · 3 Moduli alti · 4 Rendering 3D
@@ -1092,7 +1147,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261110g');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261110h');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
