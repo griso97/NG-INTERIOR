@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111q';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111r';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261111q';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261111q';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111q';
-import { sfondoDi } from '../sfondi.js?v=20261111q';
-export { MATERIALI } from '../materiali.js?v=20261111q';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261111q';
+} from './modello.js?v=20261111r';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261111r';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111r';
+import { sfondoDi } from '../sfondi.js?v=20261111r';
+export { MATERIALI } from '../materiali.js?v=20261111r';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261111r';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -721,7 +721,7 @@ function lavastoviglieFronte(g, w, h, d, matAnta) {
  */
 function lavatriceFronte(g, w, h, d) {
   const z = d / 2, Z0 = z + 2;
-  const matBody = new THREE.MeshStandardMaterial({ color: 0xeaeaee, roughness: 0.5, metalness: 0.12, envMapIntensity: 0.4 });
+  const matBody = matElCorpo;     // NERO come il microonde (unlit, affidabile)
   const box = (bw, bh, bd, x, y, zFront, mat) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(2, bw), Math.max(2, bh), bd), mat);
     m.position.set(x, y, zFront - bd / 2); m.castShadow = true; g.add(m); return m;
@@ -966,7 +966,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
   _fingerPull = fpCat(_fpByCat, cat);   // finger-pull per categoria del mobile
   const coloreCorpo = cat === 'pensile' ? COL.pensile : cat === 'colonna' ? COL.colonna
-    : cat === 'regletta' ? COL.regletta : cat === 'lavatrice' ? 0xe9e9ec : COL.corpo;
+    : cat === 'regletta' ? COL.regletta : cat === 'lavatrice' ? 0x17181d : COL.corpo;
   // Pensile angolo a L: corpo a L (due bracci), non il box quadrato.
   if (tipo === 'pensile-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta); return g; }
   // Colonna con VANO APERTO: carcassa a fronte aperto (si vede dentro);

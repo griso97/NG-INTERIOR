@@ -21,11 +21,11 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA,
-} from './modello.js?v=20261111q';
-import { renderPianta } from './pianta.js?v=20261111q';
-import { calcolaDistintaCucina } from './distinta.js?v=20261111q';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111q';
-import { agganciaTema } from '../tema.js?v=20261111q';
+} from './modello.js?v=20261111r';
+import { renderPianta } from './pianta.js?v=20261111r';
+import { calcolaDistintaCucina } from './distinta.js?v=20261111r';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111r';
+import { agganciaTema } from '../tema.js?v=20261111r';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1201,7 +1201,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261111q');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261111r');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
