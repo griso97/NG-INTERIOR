@@ -5,18 +5,18 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig } from './calcoli.js';
+import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261111a';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo,
-} from './scena3d.js';
-import { SFONDI_LISTA } from './sfondi.js';
-import { agganciaTema } from './tema.js';
-import { renderPannello, configDefault } from './interfaccia.js';
-import { renderDistinta } from './distinta.js';
-import { esportaCSV, esportaPDF } from './esportazione.js';
+} from './scena3d.js?v=20261111a';
+import { SFONDI_LISTA } from './sfondi.js?v=20261111a';
+import { agganciaTema } from './tema.js?v=20261111a';
+import { renderPannello, configDefault } from './interfaccia.js?v=20261111a';
+import { renderDistinta } from './distinta.js?v=20261111a';
+import { esportaCSV, esportaPDF } from './esportazione.js?v=20261111a';
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js';
+} from './storage.js?v=20261111a';
 
 // Config iniziale: ultima salvata, oppure default
 let config = caricaLocale() || configDefault();

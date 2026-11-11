@@ -36,7 +36,7 @@ function csvEscape(v) {
   return s;
 }
 
-import { trovaMateriale } from './materiali.js';
+import { trovaMateriale } from './materiali.js?v=20261111a';
 
 function nomeMaterialeCsv(pezzo, config) {
   if (pezzo.materiale === 'melaminico') return 'Melaminico bianco';
