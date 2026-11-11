@@ -77,10 +77,11 @@
   }
   .scelte{
     display:grid; gap:24px;
-    grid-template-columns:repeat(3, minmax(0, 280px));
-    width:100%; max-width:980px;
+    grid-template-columns:repeat(4, minmax(0, 260px));
+    width:100%; max-width:1180px;
   }
-  @media (max-width:860px){ .scelte{grid-template-columns:1fr;} }
+  @media (max-width:1180px){ .scelte{grid-template-columns:repeat(2, minmax(0, 280px)); justify-content:center;} }
+  @media (max-width:640px){ .scelte{grid-template-columns:1fr;} }
   .scelta{
     position:relative;
     display:flex; flex-direction:column;
@@ -191,6 +192,22 @@
         </svg>
         <h2>Cucina</h2>
         <p>Pianta + 3D + moduli</p>
+        <div class="freccia">Progetta →</div>
+      </a>
+      <!-- MOBILI MODULARI -->
+      <a class="scelta" href="./modulari.html">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <!-- sottoscala: triangolo con moduli dentro -->
+          <path d="M12 108 H108 L12 20 Z"/>
+          <line x1="40" y1="108" x2="40" y2="46"/>
+          <line x1="70" y1="108" x2="70" y2="73"/>
+          <line x1="12" y1="78" x2="40" y2="78"/>
+          <line x1="40" y1="88" x2="70" y2="88"/>
+          <!-- gradini -->
+          <polyline points="12,14 30,14 30,30 50,30 50,48 70,48 70,66 90,66 90,84 110,84" stroke-dasharray="3 3"/>
+        </svg>
+        <h2>Mobili modulari</h2>
+        <p>Sottoscala · nicchie · mansarde</p>
         <div class="freccia">Progetta →</div>
       </a>
     </div>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NG Interior · Mobili modulari</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <!-- Tema chiaro/scuro: applicato subito per evitare lo "sfarfallio" -->
+  <script>(function(){try{var t=localStorage.getItem('ng-tema')||'scuro';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="css/style.css?v=20261112a" />
+  <link rel="stylesheet" href="css/cucina.css?v=20261112a" />
+  <link rel="stylesheet" href="css/modulari.css?v=20261112a" />
+</head>
+<body class="cucina-body">
+  <header class="app-header">
+    <div class="brand">
+      <a href="./scegli.html" class="back-link" title="Torna alla scelta">←</a>
+      <div>
+        <div class="mono">NG INTERIOR</div>
+        <div class="sottotitolo">Mobili modulari · sottoscala, nicchie, mansarde</div>
+      </div>
+    </div>
+    <div class="header-info" id="step-info">Passo 1 — Forma del vano (vista frontale)</div>
+    <div class="header-strumenti">
+      <button type="button" id="tema-toggle" class="tema-toggle">☀ Chiaro</button>
+    </div>
+  </header>
+
+  <nav class="stepper" id="stepper">
+    <button class="step attivo" data-step="1" aria-current="step">
+      <span class="step-n">1</span><span class="step-nome">Forma del vano</span>
+    </button>
+    <button class="step disabilitato" data-step="2" disabled>
+      <span class="step-n">2</span><span class="step-nome">Moduli</span>
+    </button>
+    <button class="step disabilitato" data-step="3" disabled>
+      <span class="step-n">3</span><span class="step-nome">Rendering 3D</span>
+    </button>
+    <button class="step disabilitato" data-step="4" disabled>
+      <span class="step-n">4</span><span class="step-nome">Distinta</span>
+    </button>
+  </nav>
+
+  <main class="cucina-app">
+    <aside id="mod-pannello" class="pannello"></aside>
+    <section class="cucina-vista">
+      <div class="vista-strumenti">
+        <span class="legenda">Vista frontale · griglia 100 mm · misure in mm</span>
+      </div>
+      <svg id="mod-svg" class="mod-svg" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"></svg>
+    </section>
+    <aside id="mod-riepilogo" class="riepilogo-panel"></aside>
+  </main>
+
+  <script type="module" src="js/modulari/main.js?v=20261112a"></script>
+</body>
+</html>
