@@ -11,7 +11,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261111t';
+} from './modello.js?v=20261111u';
 
 const SP = 18;        // pannelli carcassa e ante/fronti (mm)
 const SP_SK = 4;      // schiena (mm)
@@ -217,7 +217,9 @@ function gruppoPezzo(p) {
 }
 
 export function calcolaDistintaCucina(progetto) {
-  const mobili = (progetto.mobiliLiberi || []);
+  // Gli "oggetti" (sgabelli, decor) sono arredo, non moduli di cucina:
+  // non entrano né nei moduli né nei pezzi della distinta.
+  const mobili = (progetto.mobiliLiberi || []).filter((m) => categoriaTipo(m.tipo) !== 'oggetto');
 
   // 1) LISTA MODULI: aggrega i moduli uguali (stessa etichetta + tipo).
   const modMap = new Map();

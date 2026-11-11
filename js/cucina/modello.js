@@ -106,6 +106,9 @@ export const CATALOGO_MOBILI = [
     larghezze: [1200, 1800, 2400, 3000], altezze: [850, 900], profondita: 18 },
   { id: 'costado',       nome: 'Costado', categoria: 'costado',
     larghezze: [20], altezze: ALTEZZE_COSTADO, profondita: 620 },
+  // Oggetti 3D (arredo/decor): non sono moduli, si posano liberamente.
+  { id: 'sgabello',      nome: 'Sgabello bar', categoria: 'oggetto',
+    larghezze: [527], altezze: [880], profondita: 430 },
 ];
 
 // Colonne (armadi a tutta altezza)

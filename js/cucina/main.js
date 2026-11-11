@@ -21,11 +21,11 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA,
-} from './modello.js?v=20261111t';
-import { renderPianta } from './pianta.js?v=20261111t';
-import { calcolaDistintaCucina } from './distinta.js?v=20261111t';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111t';
-import { agganciaTema } from '../tema.js?v=20261111t';
+} from './modello.js?v=20261111u';
+import { renderPianta } from './pianta.js?v=20261111u';
+import { calcolaDistintaCucina } from './distinta.js?v=20261111u';
+import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111u';
+import { agganciaTema } from '../tema.js?v=20261111u';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1201,7 +1201,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261111t');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261111u');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1266,6 +1266,7 @@ function iconaMobile(id) {
     'regletta-grande': '<rect x="28" y="4" width="8" height="56"/><line x1="22" y1="4" x2="28" y2="8"/><line x1="22" y1="60" x2="28" y2="56"/>',
     'pannello-copertura': '<rect x="6" y="14" width="52" height="36"/><line x1="12" y1="20" x2="52" y2="20" stroke-dasharray="3 3"/><line x1="12" y1="44" x2="52" y2="44" stroke-dasharray="3 3"/>',
     costado: '<rect x="26" y="6" width="12" height="52"/><line x1="20" y1="6" x2="26" y2="10"/><line x1="20" y1="54" x2="26" y2="58"/>',
+    sgabello: '<ellipse cx="32" cy="16" rx="13" ry="6"/><path d="M22 14 a10 8 0 0 1 20 0" fill="none"/><line x1="32" y1="22" x2="32" y2="48"/><ellipse cx="32" cy="52" rx="16" ry="5"/><ellipse cx="32" cy="40" rx="10" ry="3" fill="none"/>',
   };
   return `<svg viewBox="0 0 64 64" aria-hidden="true">${ic[id] || ic['base-ante']}</svg>`;
 }

@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111t';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111u';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261111t';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261111t';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111t';
-import { sfondoDi } from '../sfondi.js?v=20261111t';
-export { MATERIALI } from '../materiali.js?v=20261111t';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261111t';
+} from './modello.js?v=20261111u';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261111u';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111u';
+import { sfondoDi } from '../sfondi.js?v=20261111u';
+export { MATERIALI } from '../materiali.js?v=20261111u';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261111u';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -30,7 +30,7 @@ function zoccoloPerAltezza(h) { return h >= 800 ? 100 : 150; }
 // con piedini + piano: base, lavello, forno, cassettiera...). Serve per far
 // adattare i piedini della colonna ai mobili bassi: se i bassi sono da 80
 // (piedini 100), anche la colonna deve stare su piedini da 100, non 150.
-const CAT_NON_BASSE = new Set(['pensile', 'colonna', 'regletta', 'pannello', 'costado']);
+const CAT_NON_BASSE = new Set(['pensile', 'colonna', 'regletta', 'pannello', 'costado', 'oggetto']);
 function altezzaBaseDominante(progetto) {
   const conteggio = new Map();
   for (const m of (progetto.mobiliLiberi || [])) {
@@ -1006,9 +1006,52 @@ function collocaMobile(g, cx, yBottom, cz, h, rotGradi) {
 }
 
 // ---------------------------------------------------------------------------
+// --- Oggetti 3D (sgabelli / decor): modelli "bakeati" in JSON compatto,
+//     caricati on-demand e messi in cache. Non sono moduli: niente zoccolo,
+//     niente piano, non entrano in distinta. ---
+const OGGETTI_FILE = { sgabello: 'sgabello.json' };
+const _oggModelli = {};      // id -> { parts:[{geo,mat}], dim }
+const _oggPending = {};
+let _lastProgetto = null;
+function costruisciOggetto(id) {
+  const m = _oggModelli[id];
+  if (!m) { caricaModelloOgg(id); return null; }     // non pronto → re-render al load
+  const g = new THREE.Group();
+  for (const part of m.parts) {
+    const mesh = new THREE.Mesh(part.geo, part.mat);
+    mesh.castShadow = true; mesh.receiveShadow = true; g.add(mesh);
+  }
+  return g;
+}
+async function caricaModelloOgg(id) {
+  if (_oggPending[id] || _oggModelli[id]) return;
+  const file = OGGETTI_FILE[id]; if (!file) return;
+  _oggPending[id] = true;
+  try {
+    const url = new URL(`./models/${file}`, import.meta.url);
+    const data = await (await fetch(url)).json();
+    const parts = data.parts.map((pt) => {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(data.positions), 3));
+      geo.setIndex(pt.indices);
+      geo.computeVertexNormals();
+      const mat = new THREE.MeshStandardMaterial({
+        color: pt.colore,
+        metalness: Math.min(pt.metalness, 0.4),
+        roughness: pt.roughness,
+        envMapIntensity: 0.3,
+      });
+      return { geo, mat };
+    });
+    _oggModelli[id] = { parts, dim: data.dim_mm };
+  } catch (e) { /* modello non disponibile: si ignora */ }
+  finally { _oggPending[id] = false; if (_lastProgetto && scene) aggiornaScena3d(_lastProgetto, false, selId); }
+}
+
 export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   if (!scene) return;
   selId = selezionato;
+  _lastProgetto = progetto;
   _fpByCat = progetto.fingerPull || {};
   // L'illuminazione della scena resta sempre al valore pieno (giorno) sia
   // con i LED spenti che accesi: non si vuole che i LED spengano l'ambiente.
@@ -1110,7 +1153,11 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
     const dim = dimMobile(m);
     const cx = m.x, cz = -m.y;
     let g3d = null;
-    if (cat === 'pensile') {
+    if (cat === 'oggetto') {
+      // Oggetto 3D (sgabello, decor): posato a terra, nessuno zoccolo/piano.
+      const og = costruisciOggetto(m.tipo);
+      if (og) { og.position.set(cx, 0, cz); og.rotation.y = -(m.rot || 0) * Math.PI / 180; g3d = og; }
+    } else if (cat === 'pensile') {
       const h = m.altezza_mm || 700;
       // Se ci sono colonne, la CIMA del pensile va alla cima delle colonne;
       // altrimenti resta appeso all'altezza standard (140 cm da terra).
