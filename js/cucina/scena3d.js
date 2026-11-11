@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111v';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111w';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261111v';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261111v';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111v';
-import { sfondoDi } from '../sfondi.js?v=20261111v';
-export { MATERIALI } from '../materiali.js?v=20261111v';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261111v';
+} from './modello.js?v=20261111w';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261111w';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111w';
+import { sfondoDi } from '../sfondi.js?v=20261111w';
+export { MATERIALI } from '../materiali.js?v=20261111w';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261111w';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -119,11 +119,12 @@ function aggiungiAccessorioTop(a) {
     // Inox del bordo: chiaro e lucido. Interno della vasca: acciaio più scuro
     // e MENO riflettente, così non diventa un blocco bianco e il rettangolo che
     // scende si legge bene.
-    const matInox = new THREE.MeshStandardMaterial({ color: 0xc4c4c8, roughness: 0.22, metalness: 0.8 });
-    // Pareti: acciaio medio; fondo PIÙ SCURO → dà il senso di profondità (il
-    // rettangolo che scende) invece di un blocco chiaro uniforme.
-    const matPar  = new THREE.MeshStandardMaterial({ color: 0x55565c, roughness: 0.45, metalness: 0.25, envMapIntensity: 0.3 });
-    const matFondo = new THREE.MeshStandardMaterial({ color: 0x3a3b41, roughness: 0.5, metalness: 0.2, envMapIntensity: 0.2 });
+    // ACCIAIO INOX VERO: metalness alta + riflessione ambientale, non un grigio
+    // piatto. Pareti lucide (riflettono il gradiente → danno profondità); fondo
+    // un filo più opaco così non "sbianca" del tutto.
+    const matInox = new THREE.MeshStandardMaterial({ color: 0xcbccd0, roughness: 0.2,  metalness: 0.95, envMapIntensity: 1.0 });
+    const matPar  = new THREE.MeshStandardMaterial({ color: 0xaeafb3, roughness: 0.28, metalness: 0.92, envMapIntensity: 0.95 });
+    const matFondo = new THREE.MeshStandardMaterial({ color: 0x9a9b9f, roughness: 0.5, metalness: 0.88, envMapIntensity: 0.6 });
     const { vw, vd, zc } = dimVasca(a.w, a.d);
     const prof = 220, t = 12;                        // vasca profonda ~22 cm
     // Pareti della vasca: facce ESTERNE a filo del foro (vw×vd), scendono dal
@@ -697,7 +698,7 @@ function ripianoColonna(g, w, d, y) {
  */
 function lavastoviglieFronte(g, w, h, d) {
   const z = d / 2, Z0 = z + 2;
-  const matInox = new THREE.MeshStandardMaterial({ color: 0xc2c3c7, roughness: 0.38, metalness: 0.55, envMapIntensity: 0.45 });
+  const matInox = new THREE.MeshStandardMaterial({ color: 0xc4c5c9, roughness: 0.32, metalness: 0.88, envMapIntensity: 0.9 });
   const box = (bw, bh, bd, x, y, zFront, mat) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(2, bw), Math.max(2, bh), bd), mat);
     m.position.set(x, y, zFront - bd / 2); m.castShadow = true; g.add(m); return m;
@@ -1478,7 +1479,7 @@ function materialeZoccolo(id) {
     case 'bianco-opaco':
       return new THREE.MeshStandardMaterial({ color: 0xeceae4, roughness: 1.0, metalness: 0.0 });
     case 'acciaio':
-      return new THREE.MeshStandardMaterial({ color: 0xc6cace, roughness: 0.42, metalness: 0.72 });
+      return new THREE.MeshStandardMaterial({ color: 0xc6cace, roughness: 0.3, metalness: 0.92, envMapIntensity: 1.0 });
     case 'nero-opaco':
     default:
       return new THREE.MeshStandardMaterial({ color: 0x17171a, roughness: 1.0, metalness: 0.0 });
