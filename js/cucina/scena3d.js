@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261110f';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261110g';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261110f';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261110f';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261110f';
-import { sfondoDi } from '../sfondi.js?v=20261110f';
-export { MATERIALI } from '../materiali.js?v=20261110f';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261110f';
+} from './modello.js?v=20261110g';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261110g';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261110g';
+import { sfondoDi } from '../sfondi.js?v=20261110g';
+export { MATERIALI } from '../materiali.js?v=20261110g';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261110g';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -467,9 +467,26 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
     pannelloElettro(g, y0 + hf + hm / 2, z, pw, hm - 10, 'microonde');
     const top = rem - hf - hm;
     if (top > 60) porta(y0 + hf + hm, top);
+  } else if (m.variante === 'vano') {
+    // Porta bassa → ripiano → vano aperto (a vista) → ripiano → porta alta.
+    const vanoH = Math.max(100, Math.min(m.altezzaVano_mm || 600, rem - 100));
+    ripianoColonna(g, w, d, y0);              // ripiano sotto il vano
+    ripianoColonna(g, w, d, y0 + vanoH);      // ripiano sopra il vano
+    const topH = rem - vanoH;
+    if (topH > 60) porta(y0 + vanoH, topH);   // porta alta (il vano resta aperto)
   } else {
     porta(y0, rem);                  // porta unica a tutta altezza
   }
+}
+
+/** Ripiano orizzontale della colonna (visibile nel vano aperto). */
+function ripianoColonna(g, w, d, y) {
+  const sh = new THREE.Mesh(
+    new THREE.BoxGeometry(w - FUGA_W, 18, d - 40),
+    new THREE.MeshStandardMaterial({ color: COL.colonna, roughness: 0.9, metalness: 0 }));
+  sh.position.set(0, y, -5);
+  sh.castShadow = true; sh.receiveShadow = true;
+  g.add(sh);
 }
 
 /** Lavastoviglie a incasso: anta unica + striscia comandi inox in alto. */

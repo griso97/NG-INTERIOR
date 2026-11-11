@@ -11,7 +11,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261110f';
+} from './modello.js?v=20261110g';
 
 const SP = 18;        // pannelli carcassa e ante/fronti (mm)
 const SP_SK = 4;      // schiena (mm)
@@ -67,15 +67,19 @@ function zoccolo(pz, mod, L, H) {
 }
 
 // Altezza dell'anta SUPERIORE della colonna: lo spazio che resta sopra la
-// porta bassa, tolto l'eventuale forno/microonde (stessa logica del 3D).
-function restoAntaColonna(variante, rem) {
+// porta bassa, tolto l'eventuale forno/microonde/vano (stessa logica del 3D).
+function restoAntaColonna(m, rem) {
   const H_FORNO = 600, H_MICRO = 380;
-  if (variante === 'forno') { const ho = Math.min(H_FORNO, rem - 300); return rem - ho; }
-  if (variante === 'microonde') { const ho = Math.min(H_MICRO, rem - 300); return rem - ho; }
-  if (variante === 'forno-micro') {
+  if (m.variante === 'forno') { const ho = Math.min(H_FORNO, rem - 300); return rem - ho; }
+  if (m.variante === 'microonde') { const ho = Math.min(H_MICRO, rem - 300); return rem - ho; }
+  if (m.variante === 'forno-micro') {
     const hf = Math.max(200, Math.min(H_FORNO, rem - H_MICRO - 250));
     const hm = Math.max(150, Math.min(H_MICRO, rem - hf - 200));
     return rem - hf - hm;
+  }
+  if (m.variante === 'vano') {
+    const vanoH = Math.max(100, Math.min(m.altezzaVano_mm || 600, rem - 100));
+    return rem - vanoH;   // porta alta = resto − vano
   }
   return rem; // porta unica
 }
@@ -163,14 +167,15 @@ function pezziDiModulo(progetto, m) {
   } else if (cat === 'colonna') {
     const prof = (d.d || 600) - 20;
     carcassa(pz, mod, L, H, prof, false);
-    ripiani(pz, mod, L, prof, 4);
+    // Variante "vano aperto": 2 ripiani (sotto e sopra il vano); altrimenti 4.
+    ripiani(pz, mod, L, prof, m.variante === 'vano' ? 2 : 4);
     // Zoccolo della colonna: segue la porta bassa (70→150, 80→100), come i mobili bassi.
     zoccolo(pz, mod, L, m.altezzaBassa_mm || 700);
     // Due ante reali: sotto = porta bassa − 2 (come il mobile base 70/80),
-    // sopra = lo spazio che resta − 2 (tolto forno/microonde, come nel 3D).
+    // sopra = lo spazio che resta − 2 (tolto forno/microonde/vano, come nel 3D).
     const ab = m.altezzaBassa_mm || 700;
     const aw = round(L - 3);                        // larghezza anta (1 anta)
-    const topDoor = restoAntaColonna(m.variante, H - ab);
+    const topDoor = restoAntaColonna(m, H - ab);
     pz.push({ modulo: mod, nome: 'Anta bassa', larghezza: aw, altezza: round(ab - 2), spessore: SP, materiale: 'anta', quantita: 1 });
     if (topDoor > 60) pz.push({ modulo: mod, nome: 'Anta alta', larghezza: aw, altezza: round(topDoor - 2), spessore: SP, materiale: 'anta', quantita: 1 });
   } else if (cat === 'costado') {

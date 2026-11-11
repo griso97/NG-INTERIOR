@@ -113,6 +113,7 @@ export const VARIANTI_COLONNA = [
   { id: 'forno',       nome: 'Forno + porta' },
   { id: 'microonde',   nome: 'Microonde + porta' },
   { id: 'forno-micro', nome: 'Forno + microonde + porta' },
+  { id: 'vano',        nome: 'Vano aperto + porta' },
 ];
 export function nomeVarianteColonna(id) {
   return VARIANTI_COLONNA.find((v) => v.id === id)?.nome || id;
@@ -158,6 +159,8 @@ export function campiMobile(tipoId) {
       { campo: 'altezzaBassa_mm', et: 'Porta bassa (mm)',    opzioni: ALTEZZE_BASE,    default: ALTEZZE_BASE[0] },
       { campo: 'variante',        et: 'Parte alta',
         opzioni: VARIANTI_COLONNA.map((v) => ({ v: v.id, l: v.nome })), default: 'porta' },
+      { campo: 'altezzaVano_mm',  et: 'Altezza vano aperto (mm) — solo con "Vano aperto"',
+        tipo: 'numero', default: 600, min: 100, step: 10, opzioni: [400, 500, 600, 700] },
     ];
   }
   const campi = [
