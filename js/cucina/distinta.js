@@ -11,7 +11,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261110e';
+} from './modello.js?v=20261110f';
 
 const SP = 18;        // pannelli carcassa e ante/fronti (mm)
 const SP_SK = 4;      // schiena (mm)
@@ -64,6 +64,20 @@ function anteModulo(pz, mod, L, H, N, lato, altAnta, sporg) {
 
 function zoccolo(pz, mod, L, H) {
   pz.push({ modulo: mod, nome: 'Zoccolo (frontale)', larghezza: round(L), altezza: zoccoloH(H), spessore: SP, materiale: 'zoccolo', quantita: 1 });
+}
+
+// Altezza dell'anta SUPERIORE della colonna: lo spazio che resta sopra la
+// porta bassa, tolto l'eventuale forno/microonde (stessa logica del 3D).
+function restoAntaColonna(variante, rem) {
+  const H_FORNO = 600, H_MICRO = 380;
+  if (variante === 'forno') { const ho = Math.min(H_FORNO, rem - 300); return rem - ho; }
+  if (variante === 'microonde') { const ho = Math.min(H_MICRO, rem - 300); return rem - ho; }
+  if (variante === 'forno-micro') {
+    const hf = Math.max(200, Math.min(H_FORNO, rem - H_MICRO - 250));
+    const hm = Math.max(150, Math.min(H_MICRO, rem - hf - 200));
+    return rem - hf - hm;
+  }
+  return rem; // porta unica
 }
 
 // Fondo + trasera del cassetto in MELAMINICO BIANCO (guide metalliche: niente
@@ -152,9 +166,13 @@ function pezziDiModulo(progetto, m) {
     ripiani(pz, mod, L, prof, 4);
     // Zoccolo della colonna: segue la porta bassa (70→150, 80→100), come i mobili bassi.
     zoccolo(pz, mod, L, m.altezzaBassa_mm || 700);
-    // due ante (sopra/sotto) sulla colonna
-    const a = dimAnta(L, H / 2, 1);
-    pz.push({ modulo: mod, nome: 'Anta', larghezza: a.w, altezza: a.h, spessore: SP, materiale: 'anta', quantita: 2 });
+    // Due ante reali: sotto = porta bassa − 2 (come il mobile base 70/80),
+    // sopra = lo spazio che resta − 2 (tolto forno/microonde, come nel 3D).
+    const ab = m.altezzaBassa_mm || 700;
+    const aw = round(L - 3);                        // larghezza anta (1 anta)
+    const topDoor = restoAntaColonna(m.variante, H - ab);
+    pz.push({ modulo: mod, nome: 'Anta bassa', larghezza: aw, altezza: round(ab - 2), spessore: SP, materiale: 'anta', quantita: 1 });
+    if (topDoor > 60) pz.push({ modulo: mod, nome: 'Anta alta', larghezza: aw, altezza: round(topDoor - 2), spessore: SP, materiale: 'anta', quantita: 1 });
   } else if (cat === 'costado') {
     pz.push({ modulo: mod, nome: 'Pannello fianco (costado)', larghezza: round(m.profondita_mm || d.d || 620), altezza: H, spessore: m.spessore_mm || 20, materiale: 'anta', quantita: 1 });
   } else if (cat === 'pannello') {
