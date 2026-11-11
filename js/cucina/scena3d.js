@@ -9,16 +9,16 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111b';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111p';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261111b';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261111b';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111b';
-import { sfondoDi } from '../sfondi.js?v=20261111b';
-export { MATERIALI } from '../materiali.js?v=20261111b';
-export { SFONDI_LISTA } from '../sfondi.js?v=20261111b';
+} from './modello.js?v=20261111p';
+import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261111p';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111p';
+import { sfondoDi } from '../sfondi.js?v=20261111p';
+export { MATERIALI } from '../materiali.js?v=20261111p';
+export { SFONDI_LISTA } from '../sfondi.js?v=20261111p';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -116,35 +116,43 @@ function aggiungiAccessorioTop(a) {
     comandi.position.set(0, 13, pd / 2 - 35); g.add(comandi);
   }
   if (a.lavello) {
-    const matInox = new THREE.MeshStandardMaterial({ color: 0xcacace, roughness: 0.18, metalness: 0.9 });
-    const matInt = new THREE.MeshStandardMaterial({ color: 0x8d8d92, roughness: 0.22, metalness: 0.9 });
+    // Inox del bordo: chiaro e lucido. Interno della vasca: acciaio più scuro
+    // e MENO riflettente, così non diventa un blocco bianco e il rettangolo che
+    // scende si legge bene.
+    const matInox = new THREE.MeshStandardMaterial({ color: 0xc4c4c8, roughness: 0.22, metalness: 0.8 });
+    // Pareti: acciaio medio; fondo PIÙ SCURO → dà il senso di profondità (il
+    // rettangolo che scende) invece di un blocco chiaro uniforme.
+    const matPar  = new THREE.MeshStandardMaterial({ color: 0x55565c, roughness: 0.45, metalness: 0.25, envMapIntensity: 0.3 });
+    const matFondo = new THREE.MeshStandardMaterial({ color: 0x3a3b41, roughness: 0.5, metalness: 0.2, envMapIntensity: 0.2 });
     const { vw, vd, zc } = dimVasca(a.w, a.d);
-    const prof = 190, t = 14;
-    const iw = vw - 2 * t, id = vd - 2 * t;        // apertura interna
-    // Cornice a filo del top (4 lati) → l'apertura centrale resta VUOTA (si vede la vasca)
-    const br = 28;                                   // larghezza cornice
-    const corniceGeo = [
-      [0, 0, zc - vd / 2 - br / 2, vw + 2 * br, br],
-      [0, 0, zc + vd / 2 + br / 2, vw + 2 * br, br],
-      [-vw / 2 - br / 2, 0, zc, br, vd],
-      [vw / 2 + br / 2, 0, zc, br, vd],
-    ];
-    for (const [px, , pz, sw, sd] of corniceGeo) {
-      const c2 = new THREE.Mesh(new THREE.BoxGeometry(sw, 12, sd), matInox);
-      c2.position.set(px, 2, pz); g.add(c2);
-    }
-    // Pareti interne della vasca (scatola aperta sopra, scende sotto il top)
+    const prof = 220, t = 12;                        // vasca profonda ~22 cm
+    // Pareti della vasca: facce ESTERNE a filo del foro (vw×vd), scendono dal
+    // piano fino a −prof. Scatola aperta sopra → si vede il pozzetto.
     for (const [px, pz, sw, sd] of [
-      [0, zc - id / 2, iw, t], [0, zc + id / 2, iw, t],
-      [-iw / 2, zc, t, id], [iw / 2, zc, t, id],
+      [0, zc - vd / 2 + t / 2, vw, t],              // parete davanti
+      [0, zc + vd / 2 - t / 2, vw, t],              // parete dietro
+      [-vw / 2 + t / 2, zc, t, vd - 2 * t],         // parete sinistra
+      [vw / 2 - t / 2, zc, t, vd - 2 * t],          // parete destra
     ]) {
-      const par = new THREE.Mesh(new THREE.BoxGeometry(sw, prof, sd), matInt);
-      par.position.set(px, -prof / 2, pz); g.add(par);
+      const par = new THREE.Mesh(new THREE.BoxGeometry(sw, prof, sd), matPar);
+      par.position.set(px, -prof / 2 - 1, pz);
+      par.castShadow = true; par.receiveShadow = true; g.add(par);
     }
-    const fondo = new THREE.Mesh(new THREE.BoxGeometry(iw, t, id), matInt);
-    fondo.position.set(0, -prof, zc); g.add(fondo);
-    const scarico = new THREE.Mesh(new THREE.CylinderGeometry(28, 28, 10, 20),
-      new THREE.MeshStandardMaterial({ color: 0x3a3a3e, roughness: 0.5, metalness: 0.6 }));
+    const fondo = new THREE.Mesh(new THREE.BoxGeometry(vw - 2 * t, t, vd - 2 * t), matFondo);
+    fondo.position.set(0, -prof, zc); fondo.receiveShadow = true; g.add(fondo);
+    // Bordo inox a filo attorno all'apertura (copre il taglio del top).
+    const br = 14;
+    for (const [px, pz, sw, sd] of [
+      [0, zc - vd / 2 - br / 2, vw + 2 * br, br],
+      [0, zc + vd / 2 + br / 2, vw + 2 * br, br],
+      [-vw / 2 - br / 2, zc, br, vd],
+      [vw / 2 + br / 2, zc, br, vd],
+    ]) {
+      const c2 = new THREE.Mesh(new THREE.BoxGeometry(sw, 10, sd), matInox);
+      c2.position.set(px, 3, pz); g.add(c2);
+    }
+    const scarico = new THREE.Mesh(new THREE.CylinderGeometry(26, 26, 10, 20),
+      new THREE.MeshStandardMaterial({ color: 0x2e2e32, roughness: 0.5, metalness: 0.6 }));
     scarico.position.set(0, -prof + 8, zc); g.add(scarico);
     // Rubinetto a miscelatore: base + colonna + canna orizzontale (collegati)
     const matMet = new THREE.MeshStandardMaterial({ color: 0xdedee2, roughness: 0.15, metalness: 0.95 });
@@ -188,12 +196,18 @@ const matOro = new THREE.LineBasicMaterial({ color: 0x3b3833, transparent: true,
 const matManiglia = new THREE.MeshStandardMaterial({ color: 0xcfcfcf, roughness: 0.35, metalness: 0.6 });
 
 // Materiali per gli elettrodomestici (forno / microonde) in 3D reale.
-const matElInox    = new THREE.MeshStandardMaterial({ color: 0xcfd0d4, roughness: 0.3,  metalness: 0.9 });
-const matElVetro   = new THREE.MeshStandardMaterial({ color: 0x08090c, roughness: 0.06, metalness: 0.55 });
-const matElCorpo   = new THREE.MeshStandardMaterial({ color: 0x161619, roughness: 0.55, metalness: 0.35 });
-const matElCavita  = new THREE.MeshStandardMaterial({ color: 0x26272e, roughness: 0.4,  metalness: 0.2 });
-const matElDisplay = new THREE.MeshStandardMaterial({ color: 0x173640, emissive: 0x1f6f86, emissiveIntensity: 0.7, roughness: 0.3, metalness: 0.1 });
-const matElButton  = new THREE.MeshStandardMaterial({ color: 0x3a3a42, roughness: 0.45, metalness: 0.5 });
+// envMapIntensity contenuto: l'ambiente è caldo (crema) e con metalness alto
+// l'acciaio diventava beige/dorato. Così resta acciaio neutro e il vetro NERO.
+const matElInox    = new THREE.MeshStandardMaterial({ color: 0xb6b7bc, roughness: 0.45, metalness: 0.5,  envMapIntensity: 0.45 });
+// Le parti SCURE (vetro porta, finestra, pannello, bottoni) sono UNLIT
+// (MeshBasic, toneMapped:false): così restano NERE da ogni angolo e con ogni
+// zoom — una porta a vetro scuro illuminata dalle luci calde veniva invece
+// mappata su un tono dorato in primo piano. Come lo zoccolo, niente shading.
+const matElVetro   = new THREE.MeshBasicMaterial({ color: 0x121318, toneMapped: false });
+const matElCorpo   = new THREE.MeshBasicMaterial({ color: 0x17181d, toneMapped: false });
+const matElCavita  = new THREE.MeshBasicMaterial({ color: 0x282a32, toneMapped: false });
+const matElDisplay = new THREE.MeshBasicMaterial({ color: 0x2aa6c4, toneMapped: false });
+const matElButton  = new THREE.MeshBasicMaterial({ color: 0x4c4d57, toneMapped: false });
 
 // Ambiente IBL: gradiente (soffitto chiaro → pavimento scuro) per riflessi soft.
 function creaAmbiente(rnd) {
@@ -419,9 +433,8 @@ function canaleFingerPull(g, cx, cy, z, length, thick, orizz, matAnta) {
   g.add(shadow);
 }
 
-/** Immagine "standard" di forno o microonde su canvas → texture. */
-// Telaio inox (4 lati) a filo del fronte, con un'apertura centrale.
-function telaioInox(grp, pw, ph, Zf, fb, frameD) {
+// Telaio inox (4 lati) con la faccia frontale al piano frontZ.
+function telaioInox(grp, pw, ph, frontZ, fb, frameD) {
   for (const [fx, fy, fw, fh] of [
     [0, ph / 2 - fb / 2, pw, fb],
     [0, -ph / 2 + fb / 2, pw, fb],
@@ -429,94 +442,106 @@ function telaioInox(grp, pw, ph, Zf, fb, frameD) {
     [pw / 2 - fb / 2, 0, fb, ph - 2 * fb],
   ]) {
     const fr = new THREE.Mesh(new THREE.BoxGeometry(fw, fh, frameD), matElInox);
-    fr.position.set(fx, fy, Zf - frameD / 2);
+    fr.position.set(fx, fy, frontZ - frameD / 2);
     fr.castShadow = true; grp.add(fr);
   }
 }
 
 /**
- * Elettrodomestico da incasso REALE (forno / microonde): corpo incassato,
- * telaio inox, porta a vetro scuro arretrata, comandi (manopole/display) e
- * maniglia che sporge. Niente immagine piatta. Il fronte è al piano Zf = z.
+ * Elettrodomestico da incasso REALE (forno / microonde).
+ * IMPORTANTE: il mobile che lo contiene è una scatola PIENA con la faccia a
+ * z = Zf; quindi TUTTO l'elettrodomestico va costruito DAVANTI a Zf (sporgente),
+ * altrimenti il corpo chiaro del mobile lo copre. Il vetro scuro è la parte
+ * dominante; telaio inox, comandi e maniglia sporgono ancora di più.
  */
 function pannelloElettro(g, py, z, pw, ph, tipo) {
   const grp = new THREE.Group();
   grp.position.set(0, py, 0);
-  const Zf = z;
-  const bodyD = tipo === 'microonde' ? 300 : 460;
-  // Corpo incassato (scatola scura dietro il frontale)
-  const corpoM = new THREE.Mesh(new THREE.BoxGeometry(Math.max(40, pw - 16), Math.max(40, ph - 16), bodyD), matElCorpo);
-  corpoM.position.set(0, 0, Zf - bodyD / 2 - 4); grp.add(corpoM);
+  const Z0 = z + 3;   // fronte del vetro: 3 mm DAVANTI alla faccia del mobile
+  // box con la FACCIA FRONTALE al piano zFront.
+  const box = (w, h, d, x, y, zFront, mat) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(2, w), Math.max(2, h), d), mat);
+    m.position.set(x, y, zFront - d / 2);
+    m.castShadow = true; grp.add(m); return m;
+  };
 
   if (tipo === 'forno') {
-    const fb = 18;                                   // bordo inox
-    telaioInox(grp, pw, ph, Zf, fb, 22);
-    // Fascia comandi inox in alto (manopole + display)
-    const topH = Math.min(ph * 0.22, 95);
-    const topY = ph / 2 - fb - topH / 2;
-    const fascia = new THREE.Mesh(new THREE.BoxGeometry(pw - 2 * fb, topH, 20), matElInox);
-    fascia.position.set(0, topY, Zf - 10); grp.add(fascia);
-    const disp = new THREE.Mesh(new THREE.BoxGeometry(pw * 0.24, topH * 0.4, 4), matElDisplay);
-    disp.position.set(0, topY, Zf + 1); grp.add(disp);
-    const knobR = Math.min(topH * 0.28, 18);
-    for (const kx of [-pw * 0.37, -pw * 0.26, pw * 0.26, pw * 0.37]) {
-      const knob = new THREE.Mesh(new THREE.CylinderGeometry(knobR, knobR * 0.85, 20, 20), matElInox);
-      knob.rotation.x = Math.PI / 2;
-      knob.position.set(kx, topY, Zf + 8); grp.add(knob);
-    }
-    // Porta a vetro (sotto la fascia), arretrata dietro al telaio
-    const doorTop = topY - topH / 2 - 4;
+    const fb = 20;
+    const topH = Math.min(ph * 0.2, 88);
+    const topY = ph / 2 - fb - topH / 2;             // fascia comandi
+    const doorTop = topY - topH / 2 - 3;
     const doorBot = -ph / 2 + fb;
-    const doorH = doorTop - doorBot;
+    const doorH = Math.max(60, doorTop - doorBot);
     const doorY = (doorTop + doorBot) / 2;
-    const vetro = new THREE.Mesh(new THREE.BoxGeometry(pw - 2 * fb, doorH, 8), matElVetro);
-    vetro.position.set(0, doorY, Zf - 10); grp.add(vetro);
-    const fin = new THREE.Mesh(new THREE.BoxGeometry(pw - 2 * fb - 70, Math.max(30, doorH - 70), 3), matElCavita);
-    fin.position.set(0, doorY, Zf - 13); grp.add(fin);
-    // Maniglia orizzontale (barra inox) in cima alla porta
-    const barL = pw - 2 * fb - 40;
-    const barY = doorTop - 14;
+    // Porta: grande vetro SCURO (fronte a Z0).
+    box(pw - 2 * fb, doorH, 12, 0, doorY, Z0, matElVetro);
+    // Finestra interna (un filo più chiara) + cornice inox che la delimita.
+    const winW = pw - 2 * fb - 80, winH = Math.max(30, doorH - 80);
+    box(winW, winH, 4, 0, doorY, Z0 + 1.5, matElCavita);
+    const wt = 6;
+    for (const [bx, by, bw, bh] of [
+      [0, doorY + winH / 2 + wt / 2, winW + 2 * wt, wt],
+      [0, doorY - winH / 2 - wt / 2, winW + 2 * wt, wt],
+      [-winW / 2 - wt / 2, doorY, wt, winH],
+      [winW / 2 + wt / 2, doorY, wt, winH],
+    ]) box(bw, bh, 5, bx, by, Z0 + 3, matElInox);
+    // Fascia comandi inox in alto + display + manopole
+    box(pw - 2 * fb, topH, 10, 0, topY, Z0 + 1, matElInox);
+    box(pw * 0.24, topH * 0.42, 4, 0, topY, Z0 + 4, matElDisplay);
+    const knobR = Math.min(topH * 0.3, 17);
+    for (const kx of [-pw * 0.37, -pw * 0.26, pw * 0.26, pw * 0.37]) {
+      const knob = new THREE.Mesh(new THREE.CylinderGeometry(knobR, knobR * 0.8, 20, 20), matElInox);
+      knob.rotation.x = Math.PI / 2; knob.position.set(kx, topY, Z0 + 12); grp.add(knob);
+    }
+    // Telaio inox esterno (incornicia, sporge un po' di più)
+    telaioInox(grp, pw, ph, Z0 + 5, fb, 14);
+    // Maniglia orizzontale a barra in cima alla porta
+    const barL = pw - 2 * fb - 40, barY = doorTop - 16;
     const barra = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, barL, 16), matElInox);
-    barra.rotation.z = Math.PI / 2;
-    barra.position.set(0, barY, Zf + 28); grp.add(barra);
+    barra.rotation.z = Math.PI / 2; barra.position.set(0, barY, Z0 + 26); grp.add(barra);
     for (const sx of [-barL / 2 + 8, barL / 2 - 8]) {
-      const sup = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 34, 12), matElInox);
-      sup.rotation.x = Math.PI / 2;
-      sup.position.set(sx, barY, Zf + 13); grp.add(sup);
+      const sup = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 32, 12), matElInox);
+      sup.rotation.x = Math.PI / 2; sup.position.set(sx, barY, Z0 + 11); grp.add(sup);
     }
   } else {
-    // MICROONDE: vetro a sinistra, pannello comandi a destra, maniglia verticale
-    const fb = 14;
-    telaioInox(grp, pw, ph, Zf, fb, 18);
+    // MICROONDE orizzontale: grande sportello a vetro SCURO (sx) con cornice
+    // inox, pannello comandi (dx) con display e bottoni, maniglia verticale.
+    const fb = 12;
     const inW = pw - 2 * fb, inH = ph - 2 * fb;
-    const panW = Math.min(inW * 0.32, 150);
-    const glassW = inW - panW - 6;
+    const panW = Math.min(inW * 0.3, 150);
+    const gap = 10;
+    const glassW = inW - panW - gap;
     const glassCx = -inW / 2 + glassW / 2;
-    const vetro = new THREE.Mesh(new THREE.BoxGeometry(glassW, inH, 8), matElVetro);
-    vetro.position.set(glassCx, 0, Zf - 8); grp.add(vetro);
-    const cav = new THREE.Mesh(new THREE.BoxGeometry(Math.max(30, glassW - 50), Math.max(30, inH - 50), 3), matElCavita);
-    cav.position.set(glassCx, 0, Zf - 11); grp.add(cav);
-    // Pannello comandi a destra (inox scuro) con display e bottoni
     const panCx = inW / 2 - panW / 2;
-    const pan = new THREE.Mesh(new THREE.BoxGeometry(panW, inH, 8), matElCorpo);
-    pan.position.set(panCx, 0, Zf - 7); grp.add(pan);
-    const disp = new THREE.Mesh(new THREE.BoxGeometry(panW * 0.78, inH * 0.1, 3), matElDisplay);
-    disp.position.set(panCx, inH * 0.32, Zf - 2); grp.add(disp);
-    const br = Math.min(panW * 0.12, 8);
+    // Sportello a vetro scuro (dominante).
+    box(glassW, inH, 12, glassCx, 0, Z0, matElVetro);
+    // Cornice inox sottile attorno allo sportello → sembra una porta.
+    const tw = 7;
+    for (const [bx, by, bw, bh] of [
+      [glassCx, inH / 2 - tw / 2, glassW, tw],
+      [glassCx, -inH / 2 + tw / 2, glassW, tw],
+      [glassCx - glassW / 2 + tw / 2, 0, tw, inH - 2 * tw],
+      [glassCx + glassW / 2 - tw / 2, 0, tw, inH - 2 * tw],
+    ]) box(bw, bh, 5, bx, by, Z0 + 2, matElInox);
+    // Pannello comandi a destra (scuro) con display e bottoni.
+    box(panW, inH, 12, panCx, 0, Z0, matElCorpo);
+    box(panW * 0.78, inH * 0.12, 4, panCx, inH * 0.3, Z0 + 3, matElDisplay);
+    const br = Math.min(panW * 0.1, 7);
     for (let r = 0; r < 3; r++) for (let cc = 0; cc < 2; cc++) {
-      const bt = new THREE.Mesh(new THREE.CylinderGeometry(br, br, 4, 12), matElButton);
+      const bt = new THREE.Mesh(new THREE.CylinderGeometry(br, br, 5, 14), matElButton);
       bt.rotation.x = Math.PI / 2;
-      bt.position.set(panCx + (cc ? br * 2.2 : -br * 2.2), inH * 0.05 - r * br * 3.2, Zf - 1); grp.add(bt);
+      bt.position.set(panCx + (cc ? br * 2.3 : -br * 2.3), inH * 0.02 - r * br * 3.4, Z0 + 5);
+      grp.add(bt);
     }
-    // Maniglia verticale (barra) sul bordo del vetro
-    const barH = inH - 24;
-    const barX = glassCx + glassW / 2 - 6;
+    // Telaio inox esterno
+    telaioInox(grp, pw, ph, Z0 + 4, fb, 14);
+    // Maniglia verticale a barra, fra vetro e pannello
+    const barH = inH - 20, barX = glassCx + glassW / 2 + gap / 2;
     const barra = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, barH, 14), matElInox);
-    barra.position.set(barX, 0, Zf + 20); grp.add(barra);
+    barra.position.set(barX, 0, Z0 + 20); grp.add(barra);
     for (const sy of [-barH / 2 + 8, barH / 2 - 8]) {
       const sup = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 26, 12), matElInox);
-      sup.rotation.x = Math.PI / 2;
-      sup.position.set(barX, sy, Zf + 10); grp.add(sup);
+      sup.rotation.x = Math.PI / 2; sup.position.set(barX, sy, Z0 + 10); grp.add(sup);
     }
   }
   g.add(grp);
@@ -1234,7 +1259,18 @@ function slabConFori(len, thickness, depth, mat, fori) {
 }
 
 function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, lavelli = []) {
-  const matTop = materialePerTop(mat);
+  let matTop = materialePerTop(mat);
+  // Il piano deve SEMPRE vincere lo z-fighting contro costadi/colonne che gli
+  // arrivano a filo (stessa quota): con polygonOffset la lastra viene disegnata
+  // leggermente davanti, così il top resta ben visibile da ogni prospettiva e
+  // non "lampeggia".
+  if (!matTop || !matTop.isMaterial) {
+    matTop = new THREE.MeshStandardMaterial({ color: COL.top, roughness: 0.55, metalness: 0.1 });
+  }
+  matTop.polygonOffset = true;
+  matTop.polygonOffsetFactor = -3;
+  matTop.polygonOffsetUnits = -3;
+  matTop.needsUpdate = true;
   const gruppi = {};
   for (const b of basi) {
     const rotN = rotNorm(b.rot);
@@ -1292,7 +1328,7 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
         if (Math.abs(perpS - perpTop) > depth / 2 + 50) continue;
         if (alongS < endLo - 10 || alongS > endHi + 10) continue;
         const { vw, vd, zc } = dimVasca(lv.w, lv.d);
-        fori.push({ u: alongS - centerAlong, v: (perpS - perpTop) + zc, w: vw + 10, d: vd + 10 });
+        fori.push({ u: alongS - centerAlong, v: (perpS - perpTop) + zc, w: vw + 6, d: vd + 6 });
       }
       const slab = fori.length
         ? slabConFori(len, thickness, depth, matTop || COL.top, fori)
