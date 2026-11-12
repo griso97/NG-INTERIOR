@@ -1,9 +1,9 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 1 (forma del vano) + navigazione tra i passi
 // =============================================================================
-import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261112h';
-import { renderPasso2, apriDistinta, stiliTema } from './passo2.js?v=20261112h';
-import { agganciaTema } from '../tema.js?v=20261112h';
+import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261112i';
+import { renderPasso2, apriDistinta, stiliTema, tastoCubi } from './passo2.js?v=20261112i';
+import { agganciaTema } from '../tema.js?v=20261112i';
 
 const KEY = 'ng-modulari-v1';
 const pannello = document.getElementById('mod-pannello');
@@ -44,7 +44,57 @@ function carica() {
   return statoIniziale();
 }
 let stato = carica();
-function salva() { try { localStorage.setItem(KEY, JSON.stringify(stato)); } catch { /* niente */ } }
+
+// --------- STORIA (Annulla / Rifai) ---------
+// Fotografa lo stato a ogni salvataggio (senza passo e selezione). Le
+// modifiche fatte di seguito (es. mentre si scrive un numero) diventano un
+// solo passo di annullamento.
+const istantanea = () => JSON.stringify({ ...stato, step: undefined, cuboSel: undefined });
+let ultimaFoto = istantanea(), tFoto = 0;
+const passato = [], futuro = [];
+function scrivi() { try { localStorage.setItem(KEY, JSON.stringify(stato)); } catch { /* niente */ } }
+function salva() {
+  scrivi();
+  const ora = istantanea();
+  if (ora === ultimaFoto) return;
+  const t = Date.now();
+  if (t - tFoto > 800 || !passato.length) { passato.push(ultimaFoto); if (passato.length > 80) passato.shift(); }
+  futuro.length = 0;
+  ultimaFoto = ora; tFoto = t;
+  bottoniStoria();
+}
+function applicaFoto(foto) {
+  const s = JSON.parse(foto);
+  stato = { ...s, step: stato.step, cuboSel: (s.cubi || []).some((c) => c.id === stato.cuboSel) ? stato.cuboSel : null };
+  ultimaFoto = foto; tFoto = 0;
+  scrivi(); aggiorna(); bottoniStoria();
+}
+function annulla() { if (!passato.length) return; futuro.push(ultimaFoto); applicaFoto(passato.pop()); }
+function rifai() { if (!futuro.length) return; passato.push(ultimaFoto); applicaFoto(futuro.pop()); }
+function bottoniStoria() {
+  const u = document.getElementById('btn-annulla'), r = document.getElementById('btn-rifai');
+  if (u) u.disabled = !passato.length;
+  if (r) r.disabled = !futuro.length;
+}
+document.getElementById('btn-annulla')?.addEventListener('click', annulla);
+document.getElementById('btn-rifai')?.addEventListener('click', rifai);
+
+// Ctrl+Z annulla · Ctrl+Y / Ctrl+Shift+Z rifai · con i cubi: Canc elimina,
+// Ctrl+C / Ctrl+V / Ctrl+D copia-incolla-duplica, frecce sposta, Esc deseleziona.
+document.addEventListener('keydown', (e) => {
+  const t = e.target, tag = (t && t.tagName || '').toLowerCase();
+  // nei campi dove si scrive vale l'annulla del campo stesso
+  const scrittura = tag === 'textarea' || (t && t.isContentEditable)
+    || (tag === 'input' && !['checkbox', 'radio', 'button'].includes(t.type));
+  if (scrittura) return;
+  if (!document.getElementById('distinta-overlay')?.hidden) return;
+  const ctrl = e.ctrlKey || e.metaKey;
+  const k = (e.key || '').toLowerCase();
+  if (ctrl && k === 'z' && !e.shiftKey) { e.preventDefault(); annulla(); return; }
+  if (ctrl && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); rifai(); return; }
+  if (tag === 'select' || tag === 'input') return;
+  if (stato.step === 2 && stato.modalita === 'cubi' && tastoCubi(e)) e.preventDefault();
+});
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmt = (n) => (n == null || Number.isNaN(n) ? '—' : Number(n).toLocaleString('it-IT', { maximumFractionDigits: 1 }));
@@ -346,7 +396,7 @@ function aggiorna() {
   const c = { stato, salva, aggiorna, forma: r, svg, pannello, riepilogo, esc, fmt, canvas: canvas3d };
   if (stato.step === 3) {
     mostra3d(true);
-    import('./passo3.js?v=20261112h').then((m) => { passo3 = m; if (stato.step === 3) m.renderPasso3(c); })
+    import('./passo3.js?v=20261112i').then((m) => { passo3 = m; if (stato.step === 3) m.renderPasso3(c); })
       .catch(() => { riepilogo.innerHTML = '<div class="mod-msg err">Non riesco a caricare il 3D. Ricarica la pagina.</div>'; });
     return;
   }

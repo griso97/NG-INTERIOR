@@ -2,12 +2,12 @@
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
 import { MATERIALI } from '../materiali.js?v=20261111b';
-import { layoutModuli, SPESSORI_DEFAULT } from './calcoli.js?v=20261112h';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte } from './scena3d.js?v=20261112h';
-import { apriDistinta } from './passo2.js?v=20261112h';
+import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261112i';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte } from './scena3d.js?v=20261112i';
+import { apriDistinta } from './passo2.js?v=20261112i';
 
 const FINITURE = MATERIALI.filter((m) => m.categoria === 'legno' || m.categoria === 'tinta');
-export const MATERIALI_DEFAULT = { struttura: 'roble-hera', ante: 'roble-denver' };
+export { MATERIALI_DEFAULT };
 // Forme dove l'inclinata può essere una scala; di default la scala si vede
 // sul sottoscala vero (triangolo, con muretto), non sulla mansarda.
 const CON_INCLINATA = ['triangolo', 'trapezio', 'mansarda'];
@@ -21,23 +21,34 @@ function conScala() {
 
 let ctx = null;
 
-/** Modulo di chiusura in fondo (solo modalità a moduli). */
+const spessori = () => ({ ...SPESSORI_DEFAULT, ...(ctx.stato.spessori || {}) });
+let selMod = null;        // modulo/cubo scelto per le finiture (modalità "diversi")
+
+/** Modulo di chiusura in fondo (moduli o cubi), con le sue finiture. */
 function chiusura() {
   const { stato, forma } = ctx;
-  if (stato.modalita === 'cubi') return null;
-  return layoutModuli(forma, stato.moduli, { ...SPESSORI_DEFAULT, ...(stato.spessori || {}) }).chiusura;
+  const ch = stato.modalita === 'cubi' ? layoutCubi(forma, stato, spessori()).chiusura
+    : layoutModuli(forma, stato.moduli, spessori()).chiusura;
+  return ch ? { ...ch, chiave: 'chiusura', nome: 'C', mat: finitureDi(stato.materiali, 'chiusura') } : null;
 }
 
 /** Elementi da disegnare (moduli o cubi) nel formato del motore 3D. */
 function elementi() {
   const { stato, forma } = ctx;
   if (stato.modalita === 'cubi') {
-    return (stato.cubi || []).map((c) => ({ x0: c.x, y0: c.y, L: c.w, hL: c.h, hR: c.h,
-      ante: c.fronte === 'anta' ? 1 : 0, lato: c.lato, ripiani: c.ripiani || 0 }));
+    const lc = layoutCubi(forma, stato, spessori());
+    return (stato.cubi || []).map((c, i) => ({ chiave: `c:${c.id}`, nome: `Cubo ${i + 1}`, x0: c.x, y0: c.y, L: c.w,
+      hL: lc.elementi[i].hL, hR: lc.elementi[i].hR, ante: c.fronte === 'anta' ? 1 : 0, lato: c.lato, ripiani: c.ripiani || 0,
+      mat: finitureDi(stato.materiali, `c:${c.id}`) }));
   }
-  const sp = { ...SPESSORI_DEFAULT, ...(stato.spessori || {}) };
-  return layoutModuli(forma, stato.moduli, sp).moduli.map((m) => ({ x0: m.x0, y0: 0, L: m.larghezza,
-    hL: m.hL, hR: m.hR, ante: Number(m.ante) || 0, lato: m.lato, ripiani: m.ripiani || 0 }));
+  return layoutModuli(forma, stato.moduli, spessori()).moduli.map((m) => ({ chiave: `m${m.indice}`, nome: `M${m.indice + 1}`,
+    x0: m.x0, y0: 0, L: m.larghezza, hL: m.hL, hR: m.hR, ante: Number(m.ante) || 0, lato: m.lato, ripiani: m.ripiani || 0,
+    mat: finitureDi(stato.materiali, `m${m.indice}`) }));
+}
+/** Tutti i pezzi a cui si può dare una finitura (per la scelta "diversi"). */
+function scegliibili() {
+  const ch = chiusura();
+  return [...elementi(), ...(ch && ch.fronte !== 'no' ? [ch] : [])];
 }
 
 export function esci3d() { attivaRendering(false); }
@@ -66,16 +77,22 @@ function disegna(reinquadra) {
 }
 
 // Stessa grafica della cucina: quadratini del campione (nome nel tooltip e nel titolo).
-function palette(parte) {
+function palette(parte, sel) {
   const { esc } = ctx;
-  const sel = ctx.stato.materiali[parte];
   return `<div class="palette-colori">${FINITURE.map((m) => `<button type="button" class="swatch ${m.id === sel ? 'sel' : ''}"
     data-parte="${parte}" data-mat="${m.id}" title="${esc(m.nome)}" aria-label="${esc(m.nome)}" style="background-image:url('${m.thumb}')"></button>`).join('')}</div>`;
 }
 
 function renderPannello() {
   const { stato, esc } = ctx;
+  const M = stato.materiali;
   const nome = (id) => esc((FINITURE.find((m) => m.id === id) || {}).nome || id);
+  const lista = scegliibili();
+  if (!lista.some((e) => e.chiave === selMod)) selMod = lista[0]?.chiave ?? null;
+  const diversi = !!M.diversi && lista.length > 0;
+  const cur = diversi ? finitureDi(M, selMod) : { struttura: M.struttura, ante: M.ante };
+  const dove = diversi ? ` · ${esc((lista.find((e) => e.chiave === selMod) || {}).nome || '')}` : '';
+  const personalizzato = (k) => !!(M.per && M.per[k] && (M.per[k].struttura || M.per[k].ante));
   ctx.pannello.innerHTML = `
     <section>
       <h3>Vista</h3>
@@ -89,13 +106,25 @@ function renderPannello() {
       ${CON_INCLINATA.includes(ctx.forma.forma) ? `<label class="chk" style="margin-top:8px"><input type="checkbox" id="p3-scala" ${conScala() ? 'checked' : ''}> Scala sopra l'inclinata</label>` : ''}
     </section>
     <section>
-      <h3>Struttura · ${nome(stato.materiali.struttura)}</h3>
-      <p class="mod-prossimo" style="margin-top:0">Carcassa, schiena e ripiani.</p>
-      ${palette('struttura')}
+      <h3>Colori dei moduli</h3>
+      <div class="mod-switch">
+        <button type="button" class="btn-ghost ${!diversi ? 'attivo' : ''}" data-colori="uguali">Tutti uguali</button>
+        <button type="button" class="btn-ghost ${diversi ? 'attivo' : ''}" data-colori="diversi">Diversi per modulo</button>
+      </div>
+      ${diversi ? `
+      <p class="mod-prossimo">Scegli il modulo, poi struttura e ante qui sotto.</p>
+      <div class="chips-misura" style="margin-top:6px">${lista.map((e) => `<button type="button" class="btn-mini mod-chip ${e.chiave === selMod ? 'attivo' : ''}" data-mod="${esc(e.chiave)}"
+        title="${esc(e.nome)}">${esc(e.nome)}${personalizzato(e.chiave) ? ' •' : ''}</button>`).join('')}</div>
+      <button type="button" class="btn-ghost" id="p3-tutti" style="width:100%">Usa questi colori per tutti</button>` : ''}
     </section>
     <section>
-      <h3>Ante · ${nome(stato.materiali.ante)}</h3>
-      ${palette('ante')}
+      <h3>Struttura${dove} · ${nome(cur.struttura)}</h3>
+      <p class="mod-prossimo" style="margin-top:0">Carcassa, schiena e ripiani.</p>
+      ${palette('struttura', cur.struttura)}
+    </section>
+    <section>
+      <h3>Ante${dove} · ${nome(cur.ante)}</h3>
+      ${palette('ante', cur.ante)}
     </section>`;
   const P = ctx.pannello;
   P.querySelectorAll('[data-vista]').forEach((b) => b.addEventListener('click', () => inquadra(b.dataset.vista)));
@@ -111,8 +140,20 @@ function renderPannello() {
   if (sc) sc.addEventListener('change', () => {
     (stato.gradini ||= {})[ctx.forma.forma] = sc.checked; ctx.salva(); disegna(false);
   });
+  P.querySelectorAll('[data-colori]').forEach((b) => b.addEventListener('click', () => {
+    M.diversi = b.dataset.colori === 'diversi'; M.per ||= {};
+    ctx.salva(); disegna(false); renderPannello();
+  }));
+  P.querySelectorAll('.mod-chip').forEach((b) => b.addEventListener('click', () => { selMod = b.dataset.mod; renderPannello(); }));
+  const tutti = P.querySelector('#p3-tutti');
+  if (tutti) tutti.addEventListener('click', () => {
+    M.struttura = cur.struttura; M.ante = cur.ante; M.per = {};
+    ctx.salva(); disegna(false); renderPannello();
+  });
   P.querySelectorAll('.swatch[data-mat]').forEach((b) => b.addEventListener('click', () => {
-    stato.materiali[b.dataset.parte] = b.dataset.mat;
+    const parte = b.dataset.parte, id = b.dataset.mat;
+    if (diversi) { M.per ||= {}; M.per[selMod] = { ...(M.per[selMod] || {}), [parte]: id }; }
+    else M[parte] = id;
     ctx.salva(); disegna(false); renderPannello();
   }));
 }

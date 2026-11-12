@@ -2,10 +2,10 @@
 // MOBILI MODULARI — Passo 2: moduli (come gli armadi) o cubi liberi
 // =============================================================================
 import {
-  layoutModuli, larghezzaUtileAuto, distintaModulari, posizioneValida,
+  layoutModuli, layoutCubi, larghezzaUtileAuto, distintaModulari, posizioneValida,
   primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT,
-} from './calcoli.js?v=20261112h';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112h';
+} from './calcoli.js?v=20261112i';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112i';
 
 const FRONTI = [
   { v: 0, l: 'Aperto (a giorno)' },
@@ -119,6 +119,19 @@ function renderPannello() {
         <button type="button" class="btn-oro" id="cubo-add" style="width:100%">+ Aggiungi cubo</button>
         <p class="mod-prossimo">Trascina i cubi nel disegno: si agganciano al pavimento, alle pareti e agli altri cubi. Se diventano rossi sono fuori dal vano o sopra un altro cubo.</p>
       </section>
+      ${ctx.forma.pareti.some((p) => p.tipo === 'inclinata') ? `
+      <section>
+        <h3>Sotto l'inclinata</h3>
+        <label class="chk"><input type="checkbox" id="cubi-adatta" ${stato.cubiAdatta !== false ? 'checked' : ''}> Adatta i cubi all'inclinata</label>
+        <p class="mod-prossimo" style="margin-top:4px">I cubi che non hanno niente sopra salgono fino all'inclinata: il top diventa inclinato e copre tutto.</p>
+        ${stato.cubiAdatta !== false ? `<label style="margin-top:8px">Punta bassa in fondo
+          <select id="cubi-chiusura">
+            <option value="fisso" ${(stato.cubiChiusura || 'fisso') === 'fisso' ? 'selected' : ''}>Pannello fisso (tamponamento)</option>
+            <option value="anta" ${stato.cubiChiusura === 'anta' ? 'selected' : ''}>Modulo di chiusura con anta</option>
+            <option value="aperto" ${stato.cubiChiusura === 'aperto' ? 'selected' : ''}>Modulo di chiusura aperto</option>
+            <option value="no" ${stato.cubiChiusura === 'no' ? 'selected' : ''}>Lascia vuoto</option>
+          </select></label>` : ''}
+      </section>` : ''}
       ${sel ? `
       <section>
         <h3>Cubo selezionato</h3>
@@ -131,6 +144,7 @@ function renderPannello() {
         <label>Fronte<select data-s="fronte"><option value="aperto" ${sel.fronte !== 'anta' ? 'selected' : ''}>Aperto (a giorno)</option><option value="anta" ${sel.fronte === 'anta' ? 'selected' : ''}>Con anta</option></select></label>
         ${sel.fronte === 'anta' ? `<label>Apertura<select data-s="lato"><option value="dx" ${sel.lato !== 'sx' ? 'selected' : ''}>a destra</option><option value="sx" ${sel.lato === 'sx' ? 'selected' : ''}>a sinistra</option></select></label>` : ''}
         <label>Ripiani<input type="number" min="0" max="10" step="1" data-s="ripiani" value="${esc(sel.ripiani || 0)}"></label>
+        ${stato.cubiAdatta !== false && ctx.forma.pareti.some((p) => p.tipo === 'inclinata') ? `<label class="chk"><input type="checkbox" id="cubo-adatta" ${sel.adatta !== false ? 'checked' : ''}> Questo cubo sale fino all'inclinata</label>` : ''}
         <div class="mod-azioni">
           <button type="button" class="btn-ghost" id="cubo-dup">Duplica</button>
           <button type="button" class="btn-ghost" id="cubo-del">Elimina</button>
@@ -226,6 +240,10 @@ function agganciaPannello() {
   P.querySelectorAll('.chip-q').forEach((b) => b.addEventListener('click', () => {
     n.w = n.h = Number(b.dataset.q); tutto();
   }));
+  const ad = P.querySelector('#cubi-adatta');
+  if (ad) ad.addEventListener('change', () => { stato.cubiAdatta = ad.checked; tutto(); });
+  const cc = P.querySelector('#cubi-chiusura');
+  if (cc) cc.addEventListener('change', () => { stato.cubiChiusura = cc.value; tutto(); });
   P.querySelector('#cubo-add').addEventListener('click', () => {
     const w = Number(n.w), h = Number(n.h);
     if (!(w >= 100 && h >= 100)) { alert('Misura del cubo non valida (minimo 100 mm).'); return; }
@@ -237,6 +255,8 @@ function agganciaPannello() {
   const sel = stato.cubi.find((x) => x.id === stato.cuboSel);
   if (!sel) return;
   const errBox = P.querySelector('#cubo-err');
+  const ca = P.querySelector('#cubo-adatta');
+  if (ca) ca.addEventListener('change', () => { sel.adatta = ca.checked; ctx.salva(); ridisegna(); });
   P.querySelectorAll('input[data-s]').forEach((i) => i.addEventListener('change', () => {
     const k = i.dataset.s, v = numero(i.value);
     if (k === 'ripiani') { const r = Math.round(v); if (r >= 0 && r <= 10) sel.ripiani = r; ctx.salva(); ridisegna(); return; }
@@ -307,6 +327,30 @@ function renderDisegno() {
     return g;
   };
 
+  // Modulo/pannello di chiusura della punta bassa (moduli e cubi)
+  const disegnaChiusura = (ch, qy) => {
+    let html = '';
+    if (ch.fronte === 'fisso') {
+      const pth = (pts) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${Y(y)}`).join(' ') + ' Z';
+      html += `<path d="${pth(ch.pannello.profilo)}" fill="var(--oro)" fill-opacity=".3" stroke="var(--testo)" stroke-width="${sw * 1.6}"/>`;
+    } else if (ch.triangolare) {
+      const pth = (pts) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${Y(y)}`).join(' ') + ' Z';
+      const conAnta = ch.fronte === 'anta';
+      html += `<path d="${pth(ch.profili.contorno)}" fill="${conAnta ? 'var(--oro)' : 'var(--bg)'}" fill-opacity="${conAnta ? 0.16 : 0.55}" stroke="var(--testo)" stroke-width="${sw * 1.6}"/>`;
+      if (conAnta) html += `<path d="${pth(ch.profili.anta)}" fill="none" stroke="var(--mod-acc)" stroke-width="${sw}"/>`;
+      else html += `<path d="${pth(ch.profili.top)}" fill="var(--testo-dim)" fill-opacity=".35" stroke="none"/>`;
+    } else {
+      html += disegnaMobile(ch.x0, ch.x1, ch.hL, ch.hR, ch.fronte === 'anta' ? 1 : 0, ch.daSinistra ? 'dx' : 'sx', 0);
+    }
+    const cx = ch.triangolare ? ch.xT + ch.dir * ch.larghezza * 0.3 : (ch.x0 + ch.x1) / 2;
+    html += `<text x="${cx}" y="${Y(ch.hAlto * 0.3)}" font-size="${fs * 0.9}" text-anchor="middle" dominant-baseline="central" fill="var(--testo)" font-weight="600">C</text>`;
+    html += `<line x1="${ch.x0}" y1="${qy - fs * 0.5}" x2="${ch.x0}" y2="${qy + fs * 0.5}" stroke="var(--testo-dim)" stroke-width="${sw}"/>
+      <line x1="${ch.x1}" y1="${qy - fs * 0.5}" x2="${ch.x1}" y2="${qy + fs * 0.5}" stroke="var(--testo-dim)" stroke-width="${sw}"/>
+      <line x1="${ch.x0}" y1="${qy}" x2="${ch.x1}" y2="${qy}" stroke="var(--testo-dim)" stroke-width="${sw}"/>
+      <text x="${(ch.x0 + ch.x1) / 2}" y="${qy + fs * 1.3}" font-size="${fs * 0.9}" text-anchor="middle" fill="var(--testo)">${fmt(Math.round(ch.larghezza))}</text>`;
+    return html;
+  };
+
   if (stato.modalita === 'moduli') {
     const lay = layoutModuli(r, stato.moduli, s);
     let catena = '';
@@ -320,36 +364,18 @@ function renderDisegno() {
         <line x1="${md.x0}" y1="${qy}" x2="${md.x1}" y2="${qy}" stroke="var(--testo-dim)" stroke-width="${sw}"/>
         <text x="${cx}" y="${qy + fs * 1.3}" font-size="${fs * 0.9}" text-anchor="middle" fill="var(--testo)">${fmt(md.larghezza)}</text>`;
     });
-    const ch = lay.chiusura;
-    if (ch) {
-      if (ch.fronte === 'fisso') {
-        const pth = (pts) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${Y(y)}`).join(' ') + ' Z';
-        html += `<path d="${pth(ch.pannello.profilo)}" fill="var(--oro)" fill-opacity=".3" stroke="var(--testo)" stroke-width="${sw * 1.6}"/>`;
-      } else if (ch.triangolare) {
-        const pth = (pts) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${Y(y)}`).join(' ') + ' Z';
-        const conAnta = ch.fronte === 'anta';
-        html += `<path d="${pth(ch.profili.contorno)}" fill="${conAnta ? 'var(--oro)' : 'var(--bg)'}" fill-opacity="${conAnta ? 0.16 : 0.55}" stroke="var(--testo)" stroke-width="${sw * 1.6}"/>`;
-        if (conAnta) html += `<path d="${pth(ch.profili.anta)}" fill="none" stroke="var(--mod-acc)" stroke-width="${sw}"/>`;
-        else html += `<path d="${pth(ch.profili.top)}" fill="var(--testo-dim)" fill-opacity=".35" stroke="none"/>`;
-      } else {
-        html += disegnaMobile(ch.x0, ch.x1, ch.hL, ch.hR, ch.fronte === 'anta' ? 1 : 0, ch.daSinistra ? 'dx' : 'sx', 0);
-      }
-      const cx = ch.triangolare ? ch.xT + ch.dir * ch.larghezza * 0.3 : (ch.x0 + ch.x1) / 2;
-      html += `<text x="${cx}" y="${Y(ch.hAlto * 0.3)}" font-size="${fs * 0.9}" text-anchor="middle" dominant-baseline="central" fill="var(--testo)" font-weight="600">C</text>`;
-      html += `<line x1="${ch.x0}" y1="${qy - fs * 0.5}" x2="${ch.x0}" y2="${qy + fs * 0.5}" stroke="var(--testo-dim)" stroke-width="${sw}"/>
-        <line x1="${ch.x1}" y1="${qy - fs * 0.5}" x2="${ch.x1}" y2="${qy + fs * 0.5}" stroke="var(--testo-dim)" stroke-width="${sw}"/>
-        <line x1="${ch.x0}" y1="${qy}" x2="${ch.x1}" y2="${qy}" stroke="var(--testo-dim)" stroke-width="${sw}"/>
-        <text x="${(ch.x0 + ch.x1) / 2}" y="${qy + fs * 1.3}" font-size="${fs * 0.9}" text-anchor="middle" fill="var(--testo)">${fmt(Math.round(ch.larghezza))}</text>`;
-    }
+    if (lay.chiusura) html += disegnaChiusura(lay.chiusura, qy);
     html += catena;
   } else {
-    for (const c of stato.cubi) {
+    const lc = layoutCubi(r, stato, s);
+    if (lc.chiusura) html += disegnaChiusura(lc.chiusura, Y(0) + fs * 2.4);
+    stato.cubi.forEach((c, i) => {
       const ok = posizioneValida(r, stato.cubi, c);
       const sel = c.id === stato.cuboSel;
       html += `<g data-cubo="${c.id}" class="cubo ${ok ? '' : 'cubo-errato'} ${sel ? 'cubo-sel' : ''}" style="cursor:grab">
-        ${cuboHtml(c, ok, sel, s, fmt)}
+        ${cuboHtml(c, lc.elementi[i], ok, sel, s, fmt)}
       </g>`;
-    }
+    });
     if (!stato.cubi.length) {
       html += `<text x="${W / 2}" y="${Y(H / 2)}" font-size="${fs * 1.1}" text-anchor="middle" fill="var(--testo-dim)">Aggiungi un cubo dal pannello</text>`;
     }
@@ -358,25 +384,34 @@ function renderDisegno() {
   if (stato.modalita === 'cubi') agganciaTrascinamento();
 }
 
-/** Disegno di un cubo (rettangolo con base a c.y). */
-function cuboHtml(c, ok, sel, s, fmt) {
+/** Disegno di un cubo (base a c.y); se adattato il top segue l'inclinata. */
+function cuboHtml(c, e, ok, sel, s, fmt) {
   const { H, fs, sw } = geo;
   const Y = (y) => H - y;
-  const x0 = c.x, x1 = c.x + c.w, y0 = c.y, y1 = c.y + c.h;
+  const x0 = c.x, x1 = c.x + c.w, y0 = c.y;
+  const yL = y0 + e.hL, yR = y0 + e.hR;
+  const top = (x) => yL + ((yR - yL) * (x - x0)) / c.w;
   const anta = c.fronte === 'anta';
-  let g = `<rect x="${x0}" y="${Y(y1)}" width="${c.w}" height="${c.h}" fill="${anta ? 'var(--oro)' : 'var(--bg)'}" fill-opacity="${anta ? 0.16 : 0.55}"
+  const pth = (pts) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${Y(y)}`).join(' ') + ' Z';
+  let g = `<path class="cubo-forma" d="${pth([[x0, y0], [x1, y0], [x1, yR], [x0, yL]])}" fill="${anta ? 'var(--oro)' : 'var(--bg)'}" fill-opacity="${anta ? 0.16 : 0.55}"
     stroke="${ok ? (sel ? 'var(--oro)' : 'var(--testo)') : 'var(--err)'}" stroke-width="${sw * (sel ? 3.4 : 1.6)}"/>`;
+  if (e.adattato) {
+    // la parte aggiunta sopra il cubo, tratteggiata sul bordo del cubo di partenza
+    g += `<line x1="${x0}" y1="${Y(y0 + c.h)}" x2="${x1}" y2="${Y(y0 + c.h)}" stroke="var(--testo-dim)" stroke-width="${sw * 0.8}" stroke-dasharray="${sw * 4} ${sw * 3}"/>`;
+  }
   for (let k = 1; k <= (c.ripiani || 0); k++) {
     const yk = y0 + s.carcassa + (k * (c.h - 2 * s.carcassa)) / ((c.ripiani || 0) + 1);
     g += `<line x1="${x0 + s.carcassa}" y1="${Y(yk)}" x2="${x1 - s.carcassa}" y2="${Y(yk)}" stroke="var(--testo-dim)" stroke-width="${sw * (anta ? 0.8 : 1.4)}" ${anta ? `stroke-dasharray="${sw * 4} ${sw * 3}"` : ''}/>`;
   }
   if (anta) {
-    g += `<rect x="${x0 + 2}" y="${Y(y1 - 2)}" width="${c.w - 4}" height="${c.h - 4}" fill="none" stroke="var(--mod-acc)" stroke-width="${sw}"/>`;
+    g += `<path d="${pth([[x0 + 2, y0 + 2], [x1 - 2, y0 + 2], [x1 - 2, top(x1 - 2) - 2], [x0 + 2, top(x0 + 2) - 2]])}" fill="none" stroke="var(--mod-acc)" stroke-width="${sw}"/>`;
     const xm = c.lato === 'sx' ? x0 + c.w * 0.12 : x1 - c.w * 0.12;
     const ym = y0 + c.h / 2;
     g += `<line x1="${xm}" y1="${Y(ym - fs)}" x2="${xm}" y2="${Y(ym + fs)}" stroke="var(--mod-acc)" stroke-width="${sw * 2.4}" stroke-linecap="round"/>`;
   }
-  g += `<text x="${(x0 + x1) / 2}" y="${Y((y0 + y1) / 2)}" font-size="${Math.min(fs, c.w / 6)}" text-anchor="middle" dominant-baseline="central" fill="var(--testo)" pointer-events="none">${fmt(c.w)}×${fmt(c.h)}</text>`;
+  const fsT = Math.min(fs, c.w / 6);
+  g += `<text x="${(x0 + x1) / 2}" y="${Y(y0 + c.h / 2)}" font-size="${fsT}" text-anchor="middle" dominant-baseline="central" fill="var(--testo)" pointer-events="none">${fmt(c.w)}×${fmt(c.h)}</text>`;
+  if (e.adattato) g += `<text x="${(x0 + x1) / 2}" y="${Y(y0 + c.h / 2) + fsT * 1.25}" font-size="${fsT * 0.75}" text-anchor="middle" dominant-baseline="central" fill="var(--mod-acc)" pointer-events="none">↗ ${fmt(Math.round(e.hL))} / ${fmt(Math.round(e.hR))}</text>`;
   return g;
 }
 
@@ -411,7 +446,7 @@ function agganciaTrascinamento() {
         ultima = ag;
         valida = posizioneValida(ctx.forma, stato.cubi, { ...c, ...ag });
         el.setAttribute('transform', `translate(${ag.x - inizio.x} ${-(ag.y - inizio.y)})`);
-        const rett = el.querySelector('rect');
+        const rett = el.querySelector('.cubo-forma');
         if (rett) rett.style.stroke = valida ? 'var(--oro)' : 'var(--err)';
       };
       const fine = () => {
@@ -445,10 +480,11 @@ function renderRiepilogo() {
         <td class="num">${fmt(Math.round(lay.chiusura.larghezza))}</td><td class="num">${fmt(Math.round(lay.chiusura.hL))} / ${fmt(Math.round(lay.chiusura.hR))}</td></tr>` : ''}
     </table>`;
   } else {
+    const lcR = layoutCubi(ctx.forma, stato, sp());
     lista = stato.cubi.length ? `<table class="tab-pareti">
       <tr><th>Cubo</th><th style="text-align:right">Misura</th><th style="text-align:right">Posizione</th></tr>
       ${stato.cubi.map((c, i) => `<tr><td>${i + 1} · ${c.fronte === 'anta' ? 'anta' : 'aperto'}</td>
-        <td class="num">${fmt(c.w)}×${fmt(c.h)}</td><td class="num">${fmt(Math.round(c.x))}, ${fmt(Math.round(c.y))}</td></tr>`).join('')}
+        <td class="num">${fmt(c.w)}×${lcR.elementi[i].adattato ? `${fmt(Math.round(lcR.elementi[i].hL))}/${fmt(Math.round(lcR.elementi[i].hR))}` : fmt(c.h)}</td><td class="num">${fmt(Math.round(c.x))}, ${fmt(Math.round(c.y))}</td></tr>`).join('')}
     </table>` : '<p class="mod-prossimo">Nessun cubo ancora.</p>';
   }
   ctx.riepilogo.innerHTML = `
@@ -468,13 +504,19 @@ function renderRiepilogo() {
   ctx.riepilogo.querySelector('#p2-indietro').addEventListener('click', () => { stato.step = 1; ctx.salva(); ctx.aggiorna(); });
 }
 
+let nomiFiniture = null;     // id → nome (caricati quando si apre la distinta)
+const nomeMat = (p) => `${NOMI_MAT[p.materiale] || p.materiale}${p.finitura ? ` · ${(nomiFiniture && nomiFiniture.get(p.finitura)) || p.finitura}` : ''}`;
 function pezziPerExcel(dist) {
   return dist.pezzi.map((p) => ({ nome: p.nome, larghezza: p.larghezza, altezza: p.altezza, spessore: p.spessore,
-    quantita: p.quantita, materiale: NOMI_MAT[p.materiale] || p.materiale, modulo: p.modulo, gruppo: '' }));
+    quantita: p.quantita, materiale: nomeMat(p), modulo: p.modulo, gruppo: '' }));
 }
-export function apriDistinta(c) {
+export async function apriDistinta(c) {
   if (c) ctx = c;
   if (!ctx) return;
+  if (!nomiFiniture) {
+    try { const { MATERIALI } = await import('../materiali.js?v=20261111b'); nomiFiniture = new Map(MATERIALI.map((m) => [m.id, m.nome])); }
+    catch { nomiFiniture = new Map(); }
+  }
   const { stato, esc, fmt } = ctx;
   const dist = distintaModulari(ctx.forma, stato);
   const perModulo = new Map();
@@ -487,7 +529,7 @@ export function apriDistinta(c) {
         <table class="distinta-tab">
           <tr><th>Pezzo</th><th class="n">Largh.</th><th class="n">Alt./Lungh.</th><th class="n">Sp.</th><th>Materiale</th><th class="n">Q.tà</th></tr>
           ${pz.map((p) => `<tr><td>${esc(p.nome)}</td><td class="n">${fmt(p.larghezza)}</td><td class="n">${fmt(p.altezza)}</td>
-            <td class="n">${fmt(p.spessore)}</td><td>${esc(NOMI_MAT[p.materiale] || p.materiale)}</td><td class="n">${fmt(p.quantita)}</td></tr>`).join('')}
+            <td class="n">${fmt(p.spessore)}</td><td>${esc(nomeMat(p))}</td><td class="n">${fmt(p.quantita)}</td></tr>`).join('')}
         </table></div>`).join('') || '<p class="mod-prossimo">Nessun pezzo.</p>'}
     <div class="distinta-riepilogo">
       <div><span>Pezzi totali</span> <strong>${fmt(dist.totalePezzi)}</strong></div>
@@ -502,4 +544,37 @@ export function apriDistinta(c) {
     { nomeFile: `modulari-${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`, progetto: 'Mobili modulari' });
   document.getElementById('distinta-modello').onclick = () => apriModelloExcel({ pezzi: pezziPerExcel(dist), progetto: 'Mobili modulari' });
   document.getElementById('distinta-chiudi').onclick = () => { ov.hidden = true; };
+}
+
+// ---------------------------------------------------------------------------
+// Tastiera (cubi): ritorna true se il tasto è stato usato
+// ---------------------------------------------------------------------------
+let appunti = null;      // cubo copiato
+export function tastoCubi(e) {
+  if (!ctx) return false;
+  const { stato } = ctx;
+  const ctrl = e.ctrlKey || e.metaKey;
+  const k = (e.key || '').toLowerCase();
+  const sel = stato.cubi.find((x) => x.id === stato.cuboSel);
+  const incolla = (modello) => {
+    const pos = primoPostoLibero(ctx.forma, stato.cubi, modello.w, modello.h);
+    if (!pos) { alert('Non c\'è posto libero per un altro cubo uguale.'); return; }
+    const c = { ...modello, id: nuovoId(), ...pos }; stato.cubi.push(c); stato.cuboSel = c.id; tutto();
+  };
+  if (ctrl && k === 'c') { if (sel) appunti = { ...sel }; return !!sel; }
+  if (ctrl && k === 'v') { if (appunti) incolla(appunti); return !!appunti; }
+  if (ctrl && k === 'd') { if (sel) incolla(sel); return !!sel; }
+  if (!sel) return false;
+  if (k === 'delete' || k === 'backspace') {
+    stato.cubi = stato.cubi.filter((x) => x.id !== sel.id); stato.cuboSel = null; tutto(); return true;
+  }
+  if (k === 'escape') { stato.cuboSel = null; renderPannello(); ridisegna(); return true; }
+  const d = { arrowup: [0, 1], arrowdown: [0, -1], arrowleft: [-1, 0], arrowright: [1, 0] }[k];
+  if (d) {
+    const passo = e.shiftKey ? 100 : 10;                     // 1 cm (Maiusc: 10 cm)
+    const prova = { ...sel, x: sel.x + d[0] * passo, y: Math.max(0, sel.y + d[1] * passo) };
+    if (posizioneValida(ctx.forma, stato.cubi, prova)) { sel.x = prova.x; sel.y = prova.y; ctx.salva(); renderPannello(); ridisegna(); }
+    return true;
+  }
+  return false;
 }

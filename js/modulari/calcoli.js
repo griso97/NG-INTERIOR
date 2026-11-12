@@ -15,7 +15,17 @@
 // =============================================================================
 
 export const SPESSORI_DEFAULT = { carcassa: 18, schiena: 10, ante: 18 };
-export const H_MINIMA_MODULO = 250;        // sotto questa altezza non si mette un modulo
+export const H_MINIMA_MODULO = 250;
+export const MATERIALI_DEFAULT = { struttura: 'roble-hera', ante: 'roble-denver' };
+/**
+ * Finiture di un modulo/cubo: tutte uguali oppure (materiali.diversi) quelle
+ * scelte per quel modulo. chiave: 'm0', 'm1'… (moduli), 'chiusura', 'c:<id>' (cubi).
+ */
+export function finitureDi(materiali, chiave) {
+  const m = { ...MATERIALI_DEFAULT, ...(materiali || {}) };
+  const per = (m.diversi && m.per && m.per[chiave]) || {};
+  return { struttura: per.struttura || m.struttura, ante: per.ante || m.ante };
+}        // sotto questa altezza non si mette un modulo
 const DEG = 180 / Math.PI;
 const r0 = (x) => Math.round(x);
 const r1 = (x) => Math.round(x * 10) / 10;
@@ -322,6 +332,48 @@ export function agganciaCubo(forma, cubi, c, soglia = 40) {
   return { x, y: Math.max(0, y) };
 }
 
+/**
+ * Cubi pronti per disegno/distinta. Con `adatta` attivo, un cubo che sta sotto
+ * un soffitto INCLINATO e non ha niente sopra sale fino al soffitto: diventa un
+ * mobile con il top inclinato (hL ≠ hR), così copre tutto sotto la scala.
+ * Se resta la punta bassa in fondo, la chiude il modulo di chiusura.
+ */
+export function layoutCubi(forma, stato, sp = SPESSORI_DEFAULT) {
+  const cubi = stato.cubi || [];
+  const adatta = stato.cubiAdatta !== false;
+  const elementi = cubi.map((c) => {
+    const e = { id: c.id, x0: c.x, y0: c.y, L: c.w, hL: c.h, hR: c.h, adattato: false };
+    if (!adatta || c.adatta === false) return e;
+    const x1 = c.x + c.w, top = c.y + c.h;
+    const sL = altezzaSoffitto(forma.punti, c.x), sR = altezzaSoffitto(forma.punti, x1);
+    if (Math.abs(sL - sR) < 1) return e;                          // soffitto piano: resta com'è
+    const sopra = cubi.some((o) => o.id !== c.id && o.x < x1 - 0.5 && c.x < o.x + o.w - 0.5 && o.y >= top - 0.5);
+    if (sopra) return e;
+    const hL = sL - c.y, hR = sR - c.y;
+    if (Math.min(hL, hR) < c.h - 0.5 || Math.max(hL, hR) - c.h < 1) return e;   // fuori o già a filo
+    return { ...e, hL, hR, adattato: true };
+  });
+  // Punta bassa in fondo (solo se lì il soffitto scende sotto l'altezza minima)
+  let chiusura = null;
+  const fronte = ['fisso', 'anta', 'aperto', 'no'].includes(stato.cubiChiusura) ? stato.cubiChiusura : 'fisso';
+  if (adatta && fronte !== 'no' && cubi.length) {
+    const W = forma.larghezza;
+    const { daSinistra } = larghezzaUtileAuto(forma);
+    const aTerra = cubi.filter((c) => c.y < 0.5);
+    if (aTerra.length) {
+      const xa = daSinistra ? Math.max(...aTerra.map((c) => c.x + c.w)) : 0;
+      const xb = daSinistra ? W : Math.min(...aTerra.map((c) => c.x));
+      const libero = !cubi.some((c) => c.x < xb - 0.5 && xa < c.x + c.w - 0.5);
+      const hA = altezzaSoffitto(forma.punti, xa), hB = altezzaSoffitto(forma.punti, xb);
+      const hFine = daSinistra ? hB : hA;
+      if (libero && xb - xa > 2 * sp.carcassa + 20 && hFine < H_MINIMA_MODULO && Math.abs(hA - hB) >= 1) {
+        chiusura = geometriaChiusura({ x0: xa, x1: xb, hL: hA, hR: hB, daSinistra, fronte }, sp);
+      }
+    }
+  }
+  return { elementi, chiusura };
+}
+
 // ---------------------------------------------------------------------------
 // DISTINTA completa
 // ---------------------------------------------------------------------------
@@ -332,18 +384,23 @@ export function distintaModulari(forma, stato) {
   let elementi = [], chiusura = null;
   if (stato.modalita === 'cubi') {
     const cubi = stato.cubi || [];
+    const lc = layoutCubi(forma, stato, sp);
     cubi.forEach((c, i) => {
       if (!posizioneValida(forma, cubi, c)) errori.push(`Cubo ${i + 1}: è fuori dal vano o sopra un altro cubo.`);
-      elementi.push({ nome: `Cubo ${i + 1}`, larghezza: c.w, hL: c.h, hR: c.h, ante: c.fronte === 'anta' ? 1 : 0, lato: c.lato || 'dx', ripiani: c.ripiani || 0 });
+      const e = lc.elementi[i];
+      elementi.push({ chiave: `c:${c.id}`, nome: `Cubo ${i + 1}${e.adattato ? ' (inclinato)' : ''}`, larghezza: c.w, hL: e.hL, hR: e.hR, ante: c.fronte === 'anta' ? 1 : 0, lato: c.lato || 'dx', ripiani: c.ripiani || 0 });
     });
+    chiusura = lc.chiusura;
   } else {
     const lay = layoutModuli(forma, stato.moduli || {}, sp);
     errori.push(...lay.errori); avvisi.push(...lay.avvisi);
-    elementi = lay.moduli.map((m) => ({ ...m, nome: `Modulo ${m.indice + 1}` }));
+    elementi = lay.moduli.map((m) => ({ ...m, chiave: `m${m.indice}`, nome: `Modulo ${m.indice + 1}` }));
     if (lay.chiusura) chiusura = lay.chiusura;
   }
-  for (const e of elementi) pezzi.push(...pezziModulo(e, P, sp));
-  if (chiusura) pezzi.push(...pezziChiusura(chiusura, P, sp));
+  // ogni pezzo con la sua finitura (id): ante → finitura ante, il resto → struttura
+  const conFinitura = (pz, chiave) => pz.map((p) => ({ ...p, finitura: finitureDi(stato.materiali, chiave)[p.materiale === 'ante' ? 'ante' : 'struttura'] }));
+  for (const e of elementi) pezzi.push(...conFinitura(pezziModulo(e, P, sp), e.chiave));
+  if (chiusura) pezzi.push(...conFinitura(pezziChiusura(chiusura, P, sp), 'chiusura'));
   let mq = { carcassa: 0, schiena: 0, ante: 0 };
   let totale = 0;
   for (const p of pezzi) { mq[p.materiale] += (p.larghezza * p.altezza * p.quantita) / 1e6; totale += p.quantita; }

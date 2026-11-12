@@ -274,13 +274,23 @@ export function aggiorna(forma, elementi, opz) {
   // Texture a specchio (vale per questa pagina: la cache materiali è sua)
   const specchia = (m) => { if (m && m.map && m.map.wrapS !== THREE.MirroredRepeatWrapping) {
     m.map.wrapS = m.map.wrapT = THREE.MirroredRepeatWrapping; m.map.needsUpdate = true; } };
-  let matS = null, matA = null;
-  matS = getMaterialeTHREE(opz.materiali.struttura, () => { specchia(matS); ridisegna(); });
-  matA = getMaterialeTHREE(opz.materiali.ante, () => { specchia(matA); ridisegna(); });
-  specchia(matS); specchia(matA);
+  // Materiali per id (ogni modulo può avere la sua finitura: e.mat = {struttura, ante})
+  const usati = new Map();
+  const mat = (id) => {
+    if (!usati.has(id)) {
+      let m = null;
+      m = getMaterialeTHREE(id, () => { specchia(m); ridisegna(); });
+      specchia(m); usati.set(id, m);
+    }
+    return usati.get(id);
+  };
+  const fin = (e) => e.mat || opz.materiali;
   vano(forma, opz.P, opz.conGradini);
-  for (const e of elementi) mobile(e, opz.P, opz.spessori, matS, matA);
-  if (opz.chiusura) chiusura(opz.chiusura, opz.P, opz.spessori, matS, matA);
+  for (const e of elementi) mobile(e, opz.P, opz.spessori, mat(fin(e).struttura), mat(fin(e).ante));
+  if (opz.chiusura) {
+    const f = fin(opz.chiusura);
+    chiusura(opz.chiusura, opz.P, opz.spessori, mat(f.struttura), mat(f.ante));
+  }
   const nuova = { W: forma.larghezza, H: forma.altezzaMax, P: opz.P };
   const cambiata = !ultimaVista || ['W', 'H', 'P'].some((k) => Math.abs(ultimaVista[k] - nuova[k]) > 1);
   ultimaVista = nuova;
