@@ -28,6 +28,7 @@ export const CAMPI = [
   { id: 'modulo',    nome: 'Modulo / mobile' },
   { id: 'gruppo',    nome: 'Gruppo (ante, fianchi…)' },
   { id: 'progetto',  nome: 'Nome progetto / cliente' },
+  { id: 'note',      nome: 'Note / angolo di taglio' },
   { id: 'fisso',     nome: 'Valore fisso…' },
 ];
 
@@ -41,6 +42,7 @@ const REGOLE = [
   ['modulo',    /(modul|mobile|cabinet|mueble|schrank|meuble)/],
   ['gruppo',    /(grupp|group|categor|tipo pezzo)/],
   ['progetto',  /(progett|project|cliente|customer|client|commessa|ordine|order|auftrag)/],
+  ['note',      /(^note?$|^nota|annotaz|comment|osserv|bemerk|remark|angol|inclinaz|taglio)/],
   ['nome',      /(nome|name|descr|denom|etichet|label|pezzo|part|piez|bezeich|designation|^id$|codice|code|ref)/],
 ];
 function normalizza(s) {
@@ -66,11 +68,11 @@ function salvaModello(m) {
 function cancellaModello() { try { localStorage.removeItem(KEY); } catch { /* niente */ } }
 
 // Modello standard usato quando l'utente non ne ha caricato uno.
-function modelloStandard() {
-  const intestazioni = ['Pezzo', 'Lunghezza (mm)', 'Larghezza (mm)', 'Spessore (mm)', 'Quantità', 'Materiale', 'Modulo'];
+function modelloStandard(conNote = false) {
+  const intestazioni = ['Pezzo', 'Lunghezza (mm)', 'Larghezza (mm)', 'Spessore (mm)', 'Quantità', 'Materiale', 'Modulo', ...(conNote ? ['Note / taglio'] : [])];
   return {
     nomeFile: null, foglio: 'Distinta', preHeader: [], intestazioni,
-    mappa: ['nome', 'altezza', 'larghezza', 'spessore', 'quantita', 'materiale', 'modulo'].map((campo) => ({ campo, fisso: '' })),
+    mappa: ['nome', 'altezza', 'larghezza', 'spessore', 'quantita', 'materiale', 'modulo', ...(conNote ? ['note'] : [])].map((campo) => ({ campo, fisso: '' })),
     materiali: {},
   };
 }
@@ -271,6 +273,7 @@ function valoreCampo(p, m, mod, progetto) {
     case 'modulo': return p.modulo ?? '';
     case 'gruppo': return p.gruppo ?? '';
     case 'progetto': return progetto || '';
+    case 'note': return p.note ?? '';
     case 'fisso': return num(m.fisso ?? '');
     default: return '';
   }
@@ -278,13 +281,18 @@ function valoreCampo(p, m, mod, progetto) {
 export function righeDaModello(mod, pezzi, progetto = '') {
   const righe = (mod.preHeader || []).map((r) => r.slice());
   righe.push(mod.intestazioni.slice());
-  for (const p of pezzi) righe.push(mod.mappa.map((m) => valoreCampo(p, m, mod, progetto)));
+  // Modello senza colonna note: le note (es. angoli di taglio) vanno nel nome, così non si perdono
+  const haNote = mod.mappa.some((m) => m.campo === 'note');
+  for (const p0 of pezzi) {
+    const p = !haNote && p0.note ? { ...p0, nome: `${p0.nome} — ${p0.note}` } : p0;
+    righe.push(mod.mappa.map((m) => valoreCampo(p, m, mod, progetto)));
+  }
   return righe;
 }
 
 /** Esporta i pezzi con il modello salvato (o con quello standard). */
 export function esportaExcel(pezzi, { nomeFile = 'distinta', progetto = '' } = {}) {
-  const mod = leggiModello() || modelloStandard();
+  const mod = leggiModello() || modelloStandard(pezzi.some((p) => p.note));
   const righe = righeDaModello(mod, pezzi, progetto);
   const blob = creaXLSX(righe, { foglio: mod.foglio, rigaGrassetto: (mod.preHeader || []).length });
   const url = URL.createObjectURL(blob);

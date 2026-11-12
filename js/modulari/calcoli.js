@@ -201,11 +201,27 @@ export function geometriaChiusura(c, sp = SPESSORI_DEFAULT) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Angoli di taglio (α = inclinazione della scala rispetto al pavimento)
+// ---------------------------------------------------------------------------
+// I fianchi stanno a piombo (90° col pavimento) e il top segue la scala:
+// • BISELLO (lama inclinata, il taglio attraversa lo spessore): bordo alto dei
+//   fianchi e testate del top → lama a α dal taglio dritto; tra la faccia del
+//   pannello e il taglio restano 90°−α da un lato e 90°+α dall'altro.
+// • SUL PIANO (pannello piatto, lama dritta): lato alto inclinato di schiena e
+//   ante a trapezio → il lato alto forma α con l'orizzontale; angoli del
+//   pannello 90°−α e 90°+α.
+export const gradi = (x) => `${(Math.round(x * 10) / 10).toFixed(1).replace('.', ',')}°`;
+const noteBisello = (a) => `lama inclinata ${gradi(a)} dal taglio dritto (tra faccia e taglio ${gradi(90 - a)} / ${gradi(90 + a)})`;
+const notePiano = (a) => `lato alto inclinato ${gradi(a)} sul piano: angoli ${gradi(90 - a)} e ${gradi(90 + a)}`;
+
 /** Pezzi del modulo di chiusura. */
 export function pezziChiusura(ch, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFAULT) {
+  const a = ch.angolo;
   if (ch.fronte === 'fisso') {
     const pn = ch.pannello;
-    return [{ modulo: 'Chiusura in fondo', nome: `Tamponamento fisso ${pn.triangolo ? 'triangolare' : 'a trapezio'} (angolo ${ch.angolo}°, fissato al fianco del modulo vicino e al muro)`,
+    return [{ modulo: 'Chiusura in fondo', nome: `Tamponamento fisso ${pn.triangolo ? 'triangolare' : 'a trapezio'}`,
+      note: `${pn.triangolo ? `triangolo rettangolo: angolo di punta ${gradi(a)}, in alto ${gradi(90 - a)}` : notePiano(a)} · fissato al fianco del modulo vicino e al muro`,
       larghezza: r0(pn.larghezza), altezza: r0(pn.altezza), spessore: sp.ante, materiale: 'ante', quantita: 1 }];
   }
   const ante = ch.fronte === 'anta' ? 1 : 0;
@@ -215,25 +231,19 @@ export function pezziChiusura(ch, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEF
   }
   const sC = sp.carcassa, sS = sp.schiena, sA = sp.ante;
   const Pc = P - sA - sS;
-  const m = ch.misure, a = ch.angolo;
+  const m = ch.misure;
   const pz = [];
-  const add = (nome, larghezza, altezza, spessore, materiale) =>
-    pz.push({ modulo: 'Chiusura triangolare', nome, larghezza: r0(larghezza), altezza: r0(altezza), spessore, materiale, quantita: 1 });
+  const add = (nome, larghezza, altezza, spessore, materiale, extra = {}) =>
+    pz.push({ modulo: 'Chiusura triangolare', nome, larghezza: r0(larghezza), altezza: r0(altezza), spessore, materiale, quantita: 1, ...extra });
   add('Fondo', m.fondo, Pc, sC, 'carcassa');
-  add(`Top inclinato (testata alta a ${a}°, testata bassa orizzontale in appoggio sul fondo) · finito ${fmtMm(m.top)}, +${abb.top} da rifilare`, m.top + abb.top, Pc, sC, 'carcassa');
-  add(`Fianco lato alto (bordo alto inclinato ${a}°) · finito ${fmtMm(m.fianco)}, +${abb.fianchi} da rifilare`, Pc, m.fianco + abb.fianchi, sC, 'carcassa');
-  add(`Schiena triangolare (angolo ${a}°)`, m.schiena.larghezza, m.schiena.altezza, sS, 'schiena');
-  if (ante) add(`Anta triangolare (angolo ${a}°, apertura a pressione)`, m.anta.larghezza, m.anta.altezza, sA, 'ante');
+  add('Top inclinato', m.top + abb.top, Pc, sC, 'carcassa', { parte: 'top', abbondanza: abb.top, angolo: a,
+    note: `finito ${fmtMm(m.top)} mm, tagliato +${abb.top} da rifilare · testata alta: ${noteBisello(a)} · testata bassa orizzontale, in appoggio sul fondo: lama ${gradi(90 - a)} (punta a ${gradi(a)})` });
+  add('Fianco lato alto', Pc, m.fianco + abb.fianchi, sC, 'carcassa', { parte: 'fianco', abbondanza: abb.fianchi, angolo: a,
+    note: `finito ${fmtMm(m.fianco)} mm, tagliato +${abb.fianchi} da rifilare · bordo alto: ${noteBisello(a)}` });
+  add('Schiena triangolare', m.schiena.larghezza, m.schiena.altezza, sS, 'schiena', { note: `triangolo rettangolo: angolo di punta ${gradi(a)}, in alto ${gradi(90 - a)}` });
+  if (ante) add('Anta triangolare (apertura a pressione)', m.anta.larghezza, m.anta.altezza, sA, 'ante', { note: `triangolo rettangolo: angolo di punta ${gradi(a)}, in alto ${gradi(90 - a)}` });
   return pz;
 }
-
-// ---------------------------------------------------------------------------
-// Pezzi di UN modulo (rettangolare o inclinato)
-// ---------------------------------------------------------------------------
-/**
- * mod = { nome, larghezza L, hL, hR, ante N (0 = aperto), lato, ripiani }
- * Altezze = esterne del modulo ai due lati.
- */
 export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFAULT) {
   const sC = sp.carcassa, sS = sp.schiena, sA = sp.ante;
   const Pc = P - sA - sS;
@@ -244,8 +254,8 @@ export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFA
   const ang = r1(alfa * DEG);
   const tv = sC / Math.cos(alfa);                       // spessore verticale del top inclinato
   const pz = [];
-  const add = (nome, larghezza, altezza, spessore, materiale, quantita = 1) => {
-    if (quantita > 0) pz.push({ modulo: mod.nome, nome, larghezza: r0(larghezza), altezza: r0(altezza), spessore, materiale, quantita });
+  const add = (nome, larghezza, altezza, spessore, materiale, quantita = 1, extra = {}) => {
+    if (quantita > 0) pz.push({ modulo: mod.nome, nome, larghezza: r0(larghezza), altezza: r0(altezza), spessore, materiale, quantita, ...extra });
   };
 
   if (!inclinato) {
@@ -256,15 +266,18 @@ export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFA
     const altoSx = hL > hR;
     add('Fondo', L, Pc, sC, 'carcassa');
     const lTop = Math.hypot(L, dh);
-    add(`Top inclinato (testate tagliate a ${ang}°) · finito ${fmtMm(lTop)}, +${abb.top} da rifilare`, lTop + abb.top, Pc, sC, 'carcassa');
+    add('Top inclinato', lTop + abb.top, Pc, sC, 'carcassa', 1, { parte: 'top', abbondanza: abb.top, angolo: ang,
+      note: `finito ${fmtMm(lTop)} mm, tagliato +${abb.top} da rifilare · testate parallele, ${noteBisello(ang)}: vanno a filo esterno dei fianchi` });
     // Fianco del lato alto: spigolo più alto sulla faccia esterna.
     // Fianco del lato basso: spigolo più alto sulla faccia interna.
     const hAlto = Math.max(hL, hR), hBasso = Math.min(hL, hR);
     const fiancoAlto = hAlto - tv - sC;
     const fiancoBasso = hBasso + sC * Math.tan(alfa) - tv - sC;
-    add(`Fianco ${altoSx ? 'sinistro' : 'destro'} (lato alto, bordo alto inclinato ${ang}°) · finito ${fmtMm(fiancoAlto)}, +${abb.fianchi} da rifilare`, Pc, fiancoAlto + abb.fianchi, sC, 'carcassa');
-    add(`Fianco ${altoSx ? 'destro' : 'sinistro'} (lato basso, bordo alto inclinato ${ang}°) · finito ${fmtMm(fiancoBasso)}, +${abb.fianchi} da rifilare`, Pc, fiancoBasso + abb.fianchi, sC, 'carcassa');
-    add(`Schiena trapezio (lato basso ${r0(hBasso - 2)})`, L - 2, hAlto - 2, sS, 'schiena');
+    add(`Fianco ${altoSx ? 'sinistro' : 'destro'} (lato alto)`, Pc, fiancoAlto + abb.fianchi, sC, 'carcassa', 1, { parte: 'fianco', abbondanza: abb.fianchi, angolo: ang,
+      note: `finito ${fmtMm(fiancoAlto)} mm (spigolo più alto, faccia esterna), tagliato +${abb.fianchi} da rifilare · bordo alto: ${noteBisello(ang)}` });
+    add(`Fianco ${altoSx ? 'destro' : 'sinistro'} (lato basso)`, Pc, fiancoBasso + abb.fianchi, sC, 'carcassa', 1, { parte: 'fianco', abbondanza: abb.fianchi, angolo: ang,
+      note: `finito ${fmtMm(fiancoBasso)} mm (spigolo più alto, faccia interna), tagliato +${abb.fianchi} da rifilare · bordo alto: ${noteBisello(ang)}` });
+    add('Schiena trapezio', L - 2, hAlto - 2, sS, 'schiena', 1, { note: `lato basso ${r0(hBasso - 2)} mm · ${notePiano(ang)}` });
   }
   if (mod.ripiani > 0) add('Ripiano', L - 2 * sC, Pc, sC, 'carcassa', mod.ripiani);
 
@@ -280,12 +293,13 @@ export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFA
       const alta = Math.max(a, b), bassa = Math.min(a, b);
       const nome = !inclinato
         ? (N === 1 ? `Anta (apertura ${mod.lato === 'sx' ? 'sx' : 'dx'})` : 'Anta')
-        : `Anta trapezio (lato basso ${r0(bassa)})`;
-      const k = `${nome}|${r0(alta)}`;
-      if (!conta.has(k)) conta.set(k, { nome, alta, q: 0 });
+        : 'Anta trapezio';
+      const note = inclinato ? `lato basso ${r0(bassa)} mm · ${notePiano(ang)}` : '';
+      const k = `${nome}|${r0(alta)}|${note}`;
+      if (!conta.has(k)) conta.set(k, { nome, alta, note, q: 0 });
       conta.get(k).q++;
     }
-    for (const { nome, alta, q } of conta.values()) add(nome, la, alta, sA, 'ante', q);
+    for (const { nome, alta, note, q } of conta.values()) add(nome, la, alta, sA, 'ante', q, note ? { note } : {});
   }
   return pz;
 }
@@ -418,5 +432,13 @@ export function distintaModulari(forma, stato) {
   let mq = { carcassa: 0, schiena: 0, ante: 0 };
   let totale = 0;
   for (const p of pezzi) { mq[p.materiale] += (p.larghezza * p.altezza * p.quantita) / 1e6; totale += p.quantita; }
-  return { pezzi, errori, avvisi, elementi: elementi.length + (chiusura ? 1 : 0), totalePezzi: totale, mq };
+  // Avviso: per ogni modulo inclinato quali pezzi sono più lunghi e di quanto
+  const perMod = new Map();
+  for (const p of pezzi) {
+    if (!p.abbondanza) continue;
+    if (!perMod.has(p.modulo)) perMod.set(p.modulo, { modulo: p.modulo, fianchi: 0, abbFianchi: 0, top: 0, abbTop: 0, angolo: p.angolo });
+    const r = perMod.get(p.modulo);
+    if (p.parte === 'fianco') { r.fianchi += p.quantita; r.abbFianchi = p.abbondanza; } else { r.top += p.quantita; r.abbTop = p.abbondanza; }
+  }
+  return { pezzi, errori, avvisi, elementi: elementi.length + (chiusura ? 1 : 0), totalePezzi: totale, mq, tagliInclinati: [...perMod.values()] };
 }

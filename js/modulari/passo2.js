@@ -2,10 +2,10 @@
 // MOBILI MODULARI — Passo 2: moduli (come gli armadi) o cubi liberi
 // =============================================================================
 import {
-  layoutModuli, layoutCubi, abbondanzaDi, larghezzaUtileAuto, distintaModulari, posizioneValida,
+  layoutModuli, layoutCubi, abbondanzaDi, gradi, larghezzaUtileAuto, distintaModulari, posizioneValida,
   primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT,
-} from './calcoli.js?v=20261112k';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112k';
+} from './calcoli.js?v=20261112l';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112l';
 
 const FRONTI = [
   { v: 0, l: 'Aperto (a giorno)' },
@@ -516,6 +516,7 @@ function renderRiepilogo() {
     <h3>Riepilogo · ${stato.modalita === 'moduli' ? 'moduli' : 'cubi'}</h3>
     ${dist.errori.map((e) => `<div class="mod-msg err">${esc(e)}</div>`).join('')}
     ${dist.avvisi.map((a) => `<div class="mod-msg avv">${esc(a)}</div>`).join('')}
+    ${avvisoInclinati(dist, esc)}
     ${lista}
     <div class="riep-riga"><span>Pezzi da tagliare</span><strong>${fmt(dist.totalePezzi)}</strong></div>
     <div class="riep-riga"><span>m² carcassa</span><strong>${fmt(Math.round(dist.mq.carcassa * 100) / 100)}</strong></div>
@@ -529,11 +530,23 @@ function renderRiepilogo() {
   ctx.riepilogo.querySelector('#p2-indietro').addEventListener('click', () => { stato.step = 1; ctx.salva(); ctx.aggiorna(); });
 }
 
+/** Avviso dei tagli inclinati: per modulo quali pezzi sono più lunghi. */
+const cm = (mm) => `${String(Math.round(mm) / 10).replace('.', ',')} cm`;
+function avvisoInclinati(dist, esc) {
+  const t = dist.tagliInclinati || [];
+  if (!t.length) return '';
+  return `<div class="mod-msg avv mod-incl"><strong>⚠ Attenzione: tagli inclinati.</strong> Questi pezzi sono tagliati più lunghi, da rifilare in opera all'inclinazione indicata:
+    <ul>${t.map((r) => `<li><strong>${esc(r.modulo)}</strong>: ${[
+      r.fianchi ? `${r.fianchi === 1 ? 'fianco' : `${r.fianchi} fianchi`} +${cm(r.abbFianchi)}` : '',
+      r.top ? `top +${cm(r.abbTop)}` : '',
+    ].filter(Boolean).join(', ')} · inclinazione ${gradi(r.angolo)}</li>`).join('')}</ul>
+    <span class="mod-incl-nota">Fianchi a piombo, top parallelo alla scala: bordo alto dei fianchi e testate del top con la lama inclinata dell'angolo indicato (vedi colonna “Taglio”). Fondo, ripiani, schiena e ante sono già a misura.</span></div>`;
+}
 let nomiFiniture = null;     // id → nome (caricati quando si apre la distinta)
 const nomeMat = (p) => `${NOMI_MAT[p.materiale] || p.materiale}${p.finitura ? ` · ${(nomiFiniture && nomiFiniture.get(p.finitura)) || p.finitura}` : ''}`;
 function pezziPerExcel(dist) {
   return dist.pezzi.map((p) => ({ nome: p.nome, larghezza: p.larghezza, altezza: p.altezza, spessore: p.spessore,
-    quantita: p.quantita, materiale: nomeMat(p), modulo: p.modulo, gruppo: '' }));
+    quantita: p.quantita, materiale: nomeMat(p), modulo: p.modulo, gruppo: '', note: p.note || '' }));
 }
 export async function apriDistinta(c) {
   if (c) ctx = c;
@@ -549,12 +562,13 @@ export async function apriDistinta(c) {
   const corpo = document.getElementById('distinta-corpo');
   corpo.innerHTML = `
     ${dist.errori.map((e) => `<div class="mod-msg err">${esc(e)}</div>`).join('')}
+    ${avvisoInclinati(dist, esc)}
     ${[...perModulo.entries()].map(([mod, pz]) => `
       <div class="distinta-modulo"><h4>${esc(mod)}</h4>
         <table class="distinta-tab">
-          <tr><th>Pezzo</th><th class="n">Largh.</th><th class="n">Alt./Lungh.</th><th class="n">Sp.</th><th>Materiale</th><th class="n">Q.tà</th></tr>
-          ${pz.map((p) => `<tr><td>${esc(p.nome)}</td><td class="n">${fmt(p.larghezza)}</td><td class="n">${fmt(p.altezza)}</td>
-            <td class="n">${fmt(p.spessore)}</td><td>${esc(nomeMat(p))}</td><td class="n">${fmt(p.quantita)}</td></tr>`).join('')}
+          <tr><th>Pezzo</th><th class="n">Largh.</th><th class="n">Alt./Lungh.</th><th class="n">Sp.</th><th>Materiale</th><th class="n">Q.tà</th>${pz.some((p) => p.note) ? '<th>Taglio</th>' : ''}</tr>
+          ${pz.map((p) => `<tr class="${p.abbondanza ? 'pz-incl' : ''}"><td>${esc(p.nome)}${p.abbondanza ? ` <span class="pz-piu">+${cm(p.abbondanza)}</span>` : ''}</td><td class="n">${fmt(p.larghezza)}</td><td class="n">${fmt(p.altezza)}</td>
+            <td class="n">${fmt(p.spessore)}</td><td>${esc(nomeMat(p))}</td><td class="n">${fmt(p.quantita)}</td>${pz.some((x) => x.note) ? `<td class="pz-taglio">${esc(p.note || '')}</td>` : ''}</tr>`).join('')}
         </table></div>`).join('') || '<p class="mod-prossimo">Nessun pezzo.</p>'}
     <div class="distinta-riepilogo">
       <div><span>Pezzi totali</span> <strong>${fmt(dist.totalePezzi)}</strong></div>
