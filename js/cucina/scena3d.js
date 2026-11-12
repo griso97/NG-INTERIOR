@@ -122,9 +122,18 @@ function aggiungiAccessorioTop(a) {
     // ACCIAIO INOX VERO: metalness alta + riflessione ambientale, non un grigio
     // piatto. Pareti lucide (riflettono il gradiente → danno profondità); fondo
     // un filo più opaco così non "sbianca" del tutto.
-    const matInox = new THREE.MeshStandardMaterial({ color: 0xcbccd0, roughness: 0.2,  metalness: 0.95, envMapIntensity: 1.0 });
-    const matPar  = new THREE.MeshStandardMaterial({ color: 0xaeafb3, roughness: 0.28, metalness: 0.92, envMapIntensity: 0.95 });
-    const matFondo = new THREE.MeshStandardMaterial({ color: 0x9a9b9f, roughness: 0.5, metalness: 0.88, envMapIntensity: 0.6 });
+    // Interno SATINATO e non a specchio: se riflette l'ambiente chiaro (e i
+    // LED dei pensili) diventa un rettangolo bianco piatto. In più le pareti
+    // scuriscono verso il fondo (ombra dentro la vasca): così si legge che scende.
+    const matInox = new THREE.MeshStandardMaterial({ color: 0xcbccd0, roughness: 0.25, metalness: 0.9, envMapIntensity: 0.8 });
+    const matPar  = new THREE.MeshStandardMaterial({ color: 0xb9bbc0, roughness: 0.45, metalness: 0.55, envMapIntensity: 0.4, vertexColors: true });
+    const matFondo = new THREE.MeshStandardMaterial({ color: 0x7d8086, roughness: 0.55, metalness: 0.5, envMapIntensity: 0.25 });
+    const sfuma = (geo, h) => {                   // chiaro in alto → scuro in basso
+      const p = geo.attributes.position, col = new Float32Array(p.count * 3);
+      for (let i = 0; i < p.count; i++) { const k = 0.32 + 0.68 * ((p.getY(i) + h / 2) / h); col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = k; }
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      return geo;
+    };
     const { vw, vd, zc } = dimVasca(a.w, a.d);
     const prof = 220, t = 12;                        // vasca profonda ~22 cm
     // Pareti della vasca: facce ESTERNE a filo del foro (vw×vd), scendono dal
@@ -135,7 +144,7 @@ function aggiungiAccessorioTop(a) {
       [-vw / 2 + t / 2, zc, t, vd - 2 * t],         // parete sinistra
       [vw / 2 - t / 2, zc, t, vd - 2 * t],          // parete destra
     ]) {
-      const par = new THREE.Mesh(new THREE.BoxGeometry(sw, prof, sd), matPar);
+      const par = new THREE.Mesh(sfuma(new THREE.BoxGeometry(sw, prof, sd), prof), matPar);
       par.position.set(px, -prof / 2 - 1, pz);
       par.castShadow = true; par.receiveShadow = true; g.add(par);
     }
@@ -356,7 +365,7 @@ function corpo(w, h, d, coloreOMat) {
 // Carcassa della colonna a FRONTE APERTO (schiena + fianchi + top + fondo,
 // SENZA faccia frontale): serve per il "vano aperto", dove si deve vedere
 // dentro. Le porte (dove ci sono) coprono comunque il fronte.
-function carcassaColonna(w, h, d, coloreOMat) {
+function carcassaColonna(w, h, d, coloreOMat, conTop = true) {
   const g = new THREE.Group();
   const t = 18;
   const mat = (coloreOMat && coloreOMat.isMaterial) ? coloreOMat
@@ -370,7 +379,7 @@ function carcassaColonna(w, h, d, coloreOMat) {
   panel(w, h, t, 0, 0, -d / 2 + t / 2);           // schiena
   panel(t, h, d, -w / 2 + t / 2, 0, 0);           // fianco sx
   panel(t, h, d,  w / 2 - t / 2, 0, 0);           // fianco dx
-  panel(w - 2 * t, t, d, 0,  h / 2 - t / 2, 0);   // top
+  if (conTop) panel(w - 2 * t, t, d, 0,  h / 2 - t / 2, 0);   // top
   panel(w - 2 * t, t, d, 0, -h / 2 + t / 2, 0);   // fondo
   g.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)), matOro));
   return g;
@@ -985,7 +994,13 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   // Colonna con VANO APERTO: carcassa a fronte aperto (si vede dentro);
   // le altre colonne/mobili restano scatola piena.
   const colonnaVano = cat === 'colonna' && m && m.variante === 'vano';
-  g.add(colonnaVano ? carcassaColonna(w, h, d, coloreCorpo) : corpo(w, h, d, coloreCorpo));
+  // Mobile del LAVELLO: aperto sopra (come nella realtà), sennò il blocco
+  // pieno arriva sotto il piano e copre la vasca: nel foro si vedrebbe solo
+  // il coperchio del mobile, non la profondità.
+  const conLavello = cat !== 'colonna' && cat !== 'pensile' && (tipo === 'lavello' || (m && m.lavello));
+  g.add(colonnaVano ? carcassaColonna(w, h, d, coloreCorpo)
+    : conLavello ? carcassaColonna(w, h, d, coloreCorpo, false)
+    : corpo(w, h, d, coloreCorpo));
   if (cat === 'regletta') return g;
   if (opt.cieco && opt.cieco.coperto) { anteCieche(g, w, h, d, matAnta, opt.cieco); return g; }
   if (tipo === 'pensile-angolo-45') { pensileAngoloFronte(g, w, h, d, matAnta); return g; }
@@ -1332,32 +1347,38 @@ function materialePerTop(mat) {
   return m;
 }
 
-/** Piano di lavoro con uno o più FORI rettangolari (lavelli): invece di una
- *  lastra piena, si compone con riquadri attorno ai fori, così la vasca del
- *  lavello si vede davvero in profondità. Coordinate locali centrate:
+/** Piano di lavoro con uno o più FORI rettangolari (lavelli): UNA SOLA
+ *  lastra con i fori ritagliati (niente pezzi accostati: nessuna giunta né
+ *  riga sul piano, venatura continua). Coordinate locali centrate:
  *  u = lungo la fila, v = profondità; foro = { u, v, w, d }. */
 function slabConFori(len, thickness, depth, mat, fori) {
-  const g = new THREE.Group();
   const halfU = len / 2, halfV = depth / 2;
   const hs = fori.map((f) => ({
-    u0: Math.max(-halfU, f.u - f.w / 2), u1: Math.min(halfU, f.u + f.w / 2),
-    v0: Math.max(-halfV, f.v - f.d / 2), v1: Math.min(halfV, f.v + f.d / 2),
-  })).filter((h) => h.u1 > h.u0 && h.v1 > h.v0).sort((a, b) => a.u0 - b.u0);
-  if (!hs.length) { const m = corpo(len, thickness, depth, mat); return m; }
-  const add = (uc, wU, vc, wV) => {
-    if (wU < 1 || wV < 1) return;
-    const m = corpo(wU, thickness, wV, mat);
-    m.position.set(uc, 0, vc);
-    g.add(m);
-  };
-  let cur = -halfU;
+    u0: Math.max(-halfU + 2, f.u - f.w / 2), u1: Math.min(halfU - 2, f.u + f.w / 2),
+    v0: Math.max(-halfV + 2, f.v - f.d / 2), v1: Math.min(halfV - 2, f.v + f.d / 2),
+  })).filter((h) => h.u1 - h.u0 > 5 && h.v1 - h.v0 > 5);
+  if (!hs.length) return corpo(len, thickness, depth, mat);
+  // Profilo in pianta (x = u, y = −v), poi estruso per lo spessore
+  const forma = new THREE.Shape();
+  forma.moveTo(-halfU, -halfV); forma.lineTo(halfU, -halfV); forma.lineTo(halfU, halfV); forma.lineTo(-halfU, halfV); forma.closePath();
   for (const h of hs) {
-    if (h.u0 > cur) add((cur + h.u0) / 2, h.u0 - cur, 0, depth);      // pieno fra i fori
-    add((h.u0 + h.u1) / 2, h.u1 - h.u0, (h.v1 + halfV) / 2, halfV - h.v1);  // striscia dietro
-    add((h.u0 + h.u1) / 2, h.u1 - h.u0, (-halfV + h.v0) / 2, h.v0 + halfV); // striscia davanti
-    cur = Math.max(cur, h.u1);
+    const foro = new THREE.Path();
+    foro.moveTo(h.u0, -h.v1); foro.lineTo(h.u0, -h.v0); foro.lineTo(h.u1, -h.v0); foro.lineTo(h.u1, -h.v1); foro.closePath();
+    forma.holes.push(foro);
   }
-  if (cur < halfU) add((cur + halfU) / 2, halfU - cur, 0, depth);
+  const geo = new THREE.ExtrudeGeometry(forma, { depth: thickness, bevelEnabled: false });
+  geo.rotateX(-Math.PI / 2);                 // estrusione verso l'alto, y forma → z = v
+  geo.translate(0, -thickness / 2, 0);       // centrata come un BoxGeometry
+  // UV come la faccia sopra di una lastra intera (la texture non riparte ai fori)
+  const pos = geo.attributes.position, uv = geo.attributes.uv;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + halfU) / len, 1 - (pos.getZ(i) + halfV) / depth);
+  uv.needsUpdate = true;
+  const materiale = (mat && mat.isMaterial) ? mat : new THREE.MeshStandardMaterial({ color: mat, roughness: 0.7, metalness: 0.05 });
+  const g = new THREE.Group();
+  const mesh = new THREE.Mesh(geo, materiale);
+  mesh.receiveShadow = true;
+  g.add(mesh);
+  g.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, 30), matOro));
   return g;
 }
 
