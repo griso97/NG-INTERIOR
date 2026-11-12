@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261113a';
+import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261113b';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -252,16 +252,18 @@ export function impostaUnitaUV(u, v = u) { unitaUV = { u, v }; }
 // Un pannello illuminato come la media delle facce verticali (anta vista di
 // fronte) ha esattamente i colori della foto. La luce di riferimento si misura
 // da sola in ogni scena (taraLuceCatalogo): nessuna regolazione a mano.
-const LUCE_FOTO = { value: 0.7 };   // luminanza di riferimento (misurata)
+const LUCE_FOTO = { value: 0.7 };   // luce di riferimento sui pannelli verticali (misurata)
+const LUCE_PIANO = { value: 1.0 };  // luce di riferimento sui piani orizzontali (top)
 const CONTRASTO_FOTO = 0.6;         // quanto la luce scurisce/schiarisce (0 = piatto)
 const PARAM_FOTO = { roughness: 0.85, metalness: 0.0, envMapIntensity: 0.25 };
-function coloreFoto(m) {
+function coloreFoto(m, rif = LUCE_FOTO) {
   m.color.set(0xffffff);
   m.toneMapped = false;
+  m.userData.ngRif = rif;
   if (!m.userData.ngFoto) {
     m.userData.ngFoto = true;
     m.onBeforeCompile = (sh) => {
-      sh.uniforms.ngLuceRif = LUCE_FOTO;
+      sh.uniforms.ngLuceRif = m.userData.ngRif;
       sh.fragmentShader = 'uniform float ngLuceRif;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', `{
         vec3 wl = vec3(0.2126, 0.7152, 0.0722);
         float f = dot(totalDiffuse, wl) / max(dot(diffuseColor.rgb, wl), 1e-4) / ngLuceRif;
@@ -275,40 +277,62 @@ function coloreFoto(m) {
 }
 
 /**
+ * Piano di lavoro (o altra lastra orizzontale) con i colori ESATTI della sua
+ * foto: stesse tinte, stesse sfumature, venature visibili (la luce della
+ * scena non la "brucia" più). Usa la luce di riferimento dei piani.
+ */
+export function pianoComeFoto(m) {
+  if (!m || !m.map) return m;
+  Object.assign(m, PARAM_FOTO);
+  coloreFoto(m, LUCE_PIANO);
+  return m;
+}
+
+/**
  * Taratura AUTOMATICA della luce di riferimento (per ogni scena): misura la
- * luce che arriva su un pannello bianco opaco verticale (stesse luci, stesso
- * ambiente) rivolto dove guardano le ante: armadi e modulari di fronte (+z),
- * cucina in media sulle 4 pareti. Da chiamare dopo le luci.
+ * luce che arriva su un pannello bianco opaco (stesse luci, stesso ambiente)
+ * rivolto dove guardano le ante (armadi e modulari di fronte, +z; cucina in
+ * media sulle 4 pareti) e, per i piani, rivolto in alto. Da chiamare dopo le luci.
  */
 export function taraLuceCatalogo(renderer, scene, direzioni = [[0, 0, 1], [0, 0, -1], [1, 0, 0], [-1, 0, 0]]) {
   let rt = null, piano = null;
+  const rif = LUCE_FOTO.value, rifP = LUCE_PIANO.value;
   try {
     rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.FloatType });
     // pannello bianco con lo STESSO shader dei prodotti: con riferimento 1
     // restituisce 1 - c + c·L → ricavo la luce L
+    const uno = { value: 1 };
     const mb = new THREE.MeshStandardMaterial({ color: 0xffffff, ...PARAM_FOTO });
-    coloreFoto(mb);
+    coloreFoto(mb, uno);
     piano = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), mb);
     scene.add(piano);
-    const rif = LUCE_FOTO.value; LUCE_FOTO.value = 1;
     const cam = new THREE.OrthographicCamera(-10, 10, 10, -10, 1, 1000);
     const prima = renderer.getRenderTarget();
     const buf = new Float32Array(4);
-    let somma = 0, n = 0;
-    for (const d of direzioni) {
-      const v = new THREE.Vector3(...d);
-      piano.position.set(0, 200000, 0); piano.lookAt(piano.position.clone().add(v));
-      cam.position.copy(piano.position).addScaledVector(v, 100); cam.lookAt(piano.position);
-      renderer.setRenderTarget(rt); renderer.render(scene, cam);
-      renderer.readRenderTargetPixels(rt, 1, 1, 1, 1, buf);
-      const l = (0.2126 * buf[0] + 0.7152 * buf[1] + 0.0722 * buf[2] - (1 - CONTRASTO_FOTO)) / CONTRASTO_FOTO;
-      if (Number.isFinite(l) && l > 0.02 && l < 50) { somma += l; n++; }
-    }
+    const misura = (dirs) => {
+      let somma = 0, n = 0;
+      for (const d of dirs) {
+        const v = new THREE.Vector3(...d);
+        piano.position.set(0, 200000, 0);
+        if (Math.abs(v.y) > 0.9) piano.up.set(0, 0, -1); else piano.up.set(0, 1, 0);
+        piano.lookAt(piano.position.clone().add(v));
+        cam.up.copy(piano.up);
+        cam.position.copy(piano.position).addScaledVector(v, 100); cam.lookAt(piano.position);
+        renderer.setRenderTarget(rt); renderer.render(scene, cam);
+        renderer.readRenderTargetPixels(rt, 1, 1, 1, 1, buf);
+        const l = (0.2126 * buf[0] + 0.7152 * buf[1] + 0.0722 * buf[2] - (1 - CONTRASTO_FOTO)) / CONTRASTO_FOTO;
+        if (Number.isFinite(l) && l > 0.02 && l < 50) { somma += l; n++; }
+      }
+      return n ? somma / n : null;
+    };
+    const lv = misura(direzioni), lp = misura([[0, 1, 0]]);
     renderer.setRenderTarget(prima);
-    LUCE_FOTO.value = n ? somma / n : rif;
-    return n ? LUCE_FOTO.value : null;
+    if (lv) LUCE_FOTO.value = lv;
+    if (lp) LUCE_PIANO.value = lp;
+    return lv;
   } catch (e) {
     console.warn('Taratura luce non riuscita', e);
+    LUCE_FOTO.value = rif; LUCE_PIANO.value = rifP;
     return null;
   } finally {
     if (piano) { scene.remove(piano); piano.geometry.dispose(); piano.material.dispose(); }

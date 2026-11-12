@@ -14,11 +14,11 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
 } from './modello.js?v=20261111x';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113a';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113b';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113a';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113b';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1391,6 +1391,7 @@ function materialePerTop(mat) {
     metalness: 0.0,
     envMapIntensity: 0.0,
   });
+  pianoComeFoto(m);          // colori, sfumature e venature identici alla foto
   _matTopCache.set(mat, m);
   return m;
 }
