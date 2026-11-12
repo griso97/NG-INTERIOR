@@ -23,10 +23,10 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA,
 } from './modello.js?v=20261111x';
 import { renderPianta } from './pianta.js?v=20261111x';
-import { calcolaDistintaCucina } from './distinta.js?v=20261111x';
+import { calcolaDistintaCucina } from './distinta.js?v=20261113d';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261113c';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113c';
+import { agganciaTema } from '../tema.js?v=20261113d';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113d';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1227,7 +1227,7 @@ function renderRiepilogoStep3d() {
     <div class="riep-riga"><span>Totale pezzi</span><strong>${(progetto.mobiliLiberi || []).length}</strong></div>
     ${(progetto.mobiliLiberi || []).length ? `
     <button id="apri-distinta" class="btn-oro" type="button" style="width:100%;margin-top:14px">📋 Distinta di taglio</button>
-    <div class="riga-3d" style="margin-top:6px">L'elenco dei pezzi di ogni modulo (fianchi, ante, ripiani…), con le misure.</div>` : ''}
+    <div class="riga-3d" style="margin-top:6px">Moduli da ordinare, ante e pezzi da fare con le misure, accessori (piedini…).</div>` : ''}
     ${daTagliare.length ? `
     <h3 style="margin-top:18px">⚠ Da tagliare su misura</h3>
     <div class="riga-3d" style="margin-bottom:6px">Misura non standard: questi moduli vanno tagliati.</div>
@@ -1240,7 +1240,7 @@ function renderRiepilogoStep3d() {
 // --------- DISTINTA DI TAGLIO (lista moduli + lista pezzi per tipo) ---------
 const NOME_MATERIALE = { carcassa: 'Carcassa', anta: 'Anta/Fronte', schiena: 'Schiena', zoccolo: 'Zoccolo', melaminico: 'Melaminico bianco' };
 function mostraDistinta() {
-  const { moduli, pezzi, gruppiOrdine, riepilogo } = calcolaDistintaCucina(progetto);
+  const { moduli, pezzi, accessori, gruppiOrdine, riepilogo } = calcolaDistintaCucina(progetto);
   const corpo = document.getElementById('distinta-corpo');
   if (!moduli.length) {
     corpo.innerHTML = '<div class="riga-3d">Nessun modulo in scena.</div>';
@@ -1251,7 +1251,8 @@ function mostraDistinta() {
   // SEZIONE 1 — lista moduli
   const sezModuli = `
     <div class="distinta-modulo">
-      <h4>Moduli</h4>
+      <h4>Moduli da ordinare</h4>
+      <div class="riga-3d" style="margin-bottom:6px">Arrivano già completi (fianchi, fondo, top, schiena e ripiani già tagliati): non sono nella lista dei pezzi.</div>
       <table class="distinta-tab">
         <thead><tr><th>Modulo</th><th>Tipo</th><th class="n">Qtà</th></tr></thead>
         <tbody>${moduli.map((m) => `<tr>
@@ -1265,7 +1266,8 @@ function mostraDistinta() {
   const perGruppo = (gruppiOrdine || []).map((g) => ({ g, righe: pezzi.filter((p) => p.gruppo === g) }))
     .filter((x) => x.righe.length);
   const sezPezzi = `
-    <h4 class="distinta-sez">Pezzi</h4>
+    <h4 class="distinta-sez">Pezzi da fare</h4>
+    <div class="riga-3d" style="margin-bottom:6px">Ante e frontali dei moduli e i pezzi in legno aggiunti da noi (costadi, reglette, pannelli, zoccolo).</div>
     ${perGruppo.map(({ g, righe }) => `
     <div class="distinta-modulo">
       <h5 class="distinta-gruppo">${escHtml(g)}</h5>
@@ -1281,30 +1283,46 @@ function mostraDistinta() {
       </table>
     </div>`).join('')}`;
 
-  corpo.innerHTML = sezModuli + sezPezzi + `
+  // SEZIONE 3 — accessori da ordinare (piedini, griglie forno)
+  const sezAcc = accessori.length ? `
+    <div class="distinta-modulo">
+      <h4 class="distinta-sez">Accessori da ordinare</h4>
+      <table class="distinta-tab">
+        <thead><tr><th>Accessorio</th><th class="n">Qtà</th></tr></thead>
+        <tbody>${accessori.map((a) => `<tr><td>${escHtml(a.nome)}</td><td class="n">${a.quantita}</td></tr>`).join('')}</tbody>
+      </table>
+      <div class="riga-3d" style="margin-top:6px">Piedini: 4 per modulo a terra, 6 se è più largo di 90 cm.</div>
+    </div>` : '';
+
+  corpo.innerHTML = sezModuli + sezPezzi + sezAcc + `
     <div class="distinta-riepilogo">
       <div><span>Moduli</span><strong>${riepilogo.moduli}</strong></div>
-      <div><span>Pezzi totali</span><strong>${riepilogo.totalePezzi}</strong></div>
-      <div><span>m² carcassa</span><strong>${riepilogo.mqCarcassa.toFixed(2)}</strong></div>
-      <div><span>m² ante</span><strong>${riepilogo.mqAnte.toFixed(2)}</strong></div>
-      <div><span>m² schiena</span><strong>${riepilogo.mqSchiena.toFixed(2)}</strong></div>
-      ${riepilogo.mqMelaminico ? `<div><span>m² melaminico</span><strong>${riepilogo.mqMelaminico.toFixed(2)}</strong></div>` : ''}
+      <div><span>Pezzi da fare</span><strong>${riepilogo.totalePezzi}</strong></div>
+      <div><span>m² ante e frontali</span><strong>${riepilogo.mqAnte.toFixed(2)}</strong></div>
+      <div><span>m² zoccolo</span><strong>${riepilogo.mqZoccolo.toFixed(2)}</strong></div>
+      <div><span>Piedini</span><strong>${riepilogo.piedini}</strong></div>
     </div>`;
   const ov = document.getElementById('distinta-overlay');
   if (ov) ov.hidden = false;
 }
 function chiudiDistinta() { const ov = document.getElementById('distinta-overlay'); if (ov) ov.hidden = true; }
 function esportaDistintaCSV() {
-  const { moduli, pezzi } = calcolaDistintaCucina(progetto);
+  const { moduli, pezzi, accessori } = calcolaDistintaCucina(progetto);
   const tr = (s) => (typeof s === 'string' && window.NGI18N ? window.NGI18N.t(s) : s);
   const qc = (s) => `"${String(tr(s)).replace(/"/g, '""')}"`;
-  const righe = [['MODULI']];
+  const righe = [['MODULI DA ORDINARE']];
   righe.push(['Modulo', 'Tipo', 'Quantita']);
   for (const m of moduli) righe.push([m.nome + (m.fuoriMisura ? ' (da tagliare)' : ''), m.tipo, m.quantita]);
   righe.push([]);
-  righe.push(['PEZZI']);
+  righe.push(['PEZZI DA FARE']);
   righe.push(['Gruppo', 'Pezzo', 'Larghezza_mm', 'Altezza_mm', 'Spessore_mm', 'Materiale', 'Quantita']);
   for (const p of pezzi) righe.push([p.gruppo, p.nome, p.larghezza, p.altezza, p.spessore, p.materiale, p.quantita]);
+  if (accessori.length) {
+    righe.push([]);
+    righe.push(['ACCESSORI DA ORDINARE']);
+    righe.push(['Accessorio', 'Quantita']);
+    for (const a of accessori) righe.push([a.nome, a.quantita]);
+  }
   const csv = righe.map((r) => r.map(qc).join(';')).join('\r\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -1339,7 +1357,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261113c');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261113d');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste

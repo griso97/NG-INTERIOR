@@ -998,5 +998,22 @@ window.NG_I18N_ES = {
  "Sgabelli e arredo": "Taburetes y decoración",
  ": trascinali per metterli dove vuoi (i moduli restano fissi).": ": arrástralos para colocarlos donde quieras (los módulos quedan fijos).",
  "Dal finger-pull (senza gola)": "Del finger-pull (sin gola)",
- "Porta riconosciuta; la gola è dello stesso colore della porta (uso il materiale della porta).": "Puerta reconocida; la gola es del mismo color que la puerta (uso el material de la puerta)."
+ "Porta riconosciuta; la gola è dello stesso colore della porta (uso il materiale della porta).": "Puerta reconocida; la gola es del mismo color que la puerta (uso el material de la puerta).",
+ "Moduli da ordinare": "Módulos a pedir",
+ "Arrivano già completi (fianchi, fondo, top, schiena e ripiani già tagliati): non sono nella lista dei pezzi.": "Llegan ya completos (costados, fondo, techo, trasera y estantes ya cortados): no están en la lista de piezas.",
+ "Pezzi da fare": "Piezas a fabricar",
+ "Ante e frontali dei moduli e i pezzi in legno aggiunti da noi (costadi, reglette, pannelli, zoccolo).": "Puertas y frentes de los módulos y las piezas de madera que añadimos nosotros (costados, regletas, paneles, zócalo).",
+ "Accessori da ordinare": "Accesorios a pedir",
+ "Accessorio": "Accesorio",
+ "Piedini: 4 per modulo a terra, 6 se è più largo di 90 cm.": "Patas: 4 por módulo en el suelo, 6 si mide más de 90 cm de ancho.",
+ "m² ante e frontali": "m² puertas y frentes",
+ "m² zoccolo": "m² zócalo",
+ "Piedini": "Patas",
+ "Pannello sotto forno": "Panel bajo horno",
+ "Piedini regolabili": "Patas regulables",
+ "Griglia aerazione forno {0} mm": "Rejilla de ventilación horno {0} mm",
+ "MODULI DA ORDINARE": "MÓDULOS A PEDIR",
+ "PEZZI DA FARE": "PIEZAS A FABRICAR",
+ "ACCESSORI DA ORDINARE": "ACCESORIOS A PEDIR",
+ "Moduli da ordinare, ante e pezzi da fare con le misure, accessori (piedini…).": "Módulos a pedir, puertas y piezas a fabricar con sus medidas, accesorios (patas…)."
 };
