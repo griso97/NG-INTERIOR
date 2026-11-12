@@ -26,7 +26,7 @@ import { renderPianta } from './pianta.js?v=20261111x';
 import { calcolaDistintaCucina } from './distinta.js?v=20261111x';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
 import { agganciaTema } from '../tema.js?v=20261111x';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112p';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112q';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -156,6 +156,42 @@ document.addEventListener('keydown', (e) => {
     aggiorna();
   }
 });
+
+// --------- PANNELLO DIETRO IL PIANO (schienale / paraschizzi) ---------
+function htmlSchienale() {
+  const tutti = (scena3dMod && scena3dMod.MATERIALI) || [];
+  const sc = progetto.schienale || {};
+  const att = !!sc.attivo, mat = sc.materiale || null;
+  const def = mat ? tutti.find((x) => x.id === mat) : null;
+  return `
+    <section class="step3-pannello">
+      <h3>Pannello dietro il piano</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Il pannello sul muro tra il piano di lavoro e i pensili (solo dove dietro c'è un muro).</div>
+      <div style="display:flex;gap:8px">
+        <button type="button" class="btn-ghost opt-sch ${!att ? 'attivo' : ''}" data-sch="no" style="flex:1">${!att ? '✓ ' : ''}No</button>
+        <button type="button" class="btn-ghost opt-sch ${att ? 'attivo' : ''}" data-sch="si" style="flex:1">${att ? '✓ ' : ''}Sì</button>
+      </div>
+      ${att ? `
+      <div class="riga-3d" style="margin:10px 0 6px">Materiale: <strong>${def ? def.nome : 'uguale al piano di lavoro'}</strong></div>
+      <div class="palette-colori">
+        <button type="button" class="swatch swatch-none ${!mat ? 'sel' : ''}" data-sch-mat="" title="Uguale al piano di lavoro">=</button>
+        ${tutti.map((mt) => `<button type="button" class="swatch ${mt.id === mat ? 'sel' : ''}"
+          data-sch-mat="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`).join('')}
+      </div>` : ''}
+    </section>`;
+}
+function agganciaSchienale(root) {
+  root.querySelectorAll('.opt-sch').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    progetto.schienale = { ...(progetto.schienale || {}), attivo: b.dataset.sch === 'si' };
+    aggiorna();
+  }));
+  root.querySelectorAll('.swatch[data-sch-mat]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    progetto.schienale = { ...(progetto.schienale || {}), attivo: true, materiale: b.dataset.schMat || null };
+    aggiorna();
+  }));
+}
 
 // --------- DISPATCH principale: sceglie lo step attivo ---------
 // Step 1 Pianta · 2 Moduli bassi · 3 Moduli alti · 4 Rendering 3D
@@ -815,6 +851,7 @@ function renderPannelloStep3d() {
           data-enc="${mt.id}" title="${mt.nome} (${mt.spessore || 40} mm)" style="background-image:url('${mt.thumb}')"></button>`).join('')}
       </div>
     </section>` : ''}
+    ${htmlSchienale()}
     <section class="step3-pannello">
       <h3>Colore zoccolo</h3>
       <div class="palette-zoccolo">
@@ -872,6 +909,7 @@ function renderPannelloStep3d() {
     progetto.encimera.materiale = b.dataset.enc || null;
     aggiorna();
   }));
+  agganciaSchienale(pannello);
   pannello.querySelectorAll('.opt-led').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     const v = b.dataset.led;
@@ -998,6 +1036,7 @@ function renderPannelloModificaMobile(m) {
           data-enc="${mt.id}" title="${mt.nome} (${mt.spessore || 40} mm)" style="background-image:url('${mt.thumb}')"></button>`).join('')}
       </div>
     </section>` : ''}
+    ${isBase ? htmlSchienale() : ''}
     ${cat === 'pensile' ? `
     <section class="step3-pannello">
       <h3>Ante pensili</h3>
@@ -1030,6 +1069,7 @@ function renderPannelloModificaMobile(m) {
     progetto.encimera.materiale = b.dataset.enc || null;
     aggiorna();
   }));
+  agganciaSchienale(pannello);
   pannello.querySelectorAll('.opt-anta').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     progetto.antaPensile = b.dataset.anta;
@@ -1214,7 +1254,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261112p');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261112q');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste

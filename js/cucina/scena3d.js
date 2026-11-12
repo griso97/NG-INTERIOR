@@ -1107,6 +1107,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   const basiTop = [];
   const accessori = [];
   const fianchi = [];   // costadi e colonne: delimitano il top (lo taglia/estende)
+  const pensiliPlan = []; // pensili (per l'altezza del pannello dietro il piano)
   const zoccoli = [];   // TUTTO ciò che poggia a terra (basi, colonne, reglette):
                         // lo zoccolo è un unico pezzo continuo che li copre tutti
 
@@ -1178,6 +1179,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       // Se ci sono colonne, la CIMA del pensile va alla cima delle colonne;
       // altrimenti resta appeso all'altezza standard (140 cm da terra).
       const base = topLine != null ? (topLine - h) : MONTAGGIO_PENSILE;
+      pensiliPlan.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, yBottom: base });
       const sporg = antaPensileSporge(progetto.antaPensile, h);
       const gPens = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matPensile, { sporg });
       // LED sotto i pensili (opzionale, con scelta temperatura colore).
@@ -1255,7 +1257,19 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   // Zoccolo continuo (un unico pezzo per fila: basi + colonne insieme) +
   // piano di lavoro continuo che non entra nei costadi/colonne
   renderZoccoliContinui(zoccoli, materialeZoccolo(progetto.zoccoloColore));
-  renderTopContinui(basiTop, fianchi, spTop, matTop, accessori.filter((a) => a.lavello));
+  // Pannello dietro il piano (schienale): stesso materiale del piano o un altro
+  const sch = progetto.schienale && progetto.schienale.attivo ? progetto.schienale : null;
+  let schienale = null;
+  if (sch) {
+    const matSch = sch.materiale ? getMaterialeTHREE(sch.materiale, reRender) : null;
+    const defSch = sch.materiale ? MATERIALI.find((x) => x.id === sch.materiale) : null;
+    schienale = {
+      mat: matSch ? (defSch && defSch.categoria === 'encimera' ? materialePerTop(matSch) : matSch) : null,   // null = come il piano
+      pensili: pensiliPlan,
+      muri: full.map((p, i) => (p.assente ? null : { a: vertici[i], b: vertici[i + 1] })).filter(Boolean),
+    };
+  }
+  renderTopContinui(basiTop, fianchi, spTop, matTop, accessori.filter((a) => a.lavello), schienale);
   // Lavello, piano cottura e rubinetto SOPRA il top
   for (const a of accessori) aggiungiAccessorioTop(a);
 
@@ -1382,7 +1396,17 @@ function slabConFori(len, thickness, depth, mat, fori) {
   return g;
 }
 
-function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, lavelli = []) {
+/** Distanza di un punto (pianta) dal segmento ab. */
+function distSegmento(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy || 1;
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / L2));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+const SP_SCHIENALE = 12;          // spessore del pannello dietro il piano
+const H_SCHIENALE = 600;          // altezza se sopra non ci sono pensili
+
+function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, lavelli = [], schienale = null) {
   let matTop = materialePerTop(mat);
   // Il piano deve SEMPRE vincere lo z-fighting contro costadi/colonne che gli
   // arrivano a filo (stessa quota): con polygonOffset la lastra viene disegnata
@@ -1457,6 +1481,31 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
       const slab = fori.length
         ? slabConFori(len, thickness, depth, matTop || COL.top, fori)
         : corpo(len, thickness, depth, matTop || COL.top);
+      // Pannello dietro il piano: solo se dietro questa fila c'è un muro
+      if (schienale) {
+        const perpMuro = perp + G.d / 2;                       // retro dei moduli = muro
+        const P = (al) => ({ x: c * al - s * perpMuro, y: s * al + c * perpMuro });
+        const controlli = [P(centerAlong), P(lo + 50), P(hi - 50)];
+        const muro = schienale.muri.some((w) => controlli.filter((q) => distSegmento(q, w.a, w.b) < 90).length >= 2);
+        if (muro) {
+          // altezza: fino ai pensili sopra questa fila, altrimenti 60 cm
+          let yPens = Infinity;
+          for (const pz of schienale.pensili) {
+            if (rotNorm(pz.rot) !== rotN) continue;
+            const al = pz.x * c + pz.y * s, pp = pz.x * (-s) + pz.y * c;
+            if (Math.abs(al - centerAlong) > len / 2 + pz.w / 2 - 20) continue;
+            if (pp > perpMuro + 50 || pp < perpMuro - 700) continue;
+            yPens = Math.min(yPens, pz.yBottom);
+          }
+          const yTop = topY + thickness;
+          const H = Number.isFinite(yPens) && yPens - yTop > 100 ? yPens - yTop : H_SCHIENALE;
+          const zMuro = perpMuro - perpTop;                     // in coordinate locali della lastra (muro = +z)
+          const pann = corpo(len, H, SP_SCHIENALE, schienale.mat || matTop || COL.top);
+          pann.position.set(0, thickness / 2 + H / 2, zMuro - SP_SCHIENALE / 2);
+          pann.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
+          slab.add(pann);
+        }
+      }
       gruppo.add(collocaMobile(slab, cx, topY, -cy, thickness, rotN));
     }
   }
