@@ -8,10 +8,10 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, eliminaFoto, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261112x';
-import { analizzaFoto, cmZona } from './analisi-foto.js?v=20261112x';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261112x';
-import { agganciaTema } from './tema.js?v=20261112x';
+} from './catalogo.js?v=20261112z';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio } from './analisi-foto.js?v=20261112z';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261112z';
+import { agganciaTema } from './tema.js?v=20261112z';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -196,6 +196,7 @@ function apriScheda(m) {
     });
   }
   corpo.querySelector('#f-salva').addEventListener('click', async () => {
+    corpo.querySelector('#f-err').hidden = true;
     const v = (id) => corpo.querySelector(id) ? corpo.querySelector(id).value.trim() : '';
     const nome = v('#f-nome');
     const infoN = { tipo: v('#f-tipo'), spessore: v('#f-sp'), colore: v('#f-col'), note: v('#f-note') };
@@ -232,15 +233,17 @@ function apriScheda(m) {
       if (img) {
         const z = rit();
         if (tipo === 'fp') {
-          const porta = await ritaglioBlob(img, z.porta);
-          // gola: il pezzo di foto; se troppo piccolo, il suo colore esatto
-          const gola = z.gola && z.gola.w >= 4 && z.gola.h >= 4 ? await ritaglioBlob(img, z.gola, { max: 1024 }) : null;
-          const golaBlob = gola ? gola.blob : await bloccoColore(z.coloreGola ?? 0x1a1a1a);
-          await salvaFoto(id, porta.blob, 'foto');
+          // PORTA raddrizzata (vista di fronte), pixel della foto
+          const cp = cartellaRaddrizzata(img, z.porta, w, h, z.portaFrazione);
+          campioneZona = cp.cm;
+          const portaBlob = await canvasBlob(cp.canvas, 'image/jpeg');
+          // GOLA: la sua foto raddrizzata se pulita, altrimenti il suo colore
+          const golaCanvas = z.gola ? raddrizza(img, z.gola, 800, 60, 0) : null;
+          const golaBlob = golaCanvas ? await canvasBlob(golaCanvas, 'image/jpeg') : await bloccoColore(z.coloreGola ?? 0x1a1a1a);
+          await salvaFoto(id, portaBlob, 'foto');
           await salvaFoto(id, golaBlob, 'gola');
-          await salvaFoto(id, await thumbFingerPull(img, z.porta, z.gola, z.coloreGola), 'thumb');
-          colore = porta.colore; coloreGola = gola ? gola.colore : (z.coloreGola ?? 0x1a1a1a);
-          campioneZona = cmZona(z.porta, z.oggetto, w, h);
+          await salvaFoto(id, await thumbDaCanvas(cp.canvas, golaCanvas, z.coloreGola), 'thumb');
+          colore = coloreMedio(cp.canvas); coloreGola = golaCanvas ? coloreMedio(golaCanvas) : (z.coloreGola ?? 0x1a1a1a);
         } else if (tipo === 'man') {
           const scont = corpo.querySelector('#f-scont').checked ? Number(corpo.querySelector('#f-tol').value) : 0;
           const r = await ritaglioBlob(img, z.main, { png: true, scontorna: scont, thumbIntera: true, max: 1024 });
@@ -250,11 +253,11 @@ function apriScheda(m) {
           manN.verticale = r.h > r.w;
           manN.rapporto = Math.min(r.w, r.h) / Math.max(r.w, r.h);
         } else {
-          const f = await preparaFoto(img, z.main);
-          await salvaFoto(id, f.foto, 'foto');
-          await salvaFoto(id, f.thumb, 'thumb');
-          colore = f.colore;
-          campioneZona = cmZona(z.main, z.oggetto, w, h);
+          const cp = cartellaRaddrizzata(img, z.main, w, h, z.portaFrazione);
+          campioneZona = cp.cm;
+          await salvaFoto(id, await canvasBlob(cp.canvas, 'image/jpeg'), 'foto');
+          await salvaFoto(id, await thumbDaCanvas(cp.canvas, null, null), 'thumb');
+          colore = coloreMedio(cp.canvas);
         }
       }
       const dati = { id, sezione: sez, nome, info: infoN, colore, aggiornato: Date.now(),
@@ -282,6 +285,120 @@ async function thumbFingerPull(img, porta, gola, coloreGola) {
   return new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.9));
 }
 
+/** Canvas → Blob. */
+function canvasBlob(c, tipo = 'image/jpeg') { return new Promise((ok) => c.toBlob(ok, tipo, 0.95)); }
+
+/**
+ * Porta/campione RADDRIZZATO alla sua forma vera: proporzioni dalla misura
+ * reale (cm) della parte usata, lato lungo max 1600 px.
+ */
+function cartellaRaddrizzata(img, quad, wCm, hCm, frazione) {
+  const fr = frazione || { w: 1, h: 1 };
+  const cm = { w: Math.round(wCm * fr.w * 10) / 10, h: Math.round(hCm * fr.h * 10) / 10 };
+  const asp = cm.w / cm.h;
+  const OW = asp >= 1 ? 1600 : Math.max(64, Math.round(1600 * asp));
+  const OH = asp >= 1 ? Math.max(64, Math.round(1600 / asp)) : 1600;
+  return { canvas: raddrizza(img, quad, OW, OH, 0), cm };
+}
+
+/** Miniatura dalla porta raddrizzata (+ gola in alto, foto o colore). */
+function thumbDaCanvas(porta, gola, coloreGola) {
+  const c = document.createElement('canvas'); c.width = c.height = 192;
+  const g = c.getContext('2d');
+  const lato = Math.min(porta.width, porta.height);
+  g.drawImage(porta, (porta.width - lato) / 2, (porta.height - lato) / 2, lato, lato, 0, 0, 192, 192);
+  if (gola) g.drawImage(gola, 0, 0, gola.width, gola.height, 0, 0, 192, 28);
+  else if (coloreGola != null) { g.fillStyle = `#${coloreGola.toString(16).padStart(6, '0')}`; g.fillRect(0, 0, 192, 28); }
+  return canvasBlob(c, 'image/jpeg');
+}
+
+/**
+ * ANALISI AUTOMATICA (porta finger-pull / campione): sfondo tolto, angoli
+ * trovati, porta raddrizzata, gola cercata sulla porta dritta. Si vede subito
+ * cosa ha riconosciuto; "Correggi a mano" fa spostare i 4 ANGOLI (la
+ * selezione segue la porta anche se è inclinata).
+ */
+async function analisiAutomatica(img, corpo, tipo) {
+  if (tipo === 'man') return analisiManiglia(img, corpo, tipo);
+  const a = analizzaPorta(img, tipo);
+  const chiave = tipo === 'fp' ? 'porta' : 'main';
+  const box = corpo.querySelector('#f-auto');
+  box.hidden = false;
+  corpo.querySelector('#f-ritaglio-box').hidden = true;
+  const W = img.naturalWidth, H = img.naturalHeight, k = Math.min(1, 900 / Math.max(W, H));
+  const v = corpo.querySelector('#f-vista'); v.width = Math.round(W * k); v.height = Math.round(H * k);
+  // misura a schermo con le proporzioni della foto (niente bande: gli angoli combaciano)
+  const dimensiona = () => {
+    const maxW = v.parentElement.clientWidth - 20, maxH = 380;
+    const s = Math.min(maxW / W, maxH / H);
+    v.style.width = `${Math.round(W * s)}px`; v.style.height = `${Math.round(H * s)}px`;
+  };
+  dimensiona();
+  const tiles = corpo.querySelector('#f-tiles');
+  const L = (p, q) => Math.hypot(q[0] - p[0], q[1] - p[1]);
+  const disegna = () => {
+    const g = v.getContext('2d'); g.drawImage(img, 0, 0, v.width, v.height);
+    const poly = (q, col, tratt) => {
+      if (!q) return;
+      g.save(); g.beginPath(); q.forEach(([x, y], i) => (i ? g.lineTo(x * k, y * k) : g.moveTo(x * k, y * k))); g.closePath();
+      g.strokeStyle = col; g.lineWidth = Math.max(2, v.width / 250); if (tratt) g.setLineDash([8, 6]); g.stroke(); g.restore();
+    };
+    poly(a.oggetto, '#9aa0a6', true); poly(a[chiave], '#e0a000'); poly(a.golaZona, '#1e90ff');
+    // anteprime: porta raddrizzata e gola
+    tiles.innerHTML = '';
+    const tile = (titolo, sorgente, colore) => {
+      const f = document.createElement('figure'); f.className = 'imp-tilebox';
+      const c = document.createElement('canvas'); c.width = c.height = 140;
+      const cg = c.getContext('2d');
+      if (sorgente) { const s = Math.max(140 / sorgente.width, 140 / sorgente.height); cg.drawImage(sorgente, (140 - sorgente.width * s) / 2, (140 - sorgente.height * s) / 2, sorgente.width * s, sorgente.height * s); }
+      else { cg.fillStyle = `#${(colore ?? 0x1a1a1a).toString(16).padStart(6, '0')}`; cg.fillRect(0, 0, 140, 140); }
+      f.appendChild(c); const fc = document.createElement('figcaption'); fc.textContent = tr(titolo); f.appendChild(fc); tiles.appendChild(f);
+    };
+    const q = a[chiave];
+    const asp = (L(q[0], q[1]) + L(q[3], q[2])) / Math.max(1, L(q[0], q[3]) + L(q[1], q[2]));
+    tile(tipo === 'fp' ? 'Porta' : 'Campione', raddrizza(img, q, 280, Math.max(40, Math.round(280 / Math.max(0.2, asp))), 0));
+    if (tipo === 'fp') tile('Gola', a.gola ? raddrizza(img, a.gola, 280, 40, 0) : null, a.coloreGola);
+  };
+  disegna();
+  corpo.querySelector('#f-msg').textContent = tr(a.messaggio || '');
+  // --- correzione a mano: angoli trascinabili sulla foto
+  corpo.querySelector('#f-mano').onclick = () => {
+    const wrap = v.parentElement; wrap.style.position = 'relative';
+    wrap.querySelectorAll('.imp-angolo').forEach((x) => x.remove());
+    const gruppi = [[chiave, '#e0a000']];
+    if (tipo === 'fp') { if (!a.golaZona) { const o = a.oggetto; a.golaZona = [o[0], o[1], [o[1][0], o[1][1] + (o[2][1] - o[1][1]) * 0.06], [o[0][0], o[0][1] + (o[3][1] - o[0][1]) * 0.06]]; } gruppi.push(['golaZona', '#1e90ff']); }
+    for (const [nome, col] of gruppi) {
+      a[nome].forEach((pt, i) => {
+        const h = document.createElement('div'); h.className = 'imp-angolo'; h.style.borderColor = col;
+        const pos = () => { const r = v.getBoundingClientRect(), b = wrap.getBoundingClientRect(); h.style.left = `${r.left - b.left + (a[nome][i][0] / W) * r.width}px`; h.style.top = `${r.top - b.top + (a[nome][i][1] / H) * r.height}px`; };
+        pos(); wrap.appendChild(h);
+        h.addEventListener('pointerdown', (e) => {
+          h.setPointerCapture(e.pointerId); e.preventDefault();
+          const muovi = (ev) => {
+            const r = v.getBoundingClientRect();
+            a[nome][i] = [Math.max(0, Math.min(W, ((ev.clientX - r.left) / r.width) * W)), Math.max(0, Math.min(H, ((ev.clientY - r.top) / r.height) * H))];
+            pos(); disegnaVeloce();
+          };
+          const fine = () => { h.removeEventListener('pointermove', muovi); h.removeEventListener('pointerup', fine); aggiornaDaMano(); };
+          h.addEventListener('pointermove', muovi); h.addEventListener('pointerup', fine);
+        });
+      });
+    }
+    corpo.querySelector('#f-msg').textContent = tr('Trascina i pallini sugli angoli: oro = porta, blu = gola.');
+  };
+  let rq = 0;
+  const disegnaVeloce = () => { cancelAnimationFrame(rq); rq = requestAnimationFrame(disegna); };
+  const aggiornaDaMano = () => {
+    // a mano: la gola usa la zona scelta; scala dalla proporzione porta/oggetto
+    if (tipo === 'fp' && a.golaZona) { a.gola = a.golaZona; a.coloreGola = coloreMedio(raddrizza(img, a.golaZona, 120, 20, 0)); }
+    const o = a.oggetto, q = a[chiave];
+    a.portaFrazione = { w: Math.min(1, (L(q[0], q[1]) + L(q[3], q[2])) / Math.max(1, L(o[0], o[1]) + L(o[3], o[2]))),
+      h: Math.min(1, (L(q[0], q[3]) + L(q[1], q[2])) / Math.max(1, L(o[0], o[3]) + L(o[1], o[2]))) };
+    disegna();
+  };
+  return () => ({ ...a });
+}
+
 /** Un quadratino di colore pieno (gola troppo sottile in foto). */
 function bloccoColore(col) {
   const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -294,7 +411,7 @@ function bloccoColore(col) {
  * ha riconosciuto. "Correggi a mano" apre i riquadri già posizionati.
  * Ritorna una funzione che dà le zone (in pixel) da usare al salvataggio.
  */
-async function analisiAutomatica(img, corpo, tipo) {
+async function analisiManiglia(img, corpo, tipo) {
   const a = analizzaFoto(img, tipo);
   let manuale = null;
   const box = corpo.querySelector('#f-auto');

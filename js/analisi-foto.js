@@ -106,7 +106,8 @@ function gruppiColore(P, mask) {
   gruppi = gruppi.filter((g) => g.n > 0).sort((a, b) => b.n - a.n);
   const uniti = [];
   for (const g of gruppi) {
-    const vicino = uniti.find((u) => dist(u.c, g.c) < 70);
+    const croma = (c) => Math.max(...c) - Math.min(...c);
+    const vicino = uniti.find((u) => dist(u.c, g.c) < 70 && Math.abs(croma(u.c) - croma(g.c)) < 28);
     if (vicino) {
       const n = vicino.n + g.n;
       vicino.c = vicino.c.map((v, i) => (v * vicino.n + g.c[i] * g.n) / n); vicino.n = n;
@@ -192,4 +193,356 @@ export function analizzaFoto(img, tipo = 'base') {
 /** Misura reale (cm) di una zona, sapendo la misura reale dell'oggetto intero. */
 export function cmZona(zona, oggetto, oggW, oggH) {
   return { w: Math.round((zona.w / oggetto.w) * oggW * 10) / 10, h: Math.round((zona.h / oggetto.h) * oggH * 10) / 10 };
+}
+
+// =============================================================================
+// QUADRILATERI: la porta segue il suo asse (foto inclinate / in prospettiva)
+// =============================================================================
+
+/** Tiene solo la parte connessa più grande della maschera. */
+function componentePrincipale(mask, w, h) {
+  const lab = new Int32Array(w * h); let best = 0, bestN = 0, id = 0;
+  const coda = new Int32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    if (!mask[i] || lab[i]) continue;
+    id++; let n = 0, t = 0; coda[t++] = i; lab[i] = id;
+    for (let q = 0; q < t; q++) {
+      const p = coda[q], x = p % w, y = (p - x) / w; n++;
+      if (x > 0 && mask[p - 1] && !lab[p - 1]) { lab[p - 1] = id; coda[t++] = p - 1; }
+      if (x < w - 1 && mask[p + 1] && !lab[p + 1]) { lab[p + 1] = id; coda[t++] = p + 1; }
+      if (y > 0 && mask[p - w] && !lab[p - w]) { lab[p - w] = id; coda[t++] = p - w; }
+      if (y < h - 1 && mask[p + w] && !lab[p + w]) { lab[p + w] = id; coda[t++] = p + w; }
+    }
+    if (n > bestN) { bestN = n; best = id; }
+  }
+  const out = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) out[i] = lab[i] === best ? 1 : 0;
+  return { m: out, n: bestN };
+}
+
+/** Erosione: toglie le linee sottili (bordi, antialias, fili d'ombra). */
+function erodi(mask, w, h, volte = 2) {
+  let m = mask;
+  for (let k = 0; k < volte; k++) {
+    const o = new Uint8Array(w * h);
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      o[i] = m[i] && m[i - 1] && m[i + 1] && m[i - w] && m[i + w] ? 1 : 0;
+    }
+    m = o;
+  }
+  return m;
+}
+
+/** Inviluppo convesso (monotone chain) di punti [x,y]. */
+function inviluppo(pts) {
+  const p = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], hi = [];
+  for (const q of p) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (const q of [...p].reverse()) { while (hi.length >= 2 && cr(hi[hi.length - 2], hi[hi.length - 1], q) <= 0) hi.pop(); hi.push(q); }
+  return lo.slice(0, -1).concat(hi.slice(0, -1));
+}
+
+/** Quadrilatero che approssima la maschera: inviluppo ridotto a 4 vertici. */
+function quadDaMaschera(mask, w, h) {
+  const pts = [];
+  for (let y = 0; y < h; y++) {
+    let a = -1, b = -1;
+    for (let x = 0; x < w; x++) if (mask[y * w + x]) { if (a < 0) a = x; b = x; }
+    if (a >= 0) { pts.push([a, y]); pts.push([b + 1, y]); }
+  }
+  for (let x = 0; x < w; x++) {
+    let a = -1, b = -1;
+    for (let y = 0; y < h; y++) if (mask[y * w + x]) { if (a < 0) a = y; b = y; }
+    if (a >= 0) { pts.push([x, a]); pts.push([x, b + 1]); }
+  }
+  if (pts.length < 8) return null;
+  let hull = inviluppo(pts);
+  const area = (a, b, c) => Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2;
+  while (hull.length > 4) {
+    let mi = 0, ma = Infinity;
+    for (let i = 0; i < hull.length; i++) {
+      const v = area(hull[(i - 1 + hull.length) % hull.length], hull[i], hull[(i + 1) % hull.length]);
+      if (v < ma) { ma = v; mi = i; }
+    }
+    hull.splice(mi, 1);
+  }
+  if (hull.length < 4) return null;
+  // ordine: alto-sx, alto-dx, basso-dx, basso-sx (in senso orario sullo schermo)
+  const cx = hull.reduce((t, p) => t + p[0], 0) / 4, cy = hull.reduce((t, p) => t + p[1], 0) / 4;
+  hull.sort((a, b) => Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx));
+  const i0 = hull.reduce((bi, p, i) => (p[0] + p[1] < hull[bi][0] + hull[bi][1] ? i : bi), 0);
+  return [0, 1, 2, 3].map((k) => hull[(i0 + k) % 4]);
+}
+
+/** Omografia (3×3) che porta i 4 punti src nei 4 punti dst. */
+function omografia(src, dst) {
+  const A = [], B = [];
+  for (let i = 0; i < 4; i++) {
+    const [x, y] = src[i], [u, v] = dst[i];
+    A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); B.push(u);
+    A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); B.push(v);
+  }
+  // eliminazione di Gauss
+  for (let c = 0; c < 8; c++) {
+    let p = c; for (let r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+    [A[c], A[p]] = [A[p], A[c]]; [B[c], B[p]] = [B[p], B[c]];
+    for (let r = 0; r < 8; r++) {
+      if (r === c) continue;
+      const f = A[r][c] / A[c][c];
+      for (let k = c; k < 8; k++) A[r][k] -= f * A[c][k];
+      B[r] -= f * B[c];
+    }
+  }
+  const h = B.map((b, i) => b / A[i][i]);
+  return [...h, 1];
+}
+const applica = (H, x, y) => { const d = H[6] * x + H[7] * y + H[8]; return [(H[0] * x + H[1] * y + H[2]) / d, (H[3] * x + H[4] * y + H[5]) / d]; };
+
+let _srcCache = null;
+function pixelGrandi(img) {
+  if (_srcCache && _srcCache.img === img) return _srcCache;
+  const W0 = img.naturalWidth || img.width, H0 = img.naturalHeight || img.height;
+  const k = Math.min(1, 2400 / Math.max(W0, H0));
+  const w = Math.round(W0 * k), h = Math.round(H0 * k);
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, w, h);
+  _srcCache = { img, d: g.getImageData(0, 0, w, h).data, w, h, k };
+  return _srcCache;
+}
+
+/**
+ * RADDRIZZA: il quadrilatero (punti in pixel della foto originale, ordine
+ * alto-sx, alto-dx, basso-dx, basso-sx) diventa un rettangolo dritto, come
+ * visto di fronte. rientro = frazione tolta su ogni lato (bordi, fughe).
+ */
+export function raddrizza(img, quad, outW, outH, rientro = 0) {
+  const S = pixelGrandi(img);
+  const q = quad.map(([x, y]) => [x * S.k, y * S.k]);
+  // dst rettangolo → src quad (per ogni pixel di uscita cerco il pixel della foto)
+  const r = rientro;
+  const H = omografia([[outW * -r / (1 - 2 * r), outH * -r / (1 - 2 * r)], [outW * (1 - r) / (1 - 2 * r), outH * -r / (1 - 2 * r)],
+    [outW * (1 - r) / (1 - 2 * r), outH * (1 - r) / (1 - 2 * r)], [outW * -r / (1 - 2 * r), outH * (1 - r) / (1 - 2 * r)]], q);
+  const c = document.createElement('canvas'); c.width = outW; c.height = outH;
+  const g = c.getContext('2d'); const im = g.createImageData(outW, outH); const o = im.data;
+  for (let y = 0; y < outH; y++) for (let x = 0; x < outW; x++) {
+    const [sx, sy] = applica(H, x + 0.5, y + 0.5);
+    const x0 = Math.max(0, Math.min(S.w - 2, Math.floor(sx - 0.5))), y0 = Math.max(0, Math.min(S.h - 2, Math.floor(sy - 0.5)));
+    const fx = Math.max(0, Math.min(1, sx - 0.5 - x0)), fy = Math.max(0, Math.min(1, sy - 0.5 - y0));
+    const i00 = (y0 * S.w + x0) * 4, i10 = i00 + 4, i01 = i00 + S.w * 4, i11 = i01 + 4, j = (y * outW + x) * 4;
+    for (let k = 0; k < 3; k++) {
+      o[j + k] = (S.d[i00 + k] * (1 - fx) + S.d[i10 + k] * fx) * (1 - fy) + (S.d[i01 + k] * (1 - fx) + S.d[i11 + k] * fx) * fy;
+    }
+    o[j + 3] = 255;
+  }
+  g.putImageData(im, 0, 0);
+  return c;
+}
+
+/** Colore medio di un canvas. */
+export function coloreMedio(c) {
+  const p = document.createElement('canvas'); p.width = p.height = 16;
+  p.getContext('2d').drawImage(c, 0, 0, 16, 16);
+  const d = p.getContext('2d').getImageData(0, 0, 16, 16).data;
+  let R = 0, G = 0, B = 0; for (let i = 0; i < d.length; i += 4) { R += d[i]; G += d[i + 1]; B += d[i + 2]; }
+  const n = d.length / 4;
+  return (Math.round(R / n) << 16) | (Math.round(G / n) << 8) | Math.round(B / n);
+}
+
+/**
+ * ANALISI CON QUADRILATERI (porta finger-pull o campione, anche inclinati).
+ * Ritorna { porta|main: [4 punti], gola?: [4 punti], coloreGola?, lato, messaggio }
+ * con i punti in pixel della foto originale.
+ */
+export function analizzaQuad(img, tipo = 'fp') {
+  const P = pixelPiccoli(img);
+  const su = (q) => q.map(([x, y]) => [x / P.k, y / P.k]);
+  const o = trovaOggetto(P);
+  const bg = o.bg;
+  // oggetto in TUTTA la foto (non solo nel riquadro: gli angoli di una porta
+  // ruotata restano dentro), poi solo la parte connessa più grande
+  const obj = new Uint8Array(P.w * P.h);
+  for (let y = 0; y < P.h; y++) for (let x = 0; x < P.w; x++) {
+    obj[y * P.w + x] = !o.sfondo || dist(px(P, x, y), bg) > o.soglia ? 1 : 0;
+  }
+  const intera = [[0, 0], [P.w, 0], [P.w, P.h], [0, P.h]];
+  if (tipo !== 'fp') {
+    const qm = o.sfondo ? quadDaMaschera(componentePrincipale(erodi(obj, P.w, P.h, 2), P.w, P.h).m, P.w, P.h) : null;
+    return { main: su(qm || intera), messaggio: qm ? 'Campione trovato e raddrizzato.' : 'Campione trovato.' };
+  }
+  const gr = gruppiColore(P, obj);
+  if (!gr.length) return { porta: su(intera), messaggio: 'Non riesco a leggere la porta: correggi a mano.' };
+  const corpo = gr[0];
+  const tot = gr.reduce((t, g) => t + g.n, 0);
+  const gola = gr.slice(1).filter((g) => g.n / tot > 0.01 && dist(g.c, corpo.c) > 60 && (!o.sfondo || dist(g.c, bg) > o.soglia * 2))
+    .sort((a, b) => dist(b.c, corpo.c) - dist(a.c, corpo.c))[0];
+  const mPorta = componentePrincipale(erodi(mascheraGruppo(P, obj, corpo, gr.filter((g) => g !== corpo)), P.w, P.h, 2), P.w, P.h).m;
+  const qp = quadDaMaschera(mPorta, P.w, P.h);
+  if (!qp) return { porta: su(intera), messaggio: 'Non riesco a leggere la porta: correggi a mano.' };
+  const out = { porta: su(qp) };
+  // colore della porta (media dei pixel della porta)
+  let pr = 0, pg = 0, pb = 0, pn = 0;
+  for (let i = 0; i < P.w * P.h; i += 2) if (mPorta[i]) { pr += P.d[i * 4]; pg += P.d[i * 4 + 1]; pb += P.d[i * 4 + 2]; pn++; }
+  const colPorta = pn ? [pr / pn, pg / pn, pb / pn] : corpo.c;
+  // GOLA: pixel del gruppo "gola"; se non c'è un gruppo diverso (es. porta verde
+  // con gola verde più scura) uso i pixel dell'oggetto di tono diverso dalla porta
+  let mGola;
+  if (gola) mGola = mascheraGruppo(P, obj, gola, gr.filter((g) => g !== gola));
+  else {
+    mGola = new Uint8Array(P.w * P.h);
+    for (let i = 0; i < P.w * P.h; i++) {
+      if (!obj[i] || mPorta[i]) continue;
+      const c = [P.d[i * 4], P.d[i * 4 + 1], P.d[i * 4 + 2]];
+      if (dist(c, colPorta) > 18 && (!o.sfondo || dist(c, bg) > o.soglia)) mGola[i] = 1;
+    }
+  }
+  // per ogni lato del quadrilatero: quanto è spessa la fascia di "gola" appena fuori
+  const cx = qp.reduce((t, p) => t + p[0], 0) / 4, cy = qp.reduce((t, p) => t + p[1], 0) / 4;
+  const lati = [];
+  for (let e = 0; e < 4; e++) {
+    const a = qp[e], b = qp[(e + 1) % 4];
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    let nx = -(b[1] - a[1]) / L, ny = (b[0] - a[0]) / L;
+    const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+    if ((mx - cx) * nx + (my - cy) * ny < 0) { nx = -nx; ny = -ny; }     // verso l'esterno
+    const spessori = [];
+    for (let s = 1; s <= 11; s++) {
+      const t = 0.15 + 0.7 * (s - 1) / 10;
+      const sx = a[0] + (b[0] - a[0]) * t, sy = a[1] + (b[1] - a[1]) * t;
+      let n = 0, buchi = 0;
+      for (let d = 1; d < Math.max(P.w, P.h) * 0.25; d++) {
+        const x = Math.round(sx + nx * d), y = Math.round(sy + ny * d);
+        if (x < 0 || y < 0 || x >= P.w || y >= P.h) break;
+        if (mGola[y * P.w + x]) { n = d; buchi = 0; } else if (++buchi > 3) break;
+      }
+      spessori.push(n);
+    }
+    const pieni = spessori.filter((v) => v >= 2);
+    const sp = pieni.length ? pieni.sort((x, y) => x - y)[Math.floor(pieni.length / 2)] : 0;
+    lati.push({ e, a, b, nx, ny, sp, frazione: pieni.length / spessori.length, alto: (a[1] + b[1]) / 2 });
+  }
+  const validi = lati.filter((l) => l.frazione >= 0.5 && l.sp >= 2);
+  // preferisco il lato in ALTO (la gola sta sopra), se ha la fascia
+  const perAltezza = [...lati].sort((x, y) => x.alto - y.alto);
+  const lAlto = perAltezza[0], lBasso = perAltezza[3];
+  const scelto = validi.includes(lAlto) ? lAlto : validi.sort((x, y) => y.frazione * y.sp - x.frazione * x.sp)[0];
+  // colore della gola: dal gruppo, oppure (gola dello stesso tono) dai suoi pixel
+  const hex = (c) => (Math.round(c[0]) << 16) | (Math.round(c[1]) << 8) | Math.round(c[2]);
+  if (gola) out.coloreGola = hex(gola.c);
+  else {
+    let r = 0, g2 = 0, b2 = 0, n = 0;
+    for (let i = 0; i < P.w * P.h; i++) if (mGola[i]) { r += P.d[i * 4]; g2 += P.d[i * 4 + 1]; b2 += P.d[i * 4 + 2]; n++; }
+    out.coloreGola = hex(n > 20 ? [r / n, g2 / n, b2 / n] : colPorta.map((v) => v * 0.7));   // niente gola visibile: tono più scuro della porta
+  }
+  if (scelto) {
+    const { nx, ny, sp } = scelto;
+    // fascia gola: dentro la fascia (no bordi) e lontano dagli angoli
+    const a = [scelto.a[0] + (scelto.b[0] - scelto.a[0]) * 0.08, scelto.a[1] + (scelto.b[1] - scelto.a[1]) * 0.08];
+    const b = [scelto.a[0] + (scelto.b[0] - scelto.a[0]) * 0.92, scelto.a[1] + (scelto.b[1] - scelto.a[1]) * 0.92];
+    const d0 = sp * 0.25 + 1, d1 = sp * 0.8;
+    out.gola = su([[a[0] + nx * d1, a[1] + ny * d1], [b[0] + nx * d1, b[1] + ny * d1], [b[0] + nx * d0, b[1] + ny * d0], [a[0] + nx * d0, a[1] + ny * d0]]);
+    out.lato = scelto === lAlto ? 'alto' : scelto === lBasso ? 'basso' : 'lato';
+    out.messaggio = { alto: 'Porta e gola riconosciute (gola in alto).', basso: 'Porta e gola riconosciute (gola in basso).', lato: 'Porta e gola riconosciute (gola di lato).' }[out.lato];
+  } else out.messaggio = 'Porta riconosciuta; la gola la prendo dal suo colore.';
+  return out;
+}
+
+// =============================================================================
+// ANALISI SULLA PORTA RADDRIZZATA (metodo principale)
+// 1) tolgo lo sfondo e trovo i 4 angoli dell'oggetto (porta + gola + spessori)
+// 2) lo raddrizzo: vista di fronte, righe orizzontali
+// 3) sulla porta dritta cerco le FASCE di colore diverso vicino ai bordi:
+//    in alto (o in basso / di lato) è la gola — anche se è un po' dentro la
+//    porta (es. Canto Creativo); ai lati sono gli spessori, da togliere
+// 4) il materiale è il resto, preso pixel per pixel dalla foto
+// =============================================================================
+
+/** Mappa (u,v) del quadrilatero (0..1) → pixel della foto. */
+function daUnita(quad) {
+  const H = omografia([[0, 0], [1, 0], [1, 1], [0, 1]], quad);
+  return (u, v) => applica(H, u, v);
+}
+
+export function analizzaPorta(img, tipo = 'fp') {
+  const P = pixelPiccoli(img);
+  const o = trovaOggetto(P);
+  const obj = new Uint8Array(P.w * P.h);
+  for (let y = 0; y < P.h; y++) for (let x = 0; x < P.w; x++) {
+    obj[y * P.w + x] = !o.sfondo || dist(px(P, x, y), o.bg) > o.soglia ? 1 : 0;
+  }
+  const intera = [[0, 0], [P.w, 0], [P.w, P.h], [0, P.h]];
+  const qs = o.sfondo ? quadDaMaschera(componentePrincipale(erodi(obj, P.w, P.h, 2), P.w, P.h).m, P.w, P.h) : null;
+  const quad = (qs || intera).map(([x, y]) => [x / P.k, y / P.k]);           // pixel originali
+  const L = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const largh = (L(quad[0], quad[1]) + L(quad[3], quad[2])) / 2, alt = (L(quad[0], quad[3]) + L(quad[1], quad[2])) / 2;
+  const W = 300, H = Math.max(60, Math.min(900, Math.round(300 * alt / Math.max(1, largh))));
+  const R = raddrizza(img, quad, W, H, 0);
+  const d = R.getContext('2d').getImageData(0, 0, W, H).data;
+  const pr = (x, y) => { const i = (y * W + x) * 4; return [d[i], d[i + 1], d[i + 2]]; };
+  // colore della porta: centro della porta raddrizzata
+  const centro = [];
+  for (let y = Math.round(H * 0.3); y < H * 0.7; y += 3) for (let x = Math.round(W * 0.25); x < W * 0.75; x += 3) centro.push(pr(x, y));
+  const colPorta = mediana(centro);
+  // media di una riga / colonna (sulla parte centrale) e quanto si stacca dalla porta
+  const riga = (y) => { let r = 0, g = 0, b = 0, n = 0; for (let x = Math.round(W * 0.15); x < W * 0.85; x++) { const c = pr(x, y); r += c[0]; g += c[1]; b += c[2]; n++; } return dist([r / n, g / n, b / n], colPorta); };
+  const col = (x) => { let r = 0, g = 0, b = 0, n = 0; for (let y = Math.round(H * 0.15); y < H * 0.85; y++) { const c = pr(x, y); r += c[0]; g += c[1]; b += c[2]; n++; } return dist([r / n, g / n, b / n], colPorta); };
+  const dr = [...Array(H)].map((_, y) => riga(y)), dc = [...Array(W)].map((_, x) => col(x));
+  // soglia: quanto variano righe/colonne nel corpo della porta (venature) + margine
+  const varia = (arr, a, b) => { const v = arr.slice(Math.round(a), Math.round(b)).sort((p, q) => p - q); return v[Math.floor(v.length * 0.95)] || 0; };
+  const T = Math.max(14, Math.max(varia(dr, H * 0.3, H * 0.7), varia(dc, W * 0.3, W * 0.7)) * 1.4 + 6);
+  // fascia "diversa" più marcata entro il 25% dal bordo (anche staccata dal bordo)
+  const fascia = (arr, n, dalFondo) => {
+    const max = Math.round(n * 0.25);
+    let best = null, ini = -1, somma = 0;
+    for (let i = 0; i <= max; i++) {
+      const v = i < max ? arr[dalFondo ? n - 1 - i : i] : 0;
+      if (v > T) { if (ini < 0) { ini = i; somma = 0; } somma += v; }
+      else if (ini >= 0) { const f = { da: ini, a: i - 1, forza: somma }; if (!best || f.forza > best.forza) best = f; ini = -1; }
+    }
+    return best && best.a - best.da + 1 >= Math.max(2, n * 0.012) ? best : null;
+  };
+  const fAlto = fascia(dr, H, false), fBasso = fascia(dr, H, true), fSx = fascia(dc, W, false), fDx = fascia(dc, W, true);
+  // la gola: prima in alto, poi in basso, poi di lato
+  const gola = fAlto ? { lato: 'alto', f: fAlto } : fBasso ? { lato: 'basso', f: fBasso } : (fSx || fDx) ? { lato: 'lato', f: (fSx && (!fDx || fSx.forza >= fDx.forza)) ? fSx : fDx, sx: fSx && (!fDx || fSx.forza >= fDx.forza) } : null;
+  // zona della porta: tolgo le fasce (gola e spessori) + un piccolo margine
+  let y0 = 0, y1 = H, x0 = 0, x1 = W;
+  if (fAlto) y0 = fAlto.a + 1; if (fBasso) y1 = H - 1 - fBasso.a;
+  if (fSx) x0 = fSx.a + 1; if (fDx) x1 = W - 1 - fDx.a;
+  const m = 0.035;
+  const uv = (x, y) => [x / W, y / H];
+  const zona = (ax, ay, bx, by) => { const f = daUnita(quad); return [f(...uv(ax, ay)), f(...uv(bx, ay)), f(...uv(bx, by)), f(...uv(ax, by))]; };
+  const pw = x1 - x0, ph = y1 - y0;
+  const out = { oggetto: quad, porta: zona(x0 + pw * m, y0 + ph * m, x1 - pw * m, y1 - ph * m),
+    portaFrazione: { w: (pw * (1 - 2 * m)) / W, h: (ph * (1 - 2 * m)) / H } };
+  if (tipo !== 'fp') { out.main = out.porta; delete out.porta; out.messaggio = qs ? 'Campione trovato e raddrizzato.' : 'Campione trovato.'; return out; }
+  // colore della gola: solo i pixel della fascia davvero diversi dalla porta
+  const media = (ax, ay, bx, by) => {
+    const pts = [];
+    for (let y = Math.max(0, Math.round(ay) - 2); y < Math.min(H, by + 2); y++) for (let x = Math.round(ax); x < bx; x++) {
+      const c = pr(x, y); if (dist(c, colPorta) > T) pts.push(c);
+    }
+    const c = pts.length ? mediana(pts) : colPorta.map((v) => v * 0.7);
+    media.pulita = pts.length / Math.max(1, (Math.min(H, by + 2) - Math.max(0, Math.round(ay) - 2)) * (bx - Math.round(ax)));
+    return (Math.round(c[0]) << 16) | (Math.round(c[1]) << 8) | Math.round(c[2]);
+  };
+  if (gola) {
+    const { f } = gola, sp = f.a - f.da + 1;
+    let g;
+    if (gola.lato === 'alto') g = [W * 0.08, f.da + sp * 0.2, W * 0.92, f.a + 1 - sp * 0.2];
+    else if (gola.lato === 'basso') g = [W * 0.08, H - 1 - f.a + sp * 0.2, W * 0.92, H - f.da - sp * 0.2];
+    else if (gola.sx) g = [f.da + sp * 0.2, H * 0.08, f.a + 1 - sp * 0.2, H * 0.92];
+    else g = [W - 1 - f.a + sp * 0.2, H * 0.08, W - f.da - sp * 0.2, H * 0.92];
+    out.coloreGola = media(...g);
+    // la foto della gola solo se la fascia è "pulita"; se è sottile/mista basta il colore
+    if (media.pulita >= 0.85) out.gola = zona(...g);
+    out.golaZona = zona(...g);                               // per il disegno di controllo
+    out.lato = gola.lato;
+    out.messaggio = { alto: 'Porta e gola riconosciute (gola in alto).', basso: 'Porta e gola riconosciute (gola in basso).', lato: 'Porta e gola riconosciute (gola di lato).' }[gola.lato];
+  } else {
+    const c = colPorta.map((v) => v * 0.7);
+    out.coloreGola = (Math.round(c[0]) << 16) | (Math.round(c[1]) << 8) | Math.round(c[2]);
+    out.messaggio = 'Porta riconosciuta; non vedo una gola di colore diverso (uso un tono più scuro della porta).';
+  }
+  return out;
 }
