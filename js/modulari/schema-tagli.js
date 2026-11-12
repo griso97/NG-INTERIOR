@@ -6,7 +6,7 @@
 // "allegato" alla distinta: va nell'Excel (foglio "Schema tagli") e si può
 // scaricare come PNG.
 // =============================================================================
-import { gradi } from './calcoli.js?v=20261112m';
+import { gradi } from './calcoli.js?v=20261112n';
 
 const W = 1100, H = 830;
 const FONT = 'Arial, Helvetica, sans-serif';
@@ -37,8 +37,8 @@ export function schemaTagliSVG(opz) {
   const xm = Math.min(X0 + 0.5 * (xEnd - X0), W - 450), ym = yl(xm) - TV;     // punto a metà del top (faccia sopra)
   const moduli = (opz.moduli || []).join(', ');
   const piede = [
-    'Fondo, ripiani, schiena e ante sono già a misura: il fondo è dritto, non va tagliato inclinato.',
-    `Schiena e ante a trapezio: lato alto a ${ga} sul piano del pannello (angoli ${g90} e ${g90p}).`,
+    'Fondo, ripiani e schiena sono già a misura: il fondo è dritto, non va tagliato inclinato.',
+    `Ante e pannelli fissi a trapezio/triangolo: lato alto a ${ga} sul piano (angoli ${g90} e ${g90p}), ${opz.abbAnte > 0 ? `+${cm(opz.abbAnte)} sul lato inclinato, da rifilare a filo in opera` : 'a misura'}.`,
     ...(opz.triangolo ? [`Chiusura triangolare: punta bassa del top orizzontale in appoggio sul fondo → lama ${g90} (punta a ${ga}).`] : []),
   ];
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">

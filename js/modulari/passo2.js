@@ -4,9 +4,9 @@
 import {
   layoutModuli, layoutCubi, abbondanzaDi, gradi, larghezzaUtileAuto, distintaModulari, posizioneValida,
   primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT,
-} from './calcoli.js?v=20261112m';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112m';
-import { schemaTagliPNG } from './schema-tagli.js?v=20261112m';
+} from './calcoli.js?v=20261112n';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112n';
+import { schemaTagliPNG } from './schema-tagli.js?v=20261112n';
 
 const FRONTI = [
   { v: 0, l: 'Aperto (a giorno)' },
@@ -183,11 +183,12 @@ function renderPannello() {
     </section>
     <section>
       <h3>Abbondanza tagli inclinati (mm)</h3>
-      <div class="grid-2">
+      <div class="grid-3">
         <label>Fianchi<input type="number" min="0" max="200" step="1" data-abb="fianchi" value="${esc(abbondanzaDi(stato).fianchi)}"></label>
         <label>Top<input type="number" min="0" max="200" step="1" data-abb="top" value="${esc(abbondanzaDi(stato).top)}"></label>
+        <label>Ante/pann.<input type="number" min="0" max="200" step="1" data-abb="ante" value="${esc(abbondanzaDi(stato).ante)}"></label>
       </div>
-      <p class="mod-prossimo">Solo per i moduli con il top inclinato: fianchi e top escono più lunghi in distinta, da rifilare in opera all'inclinazione giusta. Fondo, ripiani, schiena e ante restano a misura.</p>
+      <p class="mod-prossimo">Solo per i pezzi con il lato inclinato: fianchi e top più lunghi; ante e pannelli fissi più grandi sul lato inclinato, da rifilare a filo in opera (muri e scale non sono mai dritti). Fondo, ripiani e schiena restano a misura.</p>
     </section>`;
   agganciaPannello();
 }
@@ -540,8 +541,10 @@ function avvisoInclinati(dist, esc) {
     <ul>${t.map((r) => `<li><strong>${esc(r.modulo)}</strong>: ${[
       r.fianchi ? `${r.fianchi === 1 ? 'fianco' : `${r.fianchi} fianchi`} +${cm(r.abbFianchi)}` : '',
       r.top ? `top +${cm(r.abbTop)}` : '',
+      r.ante ? `${r.ante === 1 ? 'anta' : `${r.ante} ante`} +${cm(r.abbAnte)} sul lato inclinato` : '',
+      r.pannelli ? `pannello fisso +${cm(r.abbAnte)} sul lato inclinato` : '',
     ].filter(Boolean).join(', ')} · inclinazione ${gradi(r.angolo)}</li>`).join('')}</ul>
-    <span class="mod-incl-nota">Fianchi a piombo, top parallelo alla scala: bordo alto dei fianchi e testate del top con la lama inclinata dell'angolo indicato (vedi colonna “Taglio”). Fondo, ripiani, schiena e ante sono già a misura.</span></div>`;
+    <span class="mod-incl-nota">Fianchi a piombo, top parallelo alla scala: bordo alto dei fianchi e testate del top con la lama inclinata dell'angolo indicato (vedi colonna “Taglio”). Ante e pannelli fissi più grandi sul lato inclinato, da rifilare a filo. Fondo, ripiani e schiena sono già a misura.</span></div>`;
 }
 let schemiPrecedenti = [];
 async function creaSchemi(dist) {
@@ -557,7 +560,7 @@ async function creaSchemi(dist) {
   const lista = [];
   for (const [g, x] of gruppi) {
     try {
-      const png = await schemaTagliPNG({ angolo: x.angolo, spessore: sp().carcassa, abbFianchi: abb.fianchi, abbTop: abb.top,
+      const png = await schemaTagliPNG({ angolo: x.angolo, spessore: sp().carcassa, abbFianchi: abb.fianchi, abbTop: abb.top, abbAnte: abb.ante,
         moduli: x.moduli, triangolo: x.moduli.some((m) => /triangolare/i.test(m)), titolo: 'Schema tagli inclinati' });
       lista.push({ ...png, gradi: g, foglio: gruppi.size > 1 ? `Schema tagli ${g.replace('°', '')}` : 'Schema tagli' });
     } catch { /* senza schema la distinta resta valida */ }
