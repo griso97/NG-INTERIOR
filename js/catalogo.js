@@ -72,7 +72,7 @@ export async function salvaCatalogo(stato) { await put('stato', stato); avvisaCa
 
 export async function leggiFoto(id, tipo = 'foto') { try { return await get(`${tipo}:${id}`); } catch { return null; } }
 export async function salvaFoto(id, blob, tipo = 'foto') { await put(`${tipo}:${id}`, blob); }
-export async function eliminaFoto(id) { await del(`foto:${id}`); await del(`thumb:${id}`); }
+export async function eliminaFoto(id) { await del(`foto:${id}`); await del(`thumb:${id}`); await del(`gola:${id}`); }
 
 /** Nascosto in quella sezione? */
 export function nascosto(stato, sezione, id) { return ((stato.nascosti || {})[sezione] || []).includes(id); }
@@ -126,4 +126,70 @@ export async function preparaFoto(img, ritaglio) {
   t.getContext('2d').drawImage(c, (W - lato) / 2, (H - lato) / 2, lato, lato, 0, 0, 192, 192);
   const thumb = await new Promise((ok) => t.toBlob(ok, 'image/jpeg', 0.9));
   return { foto, thumb, colore };
+}
+
+/**
+ * Ritaglio generico → Blob. opz.png = mantiene la trasparenza; opz.scontorna =
+ * tolleranza (0–120) per togliere lo sfondo uniforme attorno (maniglie): il
+ * colore dello sfondo si legge sui bordi del ritaglio.
+ * Ritorna { blob, thumb, colore, w, h } (w,h in pixel del ritaglio).
+ */
+export async function ritaglioBlob(img, r, opz = {}) {
+  const MAX = opz.max || 2048;
+  const k = Math.min(1, MAX / Math.max(r.w, r.h));
+  let W = Math.max(1, Math.round(r.w * k)), H = Math.max(1, Math.round(r.h * k));
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(img, r.x, r.y, r.w, r.h, 0, 0, W, H);
+  if (opz.scontorna) {
+    const im = g.getImageData(0, 0, W, H), d = im.data;
+    // colore dello sfondo = media dei pixel sul bordo
+    let R = 0, G = 0, B = 0, n = 0;
+    const bordo = (x, y) => { const i = (y * W + x) * 4; R += d[i]; G += d[i + 1]; B += d[i + 2]; n++; };
+    for (let x = 0; x < W; x += 2) { bordo(x, 0); bordo(x, H - 1); }
+    for (let y = 0; y < H; y += 2) { bordo(0, y); bordo(W - 1, y); }
+    R /= n; G /= n; B /= n;
+    const t = opz.scontorna, t2 = t * 1.6;
+    for (let i = 0; i < d.length; i += 4) {
+      const dist = Math.hypot(d[i] - R, d[i + 1] - G, d[i + 2] - B);
+      if (dist <= t) d[i + 3] = 0;
+      else if (dist < t2) d[i + 3] = Math.round(255 * (dist - t) / (t2 - t));
+    }
+    g.putImageData(im, 0, 0);
+    // rifilo attorno all'oggetto (senza lo sfondo tolto): proporzioni vere
+    let x0 = W, y0 = H, x1 = -1, y1 = -1;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (d[(y * W + x) * 4 + 3] > 128) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+    if (x1 >= x0 && y1 >= y0 && (x1 - x0 + 1 < W || y1 - y0 + 1 < H)) {
+      const tw = x1 - x0 + 1, th = y1 - y0 + 1;
+      const t2c = document.createElement('canvas'); t2c.width = tw; t2c.height = th;
+      t2c.getContext('2d').drawImage(c, x0, y0, tw, th, 0, 0, tw, th);
+      c.width = tw; c.height = th; g.clearRect(0, 0, tw, th); g.drawImage(t2c, 0, 0);
+      W = tw; H = th;
+    }
+  }
+  const blob = await new Promise((ok) => c.toBlob(ok, opz.png ? 'image/png' : 'image/jpeg', 0.95));
+  // colore medio (pixel non trasparenti)
+  const p = document.createElement('canvas'); p.width = p.height = 16;
+  p.getContext('2d').drawImage(c, 0, 0, 16, 16);
+  const dd = p.getContext('2d').getImageData(0, 0, 16, 16).data;
+  let R2 = 0, G2 = 0, B2 = 0, n2 = 0;
+  for (let i = 0; i < dd.length; i += 4) if (dd[i + 3] > 128) { R2 += dd[i]; G2 += dd[i + 1]; B2 += dd[i + 2]; n2++; }
+  n2 = n2 || 1;
+  const colore = (Math.round(R2 / n2) << 16) | (Math.round(G2 / n2) << 8) | Math.round(B2 / n2);
+  // miniatura 192×192: intera, centrata (su fondo chiaro se trasparente)
+  const t = document.createElement('canvas'); t.width = t.height = 192;
+  const tg = t.getContext('2d');
+  if (opz.png) { tg.fillStyle = '#e9e6df'; tg.fillRect(0, 0, 192, 192); }
+  if (opz.thumbIntera) {
+    const s = Math.min(176 / W, 176 / H);
+    tg.drawImage(c, (192 - W * s) / 2, (192 - H * s) / 2, W * s, H * s);
+  } else {
+    const lato = Math.min(W, H);
+    tg.drawImage(c, (W - lato) / 2, (H - lato) / 2, lato, lato, 0, 0, 192, 192);
+  }
+  const thumb = await new Promise((ok) => t.toBlob(ok, 'image/jpeg', 0.9));
+  return { blob, thumb, colore, w: W, h: H };
 }

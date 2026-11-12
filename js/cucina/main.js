@@ -25,8 +25,8 @@ import {
 import { renderPianta } from './pianta.js?v=20261111x';
 import { calcolaDistintaCucina } from './distinta.js?v=20261111x';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261112s';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112s';
+import { agganciaTema } from '../tema.js?v=20261112u';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112u';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1028,6 +1028,16 @@ function renderPannelloModificaMobile(m) {
         <button type="button" class="btn-ghost opt-fp ${!on ? 'attivo' : ''}" data-fp="0">${!on ? '✓ ' : ''}Maniglia</button>
         <button type="button" class="btn-ghost opt-fp ${on ? 'attivo' : ''}" data-fp="1">${on ? '✓ ' : ''}Finger-pull</button>
       </div>
+      ${!on ? (() => {
+        const lista = (scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer('maniglie') : [];
+        const sel = (progetto.maniglie || {})[gruppoColore] || 'maniglia-standard';
+        return lista.length > 1 ? `
+      <div class="riga-3d" style="margin:10px 0 6px">Maniglia</div>
+      <div class="palette-colori">
+        ${lista.map((mt) => `<button type="button" class="swatch ${mt.id === sel ? 'sel' : ''}" data-man="${mt.id}" title="${mt.nome}"
+          style="background:${scena3dMod.sfondoSwatch(mt)}"></button>`).join('')}
+      </div>` : '';
+      })() : ''}
     </section>`;
     })()}
     ${isBase && materialiEncimera.length ? `
@@ -1074,6 +1084,11 @@ function renderPannelloModificaMobile(m) {
     aggiorna();
   }));
   agganciaSchienale(pannello);
+  pannello.querySelectorAll('.swatch[data-man]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    progetto.maniglie = { ...(progetto.maniglie || {}), [gruppoColore]: b.dataset.man };
+    aggiorna();
+  }));
   pannello.querySelectorAll('.opt-anta').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     progetto.antaPensile = b.dataset.anta;
@@ -1258,7 +1273,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261112s');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261112u');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste

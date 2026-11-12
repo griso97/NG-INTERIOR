@@ -14,11 +14,11 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
 } from './modello.js?v=20261111x';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261112s';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261112u';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261112s';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261112u';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -401,7 +401,28 @@ function pannello(g, px, py, z, pw, ph, mat) {
   g.add(e);
 }
 
+// Maniglia scelta per categoria (catalogo): progetto.maniglie = { base, pensile, colonna }
+let _maniglia = null;
+let _manByCat = {};
+let _reRenderMan = null;
+function manigliaCat(cat) {
+  const g = cat === 'pensile' ? 'pensile' : cat === 'colonna' ? 'colonna' : 'base';
+  const id = _manByCat[g];
+  return id ? MATERIALI.find((m) => m.id === id && m.categoria === 'maniglia') || null : null;
+}
 function maniglia(g, x, y, z, orizz, lung) {
+  const def = _maniglia;
+  if (def && def.texture && def.lunghezzaMm) {
+    // MANIGLIA DA FOTO: la sagoma ritagliata, alla sua misura reale
+    const L = def.lunghezzaMm, T = def.altezzaMm || 20;
+    const geoP = new THREE.PlaneGeometry(def.verticale ? T : L, def.verticale ? L : T);
+    const m = new THREE.Mesh(geoP, getMaterialeTHREE(def.id, _reRenderMan));
+    m.position.set(x, y, z + 22);
+    if (def.verticale === !!orizz) m.rotation.z = Math.PI / 2;   // giro la foto se serve
+    m.castShadow = true;
+    g.add(m);
+    return;
+  }
   const geo = orizz ? new THREE.BoxGeometry(lung, 16, 16) : new THREE.BoxGeometry(16, lung, 16);
   const m = new THREE.Mesh(geo, matManiglia);
   m.position.set(x, y, z + 24);
@@ -428,7 +449,9 @@ function fpCat(fp, cat) {
 const matCanaleOmbra = new THREE.MeshStandardMaterial({ color: 0x2b2b30, roughness: 1.0, metalness: 0 });
 function canaleFingerPull(g, cx, cy, z, length, thick, orizz, matAnta) {
   const L = Math.max(40, length);
-  const mat = (matAnta && matAnta.isMaterial) ? matAnta
+  // Finger-pull da foto: la gola ha il suo materiale (es. nero), la porta il suo
+  const mat = (matAnta && matAnta.userData && matAnta.userData.matGola) ? matAnta.userData.matGola
+    : (matAnta && matAnta.isMaterial) ? matAnta
     : new THREE.MeshStandardMaterial({ color: matAnta || COL.anta, roughness: 0.6, metalness: 0.08 });
   // Fondo del canale, arretrato rispetto alla faccia (recessed).
   const backGeo = orizz ? new THREE.BoxGeometry(L, thick, 10) : new THREE.BoxGeometry(thick, L, 10);
@@ -989,6 +1012,7 @@ function pensileAngoloFronte(g, w, h, d, matAnta) {
 function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
   _fingerPull = fpCat(_fpByCat, cat);   // finger-pull per categoria del mobile
+  _maniglia = manigliaCat(cat);         // maniglia del catalogo per categoria
   const coloreCorpo = cat === 'pensile' ? COL.pensile : cat === 'colonna' ? COL.colonna
     : cat === 'regletta' ? COL.regletta : cat === 'lavatrice' ? 0x17181d
     : cat === 'lavastoviglie' ? 0xbcbdc2 : COL.corpo;
@@ -1072,6 +1096,8 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   selId = selezionato;
   _lastProgetto = progetto;
   _fpByCat = progetto.fingerPull || {};
+  _manByCat = progetto.maniglie || {};
+  _reRenderMan = () => { if (_lastProgetto) aggiornaScena3d(_lastProgetto, false, selId); };
   // L'illuminazione della scena resta sempre al valore pieno (giorno) sia
   // con i LED spenti che accesi: non si vuole che i LED spengano l'ambiente.
   for (const { l, base } of luciAmbiente) l.intensity = base;
@@ -1506,9 +1532,10 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
           }
           const yTop = topY + thickness;
           const H = Number.isFinite(yPens) && yPens - yTop > 100 ? yPens - yTop : H_SCHIENALE;
-          const zMuro = perpMuro - perpTop;                     // in coordinate locali della lastra (muro = +z)
+          // coordinate locali della lastra: +z = fronte (stanza), il muro è dietro (−z)
+          const zMuro = -(perpMuro - perpTop);
           const pann = corpo(len, H, SP_SCHIENALE, schienale.mat || matTop || COL.top);
-          pann.position.set(0, thickness / 2 + H / 2, zMuro - SP_SCHIENALE / 2);
+          pann.position.set(0, thickness / 2 + H / 2, zMuro + SP_SCHIENALE / 2);
           pann.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
           slab.add(pann);
         }

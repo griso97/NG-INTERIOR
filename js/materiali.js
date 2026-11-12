@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261112s';
+import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261112u';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -150,16 +150,28 @@ async function applicaCatalogo() {
     if (mod) Object.assign(m, { info: { ...(m.info || {}), ...mod.info }, ...(mod.nome ? { nome: mod.nome } : {}) });
   }
   for (const p of statoCatalogo.prodotti) {
-    const [foto, thumb] = await Promise.all([leggiFoto(p.id, 'foto'), leggiFoto(p.id, 'thumb')]);
+    const [foto, thumb, gola] = await Promise.all([leggiFoto(p.id, 'foto'), leggiFoto(p.id, 'thumb'),
+      p.sezione === 'fingerpull' ? leggiFoto(p.id, 'gola') : null]);
     if (!foto) continue;
     const url = URL.createObjectURL(foto);
-    MATERIALI.push({
+    const def = {
       id: p.id, nome: p.nome || 'Senza nome', categoria: CAT_DA_SEZIONE[p.sezione] || 'legno', sezione: p.sezione,
       thumb: thumb ? URL.createObjectURL(thumb) : url, texture: url, colore: p.colore ?? 0x999999,
-      campione: { wMm: (Number(p.campioneCm?.w) || 30) * 10, hMm: (Number(p.campioneCm?.h) || 30) * 10 },
       spessore: p.info?.spessore ? Number(p.info.spessore) : undefined,
       info: p.info || {}, proprio: true,
-    });
+    };
+    if (p.campioneCm && Number(p.campioneCm.w) > 0 && Number(p.campioneCm.h) > 0) {
+      def.campione = { wMm: Number(p.campioneCm.w) * 10, hMm: Number(p.campioneCm.h) * 10 };
+    }
+    // Finger-pull da foto: la gola (maniglia sopra) ha la sua immagine
+    if (gola) def.gola = { texture: URL.createObjectURL(gola), colore: p.coloreGola ?? 0x111111 };
+    // Maniglia da foto: misura reale (lato lungo) e proporzioni dalla foto
+    if (p.sezione === 'maniglie' && p.maniglia) {
+      def.lunghezzaMm = (Number(p.maniglia.lunghezzaCm) || 15) * 10;
+      def.altezzaMm = Math.max(6, def.lunghezzaMm * (Number(p.maniglia.rapporto) || 0.08));
+      def.verticale = !!p.maniglia.verticale;
+    }
+    MATERIALI.push(def);
   }
 }
 try { await applicaCatalogo(); } catch (e) { console.warn('Catalogo non caricato', e); }
@@ -172,14 +184,14 @@ if (typeof window !== 'undefined') { window.NG_MATERIALI = MATERIALI; installaSc
 function installaSchedaProdotto() {
   if (window.__ngSchedaProdotto) return;
   window.__ngSchedaProdotto = true;
-  const SEL = '[data-mat],[data-enc],[data-sch-mat],[data-zocc]';
+  const SEL = '[data-mat],[data-enc],[data-sch-mat],[data-zocc],[data-man]';
   let box = null, timer = null;
   const chiudi = () => { if (box) { box.remove(); box = null; } clearTimeout(timer); };
   const esc = (x) => String(x ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   document.addEventListener('click', (e) => {
     const b = e.target.closest && e.target.closest(SEL);
     if (!b) { chiudi(); return; }
-    const id = b.dataset.mat ?? b.dataset.enc ?? b.dataset.schMat ?? b.dataset.zocc;
+    const id = b.dataset.mat ?? b.dataset.enc ?? b.dataset.schMat ?? b.dataset.zocc ?? b.dataset.man;
     const m = id ? MATERIALI.find((x) => x.id === id) : null;
     chiudi();
     if (!m) return;
@@ -190,6 +202,7 @@ function installaSchedaProdotto() {
       (info.spessore || m.spessore) ? ['Spessore', `${info.spessore || m.spessore} mm`] : null,
       info.colore ? ['Colore', info.colore] : null,
       m.campione ? ['Campione', `${Math.round(m.campione.wMm / 10)} × ${Math.round(m.campione.hMm / 10)} cm`] : null,
+      m.lunghezzaMm ? ['Lunghezza', `${Math.round(m.lunghezzaMm / 10)} cm`] : null,
       info.note ? ['Note', info.note] : null,
     ].filter(Boolean);
     box = document.createElement('div');
@@ -311,6 +324,18 @@ export function getMaterialeTHREE(id, onPronto) {
     cacheMat.set(id, mat);
     return mat;
   }
+  // Maniglia da foto: sagoma ritagliata (PNG con trasparenza), senza ripetizioni
+  if (def.categoria === 'maniglia' && def.texture) {
+    const mm = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, alphaTest: 0.4,
+      roughness: 0.5, metalness: 0.1, envMapIntensity: 0.3, side: THREE.DoubleSide });
+    cacheMat.set(id, mm);
+    loader.load(def.texture, (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+      mm.map = tex; mm.needsUpdate = true;
+      if (onPronto) onPronto();
+    });
+    return mm;
+  }
   // Legno: carica la texture in background e la applica quando è pronta.
   // Prodotti PROPRI (foto del campione): superficie opaca e poco riflettente,
   // così il colore resta quello della foto.
@@ -318,6 +343,16 @@ export function getMaterialeTHREE(id, onPronto) {
     ? { color: def.colore, roughness: 0.85, metalness: 0.0, envMapIntensity: 0.25 }
     : { color: def.colore, roughness: 0.6, metalness: 0.05 });
   if (def.campione) mat.userData.campioneMm = def.campione;
+  // Finger-pull da foto: materiale della GOLA (la parte sopra, es. nera)
+  if (def.gola) {
+    const mg = new THREE.MeshStandardMaterial({ color: def.gola.colore, roughness: 0.7, metalness: 0.05, envMapIntensity: 0.3 });
+    mat.userData.matGola = mg;
+    loader.load(def.gola.texture, (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+      mg.map = tex; mg.color.set(0xffffff); mg.needsUpdate = true;
+      if (onPronto) onPronto();
+    });
+  }
   cacheMat.set(id, mat);
   if (!cacheTex.has(id)) {
     loader.load(def.texture, (tex) => {
