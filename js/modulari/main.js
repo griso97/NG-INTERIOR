@@ -1,9 +1,9 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 1 (forma del vano) + navigazione tra i passi
 // =============================================================================
-import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261112g';
-import { renderPasso2, apriDistinta, stiliTema } from './passo2.js?v=20261112g';
-import { agganciaTema } from '../tema.js?v=20261112g';
+import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261112h';
+import { renderPasso2, apriDistinta, stiliTema } from './passo2.js?v=20261112h';
+import { agganciaTema } from '../tema.js?v=20261112h';
 
 const KEY = 'ng-modulari-v1';
 const pannello = document.getElementById('mod-pannello');
@@ -19,7 +19,7 @@ function statoIniziale() {
     formaId: 'triangolo', valori: JSON.parse(JSON.stringify(VALORI_ESEMPIO)), specchia: false, profondita: 600,
     modalita: 'moduli',                       // 'moduli' (come armadi) | 'cubi' (liberi)
     spessori: { carcassa: 18, schiena: 10, ante: 18 },
-    moduli: { uguali: true, numero: 3, larghezzaUsata: null, comune: { ante: 1, lato: 'dx', ripiani: 1 }, lista: [], chiusura: 'anta' },
+    moduli: { uguali: true, numero: 3, larghezzaUsata: null, comune: { ante: 1, lato: 'dx', ripiani: 1 }, lista: [], chiusura: 'fisso', chiusuraV: 2 },
     cubi: [], cuboSel: null,
     nuovoCubo: { w: 400, h: 400, fronte: 'aperto', ripiani: 0 },
   };
@@ -33,7 +33,9 @@ function carica() {
         ...base, ...s,
         valori: { ...base.valori, ...(s.valori || {}) },
         spessori: { ...base.spessori, ...(s.spessori || {}) },
-        moduli: { ...base.moduli, ...(s.moduli || {}), comune: { ...base.moduli.comune, ...((s.moduli || {}).comune || {}) } },
+        moduli: { ...base.moduli, ...(s.moduli || {}), comune: { ...base.moduli.comune, ...((s.moduli || {}).comune || {}) },
+          // la punta in fondo prima era un'anta: ora di partenza è un pannello fisso
+          ...((s.moduli || {}).chiusuraV === 2 ? {} : { chiusura: 'fisso', chiusuraV: 2 }) },
         nuovoCubo: { ...base.nuovoCubo, ...(s.nuovoCubo || {}) },
         cubi: Array.isArray(s.cubi) ? s.cubi : [],
       };
@@ -344,7 +346,7 @@ function aggiorna() {
   const c = { stato, salva, aggiorna, forma: r, svg, pannello, riepilogo, esc, fmt, canvas: canvas3d };
   if (stato.step === 3) {
     mostra3d(true);
-    import('./passo3.js?v=20261112g').then((m) => { passo3 = m; if (stato.step === 3) m.renderPasso3(c); })
+    import('./passo3.js?v=20261112h').then((m) => { passo3 = m; if (stato.step === 3) m.renderPasso3(c); })
       .catch(() => { riepilogo.innerHTML = '<div class="mod-msg err">Non riesco a caricare il 3D. Ricarica la pagina.</div>'; });
     return;
   }

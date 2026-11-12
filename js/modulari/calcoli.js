@@ -111,7 +111,7 @@ export function layoutModuli(forma, cfg, spessori = SPESSORI_DEFAULT) {
   // Spazio rimasto verso il lato basso: lo chiude un modulo finale
   // (triangolare se il soffitto scende quasi a terra).
   const resto = W - pos;
-  const fronte = ['anta', 'aperto', 'no'].includes(cfg.chiusura) ? cfg.chiusura : 'anta';
+  const fronte = ['fisso', 'anta', 'aperto', 'no'].includes(cfg.chiusura) ? cfg.chiusura : 'fisso';
   let chiusura = null;
   if (resto > 2 * sC + 20 && fronte !== 'no') {
     const xa = auto.daSinistra ? pos : 0, xb = auto.daSinistra ? W : resto;
@@ -141,9 +141,6 @@ export function geometriaChiusura(c, sp = SPESSORI_DEFAULT) {
   const alfa = Math.atan(k);
   const tv = sC / Math.cos(alfa);
   const fiancoBasso = hE + sC * Math.tan(alfa) - tv - sC;
-  const base = { ...c, larghezza: L, hAlto: hS, hBasso: hE, angolo: r1(alfa * DEG) };
-  if (fiancoBasso >= 30 || hS - hE < 1) return { ...base, triangolare: false };
-
   const dir = c.daSinistra ? 1 : -1;
   const xT = c.daSinistra ? c.x0 : c.x1;          // x del lato alto
   const X = (u) => xT + dir * u;
@@ -158,6 +155,12 @@ export function geometriaChiusura(c, sp = SPESSORI_DEFAULT) {
     p.push([u0, yt(u0) - off]);
     return { pts: p, larghezza: uE - u0, altezza: yt(u0) - off - yBase };
   };
+  // Tamponamento FISSO: un pannello sul fronte, a filo delle ante, che non si apre
+  const pann = sotto(2, L, 2, 2);
+  const base = { ...c, larghezza: L, hAlto: hS, hBasso: hE, angolo: r1(alfa * DEG), dir, xT,
+    pannello: { profilo: map(pann.pts), larghezza: pann.larghezza, altezza: pann.altezza, triangolo: pann.pts.length === 3 } };
+  if (fiancoBasso >= 30 || hS - hE < 1) return { ...base, triangolare: false };
+
   const uf = uDove(sC);                           // il sopra del top tocca il fondo
   const uu = uDove(sC + tv);                      // il sotto del top tocca il fondo
   const top = [[0, yt(0) - tv], [uu, sC], [uf, sC]];
@@ -166,7 +169,7 @@ export function geometriaChiusura(c, sp = SPESSORI_DEFAULT) {
   const schiena = sotto(1, L - 1, 1, 1);
   const anta = sotto(2, L - 2, 2, 2);
   return {
-    ...base, triangolare: true, dir, xT,
+    ...base, triangolare: true,
     profili: {
       fondo: map([[0, 0], [uf, 0], [uf, sC], [0, sC]]),
       top: map(top),
@@ -185,6 +188,11 @@ export function geometriaChiusura(c, sp = SPESSORI_DEFAULT) {
 
 /** Pezzi del modulo di chiusura. */
 export function pezziChiusura(ch, P, sp = SPESSORI_DEFAULT) {
+  if (ch.fronte === 'fisso') {
+    const pn = ch.pannello;
+    return [{ modulo: 'Chiusura in fondo', nome: `Tamponamento fisso ${pn.triangolo ? 'triangolare' : 'a trapezio'} (angolo ${ch.angolo}°, fissato al fianco del modulo vicino e al muro)`,
+      larghezza: r0(pn.larghezza), altezza: r0(pn.altezza), spessore: sp.ante, materiale: 'ante', quantita: 1 }];
+  }
   const ante = ch.fronte === 'anta' ? 1 : 0;
   const lato = ch.daSinistra ? 'dx' : 'sx';      // cerniere dal lato alto
   if (!ch.triangolare) {

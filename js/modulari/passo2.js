@@ -4,8 +4,8 @@
 import {
   layoutModuli, larghezzaUtileAuto, distintaModulari, posizioneValida,
   primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT,
-} from './calcoli.js?v=20261112g';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112g';
+} from './calcoli.js?v=20261112h';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112h';
 
 const FRONTI = [
   { v: 0, l: 'Aperto (a giorno)' },
@@ -95,11 +95,13 @@ function renderPannello() {
         <div style="margin-top:10px">${corpo}</div>
         ${lay.resto > 2 * s.carcassa + 20 ? `<label style="margin-top:12px">Punta bassa in fondo (${fmt(Math.round(lay.resto))} mm)
           <select id="mod-chiusura">
-            <option value="anta" ${(m.chiusura || 'anta') === 'anta' ? 'selected' : ''}>Modulo di chiusura con anta</option>
+            <option value="fisso" ${(m.chiusura || 'fisso') === 'fisso' ? 'selected' : ''}>Pannello fisso (tamponamento)</option>
+            <option value="anta" ${m.chiusura === 'anta' ? 'selected' : ''}>Modulo di chiusura con anta</option>
             <option value="aperto" ${m.chiusura === 'aperto' ? 'selected' : ''}>Modulo di chiusura aperto (a giorno)</option>
             <option value="no" ${m.chiusura === 'no' ? 'selected' : ''}>Lascia vuoto</option>
           </select></label>
-        <p class="mod-prossimo" style="margin-top:-4px">${lay.chiusura?.triangolare ? 'Triangolare: fondo, top inclinato appoggiato sul fondo, un fianco, schiena e anta a triangolo.' : 'Chiude lo spazio rimasto verso il lato basso.'}</p>` : ''}
+        <p class="mod-prossimo" style="margin-top:-4px">${(m.chiusura || 'fisso') === 'fisso' ? 'Un pannello fisso a filo delle ante, nella stessa finitura: chiude la punta e non si apre.'
+          : lay.chiusura?.triangolare ? 'Triangolare: fondo, top inclinato appoggiato sul fondo, un fianco, schiena e anta a triangolo.' : 'Chiude lo spazio rimasto verso il lato basso.'}</p>` : ''}
       </section>`;
   } else {
     const n = stato.nuovoCubo;
@@ -320,7 +322,10 @@ function renderDisegno() {
     });
     const ch = lay.chiusura;
     if (ch) {
-      if (ch.triangolare) {
+      if (ch.fronte === 'fisso') {
+        const pth = (pts) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${Y(y)}`).join(' ') + ' Z';
+        html += `<path d="${pth(ch.pannello.profilo)}" fill="var(--oro)" fill-opacity=".3" stroke="var(--testo)" stroke-width="${sw * 1.6}"/>`;
+      } else if (ch.triangolare) {
         const pth = (pts) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${Y(y)}`).join(' ') + ' Z';
         const conAnta = ch.fronte === 'anta';
         html += `<path d="${pth(ch.profili.contorno)}" fill="${conAnta ? 'var(--oro)' : 'var(--bg)'}" fill-opacity="${conAnta ? 0.16 : 0.55}" stroke="var(--testo)" stroke-width="${sw * 1.6}"/>`;
@@ -436,7 +441,7 @@ function renderRiepilogo() {
       <tr><th>Mod.</th><th style="text-align:right">Largh.</th><th style="text-align:right">H sx / dx</th></tr>
       ${lay.moduli.map((m) => `<tr><td>M${m.indice + 1} · ${Number(m.ante) ? `${m.ante} ${Number(m.ante) === 1 ? 'anta' : 'ante'}` : 'aperto'}</td>
         <td class="num">${fmt(m.larghezza)}</td><td class="num">${fmt(Math.round(m.hL))} / ${fmt(Math.round(m.hR))}</td></tr>`).join('')}
-      ${lay.chiusura ? `<tr><td>C · ${lay.chiusura.triangolare ? 'triangolo' : 'chiusura'}, ${lay.chiusura.fronte === 'anta' ? 'anta' : 'aperto'}</td>
+      ${lay.chiusura ? `<tr><td>C · ${lay.chiusura.fronte === 'fisso' ? 'pannello fisso' : `${lay.chiusura.triangolare ? 'triangolo' : 'chiusura'}, ${lay.chiusura.fronte === 'anta' ? 'anta' : 'aperto'}`}</td>
         <td class="num">${fmt(Math.round(lay.chiusura.larghezza))}</td><td class="num">${fmt(Math.round(lay.chiusura.hL))} / ${fmt(Math.round(lay.chiusura.hR))}</td></tr>` : ''}
     </table>`;
   } else {

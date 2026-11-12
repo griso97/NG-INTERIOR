@@ -193,6 +193,11 @@ function mobile(e, P, sp, matS, matA) {
  * ch = risultato di geometriaChiusura (calcoli.js)
  */
 function chiusura(ch, P, sp, matS, matA) {
+  if (ch.fronte === 'fisso') {
+    // pannello fisso a filo delle ante (non si apre)
+    prisma(ch.pannello.profilo, P - sp.ante, sp.ante, matA);
+    return;
+  }
   const ante = ch.fronte === 'anta' ? 1 : 0;
   if (!ch.triangolare) {
     mobile({ x0: ch.x0, y0: 0, L: ch.larghezza, hL: ch.hL, hR: ch.hR, ante, lato: ch.daSinistra ? 'dx' : 'sx', ripiani: 0 }, P, sp, matS, matA);
