@@ -8,10 +8,10 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, eliminaFoto, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261112v';
-import { analizzaFoto, cmZona } from './analisi-foto.js?v=20261112v';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261112v';
-import { agganciaTema } from './tema.js?v=20261112v';
+} from './catalogo.js?v=20261112w';
+import { analizzaFoto, cmZona } from './analisi-foto.js?v=20261112w';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261112w';
+import { agganciaTema } from './tema.js?v=20261112w';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -155,8 +155,8 @@ function apriScheda(m) {
       </div>` : ''}
       ${proprio && tipo !== 'man' ? `
       <div class="grid-2">
-        <label>${tipo === 'fp' ? 'Larghezza della porta (cm)' : 'Larghezza del campione (cm)'} <span class="imp-obbl">*</span><input type="number" min="1" step="0.1" id="f-w" value="${esc(p && p.oggettoCm ? p.oggettoCm.w : camp.w)}"></label>
-        <label>${tipo === 'fp' ? 'Altezza della porta (cm)' : 'Altezza del campione (cm)'} <span class="imp-obbl">*</span><input type="number" min="1" step="0.1" id="f-h" value="${esc(p && p.oggettoCm ? p.oggettoCm.h : camp.h)}"></label>
+        <label>${tipo === 'fp' ? 'Larghezza della porta (cm)' : 'Larghezza del campione (cm)'} <span class="imp-obbl">*</span><input type="number" min="1" step="0.1" id="f-w" placeholder="es. 59,8" value="${esc(p && p.oggettoCm ? p.oggettoCm.w : camp.w)}"></label>
+        <label>${tipo === 'fp' ? 'Altezza della porta (cm)' : 'Altezza del campione (cm)'} <span class="imp-obbl">*</span><input type="number" min="1" step="0.1" id="f-h" placeholder="es. 69,7" value="${esc(p && p.oggettoCm ? p.oggettoCm.h : camp.h)}"></label>
       </div>
       <div class="imp-aiuto">${tipo === 'fp' ? 'Misura reale di tutta la porta della foto' : 'Misura reale di tutto il campione della foto'}: serve per avere la venatura in scala vera sui mobili, non stirata.</div>` : ''}
       ${tipo === 'man' ? `
@@ -209,10 +209,17 @@ function apriScheda(m) {
       const pers = corpo.querySelector('input[name="f-mis"]:checked').value === 'pers';
       const lung = Number(v('#f-lung').replace(',', '.'));
       if (pers && !(lung > 0)) { errore(tr('Scrivi la lunghezza della maniglia in cm, oppure scegli la misura standard (15 cm).')); return; }
+      if (pers && lung > 150) { errore(tr('La lunghezza va in centimetri: forse l\'hai scritta in millimetri? Es. 160 mm = 16 cm.')); return; }
       manN = { standard: !pers, lunghezzaCm: pers ? lung : MANIGLIA_STANDARD_CM, rapporto: p && p.maniglia ? p.maniglia.rapporto : null, verticale: p && p.maniglia ? p.maniglia.verticale : false };
     } else {
       w = Number(v('#f-w').replace(',', '.')); h = Number(v('#f-h').replace(',', '.'));
       if (!(w > 0 && h > 0)) { errore(tr('Inserisci la misura del campione in cm (larghezza e altezza).')); return; }
+      // misure in mm scritte nei campi in cm (es. 598 invece di 59,8)
+      if (w > 300 || h > 300) {
+        const f = (x) => String(Math.round(x) / 10).replace('.', ',');
+        errore(tr(`Le misure vanno in centimetri: ${f(w * 10)} × ${f(h * 10)} cm è troppo grande. Forse le hai scritte in millimetri? Es. 598 mm = 59,8 cm.`));
+        return;
+      }
     }
     if (nuovo && !img) { errore(tr('Carica la foto del campione.')); return; }
     const b = corpo.querySelector('#f-salva'); b.disabled = true; b.textContent = tr('Salvo…');
