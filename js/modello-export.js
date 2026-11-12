@@ -10,6 +10,7 @@
 // (localStorage), uguale per Cucina e Armadi.
 // =============================================================================
 import { zipSync, unzipSync, strToU8, strFromU8 } from '../vendor/fflate/fflate.module.js';
+const T = (s) => (typeof s === 'string' && window.NGI18N ? window.NGI18N.t(s) : s);   // lingua (i18n.js)
 
 const KEY = 'ng-modello-export-v1';
 const MAX_FILE = 5 * 1024 * 1024;          // 5 MB: un modello vuoto è pochi KB
@@ -69,9 +70,9 @@ function cancellaModello() { try { localStorage.removeItem(KEY); } catch { /* ni
 
 // Modello standard usato quando l'utente non ne ha caricato uno.
 function modelloStandard(conNote = false) {
-  const intestazioni = ['Pezzo', 'Lunghezza (mm)', 'Larghezza (mm)', 'Spessore (mm)', 'Quantità', 'Materiale', 'Modulo', ...(conNote ? ['Note / taglio'] : [])];
+  const intestazioni = ['Pezzo', 'Lunghezza (mm)', 'Larghezza (mm)', 'Spessore (mm)', 'Quantità', 'Materiale', 'Modulo', ...(conNote ? ['Note / taglio'] : [])].map(T);
   return {
-    nomeFile: null, foglio: 'Distinta', preHeader: [], intestazioni,
+    nomeFile: null, foglio: T('Distinta'), preHeader: [], intestazioni,
     mappa: ['nome', 'altezza', 'larghezza', 'spessore', 'quantita', 'materiale', 'modulo', ...(conNote ? ['note'] : [])].map((campo) => ({ campo, fisso: '' })),
     materiali: {},
   };
@@ -295,18 +296,18 @@ export function creaXLSX(righe, { foglio = 'Distinta', rigaGrassetto = -1, immag
 function valoreCampo(p, m, mod, progetto) {
   const num = (x) => (x === '' || x == null || Number.isNaN(Number(x)) ? x : Number(x));
   switch (m.campo) {
-    case 'nome': return p.nome ?? '';
+    case 'nome': return T(p.nome ?? '');
     case 'altezza': return num(p.altezza);
     case 'larghezza': return num(p.larghezza);
     case 'latoLungo': return Math.max(Number(p.altezza) || 0, Number(p.larghezza) || 0);
     case 'latoCorto': return Math.min(Number(p.altezza) || 0, Number(p.larghezza) || 0);
     case 'spessore': return num(p.spessore);
     case 'quantita': return num(p.quantita);
-    case 'materiale': { const n = p.materiale ?? ''; const b = (mod.materiali || {})[n]; return b && b.trim() ? b.trim() : n; }
-    case 'modulo': return p.modulo ?? '';
-    case 'gruppo': return p.gruppo ?? '';
+    case 'materiale': { const n = p.materiale ?? ''; const b = (mod.materiali || {})[n]; return b && b.trim() ? b.trim() : T(n); }
+    case 'modulo': return T(p.modulo ?? '');
+    case 'gruppo': return T(p.gruppo ?? '');
     case 'progetto': return progetto || '';
-    case 'note': return p.note ?? '';
+    case 'note': return T(p.note ?? '');
     case 'fisso': return num(m.fisso ?? '');
     default: return '';
   }
@@ -317,7 +318,7 @@ export function righeDaModello(mod, pezzi, progetto = '') {
   // Modello senza colonna note: le note (es. angoli di taglio) vanno nel nome, così non si perdono
   const haNote = mod.mappa.some((m) => m.campo === 'note');
   for (const p0 of pezzi) {
-    const p = !haNote && p0.note ? { ...p0, nome: `${p0.nome} — ${p0.note}` } : p0;
+    const p = !haNote && p0.note ? { ...p0, nome: `${T(p0.nome)} — ${T(p0.note)}` } : p0;
     righe.push(mod.mappa.map((m) => valoreCampo(p, m, mod, progetto)));
   }
   return righe;

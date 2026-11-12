@@ -4,9 +4,9 @@
 import {
   layoutModuli, layoutCubi, abbondanzaDi, gradi, larghezzaUtileAuto, distintaModulari, posizioneValida,
   primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT,
-} from './calcoli.js?v=20261112n';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112n';
-import { schemaTagliPNG } from './schema-tagli.js?v=20261112n';
+} from './calcoli.js?v=20261112o';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112o';
+import { schemaTagliPNG } from './schema-tagli.js?v=20261112o';
 
 const FRONTI = [
   { v: 0, l: 'Aperto (a giorno)' },
@@ -546,6 +546,7 @@ function avvisoInclinati(dist, esc) {
     ].filter(Boolean).join(', ')} · inclinazione ${gradi(r.angolo)}</li>`).join('')}</ul>
     <span class="mod-incl-nota">Fianchi a piombo, top parallelo alla scala: bordo alto dei fianchi e testate del top con la lama inclinata dell'angolo indicato (vedi colonna “Taglio”). Ante e pannelli fissi più grandi sul lato inclinato, da rifilare a filo. Fondo, ripiani e schiena sono già a misura.</span></div>`;
 }
+const tr = (s) => (typeof s === 'string' && window.NGI18N ? window.NGI18N.t(s) : s);   // lingua (i18n.js)
 let schemiPrecedenti = [];
 async function creaSchemi(dist) {
   schemiPrecedenti.forEach((x) => URL.revokeObjectURL(x.url));
@@ -613,7 +614,7 @@ export async function apriDistinta(c) {
   const nomeFile = `modulari-${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
   document.getElementById('distinta-xlsx').onclick = () => esportaExcel(pezziPerExcel(dist),
     { nomeFile, progetto: 'Mobili modulari',
-      immagini: schemi.map((x) => ({ foglio: x.foglio, titolo: `Schema tagli inclinati · scala a ${x.gradi}`, png: x.bytes, larghezza: 720, altezza: Math.round((720 * x.altezza) / x.larghezza) })) });
+      immagini: schemi.map((x) => ({ foglio: tr(x.foglio), titolo: tr(`Schema tagli inclinati · scala a ${x.gradi}`), png: x.bytes, larghezza: 720, altezza: Math.round((720 * x.altezza) / x.larghezza) })) });
   corpo.querySelectorAll('[data-schema]').forEach((b) => b.addEventListener('click', () => {
     const x = schemi[+b.dataset.schema];
     const a = document.createElement('a');

@@ -26,7 +26,7 @@ import { renderPianta } from './pianta.js?v=20261111x';
 import { calcolaDistintaCucina } from './distinta.js?v=20261111x';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
 import { agganciaTema } from '../tema.js?v=20261111x';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261111x';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112o';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1171,7 +1171,8 @@ function mostraDistinta() {
 function chiudiDistinta() { const ov = document.getElementById('distinta-overlay'); if (ov) ov.hidden = true; }
 function esportaDistintaCSV() {
   const { moduli, pezzi } = calcolaDistintaCucina(progetto);
-  const qc = (s) => `"${String(s).replace(/"/g, '""')}"`;
+  const tr = (s) => (typeof s === 'string' && window.NGI18N ? window.NGI18N.t(s) : s);
+  const qc = (s) => `"${String(tr(s)).replace(/"/g, '""')}"`;
   const righe = [['MODULI']];
   righe.push(['Modulo', 'Tipo', 'Quantita']);
   for (const m of moduli) righe.push([m.nome + (m.fuoriMisura ? ' (da tagliare)' : ''), m.tipo, m.quantita]);

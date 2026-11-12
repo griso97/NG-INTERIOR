@@ -6,7 +6,7 @@
 // "allegato" alla distinta: va nell'Excel (foglio "Schema tagli") e si può
 // scaricare come PNG.
 // =============================================================================
-import { gradi } from './calcoli.js?v=20261112n';
+import { gradi } from './calcoli.js?v=20261112o';
 
 const W = 1100, H = 830;
 const FONT = 'Arial, Helvetica, sans-serif';
@@ -87,9 +87,17 @@ ${piede.map((s, i) => `<text x="24" y="${yF + 58 + i * 24}" font-size="15" fill=
 </svg>`;
 }
 
+/** Testi dell'SVG nella lingua scelta (i18n.js). */
+function svgTradotto(svg) {
+  const t = window.NGI18N && window.NGI18N.lingua !== 'it' ? window.NGI18N.t : null;
+  if (!t) return svg;
+  const de = (s) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+  return svg.replace(/(<text\b[^>]*>)([^<]*)(<\/text>)/g, (_, a, b, c) => a + esc(t(de(b))) + c);
+}
+
 /** Rende lo schema in PNG (2×). Ritorna { blob, bytes:Uint8Array, url, larghezza, altezza }. */
 export function schemaTagliPNG(opz, scala = 2) {
-  const svg = schemaTagliSVG(opz);
+  const svg = svgTradotto(schemaTagliSVG(opz));
   return new Promise((ok, ko) => {
     const img = new Image();
     img.onload = () => {

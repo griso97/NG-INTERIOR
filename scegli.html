@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="js/i18n.js?v=20261112o"></script>
 <title>NG Interior · Scegli il tipo di armadio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -54,6 +55,8 @@
     transition:color .15s;
   }
   .back:hover{color:var(--gold-2);}
+  .header-destra{display:flex;align-items:center;gap:18px;}
+  .ng-lingua{--oro:var(--gold-2);--oro-scuro:var(--gold-3);--testo-dim:var(--muted);}
   main{
     position:relative; z-index:1;
     flex:1;
@@ -133,7 +136,10 @@
 <body>
   <header>
     <div class="brand">NG INTERIOR</div>
-    <a class="back" href="./index.html">← Home</a>
+    <div class="header-destra">
+      <div data-lingua="grande"></div>
+      <a class="back" href="./index.html">← Home</a>
+    </div>
   </header>
   <main>
     <h1>Cosa vuoi progettare?</h1>

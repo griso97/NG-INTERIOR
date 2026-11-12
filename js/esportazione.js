@@ -25,7 +25,7 @@ export function esportaCSV(distinta, meta = {}, config = null) {
   righe.push(['m² ante', distinta.riepilogo.mqAnte.toFixed(2)]);
   righe.push(['m² schiena', distinta.riepilogo.mqSchiena.toFixed(2)]);
 
-  const csv = righe.map((r) => r.map(csvEscape).join(';')).join('\n');
+  const csv = righe.map((r) => r.map((v) => csvEscape(T(v))).join(';')).join('\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
   scaricaBlob(blob, nomeFile(meta, 'csv'));
 }
@@ -37,6 +37,7 @@ function csvEscape(v) {
 }
 
 import { trovaMateriale } from './materiali.js?v=20261111b';
+const T = (s) => (typeof s === 'string' && window.NGI18N ? window.NGI18N.t(s) : s);   // lingua (i18n.js)
 
 export function nomeMaterialeCsv(pezzo, config) {
   if (pezzo.materiale === 'melaminico') return 'Melaminico bianco';
@@ -59,6 +60,8 @@ export function esportaPDF(distinta, config, meta = {}) {
     return;
   }
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const testoPdf = doc.text.bind(doc);
+  doc.text = (t, ...resto) => testoPdf(typeof t === 'string' ? T(t) : t, ...resto);
   const marginX = 12;
   let y = 14;
 
@@ -70,7 +73,7 @@ export function esportaPDF(distinta, config, meta = {}) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.text(`Cliente / Lavoro: ${meta.cliente || '—'}`, marginX, y); y += 5;
-  doc.text(`Data: ${new Date().toLocaleDateString('it-IT')}`, marginX, y); y += 5;
+  doc.text(`Data: ${new Date().toLocaleDateString(window.NGI18N && window.NGI18N.lingua === 'es' ? 'es-ES' : 'it-IT')}`, marginX, y); y += 5;
   doc.text(
     `Armadio: ${config.larghezzaTotale} × ${config.altezzaEsterna} × ${config.profonditaEsterna} mm · `
     + `Moduli: ${config.moduli.length} · Setup: ${config.setupCarcassa === 1
@@ -98,11 +101,11 @@ export function esportaPDF(distinta, config, meta = {}) {
       doc.addPage();
       y = 15;
     }
-    doc.text(String(p.nome).slice(0, 42), colX[0], y);
+    doc.text(T(String(p.nome)).slice(0, 42), colX[0], y);
     doc.text(String(Math.round(p.larghezza)), colX[1], y);
     doc.text(String(Math.round(p.altezza)), colX[2], y);
     doc.text(String(p.spessore), colX[3], y);
-    doc.text(nomeMaterialeCsv(p, config).slice(0, 18), colX[4], y);
+    doc.text(T(nomeMaterialeCsv(p, config)).slice(0, 18), colX[4], y);
     doc.setFont('helvetica', 'bold');
     doc.text(String(p.quantita), colX[5], y);
     doc.setFont('helvetica', 'normal');
