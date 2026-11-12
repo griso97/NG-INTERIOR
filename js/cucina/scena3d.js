@@ -896,7 +896,9 @@ const LED_COLORI = {
  * Niente pannelli/texture colorati sovrapposti: facevano "rettangoli" e
  * distorcevano ciò che c'era dietro. Solo luce reale sulle superfici.
  */
-function aggiungiLedPensile(g, w, h, d, colore) {
+/** LED sotto il pensile. avanti = mm di cui spostarlo verso il fronte
+ *  (con il pannello dietro il piano: il suo spessore, così resta visibile). */
+function aggiungiLedPensile(g, w, h, d, colore, avanti = 0) {
   const hex = LED_COLORI[colore] || LED_COLORI.caldo;
   const stripW = Math.max(60, w - 40);
   const stripH = 6;
@@ -905,7 +907,7 @@ function aggiungiLedPensile(g, w, h, d, colore) {
   const mat = new THREE.MeshBasicMaterial({ color: hex, toneMapped: false });
   const geo = new THREE.BoxGeometry(stripW, stripH, stripD);
   const mesh = new THREE.Mesh(geo, mat);
-  const zStrip = -d / 2 + stripD / 2 + 4;
+  const zStrip = -d / 2 + stripD / 2 + 4 + avanti;
   mesh.position.set(0, -h / 2 + stripH / 2, zStrip);
   g.add(mesh);
   // SpotLight diffusa (penumbra 1 = bordi morbidi, nessun cono/rettangolo
@@ -1185,7 +1187,8 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       // LED sotto i pensili (opzionale, con scelta temperatura colore).
       // Il pensile-angolo (diagonale) non lo prende: ha una geometria dedicata.
       if (progetto.led && progetto.led.attivo && !String(m.tipo).startsWith('pensile-angolo')) {
-        aggiungiLedPensile(gPens, dim.w, h, dim.d, progetto.led.colore);
+        const conPannello = progetto.schienale && progetto.schienale.attivo;
+        aggiungiLedPensile(gPens, dim.w, h, dim.d, progetto.led.colore, conPannello ? SP_SCHIENALE : 0);
       }
       if (m.tipo === 'pensile-angolo') {
         // La L è asimmetrica: il 3D usa -rot e la pianta +rot, quindi con

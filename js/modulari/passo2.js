@@ -4,9 +4,9 @@
 import {
   layoutModuli, layoutCubi, abbondanzaDi, gradi, larghezzaUtileAuto, distintaModulari, posizioneValida,
   primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT,
-} from './calcoli.js?v=20261112q';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112q';
-import { schemaTagliPNG } from './schema-tagli.js?v=20261112q';
+} from './calcoli.js?v=20261112r';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112r';
+import { schemaTagliPNG } from './schema-tagli.js?v=20261112r';
 
 const FRONTI = [
   { v: 0, l: 'Aperto (a giorno)' },
