@@ -14,11 +14,11 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
 } from './modello.js?v=20261111x';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113b';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113c';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113b';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113c';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -91,30 +91,35 @@ function dimVasca(w, d) {
   return { vw, vd, zc };
 }
 
-/** Lavello / piano cottura / rubinetto posati SOPRA la superficie del top. */
-function aggiungiAccessorioTop(a) {
+/** Misura del vetro del piano cottura (e del suo foro nel piano di lavoro). */
+function dimPlacca(w, d) { return { pw: Math.min(w - 40, 580), pd: Math.min(d - 80, 480) }; }
+
+/** Lavello / piano cottura / rubinetto posati SOPRA la superficie del top.
+ *  fin = { lavello: 'acciaio'|'nero', rubinetto: 'acciaio'|'nero' } */
+function aggiungiAccessorioTop(a, fin = {}) {
   const g = new THREE.Group();
   g.position.set(a.x, a.surfaceY, -a.y);
   g.rotation.y = -(a.rot || 0) * Math.PI / 180;
   if (a.id !== undefined) g.userData.mobId = a.id;
   if (a.placca) {
     // Piano a induzione: vetro nero lucido + zone di cottura (cerchi)
-    const pw = Math.min(a.w - 40, 580), pd = Math.min(a.d - 80, 480);
-    const vetro = new THREE.Mesh(new THREE.BoxGeometry(pw, 12, pd),
+    const { pw, pd } = dimPlacca(a.w, a.d);
+    // vetro da 6 mm sopra il piano fino a 20 mm dentro il foro
+    const vetro = new THREE.Mesh(new THREE.BoxGeometry(pw, 26, pd),
       new THREE.MeshStandardMaterial({ color: 0x08080a, roughness: 0.12, metalness: 0.35 }));
-    vetro.position.set(0, 6, 0); g.add(vetro);
+    vetro.position.set(0, -7, 0); g.add(vetro);
     const pos = a.fuochi === 2 ? [[0, -1], [0, 1]] : [[-1, -1], [1, -1], [-1, 1], [1, 1]];
     const rz = Math.min(pw, pd) * (a.fuochi === 2 ? 0.26 : 0.2);
     const matZona = new THREE.MeshStandardMaterial({ color: 0x3a3a42, metalness: 0.3, roughness: 0.5 });
     for (const [sx, sz] of pos) {
       const anello = new THREE.Mesh(new THREE.TorusGeometry(rz, 4, 8, 40), matZona);
       anello.rotation.x = Math.PI / 2;
-      anello.position.set(sx * pw * 0.24, 13, sz * pd * 0.22); g.add(anello);
+      anello.position.set(sx * pw * 0.24, 7, sz * pd * 0.22); g.add(anello);
     }
     // Pannello comandi (striscia chiara davanti)
     const comandi = new THREE.Mesh(new THREE.BoxGeometry(pw * 0.5, 2, 40),
       new THREE.MeshStandardMaterial({ color: 0x202028, roughness: 0.4, metalness: 0.3 }));
-    comandi.position.set(0, 13, pd / 2 - 35); g.add(comandi);
+    comandi.position.set(0, 7, pd / 2 - 35); g.add(comandi);
   }
   if (a.lavello) {
     // Inox del bordo: chiaro e lucido. Interno della vasca: acciaio più scuro
@@ -126,9 +131,17 @@ function aggiungiAccessorioTop(a) {
     // Interno SATINATO e non a specchio: se riflette l'ambiente chiaro (e i
     // LED dei pensili) diventa un rettangolo bianco piatto. In più le pareti
     // scuriscono verso il fondo (ombra dentro la vasca): così si legge che scende.
-    const matInox = new THREE.MeshStandardMaterial({ color: 0xcbccd0, roughness: 0.25, metalness: 0.9, envMapIntensity: 0.8 });
-    const matPar  = new THREE.MeshStandardMaterial({ color: 0xb9bbc0, roughness: 0.45, metalness: 0.55, envMapIntensity: 0.4, vertexColors: true });
-    const matFondo = new THREE.MeshStandardMaterial({ color: 0x7d8086, roughness: 0.55, metalness: 0.5, envMapIntensity: 0.25 });
+    // Lavello NERO: composito/granito opaco (non metallico)
+    const nero = fin.lavello === 'nero';
+    const matInox = nero
+      ? new THREE.MeshStandardMaterial({ color: 0x1d1d20, roughness: 0.55, metalness: 0.05, envMapIntensity: 0.4 })
+      : new THREE.MeshStandardMaterial({ color: 0xcbccd0, roughness: 0.25, metalness: 0.9, envMapIntensity: 0.8 });
+    const matPar = nero
+      ? new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.6, metalness: 0.05, envMapIntensity: 0.3, vertexColors: true })
+      : new THREE.MeshStandardMaterial({ color: 0xb9bbc0, roughness: 0.45, metalness: 0.55, envMapIntensity: 0.4, vertexColors: true });
+    const matFondo = nero
+      ? new THREE.MeshStandardMaterial({ color: 0x151517, roughness: 0.65, metalness: 0.05, envMapIntensity: 0.2 })
+      : new THREE.MeshStandardMaterial({ color: 0x7d8086, roughness: 0.55, metalness: 0.5, envMapIntensity: 0.25 });
     const sfuma = (geo, h) => {                   // chiaro in alto → scuro in basso
       const p = geo.attributes.position, col = new Float32Array(p.count * 3);
       for (let i = 0; i < p.count; i++) { const k = 0.32 + 0.68 * ((p.getY(i) + h / 2) / h); col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = k; }
@@ -166,7 +179,9 @@ function aggiungiAccessorioTop(a) {
       new THREE.MeshStandardMaterial({ color: 0x2e2e32, roughness: 0.5, metalness: 0.6 }));
     scarico.position.set(0, -prof + 8, zc); g.add(scarico);
     // Rubinetto a miscelatore: base + colonna + canna orizzontale (collegati)
-    const matMet = new THREE.MeshStandardMaterial({ color: 0xdedee2, roughness: 0.15, metalness: 0.95 });
+    const matMet = fin.rubinetto === 'nero'
+      ? new THREE.MeshStandardMaterial({ color: 0x18181a, roughness: 0.4, metalness: 0.5, envMapIntensity: 0.6 })   // nero opaco
+      : new THREE.MeshStandardMaterial({ color: 0xdedee2, roughness: 0.15, metalness: 0.95 });
     const zr = -a.d * 0.34, hTop = 300;
     const base = new THREE.Mesh(new THREE.CylinderGeometry(28, 34, 26, 20), matMet);
     base.position.set(0, 13, zr); g.add(base);
@@ -351,6 +366,51 @@ export function pickMobile(clientX, clientY) {
 }
 
 // ---------------------------------------------------------------------------
+// SPOSTARE GLI OGGETTI NEL RENDERING (sgabelli, arredo): si trascinano sul
+// pavimento. I moduli restano fissi (puoSpostare decide chi si muove).
+let spost = null;            // { g, id, dx, dz, x0, z0 }
+const pianoTerra = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+function puntoATerra(clientX, clientY) {
+  const rect = canvasEl.getBoundingClientRect();
+  rayPick.setFromCamera(new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1,
+    -((clientY - rect.top) / rect.height) * 2 + 1), camera);
+  const p = new THREE.Vector3();
+  return rayPick.ray.intersectPlane(pianoTerra, p) ? p : null;
+}
+export function iniziaSpostamento(clientX, clientY, puoSpostare) {
+  if (!renderer || !camera || !gruppo) return false;
+  const id = pickMobile(clientX, clientY);
+  if (id == null || !puoSpostare(id)) return false;
+  const g = gruppo.children.find((o) => o.userData.mobId === id);
+  // piano orizzontale all'altezza del punto toccato: l'oggetto segue il dito
+  const hit = g && rayPick.intersectObject(g, true)[0];
+  pianoTerra.constant = hit ? -hit.point.y : 0;
+  const p = puntoATerra(clientX, clientY);
+  if (!g || !p) return false;
+  spost = { g, id, dx: g.position.x - p.x, dz: g.position.z - p.z, x0: g.position.x, z0: g.position.z };
+  controls.enabled = false;
+  canvasEl.style.cursor = 'grabbing';
+  return true;
+}
+export function muoviSpostamento(clientX, clientY) {
+  if (!spost) return;
+  const p = puntoATerra(clientX, clientY);
+  if (!p) return;
+  spost.g.position.x = p.x + spost.dx;
+  spost.g.position.z = p.z + spost.dz;
+}
+/** Fine: ritorna { id, x, y, mosso } in coordinate della pianta (mm). */
+export function fineSpostamento() {
+  if (!spost) return null;
+  const { g, id, x0, z0 } = spost;
+  spost = null;
+  controls.enabled = true;
+  canvasEl.style.cursor = '';
+  const mosso = Math.hypot(g.position.x - x0, g.position.z - z0) > 5;
+  return { id, x: Math.round(g.position.x), y: Math.round(-g.position.z), mosso };
+}
+
+// ---------------------------------------------------------------------------
 // Primitive
 function corpo(w, h, d, coloreOMat) {
   const g = new THREE.Group();
@@ -480,6 +540,45 @@ function telaioInox(grp, pw, ph, frontZ, fb, frameD) {
     fr.position.set(fx, fy, frontZ - frameD / 2);
     fr.castShadow = true; grp.add(fr);
   }
+}
+
+/**
+ * Fronte del mobile FORNO (come in una cucina vera): in alto la GRIGLIA di
+ * aerazione sotto il piano, poi il forno (alto 595 mm), sotto un PANNELLO del
+ * colore delle ante che chiude lo spazio rimasto (più alto nei moduli da 80
+ * che in quelli da 70). Niente parti del corpo a vista sopra e sotto.
+ */
+const GRIGLIA_FORNO = 45, H_FORNO_INCASSO = 595;
+function fronteForno(g, w, h, d, matAnta) {
+  const z = d / 2, uw = w - FUGA_W;
+  const yTop = h / 2 - FUGA_H / 2, yBot = -h / 2 + FUGA_H / 2;
+  const hF = Math.min(H_FORNO_INCASSO, h - GRIGLIA_FORNO - 40);
+  griglia(g, z, uw, GRIGLIA_FORNO, yTop - GRIGLIA_FORNO / 2);
+  const yFornoTop = yTop - GRIGLIA_FORNO - GAP_ANTE;
+  pannelloElettro(g, yFornoTop - hF / 2, z, Math.min(w - 24, 595), hF, 'forno');
+  const yPan = yFornoTop - hF - GAP_ANTE;
+  if (yPan - yBot > 15) pannello(g, 0, (yPan + yBot) / 2, z, uw, yPan - yBot, matAnta || COL.cassetto);
+}
+/** Griglia di aerazione: cornice scura, fessure nere profonde e lamelle
+ *  chiare in rilievo (si legge come una griglia vera anche da lontano). */
+const matGrigliaFondo = new THREE.MeshBasicMaterial({ color: 0x050506, toneMapped: false });
+const matGrigliaCornice = new THREE.MeshStandardMaterial({ color: 0x2c2d31, roughness: 0.5, metalness: 0.4 });
+const matGrigliaLamella = new THREE.MeshStandardMaterial({ color: 0xa9abb1, roughness: 0.35, metalness: 0.6, envMapIntensity: 0.6 });
+function griglia(g, z, gw, gh, yc) {
+  const fondo = new THREE.Mesh(new THREE.BoxGeometry(gw, gh, 4), matGrigliaFondo);
+  fondo.position.set(0, yc, z + 2); g.add(fondo);
+  const cb = 7;
+  for (const [bx, by, bw, bh] of [[0, yc + gh / 2 - cb / 2, gw, cb], [0, yc - gh / 2 + cb / 2, gw, cb], [-gw / 2 + cb / 2, yc, cb, gh], [gw / 2 - cb / 2, yc, cb, gh]]) {
+    const c = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, 18), matGrigliaCornice);
+    c.position.set(bx, by, z + 9); g.add(c);
+  }
+  // lamelle verticali: 6 mm piene, 8 mm di fessura
+  const passo = 14, n = Math.floor((gw - 2 * cb - 8) / passo);
+  const lam = new THREE.InstancedMesh(new THREE.BoxGeometry(6, gh - 2 * cb, 14), matGrigliaLamella, n);
+  const M = new THREE.Matrix4();
+  for (let i = 0; i < n; i++) { M.makeTranslation(-((n - 1) * passo) / 2 + i * passo, yc, z + 7); lam.setMatrixAt(i, M); }
+  lam.instanceMatrix.needsUpdate = true;
+  g.add(lam);
 }
 
 /**
@@ -1037,7 +1136,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   if (tipo === 'lavello') { ante(g, w, h, d, w >= 900 ? 2 : 1, matAnta); return g; } // lavello disegnato sopra il top
   if (tipo === 'lavastoviglie') { lavastoviglieFronte(g, w, h, d); return g; }
   if (cat === 'lavatrice') { lavatriceFronte(g, w, h, d); return g; }
-  if (tipo === 'forno') { pannelloElettro(g, -h * 0.05, d / 2, w - 24, h * 0.7, 'forno'); return g; } // placca sopra il top
+  if (tipo === 'forno') { fronteForno(g, w, h, d, matAnta); return g; } // placca sopra il top
   // base con ante / pensile (il pensile può avere l'anta sporgente sotto)
   ante(g, w, h, d, anteDiMobile(m), matAnta, opt.sporg, m.antaLato);
   return g;
@@ -1300,9 +1399,9 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       muri: full.map((p, i) => (p.assente ? null : { a: vertici[i], b: vertici[i + 1] })).filter(Boolean),
     };
   }
-  renderTopContinui(basiTop, fianchi, spTop, matTop, accessori.filter((a) => a.lavello), schienale);
+  renderTopContinui(basiTop, fianchi, spTop, matTop, accessori.filter((a) => a.lavello || a.placca), schienale);
   // Lavello, piano cottura e rubinetto SOPRA il top
-  for (const a of accessori) aggiungiAccessorioTop(a);
+  for (const a of accessori) aggiungiAccessorioTop(a, progetto.finiture || {});
 
   uvInScala(gruppo);
   if (reframe) inquadra(bb);
@@ -1510,8 +1609,15 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
         const perpS = lv.x * (-s) + lv.y * c;
         if (Math.abs(perpS - perpTop) > depth / 2 + 50) continue;
         if (alongS < endLo - 10 || alongS > endHi + 10) continue;
-        const { vw, vd, zc } = dimVasca(lv.w, lv.d);
-        fori.push({ u: alongS - centerAlong, v: (perpS - perpTop) + zc, w: vw + 6, d: vd + 6 });
+        if (lv.lavello) {
+          const { vw, vd, zc } = dimVasca(lv.w, lv.d);
+          fori.push({ u: alongS - centerAlong, v: (perpS - perpTop) + zc, w: vw + 6, d: vd + 6 });
+        } else if (lv.placca) {
+          // piano cottura INCASSATO: il vetro sta nel foro, così si vede da
+          // qualsiasi distanza (sopra il piano "spariva" da lontano)
+          const { pw, pd } = dimPlacca(lv.w, lv.d);
+          fori.push({ u: alongS - centerAlong, v: perpS - perpTop, w: pw - 12, d: pd - 12 });
+        }
       }
       const slab = fori.length
         ? slabConFori(len, thickness, depth, matTop || COL.top, fori)

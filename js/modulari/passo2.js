@@ -4,9 +4,9 @@
 import {
   layoutModuli, layoutCubi, abbondanzaDi, gradi, larghezzaUtileAuto, distintaModulari, posizioneValida,
   primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT,
-} from './calcoli.js?v=20261113b';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113b';
-import { schemaTagliPNG } from './schema-tagli.js?v=20261113b';
+} from './calcoli.js?v=20261113c';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113c';
+import { schemaTagliPNG } from './schema-tagli.js?v=20261113c';
 
 const FRONTI = [
   { v: 0, l: 'Aperto (a giorno)' },
@@ -579,7 +579,7 @@ export async function apriDistinta(c) {
   if (c) ctx = c;
   if (!ctx) return;
   if (!nomiFiniture) {
-    try { const { MATERIALI } = await import('../materiali.js?v=20261113b'); nomiFiniture = new Map(MATERIALI.map((m) => [m.id, m.nome])); }
+    try { const { MATERIALI } = await import('../materiali.js?v=20261113c'); nomiFiniture = new Map(MATERIALI.map((m) => [m.id, m.nome])); }
     catch { nomiFiniture = new Map(); }
   }
   const { stato, esc, fmt } = ctx;

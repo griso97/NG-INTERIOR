@@ -472,7 +472,30 @@ export function analizzaPorta(img, tipo = 'fp') {
     obj[y * P.w + x] = !o.sfondo || dist(px(P, x, y), o.bg) > o.soglia ? 1 : 0;
   }
   const intera = [[0, 0], [P.w, 0], [P.w, P.h], [0, P.h]];
-  const qs = o.sfondo ? quadDaMaschera(componentePrincipale(erodi(obj, P.w, P.h, 2), P.w, P.h).m, P.w, P.h) : null;
+  // OMBRE sullo sfondo: stesso colore dello sfondo ma più scure (fino a metà
+  // luce). Provo anche la maschera senza ombre e tengo quella in cui la porta
+  // riempie meglio il suo quadrilatero (un'ombra lo deforma).
+  let qs = null;
+  if (o.sfondo) {
+    const lb = (o.bg[0] + o.bg[1] + o.bg[2]) / 3 || 1, nb = o.bg.map((v) => v / lb);
+    const senza = new Uint8Array(obj);
+    for (let y = 0; y < P.h; y++) for (let x = 0; x < P.w; x++) {
+      const i = y * P.w + x; if (!obj[i]) continue;
+      const c = px(P, x, y), l = (c[0] + c[1] + c[2]) / 3;
+      if (l < lb * 0.45 || l > lb * 1.02) continue;
+      if (Math.max(...c.map((v, k) => Math.abs(v / (l || 1) - nb[k]))) < 0.07) senza[i] = 0;
+    }
+    const prova = (m) => {
+      const cp = componentePrincipale(erodi(m, P.w, P.h, 2), P.w, P.h);
+      const q = quadDaMaschera(cp.m, P.w, P.h);
+      if (!q) return null;
+      let a = 0; for (let k = 0; k < 4; k++) { const [x1, y1] = q[k], [x2, y2] = q[(k + 1) % 4]; a += x1 * y2 - x2 * y1; }
+      return { q, n: cp.n, riemp: cp.n / Math.max(1, Math.abs(a) / 2) };
+    };
+    const A = prova(obj), B = prova(senza);
+    qs = A && A.q;
+    if (B && (!A || (B.n >= A.n * 0.25 && B.riemp > A.riemp + 0.03))) qs = B.q;
+  }
   const quad = (qs || intera).map(([x, y]) => [x / P.k, y / P.k]);           // pixel originali
   const L = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
   const largh = (L(quad[0], quad[1]) + L(quad[3], quad[2])) / 2, alt = (L(quad[0], quad[3]) + L(quad[1], quad[2])) / 2;
@@ -549,9 +572,11 @@ export function analizzaPorta(img, tipo = 'fp') {
     out.lato = gola.lato;
     out.messaggio = { alto: 'Porta e gola riconosciute (gola in alto).', basso: 'Porta e gola riconosciute (gola in basso).', lato: 'Porta e gola riconosciute (gola di lato).' }[gola.lato];
   } else {
-    const c = colPorta.map((v) => v * 0.7);
-    out.coloreGola = (Math.round(c[0]) << 16) | (Math.round(c[1]) << 8) | Math.round(c[2]);
-    out.messaggio = 'Porta riconosciuta; non vedo una gola di colore diverso (uso un tono più scuro della porta).';
+    // gola dello STESSO colore della porta: la gola è di legno, uguale alla
+    // porta (striscia presa dalla porta stessa, venatura compresa)
+    out.coloreGola = (Math.round(colPorta[0]) << 16) | (Math.round(colPorta[1]) << 8) | Math.round(colPorta[2]);
+    out.gola = zona(x0 + pw * m, y0 + ph * m, x1 - pw * m, y0 + ph * 0.12);
+    out.messaggio = 'Porta riconosciuta; la gola è dello stesso colore della porta (uso il materiale della porta).';
   }
   return out;
 }

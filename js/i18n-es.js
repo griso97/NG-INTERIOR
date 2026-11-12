@@ -991,5 +991,12 @@ window.NG_I18N_ES = {
  "zoccolo": "zócalo",
  "Zoccolo": "Zócalo",
  "Zoccolo (frontale)": "Zócalo (frontal)",
- "α = {0} (scala)": "α = {0} (escalera)"
+ "α = {0} (scala)": "α = {0} (escalera)",
+ "Nero": "Negro",
+ "Rubinetto": "Grifo",
+ "Lavello e rubinetto": "Fregadero y grifo",
+ "Sgabelli e arredo": "Taburetes y decoración",
+ ": trascinali per metterli dove vuoi (i moduli restano fissi).": ": arrástralos para colocarlos donde quieras (los módulos quedan fijos).",
+ "Dal finger-pull (senza gola)": "Del finger-pull (sin gola)",
+ "Porta riconosciuta; la gola è dello stesso colore della porta (uso il materiale della porta).": "Puerta reconocida; la gola es del mismo color que la puerta (uso el material de la puerta)."
 };

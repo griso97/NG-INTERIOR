@@ -25,8 +25,8 @@ import {
 import { renderPianta } from './pianta.js?v=20261111x';
 import { calcolaDistintaCucina } from './distinta.js?v=20261111x';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261113b';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113b';
+import { agganciaTema } from '../tema.js?v=20261113c';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113c';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -809,6 +809,7 @@ let scena3dMontata = false;
 
 // Click nel 3D: seleziona il mobile toccato (per vederlo/modificarlo)
 canvas3d.addEventListener('click', (e) => {
+  if (ignoraClick) return;
   if (progetto.stepCorrente !== 4 || !scena3dMod || !scena3dMod.pickMobile) return;
   const id = scena3dMod.pickMobile(e.clientX, e.clientY);
   if (id === step2.mobSelId) return;
@@ -817,6 +818,67 @@ canvas3d.addEventListener('click', (e) => {
   renderRiepilogo();
   scena3dMod.aggiornaScena3d(progetto, false, id); // evidenzia il modulo toccato
 });
+
+// Spostare gli OGGETTI (sgabelli, arredo) trascinandoli nel rendering.
+// I moduli restano fissi.
+let spostamentoAttivo = false, ignoraClick = false;
+canvas3d.addEventListener('pointerdown', (e) => {
+  if (progetto.stepCorrente !== 4 || !scena3dMod || !scena3dMod.iniziaSpostamento || e.button > 0) return;
+  const ok = scena3dMod.iniziaSpostamento(e.clientX, e.clientY, (id) => {
+    const m = trovaMobileLibero(progetto, id);
+    return !!m && categoriaTipo(m.tipo) === 'oggetto';
+  });
+  if (!ok) return;
+  spostamentoAttivo = true;
+  e.stopImmediatePropagation(); e.preventDefault();
+  try { canvas3d.setPointerCapture(e.pointerId); } catch { /* niente */ }
+}, true);
+canvas3d.addEventListener('pointermove', (e) => {
+  if (!spostamentoAttivo) return;
+  e.stopImmediatePropagation();
+  scena3dMod.muoviSpostamento(e.clientX, e.clientY);
+}, true);
+const fineSpost = (e) => {
+  if (!spostamentoAttivo) return;
+  spostamentoAttivo = false;
+  if (e) e.stopImmediatePropagation();
+  const r = scena3dMod.fineSpostamento();
+  const m = r && trovaMobileLibero(progetto, r.id);
+  if (!m || !r.mosso) return;
+  ignoraClick = true; setTimeout(() => { ignoraClick = false; }, 300);
+  registraStoria();
+  m.x = r.x; m.y = r.y; m.posManuale = true;
+  step2.mobSelId = m.id;
+  aggiorna();
+};
+canvas3d.addEventListener('pointerup', fineSpost, true);
+canvas3d.addEventListener('pointercancel', fineSpost, true);
+
+// Lavello e rubinetto: acciaio o nero
+function htmlFiniture() {
+  const f = progetto.finiture || {};
+  const riga = (chiave, titolo) => `
+      <div class="riga-3d" style="margin:8px 0 6px">${titolo}</div>
+      <div style="display:flex;gap:8px">
+        ${[['acciaio', 'Acciaio'], ['nero', 'Nero']].map(([v, et]) => {
+          const on = (f[chiave] || 'acciaio') === v;
+          return `<button type="button" class="btn-ghost opt-fin ${on ? 'attivo' : ''}" data-fin="${chiave}" data-val="${v}" style="flex:1">${on ? '✓ ' : ''}${et}</button>`;
+        }).join('')}
+      </div>`;
+  return `
+    <section class="step3-pannello">
+      <h3>Lavello e rubinetto</h3>
+      ${riga('lavello', 'Lavello')}
+      ${riga('rubinetto', 'Rubinetto')}
+    </section>`;
+}
+function agganciaFiniture(root) {
+  root.querySelectorAll('.opt-fin').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    progetto.finiture = { ...(progetto.finiture || {}), [b.dataset.fin]: b.dataset.val };
+    aggiorna();
+  }));
+}
 
 function renderPannelloStep3d() {
   const sel = trovaMobileLibero(progetto, step2.mobSelId);
@@ -838,7 +900,9 @@ function renderPannelloStep3d() {
         <strong>Tocca un mobile</strong> per vedere cos'è e modificarlo
         (aggiungere lavello o piano cottura).<br><br>
         Trascina per <strong>ruotare</strong>, due dita o rotella per lo
-        <strong>zoom</strong>, due dita/tasto destro per <strong>spostare</strong>.
+        <strong>zoom</strong>, due dita/tasto destro per <strong>spostare</strong>.<br><br>
+        <strong>Sgabelli e arredo</strong>: trascinali per metterli dove vuoi
+        (i moduli restano fissi).
       </div>
     </section>
     ${materialiEnc.length ? `
@@ -852,6 +916,7 @@ function renderPannelloStep3d() {
       </div>
     </section>` : ''}
     ${htmlSchienale()}
+    ${htmlFiniture()}
     <section class="step3-pannello">
       <h3>Colore zoccolo</h3>
       <div class="palette-zoccolo">
@@ -910,6 +975,7 @@ function renderPannelloStep3d() {
     aggiorna();
   }));
   agganciaSchienale(pannello);
+  agganciaFiniture(pannello);
   pannello.querySelectorAll('.opt-led').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     const v = b.dataset.led;
@@ -1273,7 +1339,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261113b');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261113c');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste

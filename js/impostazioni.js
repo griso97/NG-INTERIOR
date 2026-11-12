@@ -8,10 +8,10 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, eliminaFoto, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261113b';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio } from './analisi-foto.js?v=20261113b';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261113b';
-import { agganciaTema } from './tema.js?v=20261113b';
+} from './catalogo.js?v=20261113c';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio } from './analisi-foto.js?v=20261113c';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261113c';
+import { agganciaTema } from './tema.js?v=20261113c';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -76,14 +76,14 @@ function render() {
         <div class="imp-card ${vis ? '' : 'spento'}" data-id="${esc(m.id)}">
           <div class="imp-foto" style="background:${sfondoSwatch(m)}"></div>
           <div class="imp-info">
-            <span class="imp-badge ${m.proprio ? 'tuo' : ''}">${m.proprio ? 'Aggiunto da te' : 'Predefinito'}</span>
+            <span class="imp-badge ${m.proprio ? 'tuo' : ''}">${m.derivato ? 'Dal finger-pull (senza gola)' : m.proprio ? 'Aggiunto da te' : 'Predefinito'}</span>
             <span class="imp-nome">${esc(m.nome)}</span>
             <span class="imp-dett">${dettagli(m)}</span>
             <label class="imp-vis"><input type="checkbox" data-vis="${esc(m.id)}" ${vis ? 'checked' : ''}> Visibile in questa sezione</label>
           </div>
           <div class="imp-azioni">
             <button type="button" class="btn-ghost btn-mini" data-mod="${esc(m.id)}">Modifica</button>
-            ${m.proprio ? `<button type="button" class="btn-ghost btn-mini" data-del="${esc(m.id)}">Elimina</button>` : ''}
+            ${m.proprio && !m.derivato ? `<button type="button" class="btn-ghost btn-mini" data-del="${esc(m.id)}">Elimina</button>` : ''}
           </div>
         </div>`;
       }).join('')}
@@ -95,7 +95,11 @@ function render() {
     const n = lista.filter((m) => !nascosto(stato, sezione, m.id)).length;
     el.querySelector('.imp-conta').textContent = tr(`${n} di ${lista.length} visibili`);
   }));
-  el.querySelectorAll('[data-mod]').forEach((b) => b.addEventListener('click', () => apriScheda(lista.find((m) => m.id === b.dataset.mod))));
+  // il legno "senza gola" si modifica dal suo finger-pull (stessa foto)
+  el.querySelectorAll('[data-mod]').forEach((b) => b.addEventListener('click', () => {
+    const m = lista.find((x) => x.id === b.dataset.mod);
+    apriScheda(m && m.derivato ? (materialiPer('fingerpull', { tutti: true }).find((x) => x.id === m.derivato) || m) : m);
+  }));
   el.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
     const m = lista.find((x) => x.id === b.dataset.del);
     if (!confirm(tr(`Eliminare "${m.nome}" dal catalogo? Sparisce da tutte le sezioni.`))) return;

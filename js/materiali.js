@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261113b';
+import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261113c';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -172,7 +172,19 @@ async function applicaCatalogo() {
       def.verticale = !!p.maniglia.verticale;
     }
     MATERIALI.push(def);
+    // Finger-pull → lo STESSO materiale (stessa foto, stessa misura) senza la
+    // gola compare da solo fra i legni: il produttore dà lo stesso colore per
+    // ante finger-pull e pannelli. Es. "Noce con maniglia nera" → "Noce".
+    if (p.sezione === 'fingerpull') {
+      const { gola: _g, ...base } = def;
+      MATERIALI.push({ ...base, id: `${p.id}~legno`, nome: nomeSenzaGola(def.nome), categoria: 'legno', sezione: 'legno', derivato: p.id });
+    }
   }
+}
+/** Nome del materiale senza la parte della maniglia/gola. */
+export function nomeSenzaGola(nome) {
+  const n = String(nome || '').replace(/[\s,·\-–+]*(\b(con|with|y|e|sin|senza)\b\s*)?(la\s+|el\s+)?\b(maniglia|gola|finger[\s-]?pull|fingerpull|tirador|u[ñn]ero|jaladera)\b.*$/i, '').trim();
+  return n || String(nome || '').trim();
 }
 try { await applicaCatalogo(); } catch (e) { console.warn('Catalogo non caricato', e); }
 if (typeof window !== 'undefined') { window.NG_MATERIALI = MATERIALI; installaSchedaProdotto(); }
