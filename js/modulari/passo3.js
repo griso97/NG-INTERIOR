@@ -2,9 +2,9 @@
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
 import { MATERIALI } from '../materiali.js?v=20261111b';
-import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261112l';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte } from './scena3d.js?v=20261112l';
-import { apriDistinta } from './passo2.js?v=20261112l';
+import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261112m';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte } from './scena3d.js?v=20261112m';
+import { apriDistinta } from './passo2.js?v=20261112m';
 
 const FINITURE = MATERIALI.filter((m) => m.categoria === 'legno' || m.categoria === 'tinta');
 export { MATERIALI_DEFAULT };

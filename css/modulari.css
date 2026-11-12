@@ -72,3 +72,6 @@
 .distinta-tab .pz-taglio { font-size: 12px; color: var(--testo-dim); min-width: 220px; }
 .distinta-tab .pz-incl td:first-child { color: var(--oro-chiaro); }
 .pz-piu { display: inline-block; font-size: 11px; padding: 0 5px; border-radius: 8px; background: rgba(224,164,58,.18); color: #e0a43a; white-space: nowrap; }
+.schema-tagli { margin: 0 0 16px; border: 1px solid var(--bordo); border-radius: 4px; overflow: hidden; background: #fff; }
+.schema-tagli img { display: block; width: 100%; height: auto; }
+.schema-tagli figcaption { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding: 8px 10px; background: var(--bg-3); font-size: 12px; color: var(--testo-dim); }

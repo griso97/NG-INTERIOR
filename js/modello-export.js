@@ -208,7 +208,11 @@ const xesc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&
 function colLettere(i) { let s = ''; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
 function nomeFoglio(n) { return (String(n || 'Distinta').replace(/[\[\]:*?/\\]/g, ' ').trim() || 'Distinta').slice(0, 31); }
 
-export function creaXLSX(righe, { foglio = 'Distinta', rigaGrassetto = -1 } = {}) {
+/**
+ * immagini (facoltative): [{ foglio, titolo, png: Uint8Array, larghezza, altezza }]
+ * → un foglio in più per ciascuna, con il titolo in A1 e l'immagine sotto.
+ */
+export function creaXLSX(righe, { foglio = 'Distinta', rigaGrassetto = -1, immagini = [] } = {}) {
   const ncol = Math.max(1, ...righe.map((r) => r.length));
   const larg = Array.from({ length: ncol }, (_, c) => Math.min(60, Math.max(8,
     ...righe.map((r) => String(r[c] ?? '').length + 2))));
@@ -227,18 +231,33 @@ export function creaXLSX(righe, { foglio = 'Distinta', rigaGrassetto = -1 } = {}
   const RNS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
   const PNS = 'http://schemas.openxmlformats.org/package/2006/relationships';
   const head = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  const XDR = 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing';
+  const ANS = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+  const imm = (immagini || []).filter((x) => x && x.png && x.png.length);
+  const nomi = [nomeFoglio(foglio)];
+  imm.forEach((x, i) => {
+    let n = nomeFoglio(x.foglio || `Schema ${i + 1}`), k = 2;
+    while (nomi.includes(n)) n = nomeFoglio(`${x.foglio || 'Schema'} ${k++}`);
+    nomi.push(n);
+  });
   const files = {
     '[Content_Types].xml': head + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
       + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
       + '<Default Extension="xml" ContentType="application/xml"/>'
+      + (imm.length ? '<Default Extension="png" ContentType="image/png"/>' : '')
       + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
       + '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+      + imm.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 2}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`
+        + `<Override PartName="/xl/drawings/drawing${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>`).join('')
       + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
       + '</Types>',
     '_rels/.rels': head + `<Relationships xmlns="${PNS}"><Relationship Id="rId1" Type="${RNS}/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
-    'xl/workbook.xml': head + `<workbook xmlns="${NS}" xmlns:r="${RNS}"><sheets><sheet name="${xesc(nomeFoglio(foglio))}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+    'xl/workbook.xml': head + `<workbook xmlns="${NS}" xmlns:r="${RNS}"><sheets><sheet name="${xesc(nomi[0])}" sheetId="1" r:id="rId1"/>`
+      + imm.map((_, i) => `<sheet name="${xesc(nomi[i + 1])}" sheetId="${i + 2}" r:id="rId${i + 10}"/>`).join('')
+      + '</sheets></workbook>',
     'xl/_rels/workbook.xml.rels': head + `<Relationships xmlns="${PNS}">`
       + `<Relationship Id="rId1" Type="${RNS}/worksheet" Target="worksheets/sheet1.xml"/>`
+      + imm.map((_, i) => `<Relationship Id="rId${i + 10}" Type="${RNS}/worksheet" Target="worksheets/sheet${i + 2}.xml"/>`).join('')
       + `<Relationship Id="rId2" Type="${RNS}/styles" Target="styles.xml"/></Relationships>`,
     'xl/styles.xml': head + `<styleSheet xmlns="${NS}">`
       + '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
@@ -250,8 +269,22 @@ export function creaXLSX(righe, { foglio = 'Distinta', rigaGrassetto = -1 } = {}
       + '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>',
     'xl/worksheets/sheet1.xml': head + `<worksheet xmlns="${NS}"><cols>${cols}</cols><sheetData>${data}</sheetData></worksheet>`,
   };
+  imm.forEach((x, i) => {
+    const n = i + 1, EMU = 9525;
+    const cx = Math.round((x.larghezza || 1000) * EMU), cy = Math.round((x.altezza || 750) * EMU);
+    const titolo = x.titolo ? `<row r="1"><c r="A1" s="1" t="inlineStr"><is><t xml:space="preserve">${xesc(x.titolo)}</t></is></c></row>` : '';
+    files[`xl/worksheets/sheet${n + 1}.xml`] = head + `<worksheet xmlns="${NS}" xmlns:r="${RNS}"><sheetData>${titolo}</sheetData><drawing r:id="rId1"/></worksheet>`;
+    files[`xl/worksheets/_rels/sheet${n + 1}.xml.rels`] = head + `<Relationships xmlns="${PNS}"><Relationship Id="rId1" Type="${RNS}/drawing" Target="../drawings/drawing${n}.xml"/></Relationships>`;
+    files[`xl/drawings/drawing${n}.xml`] = head + `<xdr:wsDr xmlns:xdr="${XDR}" xmlns:a="${ANS}" xmlns:r="${RNS}"><xdr:oneCellAnchor>`
+      + '<xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>1</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>'
+      + `<xdr:ext cx="${cx}" cy="${cy}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${n + 1}" name="Schema ${n}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>`
+      + '<xdr:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>'
+      + `<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>`;
+    files[`xl/drawings/_rels/drawing${n}.xml.rels`] = head + `<Relationships xmlns="${PNS}"><Relationship Id="rId1" Type="${RNS}/image" Target="../media/image${n}.png"/></Relationships>`;
+  });
   const zip = {};
   for (const [k, v] of Object.entries(files)) zip[k] = strToU8(v);
+  imm.forEach((x, i) => { zip[`xl/media/image${i + 1}.png`] = [x.png, { level: 0 }]; });
   return new Blob([zipSync(zip, { level: 6 })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 }
 
@@ -291,10 +324,10 @@ export function righeDaModello(mod, pezzi, progetto = '') {
 }
 
 /** Esporta i pezzi con il modello salvato (o con quello standard). */
-export function esportaExcel(pezzi, { nomeFile = 'distinta', progetto = '' } = {}) {
+export function esportaExcel(pezzi, { nomeFile = 'distinta', progetto = '', immagini = [] } = {}) {
   const mod = leggiModello() || modelloStandard(pezzi.some((p) => p.note));
   const righe = righeDaModello(mod, pezzi, progetto);
-  const blob = creaXLSX(righe, { foglio: mod.foglio, rigaGrassetto: (mod.preHeader || []).length });
+  const blob = creaXLSX(righe, { foglio: mod.foglio, rigaGrassetto: (mod.preHeader || []).length, immagini });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = `${String(nomeFile).replace(/[^\w\-]+/g, '_')}.xlsx`;
