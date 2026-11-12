@@ -8,9 +8,10 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, eliminaFoto, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261112u';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261112u';
-import { agganciaTema } from './tema.js?v=20261112u';
+} from './catalogo.js?v=20261112v';
+import { analizzaFoto, cmZona } from './analisi-foto.js?v=20261112v';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261112v';
+import { agganciaTema } from './tema.js?v=20261112v';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -127,9 +128,9 @@ function apriScheda(m) {
   document.getElementById('imp-modale-titolo').textContent = tr(nuovo ? 'Nuovo prodotto' : 'Modifica prodotto');
   const corpo = document.getElementById('imp-modale-corpo');
   const aiutoFoto = {
-    base: 'Foto dritta, con luce diffusa, senza flash e senza riflessi. Poi trascina il riquadro sulla parte da usare: quella parte diventa il materiale, con i suoi colori esatti.',
-    fp: 'Foto della porta finger-pull, dritta e con luce diffusa. Poi segna due riquadri: PORTA (la parte sotto) e GOLA (la maniglia finger-pull sopra). Il 3D usa proprio quei pezzi della foto, con gli stessi colori.',
-    man: 'Foto frontale della maniglia su sfondo uniforme (es. un foglio bianco). Trascina il riquadro attorno alla maniglia: lo sfondo viene tolto in automatico.',
+    base: 'Foto con luce diffusa, senza flash e senza riflessi. Il programma trova da solo il campione e usa solo la superficie pulita, senza bordi e senza sfondo.',
+    fp: 'Foto della porta finger-pull (anche di tre quarti). Il programma riconosce da solo la porta e la gola e ne prende i colori esatti.',
+    man: 'Foto frontale della maniglia su sfondo uniforme (es. un foglio bianco). Lo sfondo viene tolto in automatico.',
   }[tipo];
   corpo.innerHTML = `
     <div class="imp-form">
@@ -137,6 +138,12 @@ function apriScheda(m) {
       <label>${nuovo ? 'Foto <span class="imp-obbl">*</span>' : 'Foto (lascia vuoto per tenere quella attuale)'}
         <input type="file" accept="image/*" id="f-foto"></label>
       <div class="imp-aiuto">${aiutoFoto}</div>
+      <div id="f-auto" class="imp-auto" hidden>
+        <canvas id="f-vista" class="imp-vista"></canvas>
+        <div class="imp-auto-tiles" id="f-tiles"></div>
+        <div class="imp-auto-msg" id="f-msg"></div>
+        <button type="button" class="btn-ghost btn-mini" id="f-mano">Correggi a mano</button>
+      </div>
       <div id="f-ritaglio-box" hidden>
         <div class="imp-zone" id="f-zone"></div>
         <div class="imp-ritaglio" id="f-ritaglio"><canvas id="f-canvas"></canvas></div>
@@ -148,10 +155,10 @@ function apriScheda(m) {
       </div>` : ''}
       ${proprio && tipo !== 'man' ? `
       <div class="grid-2">
-        <label>${tipo === 'fp' ? 'Larghezza della zona porta (cm)' : 'Larghezza del campione (cm)'} <span class="imp-obbl">*</span><input type="number" min="1" step="0.1" id="f-w" value="${esc(camp.w)}"></label>
-        <label>${tipo === 'fp' ? 'Altezza della zona porta (cm)' : 'Altezza del campione (cm)'} <span class="imp-obbl">*</span><input type="number" min="1" step="0.1" id="f-h" value="${esc(camp.h)}"></label>
+        <label>${tipo === 'fp' ? 'Larghezza della porta (cm)' : 'Larghezza del campione (cm)'} <span class="imp-obbl">*</span><input type="number" min="1" step="0.1" id="f-w" value="${esc(p && p.oggettoCm ? p.oggettoCm.w : camp.w)}"></label>
+        <label>${tipo === 'fp' ? 'Altezza della porta (cm)' : 'Altezza del campione (cm)'} <span class="imp-obbl">*</span><input type="number" min="1" step="0.1" id="f-h" value="${esc(p && p.oggettoCm ? p.oggettoCm.h : camp.h)}"></label>
       </div>
-      <div class="imp-aiuto">Misura reale della parte nel riquadro: serve per avere la venatura in scala vera sui mobili, non stirata.</div>` : ''}
+      <div class="imp-aiuto">${tipo === 'fp' ? 'Misura reale di tutta la porta della foto' : 'Misura reale di tutto il campione della foto'}: serve per avere la venatura in scala vera sui mobili, non stirata.</div>` : ''}
       ${tipo === 'man' ? `
       <fieldset class="imp-misura">
         <legend>Misura della maniglia</legend>
@@ -185,11 +192,7 @@ function apriScheda(m) {
       if (!file) return;
       img = await caricaImmagine(file).catch(() => null);
       if (!img) { errore(tr('Non riesco ad aprire questa foto. Prova con un JPG o PNG.')); return; }
-      const zone = tipo === 'fp'
-        ? [{ id: 'porta', nome: 'Porta (sotto)', colore: '#c9a94a', r: { x: 0.05, y: 0.3, w: 0.9, h: 0.65 } },
-           { id: 'gola', nome: 'Gola (sopra)', colore: '#4aa3df', r: { x: 0.05, y: 0.04, w: 0.9, h: 0.16 } }]
-        : [{ id: 'main', nome: '', colore: '#c9a94a', r: { x: 0, y: 0, w: 1, h: 1 } }];
-      rit = ritaglio(img, corpo, zone, tipo === 'man');
+      rit = await analisiAutomatica(img, corpo, tipo);
     });
   }
   corpo.querySelector('#f-salva').addEventListener('click', async () => {
@@ -216,15 +219,21 @@ function apriScheda(m) {
     try {
       const id = nuovo ? nuovoId() : m.id;
       let colore = p ? p.colore : undefined, coloreGola = p ? p.coloreGola : undefined;
+      // misura reale del pezzo di foto usato (dal campione/porta intero)
+      let campioneZona = p && p.campioneCm && p.oggettoCm
+        ? { w: p.campioneCm.w * (w / p.oggettoCm.w), h: p.campioneCm.h * (h / p.oggettoCm.h) } : { w, h };
       if (img) {
         const z = rit();
         if (tipo === 'fp') {
           const porta = await ritaglioBlob(img, z.porta);
-          const gola = await ritaglioBlob(img, z.gola, { max: 1024 });
+          // gola: il pezzo di foto; se troppo piccolo, il suo colore esatto
+          const gola = z.gola && z.gola.w >= 4 && z.gola.h >= 4 ? await ritaglioBlob(img, z.gola, { max: 1024 }) : null;
+          const golaBlob = gola ? gola.blob : await bloccoColore(z.coloreGola ?? 0x1a1a1a);
           await salvaFoto(id, porta.blob, 'foto');
-          await salvaFoto(id, gola.blob, 'gola');
-          await salvaFoto(id, await thumbFingerPull(img, z.porta, z.gola), 'thumb');
-          colore = porta.colore; coloreGola = gola.colore;
+          await salvaFoto(id, golaBlob, 'gola');
+          await salvaFoto(id, await thumbFingerPull(img, z.porta, z.gola, z.coloreGola), 'thumb');
+          colore = porta.colore; coloreGola = gola ? gola.colore : (z.coloreGola ?? 0x1a1a1a);
+          campioneZona = cmZona(z.porta, z.oggetto, w, h);
         } else if (tipo === 'man') {
           const scont = corpo.querySelector('#f-scont').checked ? Number(corpo.querySelector('#f-tol').value) : 0;
           const r = await ritaglioBlob(img, z.main, { png: true, scontorna: scont, thumbIntera: true, max: 1024 });
@@ -238,10 +247,11 @@ function apriScheda(m) {
           await salvaFoto(id, f.foto, 'foto');
           await salvaFoto(id, f.thumb, 'thumb');
           colore = f.colore;
+          campioneZona = cmZona(z.main, z.oggetto, w, h);
         }
       }
       const dati = { id, sezione: sez, nome, info: infoN, colore, aggiornato: Date.now(),
-        ...(tipo === 'man' ? { maniglia: manN } : { campioneCm: { w, h } }),
+        ...(tipo === 'man' ? { maniglia: manN } : { campioneCm: campioneZona, oggettoCm: { w, h } }),
         ...(tipo === 'fp' ? { coloreGola } : {}) };
       if (nuovo) stato.prodotti.push({ ...dati, creato: Date.now() });
       else stato.prodotti = stato.prodotti.map((x) => (x.id === id ? { ...x, ...dati } : x));
@@ -256,12 +266,84 @@ function apriScheda(m) {
 }
 
 /** Miniatura del finger-pull: in alto la gola, sotto la porta (come è fatta). */
-async function thumbFingerPull(img, porta, gola) {
+async function thumbFingerPull(img, porta, gola, coloreGola) {
   const c = document.createElement('canvas'); c.width = c.height = 192;
   const g = c.getContext('2d');
   g.drawImage(img, porta.x, porta.y, porta.w, porta.h, 0, 0, 192, 192);
-  g.drawImage(img, gola.x, gola.y, gola.w, gola.h, 0, 0, 192, 34);
+  if (gola && gola.w >= 4 && gola.h >= 4) g.drawImage(img, gola.x, gola.y, gola.w, gola.h, 0, 0, 192, 34);
+  else { g.fillStyle = `#${(coloreGola ?? 0x1a1a1a).toString(16).padStart(6, '0')}`; g.fillRect(0, 0, 192, 34); }
   return new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.9));
+}
+
+/** Un quadratino di colore pieno (gola troppo sottile in foto). */
+function bloccoColore(col) {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'); g.fillStyle = `#${col.toString(16).padStart(6, '0')}`; g.fillRect(0, 0, 64, 64);
+  return new Promise((ok) => c.toBlob(ok, 'image/png'));
+}
+
+/**
+ * ANALISI AUTOMATICA: trova campione / porta + gola / maniglia e mostra cosa
+ * ha riconosciuto. "Correggi a mano" apre i riquadri già posizionati.
+ * Ritorna una funzione che dà le zone (in pixel) da usare al salvataggio.
+ */
+async function analisiAutomatica(img, corpo, tipo) {
+  const a = analizzaFoto(img, tipo);
+  let manuale = null;
+  const box = corpo.querySelector('#f-auto');
+  box.hidden = false;
+  corpo.querySelector('#f-ritaglio-box').hidden = true;
+  // la foto con i riquadri trovati
+  const W = img.naturalWidth, H = img.naturalHeight, k = Math.min(1, 900 / Math.max(W, H));
+  const v = corpo.querySelector('#f-vista'); v.width = Math.round(W * k); v.height = Math.round(H * k);
+  const g = v.getContext('2d'); g.drawImage(img, 0, 0, v.width, v.height);
+  const rett = (q, col, tratt) => {
+    if (!q) return;
+    g.save(); g.strokeStyle = col; g.lineWidth = Math.max(2, v.width / 220); if (tratt) g.setLineDash([8, 6]);
+    g.strokeRect(q.x * k, q.y * k, q.w * k, q.h * k); g.restore();
+  };
+  rett(a.oggetto, '#9aa0a6', true);
+  rett(a.porta || a.main, '#e0a000'); rett(a.gola, '#1e90ff');
+  // anteprime dei pezzi usati
+  const tiles = corpo.querySelector('#f-tiles');
+  const tile = async (titolo, q, opz = {}) => {
+    const f = document.createElement('figure'); f.className = 'imp-tilebox';
+    const c = document.createElement('canvas'); c.width = c.height = 140; c.className = 'imp-tile';
+    const cg = c.getContext('2d');
+    if (opz.colore != null && (!q || q.w < 4 || q.h < 4)) { cg.fillStyle = `#${opz.colore.toString(16).padStart(6, '0')}`; cg.fillRect(0, 0, 140, 140); }
+    else if (opz.png) {
+      const r = await ritaglioBlob(img, q, { png: true, scontorna: 45, max: 600 });
+      const im = await createImageBitmap(r.blob);
+      cg.fillStyle = '#e9e6df'; cg.fillRect(0, 0, 140, 140);
+      const s = Math.min(130 / im.width, 130 / im.height);
+      cg.drawImage(im, (140 - im.width * s) / 2, (140 - im.height * s) / 2, im.width * s, im.height * s);
+    } else {
+      const s = Math.max(140 / q.w, 140 / q.h);
+      cg.drawImage(img, q.x, q.y, q.w, q.h, (140 - q.w * s) / 2, (140 - q.h * s) / 2, q.w * s, q.h * s);
+    }
+    f.appendChild(c);
+    const fc = document.createElement('figcaption'); fc.textContent = tr(titolo); f.appendChild(fc);
+    tiles.appendChild(f);
+  };
+  tiles.innerHTML = '';
+  if (tipo === 'fp') { await tile('Porta', a.porta); await tile('Gola', a.gola, { colore: a.coloreGola }); }
+  else if (tipo === 'man') await tile('Maniglia (sfondo tolto)', a.main, { png: true });
+  else await tile('Campione', a.main);
+  corpo.querySelector('#f-msg').textContent = tr(a.messaggio || (tipo === 'man' ? 'Maniglia trovata.' : 'Campione trovato.'));
+  corpo.querySelector('#f-mano').onclick = () => {
+    const fr = (q) => ({ x: q.x / W, y: q.y / H, w: q.w / W, h: q.h / H });
+    const zone = tipo === 'fp'
+      ? [{ id: 'oggetto', nome: 'Porta intera', colore: '#9aa0a6', r: fr(a.oggetto) },
+         { id: 'porta', nome: 'Porta', colore: '#c9a94a', r: fr(a.porta) },
+         { id: 'gola', nome: 'Gola', colore: '#4aa3df', r: fr(a.gola || { x: a.oggetto.x, y: a.oggetto.y, w: a.oggetto.w, h: a.oggetto.h * 0.08 }) }]
+      : tipo === 'man' ? [{ id: 'main', nome: '', colore: '#c9a94a', r: fr(a.main) }]
+      : [{ id: 'oggetto', nome: 'Campione intero', colore: '#9aa0a6', r: fr(a.oggetto) },
+         { id: 'main', nome: 'Parte usata', colore: '#c9a94a', r: fr(a.main) }];
+    box.hidden = true;
+    const f = ritaglio(img, corpo, zone, tipo === 'man');
+    manuale = () => ({ oggetto: a.oggetto, coloreGola: a.coloreGola, ...f() });
+  };
+  return () => (manuale ? manuale() : { oggetto: a.oggetto, main: a.main, porta: a.porta, gola: a.gola, coloreGola: a.coloreGola });
 }
 
 function caricaImmagine(file) {
