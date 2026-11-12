@@ -1,9 +1,9 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 1 (forma del vano) + navigazione tra i passi
 // =============================================================================
-import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261112i';
-import { renderPasso2, apriDistinta, stiliTema, tastoCubi } from './passo2.js?v=20261112i';
-import { agganciaTema } from '../tema.js?v=20261112i';
+import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261112j';
+import { renderPasso2, apriDistinta, stiliTema, tastoCubi } from './passo2.js?v=20261112j';
+import { agganciaTema } from '../tema.js?v=20261112j';
 
 const KEY = 'ng-modulari-v1';
 const pannello = document.getElementById('mod-pannello');
@@ -21,7 +21,7 @@ function statoIniziale() {
     spessori: { carcassa: 18, schiena: 10, ante: 18 },
     moduli: { uguali: true, numero: 3, larghezzaUsata: null, comune: { ante: 1, lato: 'dx', ripiani: 1 }, lista: [], chiusura: 'fisso', chiusuraV: 2 },
     cubi: [], cuboSel: null,
-    nuovoCubo: { w: 400, h: 400, fronte: 'aperto', ripiani: 0 },
+    nuovoCubo: { w: 400, h: 400, fronte: 'anta', ripiani: 0 },
   };
 }
 function carica() {
@@ -396,7 +396,7 @@ function aggiorna() {
   const c = { stato, salva, aggiorna, forma: r, svg, pannello, riepilogo, esc, fmt, canvas: canvas3d };
   if (stato.step === 3) {
     mostra3d(true);
-    import('./passo3.js?v=20261112i').then((m) => { passo3 = m; if (stato.step === 3) m.renderPasso3(c); })
+    import('./passo3.js?v=20261112j').then((m) => { passo3 = m; if (stato.step === 3) m.renderPasso3(c); })
       .catch(() => { riepilogo.innerHTML = '<div class="mod-msg err">Non riesco a caricare il 3D. Ricarica la pagina.</div>'; });
     return;
   }

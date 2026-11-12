@@ -4,8 +4,8 @@
 import {
   layoutModuli, layoutCubi, larghezzaUtileAuto, distintaModulari, posizioneValida,
   primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT,
-} from './calcoli.js?v=20261112i';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112i';
+} from './calcoli.js?v=20261112j';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112j';
 
 const FRONTI = [
   { v: 0, l: 'Aperto (a giorno)' },
@@ -132,6 +132,14 @@ function renderPannello() {
             <option value="no" ${stato.cubiChiusura === 'no' ? 'selected' : ''}>Lascia vuoto</option>
           </select></label>` : ''}
       </section>` : ''}
+      ${stato.cubi.length ? `
+      <section>
+        <h3>Ante di tutti i cubi</h3>
+        <div class="mod-azioni">
+          <button type="button" class="btn-ghost" data-tutti-fronte="anta">🚪 Tutti con anta</button>
+          <button type="button" class="btn-ghost" data-tutti-fronte="aperto">Tutti aperti</button>
+        </div>
+      </section>` : ''}
       ${sel ? `
       <section>
         <h3>Cubo selezionato</h3>
@@ -239,6 +247,11 @@ function agganciaPannello() {
   P.querySelectorAll('select[data-n]').forEach((s) => s.addEventListener('change', () => { n[s.dataset.n] = s.value; ctx.salva(); }));
   P.querySelectorAll('.chip-q').forEach((b) => b.addEventListener('click', () => {
     n.w = n.h = Number(b.dataset.q); tutto();
+  }));
+  P.querySelectorAll('[data-tutti-fronte]').forEach((b) => b.addEventListener('click', () => {
+    stato.cubi.forEach((c) => { c.fronte = b.dataset.tuttiFronte; });
+    n.fronte = b.dataset.tuttiFronte;            // anche i prossimi cubi
+    tutto();
   }));
   const ad = P.querySelector('#cubi-adatta');
   if (ad) ad.addEventListener('change', () => { stato.cubiAdatta = ad.checked; tutto(); });

@@ -2,9 +2,9 @@
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
 import { MATERIALI } from '../materiali.js?v=20261111b';
-import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261112i';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte } from './scena3d.js?v=20261112i';
-import { apriDistinta } from './passo2.js?v=20261112i';
+import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261112j';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte } from './scena3d.js?v=20261112j';
+import { apriDistinta } from './passo2.js?v=20261112j';
 
 const FINITURE = MATERIALI.filter((m) => m.categoria === 'legno' || m.categoria === 'tinta');
 export { MATERIALI_DEFAULT };
@@ -124,6 +124,10 @@ function renderPannello() {
     </section>
     <section>
       <h3>Ante${dove} · ${nome(cur.ante)}</h3>
+      ${stato.modalita === 'cubi' && (stato.cubi || []).length ? `<div class="mod-azioni" style="margin:0 0 10px">
+        <button type="button" class="btn-ghost ${stato.cubi.every((c) => c.fronte === 'anta') ? 'attivo' : ''}" data-tutti-fronte="anta">🚪 Tutti con anta</button>
+        <button type="button" class="btn-ghost ${stato.cubi.every((c) => c.fronte !== 'anta') ? 'attivo' : ''}" data-tutti-fronte="aperto">Tutti aperti</button>
+      </div>` : ''}
       ${palette('ante', cur.ante)}
     </section>`;
   const P = ctx.pannello;
@@ -142,6 +146,11 @@ function renderPannello() {
   });
   P.querySelectorAll('[data-colori]').forEach((b) => b.addEventListener('click', () => {
     M.diversi = b.dataset.colori === 'diversi'; M.per ||= {};
+    ctx.salva(); disegna(false); renderPannello();
+  }));
+  P.querySelectorAll('[data-tutti-fronte]').forEach((b) => b.addEventListener('click', () => {
+    stato.cubi.forEach((c) => { c.fronte = b.dataset.tuttiFronte; });
+    stato.nuovoCubo = { ...(stato.nuovoCubo || {}), fronte: b.dataset.tuttiFronte };
     ctx.salva(); disegna(false); renderPannello();
   }));
   P.querySelectorAll('.mod-chip').forEach((b) => b.addEventListener('click', () => { selMod = b.dataset.mod; renderPannello(); }));
