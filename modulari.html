@@ -9,9 +9,18 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
   <!-- Tema chiaro/scuro: applicato subito per evitare lo "sfarfallio" -->
   <script>(function(){try{var t=localStorage.getItem('ng-tema')||'scuro';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
-  <link rel="stylesheet" href="css/style.css?v=20261112d" />
-  <link rel="stylesheet" href="css/cucina.css?v=20261112d" />
-  <link rel="stylesheet" href="css/modulari.css?v=20261112d" />
+  <link rel="stylesheet" href="css/style.css?v=20261112e" />
+  <link rel="stylesheet" href="css/cucina.css?v=20261112e" />
+  <link rel="stylesheet" href="css/modulari.css?v=20261112e" />
+  <!-- Three.js ES modules via importmap (file locali in vendor/) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three/three.module.js",
+      "three/addons/": "./vendor/three/addons/"
+    }
+  }
+  </script>
 </head>
 <body class="cucina-body">
   <header class="app-header">
@@ -35,7 +44,7 @@
     <button class="step" data-step="2" type="button">
       <span class="step-n">2</span><span class="step-nome">Moduli</span>
     </button>
-    <button class="step disabilitato" data-step="3" type="button" disabled title="In arrivo">
+    <button class="step" data-step="3" type="button">
       <span class="step-n">3</span><span class="step-nome">Rendering 3D</span>
     </button>
     <button class="step" data-step="4" type="button">
@@ -50,6 +59,7 @@
         <span class="legenda">Vista frontale · griglia 100 mm · misure in mm</span>
       </div>
       <svg id="mod-svg" class="mod-svg" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"></svg>
+      <canvas id="mod-3d" class="mod-3d" hidden></canvas>
     </section>
     <aside id="mod-riepilogo" class="riepilogo-panel"></aside>
   </main>
@@ -69,6 +79,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/modulari/main.js?v=20261112d"></script>
+  <script type="module" src="js/modulari/main.js?v=20261112e"></script>
 </body>
 </html>

@@ -4,8 +4,8 @@
 import {
   layoutModuli, larghezzaUtileAuto, distintaModulari, posizioneValida,
   primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT,
-} from './calcoli.js?v=20261112d';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112d';
+} from './calcoli.js?v=20261112e';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112e';
 
 const FRONTI = [
   { v: 0, l: 'Aperto (a giorno)' },
@@ -426,9 +426,11 @@ function renderRiepilogo() {
     <div class="riep-riga"><span>m² carcassa</span><strong>${fmt(Math.round(dist.mq.carcassa * 100) / 100)}</strong></div>
     <div class="riep-riga"><span>m² schiena</span><strong>${fmt(Math.round(dist.mq.schiena * 100) / 100)}</strong></div>
     <div class="riep-riga"><span>m² ante</span><strong>${fmt(Math.round(dist.mq.ante * 100) / 100)}</strong></div>
-    <button type="button" class="btn-oro" id="p2-distinta" style="width:100%;margin-top:14px">📋 Distinta di taglio</button>
+    <button type="button" class="btn-oro" id="p2-3d" style="width:100%;margin-top:14px">Avanti: rendering 3D →</button>
+    <button type="button" class="btn-ghost" id="p2-distinta" style="width:100%;margin-top:8px">📋 Distinta di taglio</button>
     <button type="button" class="btn-ghost" id="p2-indietro" style="width:100%;margin-top:8px">← Forma del vano</button>`;
-  ctx.riepilogo.querySelector('#p2-distinta').addEventListener('click', apriDistinta);
+  ctx.riepilogo.querySelector('#p2-distinta').addEventListener('click', () => apriDistinta());
+  ctx.riepilogo.querySelector('#p2-3d').addEventListener('click', () => { stato.step = 3; ctx.salva(); ctx.aggiorna(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
   ctx.riepilogo.querySelector('#p2-indietro').addEventListener('click', () => { stato.step = 1; ctx.salva(); ctx.aggiorna(); });
 }
 
@@ -436,7 +438,8 @@ function pezziPerExcel(dist) {
   return dist.pezzi.map((p) => ({ nome: p.nome, larghezza: p.larghezza, altezza: p.altezza, spessore: p.spessore,
     quantita: p.quantita, materiale: NOMI_MAT[p.materiale] || p.materiale, modulo: p.modulo, gruppo: '' }));
 }
-export function apriDistinta() {
+export function apriDistinta(c) {
+  if (c) ctx = c;
   if (!ctx) return;
   const { stato, esc, fmt } = ctx;
   const dist = distintaModulari(ctx.forma, stato);

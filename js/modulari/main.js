@@ -1,9 +1,9 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 1 (forma del vano) + navigazione tra i passi
 // =============================================================================
-import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261112d';
-import { renderPasso2, apriDistinta, stiliTema } from './passo2.js?v=20261112d';
-import { agganciaTema } from '../tema.js?v=20261112d';
+import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261112e';
+import { renderPasso2, apriDistinta, stiliTema } from './passo2.js?v=20261112e';
+import { agganciaTema } from '../tema.js?v=20261112e';
 
 const KEY = 'ng-modulari-v1';
 const pannello = document.getElementById('mod-pannello');
@@ -304,7 +304,7 @@ function renderRiepilogo(r) {
 // ---------------------------------------------------------------------------
 // Navigazione tra i passi
 // ---------------------------------------------------------------------------
-const NOMI_PASSI = { 1: 'Passo 1 — Forma del vano (vista frontale)', 2: 'Passo 2 — Moduli dentro il vano' };
+const NOMI_PASSI = { 1: 'Passo 1 — Forma del vano (vista frontale)', 2: 'Passo 2 — Moduli dentro il vano', 3: 'Passo 3 — Rendering 3D' };
 function vaiA(n) {
   const r = risultato();
   if (n >= 2 && !r.ok) { stato.step = 1; salva(); aggiorna(); return; }
@@ -316,24 +316,40 @@ function aggiornaStepper(r) {
     const n = Number(b.dataset.step);
     b.classList.toggle('attivo', n === stato.step);
     if (n === stato.step) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
-    if (n === 2 || n === 4) { b.disabled = !r.ok; b.classList.toggle('disabilitato', !r.ok); }
+    if (n >= 2) { b.disabled = !r.ok; b.classList.toggle('disabilitato', !r.ok); }
   });
   const info = document.getElementById('step-info');
   if (info) info.textContent = NOMI_PASSI[stato.step] || '';
 }
 document.querySelectorAll('#stepper .step').forEach((b) => b.addEventListener('click', () => {
   const n = Number(b.dataset.step);
-  if (n === 1 || n === 2 || n === 4) vaiA(n);
+  vaiA(n);
 }));
+
+// Il 3D (three.js) si carica solo quando si apre il passo 3.
+const canvas3d = document.getElementById('mod-3d');
+let passo3 = null;
+const legenda = document.querySelector('.vista-strumenti .legenda');
+function mostra3d(si) {
+  canvas3d.hidden = !si;
+  svg.style.display = si ? 'none' : '';
+  if (legenda) legenda.textContent = si ? 'Vista 3D · trascina per girare' : 'Vista frontale · griglia 100 mm · misure in mm';
+  if (!si && passo3) passo3.esci3d();
+}
 
 function aggiorna() {
   const r = risultato();
-  if (stato.step === 2 && !r.ok) stato.step = 1;
+  if (stato.step >= 2 && !r.ok) stato.step = 1;
   aggiornaStepper(r);
-  if (stato.step === 2) {
-    renderPasso2({ stato, salva, aggiorna, forma: r, svg, pannello, riepilogo, esc, fmt });
+  const c = { stato, salva, aggiorna, forma: r, svg, pannello, riepilogo, esc, fmt, canvas: canvas3d };
+  if (stato.step === 3) {
+    mostra3d(true);
+    import('./passo3.js?v=20261112e').then((m) => { passo3 = m; if (stato.step === 3) m.renderPasso3(c); })
+      .catch(() => { riepilogo.innerHTML = '<div class="mod-msg err">Non riesco a caricare il 3D. Ricarica la pagina.</div>'; });
     return;
   }
+  mostra3d(false);
+  if (stato.step === 2) { renderPasso2(c); return; }
   renderPannello(r); renderDisegno(r); renderRiepilogo(r);
 }
 
