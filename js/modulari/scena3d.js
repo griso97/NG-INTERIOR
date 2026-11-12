@@ -9,7 +9,7 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV } from '../materiali.js?v=20261112z';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261113a';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111b';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
@@ -75,6 +75,7 @@ export function monta(canvas) {
   const fill = new THREE.DirectionalLight(0xdfe6ff, 0.6);
   fill.position.set(-3000, 2000, 3000);
   scene.add(fill);
+  taraLuceCatalogo(renderer, scene, [[0, 0, 1]]); // ante di fronte · prodotti del catalogo: colori identici alla foto
 
   const pav = new THREE.Mesh(new THREE.PlaneGeometry(30000, 30000),
     new THREE.MeshStandardMaterial({ color: 0xd2cbbf, roughness: 0.95 }));
@@ -292,6 +293,7 @@ export function aggiorna(forma, elementi, opz) {
     const f = fin(opz.chiusura);
     chiusura(opz.chiusura, opz.P, opz.spessori, mat(f.struttura), mat(f.ante));
   }
+  uvInScala(gruppo);                 // foto del catalogo: centrata su ogni pannello, misura vera
   const nuova = { W: forma.larghezza, H: forma.altezzaMax, P: opz.P };
   const cambiata = !ultimaVista || ['W', 'H', 'P'].some((k) => Math.abs(ultimaVista[k] - nuova[k]) > 1);
   ultimaVista = nuova;

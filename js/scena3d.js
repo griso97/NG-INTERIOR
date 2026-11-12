@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, uvInScala } from './materiali.js?v=20261112z';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261113a';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261111b';
 import { sfondoDi } from './sfondi.js?v=20261111b';
 
@@ -172,6 +172,7 @@ export function inizializzaScena(canvas) {
   const rim = new THREE.DirectionalLight(0xffffff, 0.5);
   rim.position.set(0, 1800, -4000);
   scene.add(rim);
+  taraLuceCatalogo(renderer, scene, [[0, 0, 1]]); // ante di fronte · prodotti del catalogo: colori identici alla foto
 
   // Pavimento (colore impostato da impostaSfondo)
   floorMesh = new THREE.Mesh(

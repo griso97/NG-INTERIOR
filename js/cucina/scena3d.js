@@ -14,11 +14,11 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
 } from './modello.js?v=20261111x';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261112z';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113a';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261112z';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113a';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -268,6 +268,7 @@ export function montaScena3d(canvas, progetto) {
   const rim = new THREE.DirectionalLight(0xffffff, 0.6);
   rim.position.set(0, 2000, -5000);
   scene.add(hemi); scene.add(amb); scene.add(key); scene.add(fill); scene.add(rim);
+  taraLuceCatalogo(renderer, scene);   // prodotti del catalogo: colori identici alla foto
   // Memorizzo le intensita' base per poterle abbassare quando i LED sono
   // accesi, cosi' la differenza "LED off / LED on" si vede davvero.
   luciAmbiente = [

@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261112z';
+import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261113a';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -245,27 +245,106 @@ export function sfondoSwatch(m) { return m.thumb ? `url('${m.thumb}') center/cov
 let unitaUV = { u: 300, v: 300 };
 export function impostaUnitaUV(u, v = u) { unitaUV = { u, v }; }
 
+// COLORE IDENTICO ALLA FOTO. I prodotti del catalogo hanno un loro modo di
+// prendere la luce: la luce cambia solo QUANTO è chiaro il pannello (così si
+// vede il 3D: fianchi, ombre), mai la TINTA (le luci della scena sono un po'
+// calde da un lato e fredde dall'altro) e niente "tone mapping" che sbiadisce.
+// Un pannello illuminato come la media delle facce verticali (anta vista di
+// fronte) ha esattamente i colori della foto. La luce di riferimento si misura
+// da sola in ogni scena (taraLuceCatalogo): nessuna regolazione a mano.
+const LUCE_FOTO = { value: 0.7 };   // luminanza di riferimento (misurata)
+const CONTRASTO_FOTO = 0.6;         // quanto la luce scurisce/schiarisce (0 = piatto)
+const PARAM_FOTO = { roughness: 0.85, metalness: 0.0, envMapIntensity: 0.25 };
+function coloreFoto(m) {
+  m.color.set(0xffffff);
+  m.toneMapped = false;
+  if (!m.userData.ngFoto) {
+    m.userData.ngFoto = true;
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.ngLuceRif = LUCE_FOTO;
+      sh.fragmentShader = 'uniform float ngLuceRif;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', `{
+        vec3 wl = vec3(0.2126, 0.7152, 0.0722);
+        float f = dot(totalDiffuse, wl) / max(dot(diffuseColor.rgb, wl), 1e-4) / ngLuceRif;
+        outgoingLight = diffuseColor.rgb * mix(1.0, f, ${CONTRASTO_FOTO.toFixed(2)}) + totalEmissiveRadiance;
+      }
+      #include <opaque_fragment>`);
+    };
+    m.customProgramCacheKey = () => 'ng-foto';
+  }
+  m.needsUpdate = true;
+}
+
+/**
+ * Taratura AUTOMATICA della luce di riferimento (per ogni scena): misura la
+ * luce che arriva su un pannello bianco opaco verticale (stesse luci, stesso
+ * ambiente) rivolto dove guardano le ante: armadi e modulari di fronte (+z),
+ * cucina in media sulle 4 pareti. Da chiamare dopo le luci.
+ */
+export function taraLuceCatalogo(renderer, scene, direzioni = [[0, 0, 1], [0, 0, -1], [1, 0, 0], [-1, 0, 0]]) {
+  let rt = null, piano = null;
+  try {
+    rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.FloatType });
+    // pannello bianco con lo STESSO shader dei prodotti: con riferimento 1
+    // restituisce 1 - c + c·L → ricavo la luce L
+    const mb = new THREE.MeshStandardMaterial({ color: 0xffffff, ...PARAM_FOTO });
+    coloreFoto(mb);
+    piano = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), mb);
+    scene.add(piano);
+    const rif = LUCE_FOTO.value; LUCE_FOTO.value = 1;
+    const cam = new THREE.OrthographicCamera(-10, 10, 10, -10, 1, 1000);
+    const prima = renderer.getRenderTarget();
+    const buf = new Float32Array(4);
+    let somma = 0, n = 0;
+    for (const d of direzioni) {
+      const v = new THREE.Vector3(...d);
+      piano.position.set(0, 200000, 0); piano.lookAt(piano.position.clone().add(v));
+      cam.position.copy(piano.position).addScaledVector(v, 100); cam.lookAt(piano.position);
+      renderer.setRenderTarget(rt); renderer.render(scene, cam);
+      renderer.readRenderTargetPixels(rt, 1, 1, 1, 1, buf);
+      const l = (0.2126 * buf[0] + 0.7152 * buf[1] + 0.0722 * buf[2] - (1 - CONTRASTO_FOTO)) / CONTRASTO_FOTO;
+      if (Number.isFinite(l) && l > 0.02 && l < 50) { somma += l; n++; }
+    }
+    renderer.setRenderTarget(prima);
+    LUCE_FOTO.value = n ? somma / n : rif;
+    return n ? LUCE_FOTO.value : null;
+  } catch (e) {
+    console.warn('Taratura luce non riuscita', e);
+    return null;
+  } finally {
+    if (piano) { scene.remove(piano); piano.geometry.dispose(); piano.material.dispose(); }
+    if (rt) rt.dispose();
+  }
+}
+
 /**
  * Prodotti del catalogo con la misura del campione: le UV dei pezzi diventano
  * in mm/unità (le stesse di impostaUnitaUV) invece di 0..1 per faccia, così la
- * foto si ripete alla sua misura reale e la venatura non viene stirata.
+ * foto è alla sua misura reale e la venatura non viene stirata.
+ * La foto è CENTRATA su ogni pannello: il centro della foto (es. la porta
+ * intera fotografata) cade al centro dell'anta, quindi un'anta grande come
+ * la porta della foto è identica alla foto; solo se l'anta è più grande la
+ * foto continua a specchio verso i bordi.
  * Si chiama sul gruppo della scena dopo averla costruita.
  */
 export function uvInScala(radice) {
   radice.traverse((o) => {
     if (!o.isMesh) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
-    if (!mats.some((m) => m && m.userData && m.userData.campioneMm)) return;
+    const mc = mats.find((m) => m && m.userData && m.userData.campioneMm);
+    if (!mc) return;
     const geo = o.geometry;
     if (!geo || geo.userData.uvMm || !geo.attributes.uv || !geo.attributes.normal) return;
+    const { wMm, hMm } = mc.userData.campioneMm;
+    if (!geo.boundingBox) geo.computeBoundingBox();
+    const bb = geo.boundingBox, c = { x: (bb.min.x + bb.max.x) / 2, y: (bb.min.y + bb.max.y) / 2, z: (bb.min.z + bb.max.z) / 2 };
     const pos = geo.attributes.position, nor = geo.attributes.normal, uv = geo.attributes.uv;
     for (let i = 0; i < pos.count; i++) {
       const ax = Math.abs(nor.getX(i)), ay = Math.abs(nor.getY(i)), az = Math.abs(nor.getZ(i));
       let u, v;
-      if (ax >= ay && ax >= az) { u = pos.getZ(i); v = pos.getY(i); }
-      else if (ay >= az) { u = pos.getX(i); v = pos.getZ(i); }
-      else { u = pos.getX(i); v = pos.getY(i); }
-      uv.setXY(i, u / unitaUV.u, v / unitaUV.v);
+      if (ax >= ay && ax >= az) { u = pos.getZ(i) - c.z; v = pos.getY(i) - c.y; }
+      else if (ay >= az) { u = pos.getX(i) - c.x; v = pos.getZ(i) - c.z; }
+      else { u = pos.getX(i) - c.x; v = pos.getY(i) - c.y; }
+      uv.setXY(i, (u + wMm / 2) / unitaUV.u, (v + hMm / 2) / unitaUV.v);
     }
     uv.needsUpdate = true;
     geo.userData.uvMm = true;
@@ -340,7 +419,7 @@ export function getMaterialeTHREE(id, onPronto) {
   // Prodotti PROPRI (foto del campione): superficie opaca e poco riflettente,
   // così il colore resta quello della foto.
   const mat = new THREE.MeshStandardMaterial(def.proprio
-    ? { color: def.colore, roughness: 0.85, metalness: 0.0, envMapIntensity: 0.25 }
+    ? { color: def.colore, ...PARAM_FOTO }
     : { color: def.colore, roughness: 0.6, metalness: 0.05 });
   if (def.campione) mat.userData.campioneMm = def.campione;
   // Finger-pull da foto: materiale della GOLA (la parte sopra, es. nera)
@@ -349,7 +428,7 @@ export function getMaterialeTHREE(id, onPronto) {
     mat.userData.matGola = mg;
     loader.load(def.gola.texture, (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-      mg.map = tex; mg.color.set(0xffffff); mg.needsUpdate = true;
+      mg.map = tex; coloreFoto(mg); mg.needsUpdate = true;
       if (onPronto) onPronto();
     });
   }
@@ -367,7 +446,7 @@ export function getMaterialeTHREE(id, onPronto) {
       }
       cacheTex.set(id, tex);
       mat.map = tex;
-      mat.color.set(0xffffff); // lascia che la texture esprima il colore
+      if (def.proprio) coloreFoto(mat); else mat.color.set(0xffffff); // la texture esprime il colore
       mat.needsUpdate = true;
       if (onPronto) onPronto();
     });

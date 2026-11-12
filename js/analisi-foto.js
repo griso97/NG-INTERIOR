@@ -509,12 +509,21 @@ export function analizzaPorta(img, tipo = 'fp') {
   let y0 = 0, y1 = H, x0 = 0, x1 = W;
   if (fAlto) y0 = fAlto.a + 1; if (fBasso) y1 = H - 1 - fBasso.a;
   if (fSx) x0 = fSx.a + 1; if (fDx) x1 = W - 1 - fDx.a;
-  const m = 0.035;
+  // margine minimo (solo per non prendere il filo del bordo): il materiale
+  // deve coprire TUTTA la porta, non un riquadro al centro
+  const m = 0.012;
   const uv = (x, y) => [x / W, y / H];
   const zona = (ax, ay, bx, by) => { const f = daUnita(quad); return [f(...uv(ax, ay)), f(...uv(bx, ay)), f(...uv(bx, by)), f(...uv(ax, by))]; };
   const pw = x1 - x0, ph = y1 - y0;
+  // Quanto della misura della porta è legno: le fasce che NON sono la gola
+  // sono gli spessori visti di sbieco (non fanno parte della misura frontale),
+  // la gola invece sì (la misura è della porta intera, gola compresa).
+  const golaSu = gola && gola.lato === 'alto', golaGiu = gola && gola.lato === 'basso';
+  const golaSx = gola && gola.lato === 'lato' && gola.sx, golaDx = gola && gola.lato === 'lato' && !gola.sx;
+  const spX = (fSx && !golaSx ? x0 : 0) + (fDx && !golaDx ? W - x1 : 0);
+  const spY = (fAlto && !golaSu ? y0 : 0) + (fBasso && !golaGiu ? H - y1 : 0);
   const out = { oggetto: quad, porta: zona(x0 + pw * m, y0 + ph * m, x1 - pw * m, y1 - ph * m),
-    portaFrazione: { w: (pw * (1 - 2 * m)) / W, h: (ph * (1 - 2 * m)) / H } };
+    portaFrazione: { w: Math.min(1, pw / Math.max(1, W - spX)), h: Math.min(1, ph / Math.max(1, H - spY)) } };
   if (tipo !== 'fp') { out.main = out.porta; delete out.porta; out.messaggio = qs ? 'Campione trovato e raddrizzato.' : 'Campione trovato.'; return out; }
   // colore della gola: solo i pixel della fascia davvero diversi dalla porta
   const media = (ax, ay, bx, by) => {
