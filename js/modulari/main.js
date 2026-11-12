@@ -1,9 +1,9 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 1 (forma del vano) + navigazione tra i passi
 // =============================================================================
-import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261112e';
-import { renderPasso2, apriDistinta, stiliTema } from './passo2.js?v=20261112e';
-import { agganciaTema } from '../tema.js?v=20261112e';
+import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261112f';
+import { renderPasso2, apriDistinta, stiliTema } from './passo2.js?v=20261112f';
+import { agganciaTema } from '../tema.js?v=20261112f';
 
 const KEY = 'ng-modulari-v1';
 const pannello = document.getElementById('mod-pannello');
@@ -344,7 +344,7 @@ function aggiorna() {
   const c = { stato, salva, aggiorna, forma: r, svg, pannello, riepilogo, esc, fmt, canvas: canvas3d };
   if (stato.step === 3) {
     mostra3d(true);
-    import('./passo3.js?v=20261112e').then((m) => { passo3 = m; if (stato.step === 3) m.renderPasso3(c); })
+    import('./passo3.js?v=20261112f').then((m) => { passo3 = m; if (stato.step === 3) m.renderPasso3(c); })
       .catch(() => { riepilogo.innerHTML = '<div class="mod-msg err">Non riesco a caricare il 3D. Ricarica la pagina.</div>'; });
     return;
   }

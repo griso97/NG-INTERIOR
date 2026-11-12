@@ -2,9 +2,9 @@
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
 import { MATERIALI } from '../materiali.js?v=20261111b';
-import { layoutModuli, SPESSORI_DEFAULT } from './calcoli.js?v=20261112e';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine } from './scena3d.js?v=20261112e';
-import { apriDistinta } from './passo2.js?v=20261112e';
+import { layoutModuli, SPESSORI_DEFAULT } from './calcoli.js?v=20261112f';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte } from './scena3d.js?v=20261112f';
+import { apriDistinta } from './passo2.js?v=20261112f';
 
 const FINITURE = MATERIALI.filter((m) => m.categoria === 'legno' || m.categoria === 'tinta');
 export const MATERIALI_DEFAULT = { struttura: 'roble-hera', ante: 'roble-denver' };
@@ -57,14 +57,12 @@ function disegna(reinquadra) {
   });
 }
 
+// Stessa grafica della cucina: quadratini del campione (nome nel tooltip e nel titolo).
 function palette(parte) {
   const { esc } = ctx;
   const sel = ctx.stato.materiali[parte];
-  return `<div class="mat-grid">${FINITURE.map((m) => `
-    <button type="button" class="mat-btn ${m.id === sel ? 'attivo' : ''}" data-parte="${parte}" data-mat="${m.id}" title="${esc(m.nome)}">
-      <span class="mat-campione" style="background-image:url('${m.thumb}')"></span>
-      <span class="mat-nome">${esc(m.nome)}</span>
-    </button>`).join('')}</div>`;
+  return `<div class="palette-colori">${FINITURE.map((m) => `<button type="button" class="swatch ${m.id === sel ? 'sel' : ''}"
+    data-parte="${parte}" data-mat="${m.id}" title="${esc(m.nome)}" aria-label="${esc(m.nome)}" style="background-image:url('${m.thumb}')"></button>`).join('')}</div>`;
 }
 
 function renderPannello() {
@@ -77,6 +75,7 @@ function renderPannello() {
         <button type="button" class="btn-ghost" data-vista="tre4">3/4</button>
         <button type="button" class="btn-ghost" data-vista="frontale">Frontale</button>
       </div>
+      <button type="button" class="btn-ghost ${anteSonoAperte() ? 'attivo' : ''}" id="p3-ante" style="width:100%;margin-top:8px">${anteSonoAperte() ? '🚪 Chiudi ante' : '🚪 Apri ante'}</button>
       <button type="button" class="btn-oro" id="p3-foto" style="width:100%;margin-top:8px">📷 Salva immagine</button>
       <p class="mod-prossimo">Trascina per girare, due dita o rotella per lo zoom.</p>
       ${CON_INCLINATA.includes(ctx.forma.forma) ? `<label class="chk" style="margin-top:8px"><input type="checkbox" id="p3-scala" ${conScala() ? 'checked' : ''}> Scala sopra l'inclinata</label>` : ''}
@@ -92,6 +91,11 @@ function renderPannello() {
     </section>`;
   const P = ctx.pannello;
   P.querySelectorAll('[data-vista]').forEach((b) => b.addEventListener('click', () => inquadra(b.dataset.vista)));
+  P.querySelector('#p3-ante').addEventListener('click', (ev) => {
+    impostaAnte(!anteSonoAperte());
+    ev.currentTarget.textContent = anteSonoAperte() ? '🚪 Chiudi ante' : '🚪 Apri ante';
+    ev.currentTarget.classList.toggle('attivo', anteSonoAperte());
+  });
   P.querySelector('#p3-foto').addEventListener('click', () => {
     if (!salvaImmagine('mobili-modulari.png')) alert('Non sono riuscito a salvare l\'immagine.');
   });
@@ -99,7 +103,7 @@ function renderPannello() {
   if (sc) sc.addEventListener('change', () => {
     (stato.gradini ||= {})[ctx.forma.forma] = sc.checked; ctx.salva(); disegna(false);
   });
-  P.querySelectorAll('.mat-btn').forEach((b) => b.addEventListener('click', () => {
+  P.querySelectorAll('.swatch[data-mat]').forEach((b) => b.addEventListener('click', () => {
     stato.materiali[b.dataset.parte] = b.dataset.mat;
     ctx.salva(); disegna(false); renderPannello();
   }));

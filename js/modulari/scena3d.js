@@ -20,6 +20,11 @@ const SP_MURO = 120;                // spessore muri del vano (solo scena)
 let scene, camera, renderer, controls, gruppo, canvasEl;
 let attiva = false;
 let ultimaVista = null;             // { W, H, P } per le inquadrature
+// Ante apribili (come negli armadi): ogni anta sta in un "cardine" che ruota
+// attorno all'asse verticale del lato cerniera. Apertura animata.
+const ANGOLO_APERTA = (100 * Math.PI) / 180;
+let anteAperte = false;
+let cardini = [];                   // [{ g, verso }] verso = +1/-1
 
 const matMuro = new THREE.MeshStandardMaterial({ color: 0xe9e5dc, roughness: 0.95 });
 const matMuroFondo = new THREE.MeshStandardMaterial({ color: 0xdedad1, roughness: 0.95 });
@@ -88,6 +93,11 @@ export function monta(canvas) {
 function ciclo() {
   requestAnimationFrame(ciclo);
   if (!attiva || !renderer) return;
+  for (const c of cardini) {
+    const target = anteAperte ? c.verso * ANGOLO_APERTA : 0;
+    const d = target - c.g.rotation.y;
+    if (Math.abs(d) > 0.001) c.g.rotation.y += d * 0.16; else c.g.rotation.y = target;
+  }
   controls.update();
   renderer.render(scene, camera);
 }
@@ -104,7 +114,10 @@ function ridimensiona() {
 // ---------------------------------------------------------------------------
 // Pezzi: profilo XY estruso lungo Z
 // ---------------------------------------------------------------------------
-function prisma(punti, z0, profondita, mat, ombra = true) {
+export function impostaAnte(aperte) { anteAperte = !!aperte; }
+export function anteSonoAperte() { return anteAperte; }
+
+function prisma(punti, z0, profondita, mat, ombra = true, padre = gruppo) {
   const s = new THREE.Shape();
   punti.forEach(([x, y], i) => (i ? s.lineTo(x, y) : s.moveTo(x, y)));
   s.closePath();
@@ -116,7 +129,7 @@ function prisma(punti, z0, profondita, mat, ombra = true) {
   const m = new THREE.Mesh(geo, mat);
   m.position.z = z0;
   m.castShadow = ombra; m.receiveShadow = true;
-  gruppo.add(m);
+  padre.add(m);
   return m;
 }
 const rett = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
@@ -155,13 +168,22 @@ function mobile(e, P, sp, matS, matA) {
     const la = (L - (N + 1) * 2) / N;
     for (let i = 0; i < N; i++) {
       const xa = x0 + 2 + i * (la + 2), xb = xa + la;
-      prisma([[xa, y0 + 2], [xb, y0 + 2], [xb, yt(xb) - 2], [xa, yt(xa) - 2]], zC + Pc, sA, matA);
+      // maniglia a sinistra (sx) → cerniera a destra, e viceversa
       const sx = N === 1 ? e.lato === 'sx' : i === 1;
+      const xh = sx ? xb : xa;                       // asse del cardine
+      const zh = zC + Pc;                            // retro dell'anta
+      const g = new THREE.Group();
+      g.position.set(xh, 0, zh);
+      gruppo.add(g);
+      cardini.push({ g, verso: sx ? 1 : -1 });
+      const rel = (pts) => pts.map(([x, y]) => [x - xh, y]);
+      prisma(rel([[xa, y0 + 2], [xb, y0 + 2], [xb, yt(xb) - 2], [xa, yt(xa) - 2]]), 0, sA, matA, true, g);
       const xm = sx ? xa + 40 : xb - 52;
       const hDoor = Math.min(yt(xa), yt(xb)) - y0;
       const lm = Math.min(220, hDoor * 0.35);
       const ym = y0 + Math.min(hDoor * 0.55, 1000);
-      prisma(rett(xm, ym - lm / 2, xm + 12, ym + lm / 2), zC + Pc + sA, 18, matMetallo);
+      prisma(rel(rett(xm, ym - lm / 2, xm + 12, ym + lm / 2)), sA, 18, matMetallo, true, g);
+      g.rotation.y = anteAperte ? (sx ? 1 : -1) * ANGOLO_APERTA : 0;
     }
   }
 }
@@ -208,8 +230,9 @@ export function aggiorna(forma, elementi, opz) {
   if (!gruppo) return;
   while (gruppo.children.length) {
     const c = gruppo.children.pop();
-    c.geometry?.dispose();
+    c.traverse((o) => o.geometry?.dispose());
   }
+  cardini = [];
   const ridisegna = () => { if (renderer && attiva) renderer.render(scene, camera); };
   // Texture a specchio (vale per questa pagina: la cache materiali è sua)
   const specchia = (m) => { if (m && m.map && m.map.wrapS !== THREE.MirroredRepeatWrapping) {

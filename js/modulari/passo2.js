@@ -4,8 +4,8 @@
 import {
   layoutModuli, larghezzaUtileAuto, distintaModulari, posizioneValida,
   primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT,
-} from './calcoli.js?v=20261112e';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112e';
+} from './calcoli.js?v=20261112f';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112f';
 
 const FRONTI = [
   { v: 0, l: 'Aperto (a giorno)' },
