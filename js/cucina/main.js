@@ -25,8 +25,8 @@ import {
 import { renderPianta } from './pianta.js?v=20261111x';
 import { calcolaDistintaCucina } from './distinta.js?v=20261111x';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261111x';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112r';
+import { agganciaTema } from '../tema.js?v=20261112s';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112s';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -159,7 +159,7 @@ document.addEventListener('keydown', (e) => {
 
 // --------- PANNELLO DIETRO IL PIANO (schienale / paraschizzi) ---------
 function htmlSchienale() {
-  const tutti = (scena3dMod && scena3dMod.MATERIALI) || [];
+  const tutti = (scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer('pannello') : [];
   const sc = progetto.schienale || {};
   const att = !!sc.attivo, mat = sc.materiale || null;
   const def = mat ? tutti.find((x) => x.id === mat) : null;
@@ -821,9 +821,9 @@ canvas3d.addEventListener('click', (e) => {
 function renderPannelloStep3d() {
   const sel = trovaMobileLibero(progetto, step2.mobSelId);
   if (sel) return renderPannelloModificaMobile(sel);
-  const coloriZocc = (scena3dMod && scena3dMod.COLORI_ZOCCOLO) || [];
+  const coloriZocc = (scena3dMod && scena3dMod.coloriZoccolo) ? scena3dMod.coloriZoccolo() : [];
   const zoccSel = progetto.zoccoloColore || 'nero-opaco';
-  const materialiEnc = ((scena3dMod && scena3dMod.MATERIALI) || []).filter((mt) => mt.categoria === 'encimera');
+  const materialiEnc = (scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer('encimera') : [];
   const encAttuale = (progetto.encimera || {}).materiale || null;
   const avvisi = problemiMobiliLiberi(progetto);
   pannello.innerHTML = `
@@ -947,8 +947,12 @@ function renderPannelloModificaMobile(m) {
   const nomeGruppo = { base: 'mobili bassi', pensile: 'pensili', colonna: 'colonne', costado: 'costadi' }[gruppoColore];
   const materialiTutti = (scena3dMod && scena3dMod.MATERIALI) || [];
   // Palette "colore ante" filtrata: niente encimere (hanno la loro sezione).
-  const materiali = materialiTutti.filter((mt) => mt.categoria !== 'encimera');
-  const materialiEncimera = materialiTutti.filter((mt) => mt.categoria === 'encimera');
+  // Palette dal CATALOGO: con il finger-pull attivo per questo gruppo si vede
+  // la sezione Finger-pull, altrimenti Legni e colori.
+  const fpGruppo = progetto.fingerPull === true || !!(progetto.fingerPull && typeof progetto.fingerPull === 'object' && progetto.fingerPull[gruppoColore]);
+  const perSez = (sz) => ((scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer(sz) : materialiTutti.filter((mt) => mt.categoria !== 'encimera'));
+  const materiali = perSez(fpGruppo && gruppoColore !== 'costado' ? 'fingerpull' : 'legno');
+  const materialiEncimera = (scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer('encimera') : materialiTutti.filter((mt) => mt.categoria === 'encimera');
   const colAttuale = (progetto.coloriFronti || {})[gruppoColore];
   const encAttuale = (progetto.encimera || {}).materiale || null;
   pannello.innerHTML = `
@@ -1254,7 +1258,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261112r');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261112s');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste

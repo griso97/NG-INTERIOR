@@ -1,12 +1,12 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
-import { MATERIALI } from '../materiali.js?v=20261111b';
-import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261112r';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte } from './scena3d.js?v=20261112r';
-import { apriDistinta } from './passo2.js?v=20261112r';
+import { materialiPer } from '../materiali.js?v=20261112s';
+import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261112s';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte } from './scena3d.js?v=20261112s';
+import { apriDistinta } from './passo2.js?v=20261112s';
 
-const FINITURE = MATERIALI.filter((m) => m.categoria === 'legno' || m.categoria === 'tinta');
+let FINITURE = materialiPer('legno');          // dal catalogo (si rilegge a ogni pannello)
 export { MATERIALI_DEFAULT };
 // Forme dove l'inclinata può essere una scala; di default la scala si vede
 // sul sottoscala vero (triangolo, con muretto), non sulla mansarda.
@@ -84,6 +84,7 @@ function palette(parte, sel) {
 }
 
 function renderPannello() {
+  FINITURE = materialiPer('legno');
   const { stato, esc } = ctx;
   const M = stato.materiali;
   const nome = (id) => esc((FINITURE.find((m) => m.id === id) || {}).nome || id);

@@ -216,7 +216,10 @@
     + '.ng-lingua button[aria-pressed="true"]{background:var(--oro,#c9a94a);color:#111}'
     + '.ng-lingua button:focus-visible{outline:2px solid var(--oro,#c9a94a);outline-offset:-2px}'
     + '.ng-lingua.grande{font-size:15px}.ng-lingua.grande button{padding:10px 18px}'
-    + '.ng-lingua.fisso{position:fixed;top:12px;left:12px;z-index:50;background:rgba(10,10,11,.6)}';
+    + '.ng-lingua.fisso{position:fixed;top:12px;left:12px;z-index:50;background:rgba(10,10,11,.6)}'
+    + '.ng-imp{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--oro-scuro,#8a6a14);border-radius:999px;padding:6px 12px;color:var(--oro-chiaro,#e8c25a);text-decoration:none;font:500 12px/1 inherit;letter-spacing:1px;white-space:nowrap;margin-left:10px}'
+    + '.ng-imp:hover{border-color:var(--oro,#c9a94a);color:#fff}.ng-imp .ng-imp-ico{font-size:15px}'
+    + '@media (max-width:700px){.ng-imp .ng-imp-txt{display:none}.ng-imp{padding:6px 9px;margin-left:6px}}';
   function selettore(classe) {
     var d = document.createElement('div');
     d.className = 'ng-lingua ' + (classe || '');
@@ -232,8 +235,20 @@
     });
     return d;
   }
+  // Rotellina ⚙ Impostazioni (catalogo prodotti), in tutte le pagine di lavoro
+  function montaImpostazioni() {
+    if (/impostazioni\.html$/.test(location.pathname)) return;
+    var a = document.createElement('a');
+    a.className = 'ng-imp'; a.href = 'impostazioni.html'; a.title = 'Impostazioni';
+    a.innerHTML = '<span class="ng-imp-ico" aria-hidden="true">⚙</span><span class="ng-imp-txt">Impostazioni</span>';
+    var posto = document.querySelector('[data-lingua]');
+    if (posto) { posto.parentNode.insertBefore(a, posto); return; }
+    var brand = document.querySelector('.app-header .brand');
+    if (brand) brand.appendChild(a);
+  }
   function montaSelettore() {
     var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+    montaImpostazioni();
     var posto = document.querySelector('[data-lingua]');
     if (posto) { posto.appendChild(selettore(posto.getAttribute('data-lingua'))); return; }
     var strumenti = document.querySelector('.header-strumenti');

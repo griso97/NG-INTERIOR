@@ -6,7 +6,7 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault } from './materiali.js?v=20261111b';
+import { MATERIALI, PARTI, materialiDefault, materialiPer } from './materiali.js?v=20261112s';
 
 export function configDefault() {
   return {
@@ -731,7 +731,7 @@ function renderMateriali(config) {
           </span>
         </summary>
         <div class="mat-grid">
-          ${MATERIALI.map((m) => `
+          ${materialiPer('legno').map((m) => `
             <button type="button"
               class="mat-swatch ${m.id === corrente.id ? 'sel' : ''}"
               data-mat="${m.id}" title="${m.nome}">

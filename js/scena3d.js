@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE } from './materiali.js?v=20261111b';
+import { getMaterialeTHREE, impostaUnitaUV, uvInScala } from './materiali.js?v=20261112s';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261111b';
 import { sfondoDi } from './sfondi.js?v=20261111b';
 
@@ -21,6 +21,7 @@ import { sfondoDi } from './sfondi.js?v=20261111b';
 // alta 2m si vedono ~7 ripetizioni, su un ripiano di 600mm ~2 ripetizioni.
 // Non stira mai la texture, replica la fotografia.
 const TEX_MM = 300;
+impostaUnitaUV(TEX_MM);              // foto del catalogo in scala vera (UV in unità di TEX_MM)
 
 // Materiale metallico per le maniglie (cassettiera, ecc.)
 const MAT_METALLO = new THREE.MeshStandardMaterial({ color: 0xd0d2d6, roughness: 0.28, metalness: 0.9 });
@@ -301,6 +302,8 @@ export function aggiornaScena(config) {
   const tampSotto = config.tamponamenti?.sotto;
   const yOffset = tampSotto?.attivo ? tampSotto.larghezza : 0;
   gruppoArmadio.position.y = yOffset;
+
+  uvInScala(gruppoArmadio);       // prodotti del catalogo: foto in scala vera
 
   // Inquadratura 3/4 fissa, adatta alle dimensioni del mobile
   const W = config.larghezzaTotale;

@@ -6,7 +6,7 @@
 // "allegato" alla distinta: va nell'Excel (foglio "Schema tagli") e si può
 // scaricare come PNG.
 // =============================================================================
-import { gradi } from './calcoli.js?v=20261112r';
+import { gradi } from './calcoli.js?v=20261112s';
 
 const W = 1100, H = 830;
 const FONT = 'Arial, Helvetica, sans-serif';

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NG Interior · Impostazioni</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <script>(function(){try{var t=localStorage.getItem('ng-tema')||'scuro';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <script src="js/i18n.js?v=20261112s"></script>
+  <link rel="stylesheet" href="css/style.css?v=20261112s" />
+  <link rel="stylesheet" href="css/impostazioni.css?v=20261112s" />
+  <script type="importmap">
+  { "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }
+  </script>
+</head>
+<body class="imp-body">
+  <header class="app-header">
+    <div class="brand">
+      <a href="./scegli.html" class="back-link" id="imp-indietro" title="Indietro">←</a>
+      <div>
+        <div class="mono">NG INTERIOR</div>
+        <div class="sottotitolo">Impostazioni</div>
+      </div>
+    </div>
+    <div class="header-info">⚙ Impostazioni</div>
+    <div class="header-strumenti">
+      <button type="button" id="tema-toggle" class="tema-toggle">☀ Chiaro</button>
+    </div>
+  </header>
+
+  <main class="imp-main">
+    <h1 class="imp-titolo">Catalogo prodotti</h1>
+    <p class="imp-sotto">I prodotti della tua carpinteria. Quello che nascondi o aggiungi qui vale per cucina, armadi e mobili modulari.</p>
+    <nav class="imp-schede" id="imp-schede" aria-label="Sezioni del catalogo"></nav>
+    <section id="imp-sezione" class="imp-sezione"></section>
+  </main>
+
+  <!-- Scheda prodotto (aggiungi / modifica) -->
+  <div id="imp-modale" class="modale-fondo" hidden>
+    <div class="imp-box" role="dialog" aria-modal="true" aria-labelledby="imp-modale-titolo">
+      <h3 id="imp-modale-titolo">Nuovo prodotto</h3>
+      <div id="imp-modale-corpo"></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/impostazioni.js?v=20261112s"></script>
+</body>
+</html>

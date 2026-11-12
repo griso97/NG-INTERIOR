@@ -15,6 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
+import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261112s';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -123,7 +124,140 @@ export const MATERIALI = [
   { id: 'r3-supra-oak', nome: 'Encimera EP141NAT ANV 02 OAK R3 Supra 620x38mm', categoria: 'encimera',
     thumb: 'materials/r3-supra-oak-thumb.jpg',
     texture: 'materials/r3-supra-oak.jpg', colore: 0xcdb48a, spessore: 38 },
+  // ---- Zoccoli (cucina) ----
+  { id: 'nero-opaco', nome: 'Nero opaco', categoria: 'zoccolo', css: '#17171a', colore: 0x17171a,
+    solido: true, roughness: 1.0, metalness: 0.0 },
+  { id: 'bianco-opaco', nome: 'Bianco opaco', categoria: 'zoccolo', css: '#eceae4', colore: 0xeceae4,
+    solido: true, roughness: 1.0, metalness: 0.0 },
+  { id: 'acciaio', nome: 'Acciaio', categoria: 'zoccolo', css: 'linear-gradient(135deg,#d6dadf,#9aa0a6 55%,#c2c7cc)',
+    colore: 0xc6cace, solido: true, roughness: 0.3, metalness: 0.92, envMapIntensity: 1.0 },
+  // ---- Maniglie ----
+  { id: 'maniglia-standard', nome: 'Maniglia standard (barra)', categoria: 'maniglia', css: 'linear-gradient(135deg,#e2e3e6,#a9acb1)',
+    colore: 0xcfcfcf, solido: true, roughness: 0.35, metalness: 0.6 },
 ];
+
+// ---------------------------------------------------------------------------
+// CATALOGO della carpinteria (js/catalogo.js): prodotti aggiunti con foto,
+// prodotti nascosti per sezione, modifiche ai predefiniti.
+// ---------------------------------------------------------------------------
+let statoCatalogo = { prodotti: [], nascosti: {}, modifiche: {} };
+const CAT_DA_SEZIONE = { legno: 'legno', fingerpull: 'legno', encimera: 'encimera', pannello: 'legno', zoccolo: 'zoccolo', maniglie: 'maniglia' };
+async function applicaCatalogo() {
+  statoCatalogo = await leggiCatalogo();
+  // modifiche ai predefiniti (nome, tipo, spessore, colore…)
+  for (const m of MATERIALI) {
+    const mod = statoCatalogo.modifiche[m.id];
+    if (mod) Object.assign(m, { info: { ...(m.info || {}), ...mod.info }, ...(mod.nome ? { nome: mod.nome } : {}) });
+  }
+  for (const p of statoCatalogo.prodotti) {
+    const [foto, thumb] = await Promise.all([leggiFoto(p.id, 'foto'), leggiFoto(p.id, 'thumb')]);
+    if (!foto) continue;
+    const url = URL.createObjectURL(foto);
+    MATERIALI.push({
+      id: p.id, nome: p.nome || 'Senza nome', categoria: CAT_DA_SEZIONE[p.sezione] || 'legno', sezione: p.sezione,
+      thumb: thumb ? URL.createObjectURL(thumb) : url, texture: url, colore: p.colore ?? 0x999999,
+      campione: { wMm: (Number(p.campioneCm?.w) || 30) * 10, hMm: (Number(p.campioneCm?.h) || 30) * 10 },
+      spessore: p.info?.spessore ? Number(p.info.spessore) : undefined,
+      info: p.info || {}, proprio: true,
+    });
+  }
+}
+try { await applicaCatalogo(); } catch (e) { console.warn('Catalogo non caricato', e); }
+if (typeof window !== 'undefined') { window.NG_MATERIALI = MATERIALI; installaSchedaProdotto(); }
+
+/**
+ * SCHEDA PRODOTTO: toccando un quadratino di materiale compare per qualche
+ * secondo nome, tipo di materiale, spessore e colore (dati del catalogo).
+ */
+function installaSchedaProdotto() {
+  if (window.__ngSchedaProdotto) return;
+  window.__ngSchedaProdotto = true;
+  const SEL = '[data-mat],[data-enc],[data-sch-mat],[data-zocc]';
+  let box = null, timer = null;
+  const chiudi = () => { if (box) { box.remove(); box = null; } clearTimeout(timer); };
+  const esc = (x) => String(x ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest && e.target.closest(SEL);
+    if (!b) { chiudi(); return; }
+    const id = b.dataset.mat ?? b.dataset.enc ?? b.dataset.schMat ?? b.dataset.zocc;
+    const m = id ? MATERIALI.find((x) => x.id === id) : null;
+    chiudi();
+    if (!m) return;
+    const r = b.getBoundingClientRect();
+    const info = m.info || {};
+    const righe = [
+      info.tipo ? ['Materiale', info.tipo] : null,
+      (info.spessore || m.spessore) ? ['Spessore', `${info.spessore || m.spessore} mm`] : null,
+      info.colore ? ['Colore', info.colore] : null,
+      m.campione ? ['Campione', `${Math.round(m.campione.wMm / 10)} × ${Math.round(m.campione.hMm / 10)} cm`] : null,
+      info.note ? ['Note', info.note] : null,
+    ].filter(Boolean);
+    box = document.createElement('div');
+    box.className = 'ng-scheda-prodotto';
+    box.setAttribute('role', 'status');
+    box.style.cssText = 'position:fixed;z-index:9999;max-width:260px;background:var(--bg-2,#121212);color:var(--testo,#eee);border:1px solid var(--oro,#c9a94a);border-radius:6px;padding:9px 11px;font:13px/1.4 Inter,system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.4);pointer-events:none';
+    box.innerHTML = `<div style="font-weight:600;color:var(--oro-chiaro,#e8c25a);margin-bottom:${righe.length ? 4 : 0}px">${esc(m.nome)}</div>`
+      + righe.map(([k, v]) => `<div><span style="color:var(--testo-dim,#aaa)">${esc(k)}:</span> ${esc(v)}</div>`).join('');
+    document.body.appendChild(box);
+    const bw = box.offsetWidth, bh = box.offsetHeight;
+    let x = Math.min(window.innerWidth - bw - 8, Math.max(8, r.left + r.width / 2 - bw / 2));
+    let y = r.top - bh - 8; if (y < 8) y = r.bottom + 8;
+    box.style.left = `${x}px`; box.style.top = `${y}px`;
+    timer = setTimeout(chiudi, 4000);
+  }, true);
+}
+
+/** Prodotti visibili in una sezione del catalogo (con i nascosti tolti). */
+export function materialiPer(sezione, { tutti = false } = {}) {
+  const vis = (m) => tutti || !nascosto(statoCatalogo, sezione, m.id);
+  const legni = MATERIALI.filter((m) => (m.categoria === 'legno' || m.categoria === 'tinta') && (!m.proprio || m.sezione === 'legno'));
+  const propri = (sez) => MATERIALI.filter((m) => m.proprio && m.sezione === sez);
+  let l;
+  switch (sezione) {
+    case 'legno': l = legni; break;
+    case 'fingerpull': l = [...legni, ...propri('fingerpull')]; break;
+    case 'encimera': l = MATERIALI.filter((m) => m.categoria === 'encimera'); break;
+    case 'pannello': l = [...legni, ...MATERIALI.filter((m) => m.categoria === 'encimera'), ...propri('pannello')]; break;
+    case 'zoccolo': l = MATERIALI.filter((m) => m.categoria === 'zoccolo'); break;
+    case 'maniglie': l = MATERIALI.filter((m) => m.categoria === 'maniglia'); break;
+    default: l = [];
+  }
+  return l.filter(vis);
+}
+/** Sfondo CSS del quadratino (foto o colore). */
+export function sfondoSwatch(m) { return m.thumb ? `url('${m.thumb}') center/cover` : (m.css || `#${(m.colore || 0).toString(16).padStart(6, '0')}`); }
+
+// Unità delle UV del motore 3D della pagina (mm per 1 unità di UV): serve a
+// mettere in SCALA VERA la foto dei prodotti propri (misura del campione).
+let unitaUV = { u: 300, v: 300 };
+export function impostaUnitaUV(u, v = u) { unitaUV = { u, v }; }
+
+/**
+ * Prodotti del catalogo con la misura del campione: le UV dei pezzi diventano
+ * in mm/unità (le stesse di impostaUnitaUV) invece di 0..1 per faccia, così la
+ * foto si ripete alla sua misura reale e la venatura non viene stirata.
+ * Si chiama sul gruppo della scena dopo averla costruita.
+ */
+export function uvInScala(radice) {
+  radice.traverse((o) => {
+    if (!o.isMesh) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    if (!mats.some((m) => m && m.userData && m.userData.campioneMm)) return;
+    const geo = o.geometry;
+    if (!geo || geo.userData.uvMm || !geo.attributes.uv || !geo.attributes.normal) return;
+    const pos = geo.attributes.position, nor = geo.attributes.normal, uv = geo.attributes.uv;
+    for (let i = 0; i < pos.count; i++) {
+      const ax = Math.abs(nor.getX(i)), ay = Math.abs(nor.getY(i)), az = Math.abs(nor.getZ(i));
+      let u, v;
+      if (ax >= ay && ax >= az) { u = pos.getZ(i); v = pos.getY(i); }
+      else if (ay >= az) { u = pos.getX(i); v = pos.getZ(i); }
+      else { u = pos.getX(i); v = pos.getY(i); }
+      uv.setXY(i, u / unitaUV.u, v / unitaUV.v);
+    }
+    uv.needsUpdate = true;
+    geo.userData.uvMm = true;
+  });
+}
 
 // PARTI selezionabili nel pannello materiali.
 // `applica` elenca le chiavi che vengono aggiornate insieme quando l'utente
@@ -171,16 +305,19 @@ export function getMaterialeTHREE(id, onPronto) {
         color: def.colore,
         roughness: def.roughness ?? 1.0,
         metalness: def.metalness ?? 0.0,
-        envMapIntensity: 0.4,
+        envMapIntensity: def.envMapIntensity ?? 0.4,
       });
     }
     cacheMat.set(id, mat);
     return mat;
   }
   // Legno: carica la texture in background e la applica quando è pronta.
-  const mat = new THREE.MeshStandardMaterial({
-    color: def.colore, roughness: 0.6, metalness: 0.05,
-  });
+  // Prodotti PROPRI (foto del campione): superficie opaca e poco riflettente,
+  // così il colore resta quello della foto.
+  const mat = new THREE.MeshStandardMaterial(def.proprio
+    ? { color: def.colore, roughness: 0.85, metalness: 0.0, envMapIntensity: 0.25 }
+    : { color: def.colore, roughness: 0.6, metalness: 0.05 });
+  if (def.campione) mat.userData.campioneMm = def.campione;
   cacheMat.set(id, mat);
   if (!cacheTex.has(id)) {
     loader.load(def.texture, (tex) => {
@@ -188,6 +325,11 @@ export function getMaterialeTHREE(id, onPronto) {
       tex.wrapS = THREE.RepeatWrapping;
       tex.wrapT = THREE.RepeatWrapping;
       tex.anisotropy = 4;
+      if (def.campione) {
+        // una ripetizione della foto = la misura reale del campione
+        tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping;
+        tex.repeat.set(unitaUV.u / def.campione.wMm, unitaUV.v / def.campione.hMm);
+      }
       cacheTex.set(id, tex);
       mat.map = tex;
       mat.color.set(0xffffff); // lascia che la texture esprima il colore

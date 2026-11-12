@@ -14,10 +14,11 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
 } from './modello.js?v=20261111x';
-import { getMaterialeTHREE, MATERIALI } from '../materiali.js?v=20261111x';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261112s';
+impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI } from '../materiali.js?v=20261111x';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261112s';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1259,7 +1260,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
 
   // Zoccolo continuo (un unico pezzo per fila: basi + colonne insieme) +
   // piano di lavoro continuo che non entra nei costadi/colonne
-  renderZoccoliContinui(zoccoli, materialeZoccolo(progetto.zoccoloColore));
+  renderZoccoliContinui(zoccoli, materialeZoccolo(progetto.zoccoloColore, reRender));
   // Pannello dietro il piano (schienale): stesso materiale del piano o un altro
   const sch = progetto.schienale && progetto.schienale.attivo ? progetto.schienale : null;
   let schienale = null;
@@ -1276,9 +1277,11 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   // Lavello, piano cottura e rubinetto SOPRA il top
   for (const a of accessori) aggiungiAccessorioTop(a);
 
+  uvInScala(gruppo);
   if (reframe) inquadra(bb);
   if (renderer) renderer.render(scene, camera);
 }
+
 
 /**
  * Disegna un piano di lavoro CONTINUO: raggruppa le basi che stanno sulla
@@ -1354,6 +1357,7 @@ function materialePerTop(mat) {
   const m = new THREE.MeshStandardMaterial({
     map: tex,
     color: 0xffffff,
+    userData: mat.userData && mat.userData.campioneMm ? { campioneMm: mat.userData.campioneMm } : {},
     // Top completamente opaco: la texture deve apparire sul 3D come nella
     // foto prodotto, senza essere schiarita dalla luce ambiente della scena.
     roughness: 1.0,
@@ -1547,22 +1551,14 @@ function renderZoccoliContinui(basi, mat) {
 }
 
 /** Materiale dello zoccolo in base al colore scelto (default: nero opaco). */
-function materialeZoccolo(id) {
-  switch (id) {
-    case 'bianco-opaco':
-      return new THREE.MeshStandardMaterial({ color: 0xeceae4, roughness: 1.0, metalness: 0.0 });
-    case 'acciaio':
-      return new THREE.MeshStandardMaterial({ color: 0xc6cace, roughness: 0.3, metalness: 0.92, envMapIntensity: 1.0 });
-    case 'nero-opaco':
-    default:
-      return new THREE.MeshStandardMaterial({ color: 0x17171a, roughness: 1.0, metalness: 0.0 });
-  }
+function materialeZoccolo(id, onPronto) {
+  // Zoccoli dal catalogo (predefiniti: nero/bianco opaco, acciaio; più quelli aggiunti)
+  return getMaterialeTHREE(MATERIALI.some((m) => m.id === id) ? id : 'nero-opaco', onPronto);
 }
-export const COLORI_ZOCCOLO = [
-  { id: 'nero-opaco', nome: 'Nero opaco', css: '#17171a' },
-  { id: 'bianco-opaco', nome: 'Bianco opaco', css: '#eceae4' },
-  { id: 'acciaio', nome: 'Acciaio', css: 'linear-gradient(135deg,#d6dadf,#9aa0a6 55%,#c2c7cc)' },
-];
+/** Zoccoli visibili nel catalogo, per la palette (id, nome, sfondo CSS). */
+export function coloriZoccolo() {
+  return materialiPer('zoccolo').map((m) => ({ id: m.id, nome: m.nome, css: sfondoSwatch(m) }));
+}
 
 function bbox(progetto, vertici) {
   const xs = [], ys = [];
