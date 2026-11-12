@@ -2,10 +2,10 @@
 // MOBILI MODULARI — Passo 2: moduli (come gli armadi) o cubi liberi
 // =============================================================================
 import {
-  layoutModuli, layoutCubi, larghezzaUtileAuto, distintaModulari, posizioneValida,
+  layoutModuli, layoutCubi, abbondanzaDi, larghezzaUtileAuto, distintaModulari, posizioneValida,
   primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT,
-} from './calcoli.js?v=20261112j';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112j';
+} from './calcoli.js?v=20261112k';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112k';
 
 const FRONTI = [
   { v: 0, l: 'Aperto (a giorno)' },
@@ -179,6 +179,14 @@ function renderPannello() {
       </div>
       <label>Profondità esterna<input type="number" min="100" step="10" id="p2-prof" value="${esc(stato.profondita)}"></label>
       <p class="mod-prossimo">Assemblaggio come gli armadi: top e fondo passanti, fianchi in mezzo, schiena dietro.</p>
+    </section>
+    <section>
+      <h3>Abbondanza tagli inclinati (mm)</h3>
+      <div class="grid-2">
+        <label>Fianchi<input type="number" min="0" max="200" step="1" data-abb="fianchi" value="${esc(abbondanzaDi(stato).fianchi)}"></label>
+        <label>Top<input type="number" min="0" max="200" step="1" data-abb="top" value="${esc(abbondanzaDi(stato).top)}"></label>
+      </div>
+      <p class="mod-prossimo">Solo per i moduli con il top inclinato: fianchi e top escono più lunghi in distinta, da rifilare in opera all'inclinazione giusta. Fondo, ripiani, schiena e ante restano a misura.</p>
     </section>`;
   agganciaPannello();
 }
@@ -189,6 +197,10 @@ function agganciaPannello() {
   P.querySelectorAll('[data-modo]').forEach((b) => b.addEventListener('click', () => { stato.modalita = b.dataset.modo; tutto(); }));
   P.querySelectorAll('input[data-sp]').forEach((i) => i.addEventListener('input', () => {
     const n = numero(i.value); if (n > 0) { (stato.spessori ||= {})[i.dataset.sp] = n; ctx.salva(); ridisegna(); }
+  }));
+  P.querySelectorAll('input[data-abb]').forEach((i) => i.addEventListener('input', () => {
+    const n = numero(i.value); if (!(n >= 0 && n <= 200)) return;
+    (stato.abbondanza ||= {})[i.dataset.abb] = Math.round(n); ctx.salva(); ridisegna();
   }));
   const prof = P.querySelector('#p2-prof');
   if (prof) prof.addEventListener('input', () => { const n = numero(prof.value); if (n >= 100) { stato.profondita = n; ctx.salva(); ridisegna(); } });

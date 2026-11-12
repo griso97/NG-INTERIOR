@@ -16,6 +16,11 @@
 
 export const SPESSORI_DEFAULT = { carcassa: 18, schiena: 10, ante: 18 };
 export const H_MINIMA_MODULO = 250;
+// Pezzi da tagliare INCLINATI: si tagliano più lunghi e si rifilano in opera.
+// Fianchi col bordo alto inclinato +20 mm, top inclinato +40 mm (può andare
+// rifilato da tutte e due le parti). Fondo, ripiani, schiena e ante: giusti.
+export const ABBONDANZA_DEFAULT = { fianchi: 20, top: 40 };
+const fmtMm = (x) => String(Math.round(x));
 export const MATERIALI_DEFAULT = { struttura: 'roble-hera', ante: 'roble-denver' };
 /**
  * Finiture di un modulo/cubo: tutte uguali oppure (materiali.diversi) quelle
@@ -197,7 +202,7 @@ export function geometriaChiusura(c, sp = SPESSORI_DEFAULT) {
 }
 
 /** Pezzi del modulo di chiusura. */
-export function pezziChiusura(ch, P, sp = SPESSORI_DEFAULT) {
+export function pezziChiusura(ch, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFAULT) {
   if (ch.fronte === 'fisso') {
     const pn = ch.pannello;
     return [{ modulo: 'Chiusura in fondo', nome: `Tamponamento fisso ${pn.triangolo ? 'triangolare' : 'a trapezio'} (angolo ${ch.angolo}°, fissato al fianco del modulo vicino e al muro)`,
@@ -206,7 +211,7 @@ export function pezziChiusura(ch, P, sp = SPESSORI_DEFAULT) {
   const ante = ch.fronte === 'anta' ? 1 : 0;
   const lato = ch.daSinistra ? 'dx' : 'sx';      // cerniere dal lato alto
   if (!ch.triangolare) {
-    return pezziModulo({ nome: 'Chiusura in fondo', larghezza: ch.larghezza, hL: ch.hL, hR: ch.hR, ante, lato, ripiani: 0 }, P, sp);
+    return pezziModulo({ nome: 'Chiusura in fondo', larghezza: ch.larghezza, hL: ch.hL, hR: ch.hR, ante, lato, ripiani: 0 }, P, sp, abb);
   }
   const sC = sp.carcassa, sS = sp.schiena, sA = sp.ante;
   const Pc = P - sA - sS;
@@ -215,8 +220,8 @@ export function pezziChiusura(ch, P, sp = SPESSORI_DEFAULT) {
   const add = (nome, larghezza, altezza, spessore, materiale) =>
     pz.push({ modulo: 'Chiusura triangolare', nome, larghezza: r0(larghezza), altezza: r0(altezza), spessore, materiale, quantita: 1 });
   add('Fondo', m.fondo, Pc, sC, 'carcassa');
-  add(`Top inclinato (testata alta a ${a}°, testata bassa orizzontale in appoggio sul fondo)`, m.top, Pc, sC, 'carcassa');
-  add(`Fianco lato alto (bordo alto inclinato ${a}°)`, Pc, m.fianco, sC, 'carcassa');
+  add(`Top inclinato (testata alta a ${a}°, testata bassa orizzontale in appoggio sul fondo) · finito ${fmtMm(m.top)}, +${abb.top} da rifilare`, m.top + abb.top, Pc, sC, 'carcassa');
+  add(`Fianco lato alto (bordo alto inclinato ${a}°) · finito ${fmtMm(m.fianco)}, +${abb.fianchi} da rifilare`, Pc, m.fianco + abb.fianchi, sC, 'carcassa');
   add(`Schiena triangolare (angolo ${a}°)`, m.schiena.larghezza, m.schiena.altezza, sS, 'schiena');
   if (ante) add(`Anta triangolare (angolo ${a}°, apertura a pressione)`, m.anta.larghezza, m.anta.altezza, sA, 'ante');
   return pz;
@@ -229,7 +234,7 @@ export function pezziChiusura(ch, P, sp = SPESSORI_DEFAULT) {
  * mod = { nome, larghezza L, hL, hR, ante N (0 = aperto), lato, ripiani }
  * Altezze = esterne del modulo ai due lati.
  */
-export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT) {
+export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFAULT) {
   const sC = sp.carcassa, sS = sp.schiena, sA = sp.ante;
   const Pc = P - sA - sS;
   const L = mod.larghezza, hL = mod.hL, hR = mod.hR;
@@ -250,14 +255,15 @@ export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT) {
   } else {
     const altoSx = hL > hR;
     add('Fondo', L, Pc, sC, 'carcassa');
-    add(`Top inclinato (testate tagliate a ${ang}°)`, Math.hypot(L, dh), Pc, sC, 'carcassa');
+    const lTop = Math.hypot(L, dh);
+    add(`Top inclinato (testate tagliate a ${ang}°) · finito ${fmtMm(lTop)}, +${abb.top} da rifilare`, lTop + abb.top, Pc, sC, 'carcassa');
     // Fianco del lato alto: spigolo più alto sulla faccia esterna.
     // Fianco del lato basso: spigolo più alto sulla faccia interna.
     const hAlto = Math.max(hL, hR), hBasso = Math.min(hL, hR);
     const fiancoAlto = hAlto - tv - sC;
     const fiancoBasso = hBasso + sC * Math.tan(alfa) - tv - sC;
-    add(`Fianco ${altoSx ? 'sinistro' : 'destro'} (lato alto, bordo alto inclinato ${ang}°)`, Pc, fiancoAlto, sC, 'carcassa');
-    add(`Fianco ${altoSx ? 'destro' : 'sinistro'} (lato basso, bordo alto inclinato ${ang}°)`, Pc, fiancoBasso, sC, 'carcassa');
+    add(`Fianco ${altoSx ? 'sinistro' : 'destro'} (lato alto, bordo alto inclinato ${ang}°) · finito ${fmtMm(fiancoAlto)}, +${abb.fianchi} da rifilare`, Pc, fiancoAlto + abb.fianchi, sC, 'carcassa');
+    add(`Fianco ${altoSx ? 'destro' : 'sinistro'} (lato basso, bordo alto inclinato ${ang}°) · finito ${fmtMm(fiancoBasso)}, +${abb.fianchi} da rifilare`, Pc, fiancoBasso + abb.fianchi, sC, 'carcassa');
     add(`Schiena trapezio (lato basso ${r0(hBasso - 2)})`, L - 2, hAlto - 2, sS, 'schiena');
   }
   if (mod.ripiani > 0) add('Ripiano', L - 2 * sC, Pc, sC, 'carcassa', mod.ripiani);
@@ -374,6 +380,13 @@ export function layoutCubi(forma, stato, sp = SPESSORI_DEFAULT) {
   return { elementi, chiusura };
 }
 
+/** Abbondanza dei tagli inclinati scelta dall'utente (mm, ≥ 0). */
+export function abbondanzaDi(stato) {
+  const a = { ...ABBONDANZA_DEFAULT, ...((stato && stato.abbondanza) || {}) };
+  const ok = (v, d) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Math.round(Number(v)) : d);
+  return { fianchi: ok(a.fianchi, ABBONDANZA_DEFAULT.fianchi), top: ok(a.top, ABBONDANZA_DEFAULT.top) };
+}
+
 // ---------------------------------------------------------------------------
 // DISTINTA completa
 // ---------------------------------------------------------------------------
@@ -399,8 +412,9 @@ export function distintaModulari(forma, stato) {
   }
   // ogni pezzo con la sua finitura (id): ante → finitura ante, il resto → struttura
   const conFinitura = (pz, chiave) => pz.map((p) => ({ ...p, finitura: finitureDi(stato.materiali, chiave)[p.materiale === 'ante' ? 'ante' : 'struttura'] }));
-  for (const e of elementi) pezzi.push(...conFinitura(pezziModulo(e, P, sp), e.chiave));
-  if (chiusura) pezzi.push(...conFinitura(pezziChiusura(chiusura, P, sp), 'chiusura'));
+  const abb = abbondanzaDi(stato);
+  for (const e of elementi) pezzi.push(...conFinitura(pezziModulo(e, P, sp, abb), e.chiave));
+  if (chiusura) pezzi.push(...conFinitura(pezziChiusura(chiusura, P, sp, abb), 'chiusura'));
   let mq = { carcassa: 0, schiena: 0, ante: 0 };
   let totale = 0;
   for (const p of pezzi) { mq[p.materiale] += (p.larghezza * p.altezza * p.quantita) / 1e6; totale += p.quantita; }
