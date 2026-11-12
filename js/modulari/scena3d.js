@@ -188,6 +188,36 @@ function mobile(e, P, sp, matS, matA) {
   }
 }
 
+/**
+ * Modulo di chiusura in fondo (punta bassa del sottoscala).
+ * ch = risultato di geometriaChiusura (calcoli.js)
+ */
+function chiusura(ch, P, sp, matS, matA) {
+  const ante = ch.fronte === 'anta' ? 1 : 0;
+  if (!ch.triangolare) {
+    mobile({ x0: ch.x0, y0: 0, L: ch.larghezza, hL: ch.hL, hR: ch.hR, ante, lato: ch.daSinistra ? 'dx' : 'sx', ripiani: 0 }, P, sp, matS, matA);
+    return;
+  }
+  const sC = sp.carcassa, sS = sp.schiena, sA = sp.ante;
+  const Pc = P - sA - sS, zC = sS;
+  const f = ch.profili;
+  prisma(f.fondo, zC, Pc, matS);
+  prisma(f.top, zC, Pc, matS);
+  prisma(f.fianco, zC, Pc, matS);
+  prisma(f.schiena, 0, sS, matS);
+  if (ante) {
+    // cerniere sul lato alto; si apre a pressione (niente maniglia)
+    const xh = f.anta[0][0];
+    const g = new THREE.Group();
+    g.position.set(xh, 0, zC + Pc);
+    gruppo.add(g);
+    const verso = -ch.dir;
+    cardini.push({ g, verso });
+    prisma(f.anta.map(([x, y]) => [x - xh, y]), 0, sA, matA, true, g);
+    g.rotation.y = anteAperte ? verso * ANGOLO_APERTA : 0;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Vano: muro di fondo, muri/soffitto intorno, gradini sopra la scala
 // ---------------------------------------------------------------------------
@@ -201,19 +231,21 @@ function vano(forma, P, conGradini) {
     const nx = (b.y - a.y) / L, ny = -(b.x - a.x) / L;     // normale esterna
     const T = SP_MURO;
     prisma([[a.x, a.y], [b.x, b.y], [b.x + nx * T, b.y + ny * T], [a.x + nx * T, a.y + ny * T]], -SP_MURO, P + SP_MURO + 60, matMuro);
-    // Gradini della scala sopra l'inclinata (solo sottoscala)
+    // Scala sopra l'inclinata (solo sottoscala): la soletta inclinata è il
+    // muro qui sopra; i gradini sono TRIANGOLI appoggiati sopra la soletta
+    // (alzata verticale + pedata orizzontale), quindi non entrano nel vano.
     if (conGradini && par.tipo === 'inclinata') {
       const lo = a.y < b.y ? a : b, hi = a.y < b.y ? b : a;
       const run = Math.abs(hi.x - lo.x), rise = hi.y - lo.y;
       const passi = Math.max(3, Math.round(run / 280));
       const D = T / Math.cos(Math.atan2(rise, run));          // spessore verticale soletta
       const dir = Math.sign(hi.x - lo.x) || 1;
+      const sopra = (x) => lo.y + (rise * Math.abs(x - lo.x)) / run + D;   // sopra della soletta
       for (let k = 0; k < passi; k++) {
         const xa = lo.x + (dir * run * k) / passi, xb = lo.x + (dir * run * (k + 1)) / passi;
-        const yAlta = lo.y + (rise * (k + 1)) / passi;
-        const yBassa = lo.y + (rise * k) / passi;
-        // z da 5 a P+90: i fronti NON coincidono con muro di fondo e soletta (niente sfarfallio)
-        prisma(rett(Math.min(xa, xb), yBassa + D * 0.5, Math.max(xa, xb), yAlta + D), 5, P + 85, matGradino);
+        const yp = sopra(xb);                                      // quota della pedata
+        // stessa profondità della soletta: niente gradini che sporgono davanti alle ante
+        prisma([[xa, sopra(xa)], [xb, yp], [xa, yp]], -SP_MURO, P + SP_MURO + 60, matGradino);
       }
     }
   });
@@ -224,7 +256,7 @@ function vano(forma, P, conGradini) {
 // ---------------------------------------------------------------------------
 /**
  * forma: risultato di calcolaForma; elementi: [{x0,y0,L,hL,hR,ante,lato,ripiani}]
- * opz: { P, spessori, materiali:{struttura, ante}, conGradini, reinquadra }
+ * opz: { P, spessori, materiali:{struttura, ante}, conGradini, chiusura, reinquadra }
  */
 export function aggiorna(forma, elementi, opz) {
   if (!gruppo) return;
@@ -243,6 +275,7 @@ export function aggiorna(forma, elementi, opz) {
   specchia(matS); specchia(matA);
   vano(forma, opz.P, opz.conGradini);
   for (const e of elementi) mobile(e, opz.P, opz.spessori, matS, matA);
+  if (opz.chiusura) chiusura(opz.chiusura, opz.P, opz.spessori, matS, matA);
   const nuova = { W: forma.larghezza, H: forma.altezzaMax, P: opz.P };
   const cambiata = !ultimaVista || ['W', 'H', 'P'].some((k) => Math.abs(ultimaVista[k] - nuova[k]) > 1);
   ultimaVista = nuova;

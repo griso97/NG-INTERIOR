@@ -2,9 +2,9 @@
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
 import { MATERIALI } from '../materiali.js?v=20261111b';
-import { layoutModuli, SPESSORI_DEFAULT } from './calcoli.js?v=20261112f';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte } from './scena3d.js?v=20261112f';
-import { apriDistinta } from './passo2.js?v=20261112f';
+import { layoutModuli, SPESSORI_DEFAULT } from './calcoli.js?v=20261112g';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte } from './scena3d.js?v=20261112g';
+import { apriDistinta } from './passo2.js?v=20261112g';
 
 const FINITURE = MATERIALI.filter((m) => m.categoria === 'legno' || m.categoria === 'tinta');
 export const MATERIALI_DEFAULT = { struttura: 'roble-hera', ante: 'roble-denver' };
@@ -20,6 +20,13 @@ function conScala() {
 }
 
 let ctx = null;
+
+/** Modulo di chiusura in fondo (solo modalità a moduli). */
+function chiusura() {
+  const { stato, forma } = ctx;
+  if (stato.modalita === 'cubi') return null;
+  return layoutModuli(forma, stato.moduli, { ...SPESSORI_DEFAULT, ...(stato.spessori || {}) }).chiusura;
+}
 
 /** Elementi da disegnare (moduli o cubi) nel formato del motore 3D. */
 function elementi() {
@@ -53,6 +60,7 @@ function disegna(reinquadra) {
     spessori: { ...SPESSORI_DEFAULT, ...(stato.spessori || {}) },
     materiali: stato.materiali,
     conGradini: conScala(),
+    chiusura: chiusura(),
     reinquadra,
   });
 }
@@ -111,7 +119,7 @@ function renderPannello() {
 
 function renderRiepilogo() {
   const { stato, forma, fmt } = ctx;
-  const n = elementi().length;
+  const n = elementi().length + (chiusura() ? 1 : 0);
   ctx.riepilogo.innerHTML = `
     <h3>Rendering 3D</h3>
     <div class="riep-riga"><span>${stato.modalita === 'cubi' ? 'Cubi' : 'Moduli'}</span><strong>${fmt(n)}</strong></div>

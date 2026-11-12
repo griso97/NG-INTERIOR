@@ -4,8 +4,8 @@
 import {
   layoutModuli, larghezzaUtileAuto, distintaModulari, posizioneValida,
   primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT,
-} from './calcoli.js?v=20261112f';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112f';
+} from './calcoli.js?v=20261112g';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261112g';
 
 const FRONTI = [
   { v: 0, l: 'Aperto (a giorno)' },
@@ -93,6 +93,13 @@ function renderPannello() {
         <label class="radio"><input type="radio" name="mod-tipo" value="uguali" ${m.uguali ? 'checked' : ''}> Tutti uguali (divisione automatica)</label>
         <label class="radio"><input type="radio" name="mod-tipo" value="diversi" ${!m.uguali ? 'checked' : ''}> Moduli diversi (misura, fronte e ripiani per modulo)</label>
         <div style="margin-top:10px">${corpo}</div>
+        ${lay.resto > 2 * s.carcassa + 20 ? `<label style="margin-top:12px">Punta bassa in fondo (${fmt(Math.round(lay.resto))} mm)
+          <select id="mod-chiusura">
+            <option value="anta" ${(m.chiusura || 'anta') === 'anta' ? 'selected' : ''}>Modulo di chiusura con anta</option>
+            <option value="aperto" ${m.chiusura === 'aperto' ? 'selected' : ''}>Modulo di chiusura aperto (a giorno)</option>
+            <option value="no" ${m.chiusura === 'no' ? 'selected' : ''}>Lascia vuoto</option>
+          </select></label>
+        <p class="mod-prossimo" style="margin-top:-4px">${lay.chiusura?.triangolare ? 'Triangolare: fondo, top inclinato appoggiato sul fondo, un fianco, schiena e anta a triangolo.' : 'Chiude lo spazio rimasto verso il lato basso.'}</p>` : ''}
       </section>`;
   } else {
     const n = stato.nuovoCubo;
@@ -195,6 +202,8 @@ function agganciaPannello() {
       if (s.dataset.c === 'ante') x.ante = Number(s.value); else x.lato = s.value;
       tutto();
     }));
+    const ch = P.querySelector('#mod-chiusura');
+    if (ch) ch.addEventListener('change', () => { m.chiusura = ch.value; tutto(); });
     P.querySelectorAll('.mod-del').forEach((b) => b.addEventListener('click', () => { m.lista.splice(+b.dataset.i, 1); tutto(); }));
     const add = P.querySelector('#mod-add');
     if (add) add.addEventListener('click', () => {
@@ -309,6 +318,24 @@ function renderDisegno() {
         <line x1="${md.x0}" y1="${qy}" x2="${md.x1}" y2="${qy}" stroke="var(--testo-dim)" stroke-width="${sw}"/>
         <text x="${cx}" y="${qy + fs * 1.3}" font-size="${fs * 0.9}" text-anchor="middle" fill="var(--testo)">${fmt(md.larghezza)}</text>`;
     });
+    const ch = lay.chiusura;
+    if (ch) {
+      if (ch.triangolare) {
+        const pth = (pts) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${Y(y)}`).join(' ') + ' Z';
+        const conAnta = ch.fronte === 'anta';
+        html += `<path d="${pth(ch.profili.contorno)}" fill="${conAnta ? 'var(--oro)' : 'var(--bg)'}" fill-opacity="${conAnta ? 0.16 : 0.55}" stroke="var(--testo)" stroke-width="${sw * 1.6}"/>`;
+        if (conAnta) html += `<path d="${pth(ch.profili.anta)}" fill="none" stroke="var(--mod-acc)" stroke-width="${sw}"/>`;
+        else html += `<path d="${pth(ch.profili.top)}" fill="var(--testo-dim)" fill-opacity=".35" stroke="none"/>`;
+      } else {
+        html += disegnaMobile(ch.x0, ch.x1, ch.hL, ch.hR, ch.fronte === 'anta' ? 1 : 0, ch.daSinistra ? 'dx' : 'sx', 0);
+      }
+      const cx = ch.triangolare ? ch.xT + ch.dir * ch.larghezza * 0.3 : (ch.x0 + ch.x1) / 2;
+      html += `<text x="${cx}" y="${Y(ch.hAlto * 0.3)}" font-size="${fs * 0.9}" text-anchor="middle" dominant-baseline="central" fill="var(--testo)" font-weight="600">C</text>`;
+      html += `<line x1="${ch.x0}" y1="${qy - fs * 0.5}" x2="${ch.x0}" y2="${qy + fs * 0.5}" stroke="var(--testo-dim)" stroke-width="${sw}"/>
+        <line x1="${ch.x1}" y1="${qy - fs * 0.5}" x2="${ch.x1}" y2="${qy + fs * 0.5}" stroke="var(--testo-dim)" stroke-width="${sw}"/>
+        <line x1="${ch.x0}" y1="${qy}" x2="${ch.x1}" y2="${qy}" stroke="var(--testo-dim)" stroke-width="${sw}"/>
+        <text x="${(ch.x0 + ch.x1) / 2}" y="${qy + fs * 1.3}" font-size="${fs * 0.9}" text-anchor="middle" fill="var(--testo)">${fmt(Math.round(ch.larghezza))}</text>`;
+    }
     html += catena;
   } else {
     for (const c of stato.cubi) {
@@ -409,6 +436,8 @@ function renderRiepilogo() {
       <tr><th>Mod.</th><th style="text-align:right">Largh.</th><th style="text-align:right">H sx / dx</th></tr>
       ${lay.moduli.map((m) => `<tr><td>M${m.indice + 1} · ${Number(m.ante) ? `${m.ante} ${Number(m.ante) === 1 ? 'anta' : 'ante'}` : 'aperto'}</td>
         <td class="num">${fmt(m.larghezza)}</td><td class="num">${fmt(Math.round(m.hL))} / ${fmt(Math.round(m.hR))}</td></tr>`).join('')}
+      ${lay.chiusura ? `<tr><td>C · ${lay.chiusura.triangolare ? 'triangolo' : 'chiusura'}, ${lay.chiusura.fronte === 'anta' ? 'anta' : 'aperto'}</td>
+        <td class="num">${fmt(Math.round(lay.chiusura.larghezza))}</td><td class="num">${fmt(Math.round(lay.chiusura.hL))} / ${fmt(Math.round(lay.chiusura.hR))}</td></tr>` : ''}
     </table>`;
   } else {
     lista = stato.cubi.length ? `<table class="tab-pareti">

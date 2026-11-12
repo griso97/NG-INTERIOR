@@ -108,8 +108,100 @@ export function layoutModuli(forma, cfg, spessori = SPESSORI_DEFAULT) {
     moduli.push({ indice: i, x0, x1, larghezza: L, hL, hR,
       ante: d.ante ?? 1, lato: d.lato || 'dx', ripiani: Math.max(0, Math.round(d.ripiani ?? 1)), spigolo });
   });
-  if (usata < W - 1 && cfg.uguali) avvisi.push(`Restano ${r0(W - usata)} mm liberi dal lato basso (troppo bassi per un modulo).`);
-  return { moduli, usata, daSinistra: auto.daSinistra, errori, avvisi };
+  // Spazio rimasto verso il lato basso: lo chiude un modulo finale
+  // (triangolare se il soffitto scende quasi a terra).
+  const resto = W - pos;
+  const fronte = ['anta', 'aperto', 'no'].includes(cfg.chiusura) ? cfg.chiusura : 'anta';
+  let chiusura = null;
+  if (resto > 2 * sC + 20 && fronte !== 'no') {
+    const xa = auto.daSinistra ? pos : 0, xb = auto.daSinistra ? W : resto;
+    chiusura = geometriaChiusura({ x0: xa, x1: xb, hL: altezzaSoffitto(forma.punti, xa), hR: altezzaSoffitto(forma.punti, xb),
+      daSinistra: auto.daSinistra, fronte }, spessori);
+  } else if (resto > 1 && fronte === 'no') {
+    avvisi.push(`Restano ${r0(resto)} mm liberi dal lato basso: puoi chiuderli con il modulo finale (triangolare).`);
+  }
+  return { moduli, usata, resto, daSinistra: auto.daSinistra, chiusura, errori, avvisi };
+}
+
+// ---------------------------------------------------------------------------
+// Modulo finale di CHIUSURA (la punta bassa del sottoscala)
+// ---------------------------------------------------------------------------
+/**
+ * Se dal lato basso c'è ancora spazio per un fianco → modulo inclinato normale.
+ * Altrimenti modulo TRIANGOLARE: fondo, top inclinato che si appoggia sul
+ * fondo, un solo fianco (lato alto), schiena e anta triangolari.
+ * Ritorna anche i profili (x,y in mm) per il disegno 2D/3D.
+ */
+export function geometriaChiusura(c, sp = SPESSORI_DEFAULT) {
+  const sC = sp.carcassa;
+  const L = c.x1 - c.x0;
+  const hS = c.daSinistra ? c.hL : c.hR;          // lato alto (attaccato ai moduli)
+  const hE = c.daSinistra ? c.hR : c.hL;          // lato basso (verso il muro/pavimento)
+  const k = Math.max(1e-6, (hS - hE) / L);
+  const alfa = Math.atan(k);
+  const tv = sC / Math.cos(alfa);
+  const fiancoBasso = hE + sC * Math.tan(alfa) - tv - sC;
+  const base = { ...c, larghezza: L, hAlto: hS, hBasso: hE, angolo: r1(alfa * DEG) };
+  if (fiancoBasso >= 30 || hS - hE < 1) return { ...base, triangolare: false };
+
+  const dir = c.daSinistra ? 1 : -1;
+  const xT = c.daSinistra ? c.x0 : c.x1;          // x del lato alto
+  const X = (u) => xT + dir * u;
+  const yt = (u) => hS - k * u;                   // soffitto (sopra del top)
+  const uDove = (y) => Math.min(L, Math.max(0, (hS - y) / k));   // dove il soffitto vale y
+  const map = (pts) => pts.map(([u, y]) => [X(u), y]);
+  // Zona sotto il soffitto (abbassato di off) tra u0 e u1, sopra yBase
+  const sotto = (u0, u1, yBase, off) => {
+    const uE = Math.min(u1, uDove(yBase + off));
+    const p = [[u0, yBase], [uE, yBase]];
+    if (uE >= u1 - 0.01 && yt(u1) - off > yBase + 0.5) p.push([u1, yt(u1) - off]);
+    p.push([u0, yt(u0) - off]);
+    return { pts: p, larghezza: uE - u0, altezza: yt(u0) - off - yBase };
+  };
+  const uf = uDove(sC);                           // il sopra del top tocca il fondo
+  const uu = uDove(sC + tv);                      // il sotto del top tocca il fondo
+  const top = [[0, yt(0) - tv], [uu, sC], [uf, sC]];
+  if (uf >= L - 0.01 && yt(L) > sC + 0.5) top.push([L, yt(L)]);
+  top.push([0, yt(0)]);
+  const schiena = sotto(1, L - 1, 1, 1);
+  const anta = sotto(2, L - 2, 2, 2);
+  return {
+    ...base, triangolare: true, dir, xT,
+    profili: {
+      fondo: map([[0, 0], [uf, 0], [uf, sC], [0, sC]]),
+      top: map(top),
+      fianco: map([[0, sC], [sC, sC], [sC, yt(sC) - tv], [0, yt(0) - tv]]),
+      schiena: map(schiena.pts),
+      anta: map(anta.pts),
+      contorno: map([[0, 0], [uf, 0], ...(uf >= L - 0.01 && yt(L) > 0.5 ? [[L, yt(L)]] : [[uf, sC]]), [0, hS]]),
+    },
+    misure: {
+      fondo: uf, top: uf / Math.cos(alfa), fianco: hS - tv - sC,
+      schiena: { larghezza: schiena.larghezza, altezza: schiena.altezza },
+      anta: { larghezza: anta.larghezza, altezza: anta.altezza },
+    },
+  };
+}
+
+/** Pezzi del modulo di chiusura. */
+export function pezziChiusura(ch, P, sp = SPESSORI_DEFAULT) {
+  const ante = ch.fronte === 'anta' ? 1 : 0;
+  const lato = ch.daSinistra ? 'dx' : 'sx';      // cerniere dal lato alto
+  if (!ch.triangolare) {
+    return pezziModulo({ nome: 'Chiusura in fondo', larghezza: ch.larghezza, hL: ch.hL, hR: ch.hR, ante, lato, ripiani: 0 }, P, sp);
+  }
+  const sC = sp.carcassa, sS = sp.schiena, sA = sp.ante;
+  const Pc = P - sA - sS;
+  const m = ch.misure, a = ch.angolo;
+  const pz = [];
+  const add = (nome, larghezza, altezza, spessore, materiale) =>
+    pz.push({ modulo: 'Chiusura triangolare', nome, larghezza: r0(larghezza), altezza: r0(altezza), spessore, materiale, quantita: 1 });
+  add('Fondo', m.fondo, Pc, sC, 'carcassa');
+  add(`Top inclinato (testata alta a ${a}°, testata bassa orizzontale in appoggio sul fondo)`, m.top, Pc, sC, 'carcassa');
+  add(`Fianco lato alto (bordo alto inclinato ${a}°)`, Pc, m.fianco, sC, 'carcassa');
+  add(`Schiena triangolare (angolo ${a}°)`, m.schiena.larghezza, m.schiena.altezza, sS, 'schiena');
+  if (ante) add(`Anta triangolare (angolo ${a}°, apertura a pressione)`, m.anta.larghezza, m.anta.altezza, sA, 'ante');
+  return pz;
 }
 
 // ---------------------------------------------------------------------------
@@ -229,7 +321,7 @@ export function distintaModulari(forma, stato) {
   const sp = { ...SPESSORI_DEFAULT, ...(stato.spessori || {}) };
   const P = stato.profondita || 600;
   const pezzi = [], errori = [], avvisi = [];
-  let elementi = [];
+  let elementi = [], chiusura = null;
   if (stato.modalita === 'cubi') {
     const cubi = stato.cubi || [];
     cubi.forEach((c, i) => {
@@ -240,10 +332,12 @@ export function distintaModulari(forma, stato) {
     const lay = layoutModuli(forma, stato.moduli || {}, sp);
     errori.push(...lay.errori); avvisi.push(...lay.avvisi);
     elementi = lay.moduli.map((m) => ({ ...m, nome: `Modulo ${m.indice + 1}` }));
+    if (lay.chiusura) chiusura = lay.chiusura;
   }
   for (const e of elementi) pezzi.push(...pezziModulo(e, P, sp));
+  if (chiusura) pezzi.push(...pezziChiusura(chiusura, P, sp));
   let mq = { carcassa: 0, schiena: 0, ante: 0 };
   let totale = 0;
   for (const p of pezzi) { mq[p.materiale] += (p.larghezza * p.altezza * p.quantita) / 1e6; totale += p.quantita; }
-  return { pezzi, errori, avvisi, elementi: elementi.length, totalePezzi: totale, mq };
+  return { pezzi, errori, avvisi, elementi: elementi.length + (chiusura ? 1 : 0), totalePezzi: totale, mq };
 }
