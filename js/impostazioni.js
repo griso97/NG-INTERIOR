@@ -8,10 +8,10 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, eliminaFoto, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261112w';
-import { analizzaFoto, cmZona } from './analisi-foto.js?v=20261112w';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261112w';
-import { agganciaTema } from './tema.js?v=20261112w';
+} from './catalogo.js?v=20261112x';
+import { analizzaFoto, cmZona } from './analisi-foto.js?v=20261112x';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261112x';
+import { agganciaTema } from './tema.js?v=20261112x';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);

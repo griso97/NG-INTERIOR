@@ -165,10 +165,21 @@ export function analizzaFoto(img, tipo = 'base') {
     out.porta = su(rp ? rientra(rp, 0.04) : rientra(o, 0.08));
     if (gola) {
       const mGola = mascheraGruppo(P, obj, gola, gr.filter((g) => g !== gola));
-      const rg = rettangoloMassimo(mGola, P.w, P.h);
+      // La gola è la parte SUPERIORE della porta (anche inclinata nelle foto a
+      // 45°): la cerco prima in alto, poi in basso, poi sui lati. Il bordo
+      // laterale (spessore della porta) ha lo stesso colore ma non è la gola.
+      const fascia = (y0, y1, x0, x1) => rettangoloMassimo(mGola, P.w, P.h,
+        Math.max(0, Math.round(x0)), Math.max(0, Math.round(y0)), Math.min(P.w, Math.round(x1)), Math.min(P.h, Math.round(y1)));
+      const minimo = Math.max(6, o.w * o.h * 0.002);
+      const ok = (r) => r && r.w * r.h >= minimo;
+      // in alto/in basso guardo solo la parte centrale: i fianchi neri (spessore) restano fuori
+      const alto = fascia(o.y, o.y + o.h * 0.3, o.x + o.w * 0.15, o.x + o.w * 0.85);
+      const basso = fascia(o.y + o.h * 0.7, o.y + o.h, o.x + o.w * 0.15, o.x + o.w * 0.85);
+      const rg = ok(alto) ? alto : ok(basso) ? basso : rettangoloMassimo(mGola, P.w, P.h);
+      out.golaLato = rg && rg.h > rg.w * 1.5 ? 'lato' : ok(alto) ? 'alto' : ok(basso) ? 'basso' : 'lato';
       if (rg) out.gola = su(rg.w > 6 && rg.h > 6 ? rientra(rg, 0.15) : rg);
       out.coloreGola = (Math.round(gola.c[0]) << 16) | (Math.round(gola.c[1]) << 8) | Math.round(gola.c[2]);
-      out.messaggio = 'Porta e gola riconosciute.';
+      out.messaggio = { alto: 'Porta e gola riconosciute (gola in alto).', basso: 'Porta e gola riconosciute (gola in basso).', lato: 'Porta e gola riconosciute (gola di lato).' }[out.golaLato];
     } else out.messaggio = 'Non trovo una gola di colore diverso: controlla la foto o correggi a mano.';
     return out;
   }
