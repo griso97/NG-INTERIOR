@@ -20,13 +20,13 @@ import {
   spaziTraMobili, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
-  anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA,
-} from './modello.js?v=20261113q';
+  anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
+} from './modello.js?v=20261113r';
 import { renderPianta } from './pianta.js?v=20261111x';
-import { calcolaDistintaCucina } from './distinta.js?v=20261113q';
+import { calcolaDistintaCucina } from './distinta.js?v=20261113r';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261113q';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113q';
+import { agganciaTema } from '../tema.js?v=20261113r';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113r';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1065,6 +1065,28 @@ function renderPannelloModificaMobile(m) {
         ${[300, 400, 450, 600, 700].map((v) => `<button type="button" class="btn-ghost opt-vanoh ${(m.altezzaVano_mm || 600) === v ? 'attivo' : ''}" data-vanoh="${v}">${v / 10} cm</button>`).join('')}
       </div>` : ''}
     </section>` : ''}
+    ${m.tipo === 'base-cassetti' ? (() => {
+      const nc = Math.max(1, m.cassetti || 3), H = m.altezza_mm || 700;
+      const piccolo = !!m.cassettoPiccolo_mm && nc > 1;
+      const alt = frontiCassetti(H, nc, piccolo ? m.cassettoPiccolo_mm : null);
+      return `
+    <section class="step3-pannello">
+      <h3>Cassetti</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Quanti cassetti:</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${[1, 2, 3, 4, 5, 6].map((n) => `<button type="button" class="btn-ghost opt-ncass ${n === nc ? 'attivo' : ''}" data-ncass="${n}" style="flex:1;min-width:38px">${n === nc ? '✓' : ''}${n}</button>`).join('')}
+      </div>
+      ${nc > 1 ? `
+      <div class="opzioni-anta" style="margin-top:10px">
+        <button type="button" class="btn-ghost opt-cassdiv ${!piccolo ? 'attivo' : ''}" data-cassdiv="uguali">${!piccolo ? '✓ ' : ''}Tutti uguali</button>
+        <button type="button" class="btn-ghost opt-cassdiv ${piccolo ? 'attivo' : ''}" data-cassdiv="piccolo">${piccolo ? '✓ ' : ''}Uno piccolo in alto, gli altri uguali</button>
+      </div>
+      ${piccolo ? `
+      <div class="riga-3d" style="margin:8px 0 4px">Altezza del frontale piccolo (mm):</div>
+      <input type="number" id="cass-piccolo" class="modale-num" value="${alt[0]}" min="60" step="1" style="width:100%" />` : ''}` : ''}
+      <div class="riga-3d" style="margin-top:8px">Frontali (dall'alto): <strong>${alt.join(' · ')} mm</strong></div>
+    </section>`;
+    })() : ''}
     ${puoAnte ? `
     <section class="step3-pannello">
       <h3>Ante del modulo</h3>
@@ -1200,6 +1222,24 @@ function renderPannelloModificaMobile(m) {
     progetto.antaPensile = b.dataset.anta;
     aggiorna();
   }));
+  pannello.querySelectorAll('.opt-ncass').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    m.cassetti = Number(b.dataset.ncass);
+    aggiorna();
+  }));
+  pannello.querySelectorAll('.opt-cassdiv').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    if (b.dataset.cassdiv === 'uguali') delete m.cassettoPiccolo_mm;
+    else m.cassettoPiccolo_mm = m.cassettoPiccolo_mm || 140;
+    aggiorna();
+  }));
+  pannello.querySelector('#cass-piccolo')?.addEventListener('change', (e) => {
+    const v = Math.round(Number(e.target.value));
+    if (!(v > 0)) return;
+    registraStoria();
+    m.cassettoPiccolo_mm = v;
+    aggiorna();
+  });
   pannello.querySelectorAll('.opt-nante').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     m.ante = Number(b.dataset.nante);              // 1 o 2 ante su QUESTO modulo
@@ -1402,7 +1442,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261113q');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261113r');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste

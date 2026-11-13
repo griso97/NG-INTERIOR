@@ -1052,5 +1052,10 @@ window.NG_I18N_ES = {
  "Inox": "Inox",
  "Bianco": "Blanco",
  "Forno e microonde": "Horno y microondas",
- "Porta bassa (mm) — con i mobili bassi si allinea da sola": "Puerta baja (mm) — con módulos bajos se alinea sola"
+ "Porta bassa (mm) — con i mobili bassi si allinea da sola": "Puerta baja (mm) — con módulos bajos se alinea sola",
+ "Quanti cassetti:": "Cuántos cajones:",
+ "Uno piccolo in alto, gli altri uguali": "Uno pequeño arriba, los demás iguales",
+ "Altezza del frontale piccolo (mm):": "Altura del frente pequeño (mm):",
+ "Frontali (dall'alto):": "Frentes (desde arriba):",
+ "Fronte cassetto piccolo": "Frente de cajón pequeño"
 };

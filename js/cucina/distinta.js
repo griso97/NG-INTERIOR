@@ -12,8 +12,8 @@
 // =============================================================================
 
 import {
-  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna,
-} from './modello.js?v=20261113q';
+  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti,
+} from './modello.js?v=20261113r';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -117,13 +117,16 @@ function pezziDiModulo(progetto, m) {
     zoccolo(pz, mod, L, H);
     if (m.tipo === 'base-cassetti') {
       const nc = Math.max(1, m.cassetti || 3);
-      // FUGHE: una in più dei cassetti (1 cassetto → 2 fughe, 3 → 4…), da 2 mm:
-      // fronte = (altezza − (cassetti + 1) × 2) ÷ cassetti, SEMPRE per difetto
-      // (es. 700, 3 → 230,7 → 230; 700, 5 → 137,6 → 137)
-      const hf = Math.floor((H - (nc + 1) * 2) / nc);
-      pz.push({ modulo: mod, nome: 'Fronte cassetto', larghezza: round(L - 3), altezza: hf, spessore: SP, materiale: 'anta', quantita: nc });
-      // parti per fare i cassetti: fondo e trasera in melaminico bianco
-      cassettoMelaminico(pz, mod, L, hf, nc);
+      // FUGHE: una in più dei cassetti, da 2 mm; frontali per difetto. Tutti
+      // uguali, oppure uno piccolo in alto e gli altri uguali.
+      const alt = frontiCassetti(H, nc, m.cassettoPiccolo_mm);
+      const perH = new Map(); alt.forEach((h) => perH.set(h, (perH.get(h) || 0) + 1));
+      for (const [hf, q] of perH) {
+        const piccolo = m.cassettoPiccolo_mm && alt.length > 1 && hf === alt[0] && hf !== alt[1];
+        pz.push({ modulo: mod, nome: piccolo ? 'Fronte cassetto piccolo' : 'Fronte cassetto', larghezza: round(L - 3), altezza: hf, spessore: SP, materiale: 'anta', quantita: q });
+        // parti per fare i cassetti: fondo e trasera in melaminico bianco
+        cassettoMelaminico(pz, mod, L, hf, q);
+      }
     } else if (m.tipo === 'forno') {
       // sotto il forno un pannello del colore delle ante (griglia sopra = accessorio)
       const hp = round(H - 2 - GRIGLIA_FORNO - 3 - H_FORNO_INCASSO - 3);
@@ -308,7 +311,7 @@ export function calcolaDistintaCucina(progetto) {
   }
   // CASSETTI (guide/scatola) profondità 50 cm: uno per frontale
   for (const p of raw) {
-    if (p.nome !== 'Fronte cassetto') continue;
+    if (!p.nome.startsWith('Fronte cassetto')) continue;
     aggiungi(`Cassetti profondità 50 cm · ${p.altezza > 155 ? 'altezza grande' : 'altezza bassa'}`, p.quantita);
   }
   // MANIGLIE: una per porta e per frontale, dove non c'è il finger-pull

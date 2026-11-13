@@ -1506,3 +1506,18 @@ export function altezzaBassiCucina(progetto) {
 export function portaBassaColonna(progetto, m) {
   return altezzaBassiCucina(progetto) ?? m.altezzaBassa_mm ?? 700;
 }
+
+/**
+ * Altezze dei FRONTALI dei cassetti (dall'alto in basso), in mm interi per
+ * difetto. Fughe da 2 mm, una in più dei cassetti.
+ * - tutti uguali: (H − (n+1)·2) ÷ n
+ * - con un cassetto PICCOLO in alto (piccolo = sua altezza): gli altri si
+ *   dividono in parti uguali lo spazio che resta.
+ */
+export function frontiCassetti(H, n, piccolo = null) {
+  n = Math.max(1, n || 3);
+  const netto = H - (n + 1) * 2;
+  if (!piccolo || n < 2) return Array(n).fill(Math.floor(netto / n));
+  const hs = Math.floor(Math.max(60, Math.min(Number(piccolo), netto - (n - 1) * 80)));
+  return [hs, ...Array(n - 1).fill(Math.floor((netto - hs) / (n - 1)))];
+}

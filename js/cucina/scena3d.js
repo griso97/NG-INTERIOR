@@ -11,14 +11,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111x';
 import {
-  calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna,
+  calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261113q';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113q';
+} from './modello.js?v=20261113r';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113r';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113q';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113r';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -924,14 +924,17 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
     }
   }
 }
-function cassetti(g, w, h, d, n, matAnta) {
+function cassetti(g, w, h, d, n, matAnta, piccolo = null) {
   const z = d / 2;
-  // Fughe da 2 mm, una in più dei cassetti (sopra, sotto e tra i fronti):
-  // fronte = (h − (n + 1) × 2) ÷ n, come nella distinta
+  // Fughe da 2 mm, una in più dei cassetti; frontali tutti uguali oppure uno
+  // piccolo in alto e gli altri uguali (stessa regola della distinta)
   const uw = w - FUGA_W, FC = 2;
-  const ph = Math.floor((h - (n + 1) * FC) / n);    // per difetto, come in distinta
-  for (let i = 0; i < n; i++) {
-    const py = -h / 2 + FC + ph / 2 + i * (ph + FC);
+  const alt = frontiCassetti(h, n, piccolo);       // dall'alto in basso
+  let yTop = h / 2 - FC;
+  for (let i = 0; i < alt.length; i++) {
+    const ph = alt[i];
+    const py = yTop - ph / 2;
+    yTop -= ph + FC;
     if (_fingerPull) {
       const CH = Math.min(26, ph * 0.35);
       pannello(g, 0, py - CH / 2, z, uw, Math.max(40, ph - CH), matAnta || COL.cassetto);
@@ -1349,7 +1352,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   if (opt.cieco && opt.cieco.coperto) { anteCieche(g, w, h, d, matAnta, opt.cieco); return g; }
   if (tipo === 'pensile-angolo-45') { pensileAngoloFronte(g, w, h, d, matAnta); return g; }
   if (cat === 'colonna') { colonnaFronte(g, w, h, d, m, matAnta); return g; }
-  if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta); return g; }
+  if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta, m.cassettoPiccolo_mm); return g; }
   if (tipo === 'lavello') { ante(g, w, h, d, w >= 900 ? 2 : 1, matAnta); return g; } // lavello disegnato sopra il top
   if (tipo === 'lavastoviglie') { lavastoviglieFronte(g, w, h, d); return g; }
   if (cat === 'lavatrice') { lavatriceFronte(g, w, h, d); return g; }
