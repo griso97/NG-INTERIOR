@@ -13,13 +13,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261115g';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115g';
+} from './modello.js?v=20261115h';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115h';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115g';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115h';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115g';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115h';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -516,6 +516,47 @@ function carcassaColonna(w, h, d, coloreOMat, conTop = true) {
   return g;
 }
 
+// --- VETRINA ---------------------------------------------------------------
+const MAT_VETRO = {
+  trasparente: new THREE.MeshStandardMaterial({ color: 0xe4f0ef, transparent: true, opacity: 0.16, roughness: 0.04, metalness: 0.1, depthWrite: false }),
+  satinato: new THREE.MeshStandardMaterial({ color: 0xf3f5f4, transparent: true, opacity: 0.92, roughness: 0.92, metalness: 0, depthWrite: false }),
+  fume: new THREE.MeshStandardMaterial({ color: 0x2b2d30, transparent: true, opacity: 0.62, roughness: 0.12, metalness: 0.1, depthWrite: false }),
+};
+const MAT_TELAIO = {
+  alluminio: new THREE.MeshStandardMaterial({ color: 0xc2c5c9, roughness: 0.38, metalness: 0.85 }),
+  nero: new THREE.MeshStandardMaterial({ color: 0x1c1c1d, roughness: 0.45, metalness: 0.4 }),
+};
+/** Telaio legno 50 mm (come le ante) o profilo alluminio/nero 22 mm, con il vetro dentro. */
+function antaVetro(g, px, py, z, pw, ph, matAnta, v) {
+  const legno = (v.telaio || 'legno') === 'legno';
+  const F = Math.min(legno ? 50 : 22, pw / 3, ph / 3), sp = 20;
+  const matT = legno ? ((matAnta && matAnta.isMaterial) ? matAnta : new THREE.MeshStandardMaterial({ color: (matAnta || COL.anta), roughness: 0.6, metalness: 0.08 }))
+    : (MAT_TELAIO[v.telaio] || MAT_TELAIO.alluminio);
+  const pezzo = (bw, bh, x, y) => {
+    const ms = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, sp), matT);
+    ms.position.set(x, y, z + sp / 2); ms.castShadow = true; g.add(ms);
+  };
+  pezzo(pw, F, px, py + ph / 2 - F / 2);
+  pezzo(pw, F, px, py - ph / 2 + F / 2);
+  pezzo(F, ph - 2 * F, px - pw / 2 + F / 2, py);
+  pezzo(F, ph - 2 * F, px + pw / 2 - F / 2, py);
+  const vetro = new THREE.Mesh(new THREE.BoxGeometry(pw - 2 * F + 4, ph - 2 * F + 4, 4), MAT_VETRO[v.vetro] || MAT_VETRO.trasparente);
+  vetro.position.set(px, py, z + sp / 2); vetro.renderOrder = 2; g.add(vetro);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(pw, ph, sp)), matOro);
+  e.position.set(px, py, z + sp / 2); g.add(e);
+}
+/** Cassa aperta davanti (si vede dal vetro) con i suoi ripiani. */
+function carcassaVetrina(w, h, d, coloreCorpo, nRip) {
+  const g = carcassaColonna(w, h, d, coloreCorpo);
+  const t = 18, mat = new THREE.MeshStandardMaterial({ color: coloreCorpo, roughness: 0.7, metalness: 0.05 });
+  for (let k = 1; k <= nRip; k++) {
+    const r = new THREE.Mesh(new THREE.BoxGeometry(w - 2 * t, t, d - t - 25), mat);
+    r.position.set(0, -h / 2 + t + (h - 2 * t) * k / (nRip + 1), (t + 25) / 2 - 25 + 12);
+    r.castShadow = true; r.receiveShadow = true; g.add(r);
+  }
+  return g;
+}
+
 function pannello(g, px, py, z, pw, ph, mat) {
   // Anta: uso direttamente il materiale (legno con texture o tinta piena),
   // così la venatura compare su tutte le facce dell'anta.
@@ -971,6 +1012,7 @@ function manigliaOrizzAnta(g, px, py, pw, ph, z, verso, inAlto) {
   maniglia(g, px + verso * off, y, z, true, Math.min(pw * 0.5, 320), !inAlto);
 }
 let _anteInBasso = false;    // pensili: maniglia vicino al bordo basso
+let _vetrina = null;         // ante a vetro del mobile che si sta costruendo ({ telaio, vetro })
 function ante(g, w, h, d, n, matAnta, sporg, lato) {
   const z = d / 2;
   const uw = w - FUGA_W;
@@ -984,7 +1026,14 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
   for (let i = 0; i < n; i++) {
     const px = -uw / 2 + pw / 2 + i * (pw + GAP_ANTE);
     // Anta sporgente sotto (gola integrata): si apre da sotto, niente maniglia.
-    if (!sporg && _fingerPull) {
+    if (_vetrina) {
+      // ANTA VETRINA: telaio (legno come le ante, alluminio o nero) + vetro
+      antaVetro(g, px, py, z, pw, ph, matAnta, _vetrina);
+      if (!sporg && !_fingerPull) {
+        const verso = n === 1 ? (sx ? -1 : 1) : (i === 0 ? 1 : -1);
+        manigliaOrizzAnta(g, px, py, pw, ph, z, verso, !_anteInBasso);
+      }
+    } else if (!sporg && _fingerPull) {
       const CH = 30;                                 // altezza del canale in alto
       pannello(g, px, py - CH / 2, z, pw, Math.max(60, ph - CH), matAnta || COL.anta);
       canaleFingerPull(g, px, py + ph / 2 - CH / 2, z, pw, CH, true, matAnta);
@@ -1427,8 +1476,11 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   // pieno arriva sotto il piano e copre la vasca: nel foro si vedrebbe solo
   // il coperchio del mobile, non la profondità.
   const conLavello = cat !== 'colonna' && cat !== 'pensile' && (tipo === 'lavello' || (m && m.lavello));
+  // VETRINA (ante con vetro): cassa aperta davanti, con i ripiani che si vedono dal vetro
+  const vetrina = m && m.vetrina && (tipo === 'pensile' || tipo === 'base-ante') ? m.vetrina : null;
   g.add(colonnaVano ? carcassaColonna(w, h, d, coloreCorpo)
     : conLavello ? carcassaColonna(w, h, d, coloreCorpo, false)
+    : vetrina ? carcassaVetrina(w, h, d, coloreCorpo, cat === 'pensile' ? (h >= 850 ? 2 : 1) : 1)
     : corpo(w, h, d, coloreCorpo));
   if (cat === 'regletta') return g;
   if (opt.cieco && opt.cieco.coperto) { anteCieche(g, w, h, d, matAnta, opt.cieco); return g; }
@@ -1441,8 +1493,9 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   if (tipo === 'forno') { fronteForno(g, w, h, d, matAnta); return g; } // placca sopra il top
   // base con ante / pensile (il pensile può avere l'anta sporgente sotto)
   _anteInBasso = cat === 'pensile';
+  _vetrina = vetrina;
   ante(g, w, h, d, anteDiMobile(m), matAnta, opt.sporg, m.antaLato);
-  _anteInBasso = false;
+  _anteInBasso = false; _vetrina = null;
   return g;
 }
 

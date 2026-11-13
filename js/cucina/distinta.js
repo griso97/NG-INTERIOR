@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho,
-} from './modello.js?v=20261115g';
+} from './modello.js?v=20261115h';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -41,9 +41,23 @@ function pensileAntaSporge(opt, h) {
   return false;
 }
 
-function anteModulo(pz, mod, L, H, N, lato, altAnta, sporg) {
+const NOMI_VETRO = { trasparente: 'trasparente', satinato: 'satinato', fume: 'fumé' };
+function anteModulo(pz, mod, L, H, N, lato, altAnta, sporg, vetrina) {
   const a = dimAnta(L, H, N);
   const nota = (N === 1 ? ` (apertura ${lato === 'sx' ? 'sx' : 'dx'})` : '') + (sporg ? ' sporgente' : '');
+  if (vetrina) {
+    // ANTA VETRINA: telaio in legno (si fresa il vano e si mette il vetro) o telaio alluminio/nero da ordinare
+    const ah = altAnta != null ? altAnta : a.h, vt = NOMI_VETRO[vetrina.vetro] || 'trasparente';
+    if ((vetrina.telaio || 'legno') === 'legno') {
+      pz.push({ modulo: mod, nome: `Anta vetrina${nota} (telaio 50 mm, vano vetro da fresare)`, larghezza: a.w, altezza: ah, spessore: SP, materiale: 'anta', quantita: N,
+        vetro: { w: Math.max(10, a.w - 80), h: Math.max(10, ah - 80), tipo: vt } });
+    } else {
+      const tel = vetrina.telaio === 'nero' ? 'nero' : 'alluminio';
+      pz.push({ modulo: mod, nome: `Anta vetrina${nota} telaio ${tel} + vetro ${vt} (da ordinare)`, larghezza: a.w, altezza: ah, spessore: 20, materiale: 'vetrina', quantita: N,
+        materialeNome: `Telaio ${tel} + vetro ${vt}` });
+    }
+    return;
+  }
   pz.push({ modulo: mod, nome: `Anta${nota}`, larghezza: a.w, altezza: altAnta != null ? altAnta : a.h, spessore: SP, materiale: 'anta', quantita: N });
 }
 
@@ -144,7 +158,7 @@ function pezziDiModulo(progetto, m) {
     } else {
       // base-ante / lavello
       const N = m.tipo === 'lavello' ? (L >= 900 ? 2 : 1) : anteDiMobile(m);
-      anteModulo(pz, mod, L, H, N, m.antaLato);
+      anteModulo(pz, mod, L, H, N, m.antaLato, null, false, m.tipo === 'base-ante' ? m.vetrina : null);
       reglettaAngolo(pz, mod, progetto, m, H);
     }
   } else if (cat === 'pensile') {
@@ -154,7 +168,7 @@ function pezziDiModulo(progetto, m) {
     } else {
       // Pensile 70/90: con l'anta sporgente la porta è 72/92 (H + 20), altrimenti H − 2.
       const sporg = pensileAntaSporge(progetto.antaPensile, H);
-      anteModulo(pz, mod, L, H, anteDiMobile(m), m.antaLato, sporg ? H + 20 : null, sporg);
+      anteModulo(pz, mod, L, H, anteDiMobile(m), m.antaLato, sporg ? H + 20 : null, sporg, m.vetrina);
     }
   } else if (cat === 'colonna') {
     // Zoccolo della colonna: segue la porta bassa (70→150, 80→100), come i mobili bassi.
@@ -207,6 +221,7 @@ function pezziDiModulo(progetto, m) {
   const pianoStd = cat === 'costado' && idAnte === null && ((progetto.costadiDiversi && m.colore) === '@piano' || col.costado === '@piano');
   for (const p of pz) {
     p.moduloId = m.id;                                // chiave di raggruppamento univoca
+    if (p.materialeNome) continue;                    // già detto (es. anta vetrina da ordinare)
     p.materialeNome = p.materiale === 'melaminico' ? 'Melaminico bianco'
       : p.materiale === 'zoccolo' ? nomeMateriale(progetto.zoccoloColore || 'nero-opaco', 'Zoccolo')
       : pianoStd ? 'Come il piano di lavoro (nero standard)' : nomeMateriale(idAnte, 'Colore da scegliere');
@@ -337,6 +352,8 @@ export function calcolaDistintaCucina(progetto) {
     const n = p.altezza <= 950 ? 2 : p.altezza > 1100 ? 4 : 3;
     aggiungi('Cerniere 110°', n * p.quantita);
   }
+  // VETRI delle ante vetrina con telaio in legno (misura del vetro da ordinare)
+  for (const p of raw) if (p.vetro) aggiungi(`Vetro ${p.vetro.tipo} ${p.vetro.w}×${p.vetro.h} (anta vetrina)`, p.quantita);
   // CASSETTI (guide/scatola) profondità 50 cm: uno per frontale
   for (const p of raw) {
     if (!p.nome.startsWith('Fronte cassetto')) continue;

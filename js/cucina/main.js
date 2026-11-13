@@ -23,12 +23,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo,
-} from './modello.js?v=20261115g';
-import { renderPianta } from './pianta.js?v=20261115g';
-import { calcolaDistintaCucina } from './distinta.js?v=20261115g';
+} from './modello.js?v=20261115h';
+import { renderPianta } from './pianta.js?v=20261115h';
+import { calcolaDistintaCucina } from './distinta.js?v=20261115h';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261115g';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115g';
+import { agganciaTema } from '../tema.js?v=20261115h';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115h';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1224,6 +1224,32 @@ function renderPannelloModificaMobile(m) {
       <div class="riga-3d" style="margin-top:6px">${isBase
         ? 'Il pensile sopra questa base prende la stessa configurazione.'
         : 'Ereditato dalla base sotto; puoi comunque modificarlo qui.'}</div>
+      ${(() => {
+        const v = m.vetrina;
+        const op = (cl, attr, val, et, on) => `<button type="button" class="btn-ghost ${cl} ${on ? 'attivo' : ''}" ${attr}="${val}" style="flex:1;min-width:90px">${on ? '✓ ' : ''}${et}</button>`;
+        return `
+      <div class="riga-3d" style="margin:12px 0 6px"><strong>Anta piena o vetrina</strong> (solo questo modulo):</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${op('opt-vetr', 'data-vetr', 'no', 'Piena', !v)}
+        ${op('opt-vetr', 'data-vetr', 'si', 'Vetrina (con vetro)', !!v)}
+      </div>
+      ${v ? `
+      <div class="riga-3d" style="margin:8px 0 6px">Telaio:</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${op('opt-vtel', 'data-vtel', 'legno', 'Come le ante (5 cm)', (v.telaio || 'legno') === 'legno')}
+        ${op('opt-vtel', 'data-vtel', 'alluminio', 'Alluminio', v.telaio === 'alluminio')}
+        ${op('opt-vtel', 'data-vtel', 'nero', 'Nero', v.telaio === 'nero')}
+      </div>
+      <div class="riga-3d" style="margin:8px 0 6px">Vetro:</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${op('opt-vvet', 'data-vvet', 'trasparente', 'Trasparente', (v.vetro || 'trasparente') === 'trasparente')}
+        ${op('opt-vvet', 'data-vvet', 'satinato', 'Satinato', v.vetro === 'satinato')}
+        ${op('opt-vvet', 'data-vvet', 'fume', 'Fumé', v.vetro === 'fume')}
+      </div>
+      <div class="riga-3d" style="margin-top:6px">${(v.telaio || 'legno') === 'legno'
+        ? 'In distinta: l\'anta (vano del vetro da fresare) e il vetro su misura negli accessori.'
+        : 'In distinta: l\'anta con telaio e vetro da ordinare, con le sue misure.'}</div>` : ''}`;
+      })()}
     </section>` : ''}
     ${puoAgg ? `
     <section class="step3-pannello">
@@ -1340,6 +1366,18 @@ function renderPannelloModificaMobile(m) {
     if (!progetto.coloriFronti) progetto.coloriFronti = {};
     progetto.coloriFronti[gruppoColore] = b.dataset.mat;
     aggiorna();
+  }));
+  pannello.querySelectorAll('.opt-vetr').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    if (b.dataset.vetr === 'si') m.vetrina = { telaio: 'legno', vetro: 'trasparente', ...(m.vetrina || {}) };
+    else delete m.vetrina;
+    aggiorna();
+  }));
+  pannello.querySelectorAll('.opt-vtel').forEach((b) => b.addEventListener('click', () => {
+    registraStoria(); m.vetrina = { ...(m.vetrina || {}), telaio: b.dataset.vtel }; aggiorna();
+  }));
+  pannello.querySelectorAll('.opt-vvet').forEach((b) => b.addEventListener('click', () => {
+    registraStoria(); m.vetrina = { ...(m.vetrina || {}), vetro: b.dataset.vvet }; aggiorna();
   }));
   pannello.querySelectorAll('.opt-colsolo').forEach((b) => b.addEventListener('click', () => {
     if (b.dataset.colsolo === 'solo') { step2.coloreSolo = m.id; renderPannello(); return; }
@@ -1590,7 +1628,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115g');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115h');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
