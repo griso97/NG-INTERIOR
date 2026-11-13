@@ -13,13 +13,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261115e';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115e';
+} from './modello.js?v=20261115f';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115f';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115e';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115f';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115e';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115f';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -516,6 +516,10 @@ function carcassaColonna(w, h, d, coloreOMat, conTop = true) {
   return g;
 }
 
+/** Cierre a techo: pannello a filo delle ante, dalla cima del mobile in su (hC mm). */
+function cierreTecho(g, w, h, d, mat, hC) {
+  pannello(g, 0, h / 2 + hC / 2, d / 2, w, hC, mat || COL.anta);
+}
 function pannello(g, px, py, z, pw, ph, mat) {
   // Anta: uso direttamente il materiale (legno con texture o tinta piena),
   // così la venatura compare su tutte le facce dell'anta.
@@ -1608,6 +1612,8 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
     .map((x) => { const h = x.altezza_mm || 700; return { x: x.x, y: x.y, cima: (topLine != null ? topLine - h : MONTAGGIO_PENSILE) + h,
       hAnta: h + (antaPensileSporge(progetto.antaPensile, h) ? 20 : 0) }; });
 
+  // CIERRE A TECHO: pannello sopra pensili e colonne fino al soffitto (altezza scelta)
+  const cierre = progetto.cierreTecho && progetto.cierreTecho.attivo ? Math.max(20, Number(progetto.cierreTecho.altezza) || 300) : 0;
   // Mobili liberi
   for (const m of (progetto.mobiliLiberi || [])) {
     const cat = categoriaTipo(m.tipo);
@@ -1628,6 +1634,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       pensiliPlan.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, yBottom: base });
       const sporg = antaPensileSporge(progetto.antaPensile, h);
       const gPens = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matPensile, { sporg });
+      if (cierre && m.tipo === 'pensile') cierreTecho(gPens, dim.w, h, dim.d, matMio || matPensile, cierre);
       // LED sotto i pensili (opzionale, con scelta temperatura colore).
       // Il pensile-angolo (diagonale) non lo prende: ha una geometria dedicata.
       if (progetto.led && progetto.led.attivo && !String(m.tipo).startsWith('pensile-angolo')) {
@@ -1651,7 +1658,9 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const zocc = zoccoloColonna(progetto, m);
       zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
       fianchi.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, h: h + zocc, cat: 'colonna' });
-      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matColonna), cx, zocc, cz, h, m.rot);
+      const gCol = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matColonna);
+      if (cierre) cierreTecho(gCol, dim.w, h, dim.d, matMio || matColonna, cierre);
+      g3d = collocaMobile(gCol, cx, zocc, cz, h, m.rot);
     } else if (cat === 'regletta') {
       const h = m.altezza_mm || 700;
       const zocc = zoccoloPerAltezza(h);

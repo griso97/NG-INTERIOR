@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo,
-} from './modello.js?v=20261115e';
+} from './modello.js?v=20261115f';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -192,6 +192,11 @@ function pezziDiModulo(progetto, m) {
   } else {
     // fallback generico
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(L), altezza: H, spessore: SP, materiale: 'carcassa', quantita: 1 });
+  }
+  // CIERRE A TECHO sopra pensili e colonne (colore delle ante del modulo)
+  const ct = progetto.cierreTecho;
+  if (ct && ct.attivo && (m.tipo === 'pensile' || cat === 'colonna')) {
+    pz.push({ modulo: mod, nome: 'Cierre a techo', larghezza: round(L), altezza: Math.max(20, Math.round(Number(ct.altezza) || 300)), spessore: SP, materiale: 'anta', quantita: 1 });
   }
   // NOME DEL MATERIALE di ogni pezzo (es. "Roble Sonoma"), come nel 3D:
   // ante del gruppo (bassi / pensili / colonne), costado alto = ante pensili,

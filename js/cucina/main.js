@@ -23,12 +23,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo,
-} from './modello.js?v=20261115e';
-import { renderPianta } from './pianta.js?v=20261115e';
-import { calcolaDistintaCucina } from './distinta.js?v=20261115e';
+} from './modello.js?v=20261115f';
+import { renderPianta } from './pianta.js?v=20261115f';
+import { calcolaDistintaCucina } from './distinta.js?v=20261115f';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261115e';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115e';
+import { agganciaTema } from '../tema.js?v=20261115f';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115f';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1058,6 +1058,25 @@ function renderPannelloStep3d() {
         })()}
       </div>
     </section>
+    ${(() => {
+      const ct = progetto.cierreTecho || { attivo: false, altezza: 300 };
+      const hC = Math.max(20, Number(ct.altezza) || 300);
+      return `
+    <section class="step3-pannello">
+      <h3>Cierre a techo</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Pannello sopra pensili e colonne, a filo delle ante, che chiude lo spazio fino al soffitto. Esce in distinta col colore delle ante.</div>
+      <div class="opzioni-anta">
+        <button type="button" class="btn-ghost opt-cierre ${!ct.attivo ? 'attivo' : ''}" data-cierre="no">${!ct.attivo ? '✓ ' : ''}No</button>
+        <button type="button" class="btn-ghost opt-cierre ${ct.attivo ? 'attivo' : ''}" data-cierre="si">${ct.attivo ? '✓ ' : ''}Sì</button>
+      </div>
+      ${ct.attivo ? `
+      <div class="riga-3d" style="margin:8px 0 4px">Altezza del cierre (mm) — scrivila o scegli una misura:</div>
+      <input type="number" id="cierre-h" class="modale-num" value="${hC}" min="20" max="1500" step="1" style="width:100%" />
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+        ${[100, 150, 200, 250, 300, 400].map((v) => `<button type="button" class="btn-ghost opt-cierreh ${hC === v ? 'attivo' : ''}" data-cierreh="${v}" style="flex:1;min-width:64px">${v / 10} cm</button>`).join('')}
+      </div>` : ''}
+    </section>`;
+    })()}
     <section class="step3-pannello">
       <h3>Immagine</h3>
       <div class="riga-3d" style="margin-bottom:6px">Salva una foto del rendering in alta qualità (PNG).</div>
@@ -1066,6 +1085,21 @@ function renderPannelloStep3d() {
     <section class="actions">
       <button id="s3-indietro" class="btn-ghost" type="button" style="flex:1">← Moduli alti</button>
     </section>`;
+  pannello.querySelectorAll('.opt-cierre').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    progetto.cierreTecho = { altezza: 300, ...(progetto.cierreTecho || {}), attivo: b.dataset.cierre === 'si' };
+    aggiorna();
+  }));
+  pannello.querySelectorAll('.opt-cierreh').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    progetto.cierreTecho = { ...(progetto.cierreTecho || {}), attivo: true, altezza: Number(b.dataset.cierreh) };
+    aggiorna();
+  }));
+  pannello.querySelector('#cierre-h')?.addEventListener('change', (e) => {
+    registraStoria();
+    progetto.cierreTecho = { ...(progetto.cierreTecho || {}), attivo: true, altezza: Math.max(20, Math.min(1500, Math.round(Number(e.target.value) || 300))) };
+    aggiorna();
+  });
   pannello.querySelectorAll('.swatch-zocc[data-zocc]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     progetto.zoccoloColore = b.dataset.zocc;
@@ -1556,7 +1590,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115e');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115f');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste

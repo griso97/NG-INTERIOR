@@ -1227,4 +1227,7 @@ window.NG_I18N_ES = {
   "Questo file non contiene preventivi.": "Este archivo no contiene presupuestos.",
   "Preventivi importati": "Presupuestos importados",
   "Importazione non riuscita.": "No se ha podido importar.",
+  'Cierre a techo': 'Cierre a techo',
+  'Pannello sopra pensili e colonne, a filo delle ante, che chiude lo spazio fino al soffitto. Esce in distinta col colore delle ante.': 'Panel encima de los altos y las columnas, a ras de las puertas, que cierra el espacio hasta el techo. Sale en el despiece con el color de las puertas.',
+  'Altezza del cierre (mm) — scrivila o scegli una misura:': 'Altura del cierre (mm) — escríbela o elige una medida:',
 };
