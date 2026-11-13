@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261115j';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115j';
+} from './modello.js?v=20261115k';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115k';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261115j';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115j';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261115k';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115k';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115j';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115k';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -2033,6 +2033,9 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
   for (const key in gruppi) {
     const G = gruppi[key];
     const { c, s, rotN, topY } = G;
+    // verso degli assi locali della lastra rispetto a lungo/perp: +1 a 0/180°, −1 a 90/270°
+    // (x locale = k·lungo, z locale = −k·perp; il retro dei moduli è a perp + k·d/2)
+    const k = rotN % 180 === 0 ? 1 : -1;
     for (const run of tratti(G.items, c, s)) {
       let lo = run.lo, hi = run.hi;
       let perpSum = 0; for (const b of run.items) perpSum += b.x * (-s) + b.y * c;
@@ -2081,41 +2084,57 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
         if (lv.lavello) {
           const { vw, vd, zc } = dimVasca(lv.w, lv.d);
           // v locale della lastra = −(perp − perpTop): la lastra è ruotata come i mobili (−rot)
-          fori.push({ u: alongS - centerAlong, v: (perpTop - perpS) + zc, w: vw + 6, d: vd + 6 });
+          fori.push({ u: k * (alongS - centerAlong), v: k * (perpTop - perpS) + zc, w: vw + 6, d: vd + 6 });
         } else if (lv.placca) {
           // piano cottura INCASSATO: il vetro sta nel foro, così si vede da
           // qualsiasi distanza (sopra il piano "spariva" da lontano)
           const { pw, pd } = dimPlacca(lv.w, lv.d);
-          fori.push({ u: alongS - centerAlong, v: perpTop - perpS, w: pw - 12, d: pd - 12 });
+          fori.push({ u: k * (alongS - centerAlong), v: k * (perpTop - perpS), w: pw - 12, d: pd - 12 });
         }
       }
       const slab = fori.length
         ? slabConFori(len, thickness, depth, matTop || COL.top, fori)
         : corpo(len, thickness, depth, matTop || COL.top);
-      // Pannello dietro il piano: solo se dietro questa fila c'è un muro
+      // PANNELLO DIETRO IL PIANO (aplacado): ovunque il piano tocca un muro —
+      // dietro la fila e anche sui fianchi del piano che finiscono contro un muro
+      // (es. negli angoli della cucina a L / U)
       if (schienale) {
-        const perpMuro = perp + G.d / 2;                       // retro dei moduli = muro
-        const P = (al) => ({ x: c * al - s * perpMuro, y: s * al + c * perpMuro });
-        const controlli = [P(centerAlong), P(lo + 50), P(hi - 50)];
-        const muro = schienale.muri.some((w) => controlli.filter((q) => distSegmento(q, w.a, w.b) < 90).length >= 2);
-        if (muro) {
-          // altezza: fino ai pensili sopra questa fila, altrimenti 60 cm
-          let yPens = Infinity;
-          for (const pz of schienale.pensili) {
-            if (rotNorm(pz.rot) !== rotN) continue;
-            const al = pz.x * c + pz.y * s, pp = pz.x * (-s) + pz.y * c;
-            if (Math.abs(al - centerAlong) > len / 2 + pz.w / 2 - 20) continue;
-            if (pp > perpMuro + 50 || pp < perpMuro - 700) continue;
-            yPens = Math.min(yPens, pz.yBottom);
-          }
-          const yTop = topY + thickness;
-          const H = Number.isFinite(yPens) && yPens - yTop > 100 ? yPens - yTop : H_SCHIENALE;
-          // coordinate locali della lastra: +z = fronte (stanza), il muro è dietro (−z)
-          const zMuro = -(perpMuro - perpTop);
-          const pann = corpo(len, H, SP_SCHIENALE, materialePerSchienale(schienale.mat || matTop) || COL.top);
-          pann.position.set(0, thickness / 2 + H / 2, zMuro + SP_SCHIENALE / 2);
+        const perpMuro = perp + k * G.d / 2;                   // retro dei moduli = muro
+        const Pp = (al, pp) => ({ x: c * al - s * pp, y: s * al + c * pp });
+        const suMuro = (pts) => schienale.muri.some((w) => pts.filter((q) => distSegmento(q, w.a, w.b) < 90).length >= 2);
+        // altezza: fino ai pensili sopra questa fila, altrimenti 60 cm
+        let yPens = Infinity;
+        for (const pz of schienale.pensili) {
+          if (rotNorm(pz.rot) !== rotN) continue;
+          const al = pz.x * c + pz.y * s, pp = pz.x * (-s) + pz.y * c;
+          if (Math.abs(al - centerAlong) > len / 2 + pz.w / 2 - 20) continue;
+          const dd = k * (perpMuro - pp);
+          if (dd < -50 || dd > 700) continue;
+          yPens = Math.min(yPens, pz.yBottom);
+        }
+        const yTop = topY + thickness;
+        const H = Number.isFinite(yPens) && yPens - yTop > 100 ? yPens - yTop : H_SCHIENALE;
+        const matP = materialePerSchienale(schienale.mat || matTop) || COL.top;
+        // coordinate locali della lastra: +z = fronte (stanza), il muro è dietro
+        const zMuro = -k * (perpMuro - perpTop);
+        const zFronte = -k * ((perp - k * G.d / 2) - perpTop);   // filo delle ante (senza la sporgenza del piano)
+        const dz = Math.sign(zFronte - zMuro) || 1;
+        if (suMuro([Pp(centerAlong, perpMuro), Pp(lo + 50, perpMuro), Pp(hi - 50, perpMuro)])) {
+          const pann = corpo(len, H, SP_SCHIENALE, matP);
+          pann.position.set(0, thickness / 2 + H / 2, zMuro + dz * SP_SCHIENALE / 2);
           pann.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
           slab.add(pann);
+        }
+        // fianchi del piano contro un muro
+        for (const e of [endLo, endHi]) {
+          const pts = [Pp(e, perpMuro - k * 100), Pp(e, perpMuro - k * (G.d / 2)), Pp(e, perpMuro - k * (G.d - 100))];
+          if (!suMuro(pts)) continue;
+          const xE = k * (e - centerAlong), dentro = -Math.sign(xE) || 1;
+          const prof = Math.abs(zFronte - zMuro) - SP_SCHIENALE;
+          const fianco = corpo(SP_SCHIENALE, H, prof, matP);
+          fianco.position.set(xE + dentro * SP_SCHIENALE / 2, thickness / 2 + H / 2, zMuro + dz * (SP_SCHIENALE + prof / 2));
+          fianco.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
+          slab.add(fianco);
         }
       }
       gruppo.add(collocaMobile(slab, cx, topY, -cy, thickness, rotN));
