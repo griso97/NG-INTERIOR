@@ -13,12 +13,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261113r';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113r';
+} from './modello.js?v=20261113s';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113s';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113r';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113s';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1592,7 +1592,11 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       // Colore: costadi DIVERSI → quello scelto per questo costado; UGUALI (o
       // non ancora scelto) → come sempre: alto = ante dei pensili, basso = colore costadi
       const matProprio = progetto.costadiDiversi && m.colore ? getMaterialeTHREE(m.colore, reRender) : null;
-      const matC = matProprio || (alto ? (matPensile || matCostado) : matCostado) || COL.costado;
+      // Senza un colore scelto per i costadi il costado prende le ANTE vicine
+      // (mai il crema del corpo): alto → pensili, a tutta altezza → colonne,
+      // basso → mobili bassi
+      const matC = matProprio || (alto ? (matPensile || matCostado)
+        : (matCostado || (h >= 1500 ? (matColonna || matBase) : matBase))) || COL.costado;
       g3d = collocaMobile(corpo(dim.w, h, dim.d, matC), cx, base, cz, h, m.rot);
     } else {
       // base / lavello / forno: porta = altezza scelta, zoccolo 150/100.
