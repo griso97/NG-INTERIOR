@@ -8,10 +8,10 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, eliminaFoto, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261114k';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio } from './analisi-foto.js?v=20261114k';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261114k';
-import { agganciaTema } from './tema.js?v=20261114k';
+} from './catalogo.js?v=20261114l';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi } from './analisi-foto.js?v=20261114l';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261114l';
+import { agganciaTema } from './tema.js?v=20261114l';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -262,7 +262,7 @@ function apriScheda(m) {
           campioneZona = cp.cm;
           const portaBlob = await canvasBlob(cp.canvas, 'image/jpeg');
           // GOLA: la sua foto raddrizzata se pulita, altrimenti il suo colore
-          const golaCanvas = z.gola ? raddrizza(img, z.gola, 800, 60, 0) : null;
+          const golaCanvas = z.gola ? pulisciRiflessi(raddrizza(img, z.gola, 800, 60, 0)).canvas : null;
           const golaBlob = golaCanvas ? await canvasBlob(golaCanvas, 'image/jpeg') : await bloccoColore(z.coloreGola ?? 0x1a1a1a);
           await salvaFoto(id, portaBlob, 'foto');
           await salvaFoto(id, golaBlob, 'gola');
@@ -336,7 +336,9 @@ function cartellaRaddrizzata(img, quad, wCm, hCm, frazione) {
   const asp = cm.w / cm.h;
   const OW = asp >= 1 ? 1600 : Math.max(64, Math.round(1600 * asp));
   const OH = asp >= 1 ? Math.max(64, Math.round(1600 / asp)) : 1600;
-  return { canvas: raddrizza(img, quad, OW, OH, 0), cm };
+  // riflessi e luce non uniforme tolti in automatico (tinta unita → colore pieno)
+  const pul = pulisciRiflessi(raddrizza(img, quad, OW, OH, 0));
+  return { canvas: pul.canvas, cm, uniforme: pul.uniforme };
 }
 
 /** Miniatura dalla porta raddrizzata (+ gola in alto, foto o colore). */
@@ -394,8 +396,8 @@ async function analisiAutomatica(img, corpo, tipo) {
     };
     const q = a[chiave];
     const asp = (L(q[0], q[1]) + L(q[3], q[2])) / Math.max(1, L(q[0], q[3]) + L(q[1], q[2]));
-    tile(tipo === 'fp' ? 'Porta' : 'Campione', raddrizza(img, q, 280, Math.max(40, Math.round(280 / Math.max(0.2, asp))), 0));
-    if (tipo === 'fp') tile('Gola', a.gola ? raddrizza(img, a.gola, 280, 40, 0) : null, a.coloreGola);
+    tile(tipo === 'fp' ? 'Porta' : 'Campione', pulisciRiflessi(raddrizza(img, q, 280, Math.max(40, Math.round(280 / Math.max(0.2, asp))), 0)).canvas);
+    if (tipo === 'fp') tile('Gola', a.gola ? pulisciRiflessi(raddrizza(img, a.gola, 280, 40, 0)).canvas : null, a.coloreGola);
   };
   disegna();
   corpo.querySelector('#f-msg').textContent = tr(a.messaggio || '');

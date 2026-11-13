@@ -580,3 +580,122 @@ export function analizzaPorta(img, tipo = 'fp') {
   }
   return out;
 }
+
+// =============================================================================
+// TOGLIERE RIFLESSI E LUCE NON UNIFORME dalla foto di porta/campione (in
+// automatico, per qualsiasi foto). Lavora sulla porta già raddrizzata:
+// 1) luce: la luminosità "lenta" (zone più chiare/scure per la luce della
+//    stanza) viene spianata, senza toccare venature e dettagli fini;
+// 2) riflessi: i punti molto più chiari e "sbiaditi" (meno colore) del resto
+//    vengono riportati al colore del materiale;
+// 3) tinta unita (laccati, colori pieni): se la porta è di un colore solo,
+//    il risultato è un colore pieno pulito, preso dalle zone senza riflessi.
+// Ritorna { canvas, uniforme, colore } (colore = 0xRRGGBB).
+// =============================================================================
+export function pulisciRiflessi(src) {
+  const W = src.width, H = src.height;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(src, 0, 0);
+  const im = g.getImageData(0, 0, W, H), d = im.data, N = W * H;
+  const perc = (arr, p) => { const a = Float32Array.from(arr).sort(); return a[Math.min(a.length - 1, Math.floor(a.length * p))]; };
+  const minC = new Float32Array(N), sat = new Float32Array(N), maxOrig = new Uint8Array(N);
+  for (let i = 0; i < N; i++) {
+    const r = d[i * 4], gg = d[i * 4 + 1], b = d[i * 4 + 2];
+    const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b);
+    minC[i] = mn; sat[i] = mx > 0 ? (mx - mn) / mx : 0; maxOrig[i] = mx;
+  }
+  // 1) RIFLESSI = luce bianca mescolata al colore: foto = (1−α)·materiale + α·bianco.
+  //    Il canale più basso dice quanto bianco c'è (α); si toglie e resta il materiale.
+  //    Sui materiali quasi senza colore (bianco, grigio) non si può separare: lì
+  //    si fa solo il passo 2.
+  const colorato = perc(sat, 0.5) > 0.12;
+  if (colorato) {
+    const rif = perc(minC, 0.35);                         // canale basso del materiale senza riflessi
+    const den = Math.max(20, 255 - rif);
+    const alfa = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      let al = (minC[i] - rif) / den;
+      if (al <= 0.04) continue;
+      al = Math.min(0.9, al); alfa[i] = al;
+      for (let q = 0; q < 3; q++) d[i * 4 + q] = Math.max(0, Math.min(255, (d[i * 4 + q] - al * 255) / (1 - al)));
+    }
+    // colore sbiadito dal riflesso → stessa intensità del materiale pulito
+    const sPul = []; for (let i = 0; i < N; i += 3) if (!alfa[i]) sPul.push(sat[i]);
+    sPul.sort((a, b) => a - b);
+    const satRif = sPul.length ? sPul[Math.floor(sPul.length / 2)] : 0;
+    for (let i = 0; i < N; i++) {
+      if (!alfa[i]) continue;
+      const r = d[i * 4], gg = d[i * 4 + 1], b = d[i * 4 + 2], mx = Math.max(r, gg, b), mn = Math.min(r, gg, b);
+      const sNow = mx > 0 ? (mx - mn) / mx : 0;
+      if (sNow >= satRif || sNow <= 0.01) continue;
+      const f = 1 + Math.min(0.8, satRif / sNow - 1) * Math.min(1, alfa[i] * 2);
+      const l = 0.299 * r + 0.587 * gg + 0.114 * b;
+      for (let q = 0; q < 3; q++) d[i * 4 + q] = Math.max(0, Math.min(255, l + (d[i * 4 + q] - l) * f));
+    }
+    // punti quasi bianchi (riflesso pieno): ricostruiti dai vicini puliti
+    const buco = new Uint8Array(N); let nb = 0;
+    // solo dove la foto è "bruciata" (bianco pieno: il colore vero è perso)
+    for (let i = 0; i < N; i++) if (alfa[i] >= 0.86 || (alfa[i] > 0.5 && maxOrig[i] >= 250)) { buco[i] = 1; nb++; }
+    if (nb && nb < N * 0.4) {
+      for (let pass = 0; pass < 60; pass++) {
+        let cambi = 0;
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+          const i = y * W + x; if (buco[i] !== 1) continue;
+          let r = 0, gg = 0, b = 0, n = 0;
+          for (const j of [i - 1, i + 1, i - W, i + W]) {
+            if (j < 0 || j >= N || (j % W === 0 && i % W === W - 1) || (i % W === 0 && j % W === W - 1)) continue;
+            if (buco[j] === 1) continue;
+            r += d[j * 4]; gg += d[j * 4 + 1]; b += d[j * 4 + 2]; n++;
+          }
+          if (n) { d[i * 4] = r / n; d[i * 4 + 1] = gg / n; d[i * 4 + 2] = b / n; buco[i] = 2; cambi++; }
+        }
+        for (let i = 0; i < N; i++) if (buco[i] === 2) buco[i] = 0;
+        if (!cambi) break;
+      }
+    }
+  }
+  // 2) LUCE NON UNIFORME: luminosità "lenta" (mediana a blocchi) spianata,
+  //    venature e dettagli fini restano
+  const lum = new Float32Array(N);
+  for (let i = 0; i < N; i++) lum[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+  const BX = Math.max(4, Math.min(16, Math.round(W / 40))), BY = Math.max(4, Math.min(24, Math.round(H / 40)));
+  const blocchi = new Float32Array(BX * BY);
+  for (let by = 0; by < BY; by++) for (let bx = 0; bx < BX; bx++) {
+    const v = [];
+    const x0 = Math.floor((bx * W) / BX), x1 = Math.floor(((bx + 1) * W) / BX);
+    const y0 = Math.floor((by * H) / BY), y1 = Math.floor(((by + 1) * H) / BY);
+    for (let y = y0; y < y1; y += 2) for (let x = x0; x < x1; x += 2) v.push(lum[y * W + x]);
+    v.sort((a, b) => a - b);
+    blocchi[by * BX + bx] = v.length ? v[Math.floor(v.length * 0.5)] : 128;
+  }
+  const ref = perc(blocchi, 0.5) || 1;
+  const luce = (x, y) => {
+    const fx = Math.min(BX - 1.001, Math.max(0, (x / W) * BX - 0.5)), fy = Math.min(BY - 1.001, Math.max(0, (y / H) * BY - 0.5));
+    const ix = Math.floor(fx), iy = Math.floor(fy), tx = fx - ix, ty = fy - iy;
+    const v = (a, b) => blocchi[Math.min(BY - 1, b) * BX + Math.min(BX - 1, a)];
+    return (v(ix, iy) * (1 - tx) + v(ix + 1, iy) * tx) * (1 - ty) + (v(ix, iy + 1) * (1 - tx) + v(ix + 1, iy + 1) * tx) * ty;
+  };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x, k = Math.min(2.5, Math.max(0.4, ref / Math.max(1, luce(x, y))));
+    for (let q = 0; q < 3; q++) d[i * 4 + q] = Math.min(255, d[i * 4 + q] * k);
+  }
+  // colore del materiale (mediana per canale)
+  const ch = [0, 1, 2].map((q) => { const a = new Float32Array(Math.ceil(N / 3)); let j = 0; for (let i = 0; i < N; i += 3) a[j++] = d[i * 4 + q]; return perc(a.subarray(0, j), 0.5); });
+  // 3) TINTA UNITA? (solo informativo: laccati, colori pieni)
+  //    venature/disegno = forte differenza tra un punto e quelli vicini;
+  //    un laccato ha solo variazioni lente (già spianate) e un filo di rumore
+  const L = (i) => 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+  let dv = 0, tex = 0, m2 = 0;
+  for (let y = 2; y < H - 2; y += 3) for (let x = 2; x < W - 2; x += 3) {
+    const i = y * W + x, l = L(i);
+    tex += Math.max(Math.abs(l - L(i + 2)), Math.abs(l - L(i + 2 * W)));
+    dv += Math.hypot(d[i * 4] - ch[0], d[i * 4 + 1] - ch[1], d[i * 4 + 2] - ch[2]); m2++;
+  }
+  const uniforme = tex / Math.max(1, m2) < 3.5 && dv / Math.max(1, m2) < 18;
+  // (nessun riempimento a colore pieno: con riflessi tolti e luce spianata un
+  //  laccato esce già pulito, e un legno con venature leggere non si rovina)
+  g.putImageData(im, 0, 0);
+  const colore = (Math.round(ch[0]) << 16) | (Math.round(ch[1]) << 8) | Math.round(ch[2]);
+  return { canvas: c, uniforme, colore };
+}
