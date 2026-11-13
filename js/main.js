@@ -5,20 +5,20 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261114t';
+import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261114u';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo,
   iniziaSpostamentoRipiano, muoviSpostamentoRipiano, fineSpostamentoRipiano,
-} from './scena3d.js?v=20261114t';
-import { SFONDI_LISTA } from './sfondi.js?v=20261114t';
-import { agganciaTema } from './tema.js?v=20261114t';
-import { renderPannello, configDefault } from './interfaccia.js?v=20261114t';
-import { renderDistinta } from './distinta.js?v=20261114t';
-import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261114t';
-import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261114t';
+} from './scena3d.js?v=20261114u';
+import { SFONDI_LISTA } from './sfondi.js?v=20261114u';
+import { agganciaTema } from './tema.js?v=20261114u';
+import { renderPannello, configDefault } from './interfaccia.js?v=20261114u';
+import { renderDistinta } from './distinta.js?v=20261114u';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261114u';
+import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261114u';
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js?v=20261114t';
+} from './storage.js?v=20261114u';
 
 // Config iniziale: ultima salvata, oppure default
 let config = caricaLocale() || configDefault();

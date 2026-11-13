@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261114t';
+import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261114u';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -193,7 +193,8 @@ async function applicaCatalogo() {
     // ante finger-pull e pannelli. Es. "Noce con maniglia nera" → "Noce".
     if (p.sezione === 'fingerpull') {
       const { gola: _g, ...base } = def;
-      MATERIALI.push({ ...base, id: `${p.id}~legno`, nome: nomeSenzaGola(def.nome), categoria: 'legno', sezione: 'legno', derivato: p.id });
+      // anteprima SENZA la gola: la foto della sola porta (in tinta unita è già il colore pieno)
+      MATERIALI.push({ ...base, thumb: def.texture, id: `${p.id}~legno`, nome: nomeSenzaGola(def.nome), categoria: 'legno', sezione: 'legno', derivato: p.id });
     }
   }
 }
@@ -256,7 +257,9 @@ export function materialiPer(sezione, { tutti = false } = {}) {
   let l;
   switch (sezione) {
     case 'legno': l = legni; break;
-    case 'fingerpull': l = [...legni, ...propri('fingerpull')]; break;
+    // finger-pull: i legni normali + le porte finger-pull; il materiale creato in automatico
+    // (porta senza gola) sta SOLO fra i materiali (Legni e colori)
+    case 'fingerpull': l = [...legni.filter((m) => !m.derivato), ...propri('fingerpull')]; break;
     case 'encimera': l = MATERIALI.filter((m) => m.categoria === 'encimera'); break;
     case 'pannello': l = [...legni, ...MATERIALI.filter((m) => m.categoria === 'encimera'), ...propri('pannello')]; break;
     case 'zoccolo': l = MATERIALI.filter((m) => m.categoria === 'zoccolo'); break;
