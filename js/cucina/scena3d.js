@@ -13,12 +13,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261113y';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113y';
+} from './modello.js?v=20261113z';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113z';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
+import { maniglia3D } from '../maniglia3d.js?v=20261113z';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113y';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113z';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -572,6 +573,20 @@ function barraManiglia(g, x, y, z, w, h, D, matFronte, matLati, ruota, sporg = S
 }
 function maniglia(g, x, y, z, orizz, lung) {
   const def = _maniglia;
+  if (def && def.texture && def.lunghezzaMm && (def.vistaSopra || def.vistaLato)) {
+    // MANIGLIA DA PIÙ FOTO: forma 3D vera ricavata dalle viste (davanti/lato/sopra)
+    const r = maniglia3D(def, _reRenderMan);
+    if (r) {
+      const m = new THREE.Mesh(r.geo, r.mat);
+      m.castShadow = true; m.receiveShadow = true;
+      const grp = new THREE.Group(); grp.add(m);
+      grp.position.set(x, y, z + 20);                  // base appoggiata all'anta
+      if (!orizz) grp.rotation.z = Math.PI / 2;
+      g.add(grp);
+      return;
+    }
+    // finché non è pronta: la barra con i piedini (sotto)
+  }
   if (def && def.texture && def.lunghezzaMm) {
     // MANIGLIA DA FOTO: misura reale, costruita in 3D (non più una foto piatta).
     // La barra segue il verso della foto; se sull'anta serve nell'altro verso

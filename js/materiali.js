@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261113y';
+import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261113z';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -170,7 +170,12 @@ async function applicaCatalogo() {
       def.lunghezzaMm = (Number(p.maniglia.lunghezzaCm) || 15) * 10;
       def.altezzaMm = Math.max(6, def.lunghezzaMm * (Number(p.maniglia.rapporto) || 0.08));
       def.verticale = !!p.maniglia.verticale;
-      if (p.maniglia.viste) def.viste = p.maniglia.viste;            // lato / sopra (facoltative)
+      if (p.maniglia.viste) {                                        // lato / sopra (facoltative)
+        def.viste = p.maniglia.viste;
+        const [fs, fl] = await Promise.all([leggiFoto(p.id, 'sopra'), leggiFoto(p.id, 'lato')]);
+        if (fs) def.vistaSopra = URL.createObjectURL(fs);
+        if (fl) def.vistaLato = URL.createObjectURL(fl);
+      }
     }
     MATERIALI.push(def);
     // Finger-pull → lo STESSO materiale (stessa foto, stessa misura) senza la
