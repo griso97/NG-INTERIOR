@@ -1151,4 +1151,6 @@ window.NG_I18N_ES = {
   'Maniglia riconosciuta e isolata dallo sfondo.': 'Tirador reconocido y aislado del fondo.',
   'Non riesco a isolare bene la maniglia: usa "Correggi a mano" o una foto su sfondo uniforme.': 'No consigo aislar bien el tirador: usa "Corregir a mano" o una foto con fondo uniforme.',
   'Non riesco a isolare la maniglia in questa foto: usa uno sfondo uniforme e chiaro.': 'No consigo aislar el tirador en esta foto: usa un fondo uniforme y claro.',
+  'È disponibile una nuova versione del sito.': 'Hay una nueva versión del sitio disponible.',
+  'Aggiorna': 'Actualizar',
 };

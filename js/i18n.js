@@ -258,7 +258,60 @@
 
   window.NGI18N = { lingua: lingua, t: traduci, imposta: imposta, mancanti: mancanti };
 
-  function pronto() { montaSelettore(); avvia(); }
+  // ---------------------------------------------------------------------------
+  // Aggiornamento automatico: anche dall'icona sulla schermata Home (iPhone),
+  // dove non c'è la barra dell'indirizzo, il sito si porta da solo all'ultima
+  // versione pubblicata. Confronto la versione di questa pagina con quella
+  // della stessa pagina scaricata senza cache.
+  // ---------------------------------------------------------------------------
+  var avvioMs = Date.now();
+  function versioneOnline(fatto) {
+    if (!ver || !window.fetch || location.protocol === 'file:') return;
+    fetch(location.pathname + '?agg=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .then(function (t) {
+        var m = t && t.match(/i18n\.js\?v=([\w.-]+)/);
+        if (m && m[1] !== ver) fatto(m[1]);
+      })
+      .catch(function () { /* offline: niente */ });
+  }
+  function ricarica(nuova) {
+    var q = location.search.replace(/^\?/, '').split('&').filter(function (x) { return x && !/^r=/.test(x); });
+    q.push('r=' + nuova);
+    location.replace(location.pathname + '?' + q.join('&') + location.hash);
+  }
+  function avvisoAggiorna(nuova) {
+    if (document.getElementById('ng-agg')) return;
+    var b = document.createElement('div');
+    b.id = 'ng-agg';
+    b.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:99999;background:#1f1d1a;color:#fff;' +
+      'padding:10px 12px 10px 16px;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;' +
+      'font:14px/1.3 system-ui,-apple-system,sans-serif;max-width:calc(100vw - 32px)';
+    b.innerHTML = '<span>È disponibile una nuova versione del sito.</span>' +
+      '<button type="button" style="background:#c8a46a;color:#1f1d1a;border:0;border-radius:8px;padding:8px 12px;font:600 14px system-ui,-apple-system,sans-serif;cursor:pointer">Aggiorna</button>';
+    b.querySelector('button').addEventListener('click', function () { ricarica(nuova); });
+    document.body.appendChild(b);
+  }
+  function controllaVersione() {
+    versioneOnline(function (nuova) {
+      var tentata = '';
+      try { tentata = sessionStorage.getItem('ng-agg') || ''; } catch (e) { /* niente */ }
+      // Appena aperta: ricarico subito (una volta sola per versione, niente giri infiniti)
+      if (Date.now() - avvioMs < 6000 && tentata !== nuova) {
+        try { sessionStorage.setItem('ng-agg', nuova); } catch (e) { /* niente */ }
+        ricarica(nuova);
+      } else {
+        // Pagina già in uso: non interrompo il lavoro, propongo l'aggiornamento
+        avvisoAggiorna(nuova);
+      }
+    });
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') controllaVersione();
+  });
+  window.addEventListener('pageshow', function (e) { if (e.persisted) controllaVersione(); });
+
+  function pronto() { montaSelettore(); avvia(); controllaVersione(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', pronto);
   else pronto();
 })();
