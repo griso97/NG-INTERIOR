@@ -13,13 +13,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261114p';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261114p';
+} from './modello.js?v=20261114q';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261114q';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { maniglia3D } from '../maniglia3d.js?v=20261114p';
+import { maniglia3D } from '../maniglia3d.js?v=20261114q';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261114p';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261114q';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1975,12 +1975,13 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
         if (alongS < endLo - 10 || alongS > endHi + 10) continue;
         if (lv.lavello) {
           const { vw, vd, zc } = dimVasca(lv.w, lv.d);
-          fori.push({ u: alongS - centerAlong, v: (perpS - perpTop) + zc, w: vw + 6, d: vd + 6 });
+          // v locale della lastra = −(perp − perpTop): la lastra è ruotata come i mobili (−rot)
+          fori.push({ u: alongS - centerAlong, v: (perpTop - perpS) + zc, w: vw + 6, d: vd + 6 });
         } else if (lv.placca) {
           // piano cottura INCASSATO: il vetro sta nel foro, così si vede da
           // qualsiasi distanza (sopra il piano "spariva" da lontano)
           const { pw, pd } = dimPlacca(lv.w, lv.d);
-          fori.push({ u: alongS - centerAlong, v: perpS - perpTop, w: pw - 12, d: pd - 12 });
+          fori.push({ u: alongS - centerAlong, v: perpTop - perpS, w: pw - 12, d: pd - 12 });
         }
       }
       const slab = fori.length

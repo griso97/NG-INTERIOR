@@ -625,7 +625,9 @@ function asseMobile(m) {
 export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
   const rv = rangeVerticale(m);
   // Accostamento: lungo l'asse del muro vicino (mobili a parete) o del mobile.
-  const u = m.isola ? asseMobile(m) : (muroPiuVicino(progetto, x, y) || asseMobile(m));
+  // Mobile lontano dai muri (isola, anche senza "Isola (libero)" attivato): si comporta da isola
+  const inIsola = !!m.isola || orientaVersoMuro(progetto, { ...m, isola: false }, x, y) === null;
+  const u = inIsola ? asseMobile(m) : (muroPiuVicino(progetto, x, y) || asseMobile(m));
   const [ux, uy] = u, vx = -uy, vy = ux;
   const A = aabb(m, x, y);
   const eUm = A.hx * Math.abs(ux) + A.hy * Math.abs(uy);
@@ -636,7 +638,10 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
   // reglette (pezzi sottili di finitura) non si allineano mai.
   const SNAP_ALLINEA = 300;     // mm: zona di aggancio perpendicolare (forte, solo isole)
   const catM = categoriaTipo(m.tipo);
-  const puoAllineare = !!m.isola && catM !== 'costado' && catM !== 'regletta';
+  const puoAllineare = inIsola && catM !== 'costado' && catM !== 'regletta' && catM !== 'pannello';
+  // fronte (ante) in pianta: (−sin r, −cos r); i FRONTI si allineano (anche con profondità diverse)
+  const rF = ((m.rot || 0) * Math.PI) / 180, Fx = -Math.sin(rF), Fy = -Math.cos(rF);
+  const eFm = A.hx * Math.abs(Fx) + A.hy * Math.abs(Fy);
   const [sx, sy] = asseMobile(m);
   const pvx = -sy, pvy = sx;                   // perpendicolare (profondità)
   const eUmS = A.hx * Math.abs(sx) + A.hy * Math.abs(sy);
@@ -662,10 +667,20 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
     // Allineamento in fila: stessa orientazione, affiancati lungo la fila e GIÀ
     // VICINI alla linea (entro SNAP_ALLINEA) → snap gentile sulla stessa linea.
     const catO = categoriaTipo(o.tipo);
-    if (puoAllineare && catO !== 'costado' && catO !== 'regletta') {
+    if (puoAllineare && catO !== 'costado' && catO !== 'regletta' && catO !== 'pannello') {
       const ao = asseMobile(o);
-      const stessaOrient = Math.abs(sx * ao[0] + sy * ao[1]) > 0.9;
-      if (stessaOrient) {
+      const dotO = sx * ao[0] + sy * ao[1];
+      const stessaOrient = Math.abs(dotO) > 0.9;
+      if (dotO > 0.9) {
+        // stesso verso: fronte su fronte
+        const eUoS = B.hx * Math.abs(sx) + B.hy * Math.abs(sy);
+        const duS = (x - o.x) * sx + (y - o.y) * sy;
+        const eFo = B.hx * Math.abs(Fx) + B.hy * Math.abs(Fy);
+        const dF = ((o.x - x) * Fx + (o.y - y) * Fy) + (eFo - eFm);   // quanto spostare m lungo il fronte
+        if (Math.abs(duS) <= (eUmS + eUoS) + soglia && Math.abs(dF) > 0.5 && Math.abs(dF) <= SNAP_ALLINEA) {
+          if (!align || Math.abs(dF) < align.adv) align = { adv: Math.abs(dF), dx: Fx * dF, dy: Fy * dF };
+        }
+      } else if (stessaOrient) {
         const eUoS = B.hx * Math.abs(sx) + B.hy * Math.abs(sy);
         const duS = (x - o.x) * sx + (y - o.y) * sy;
         const dvS = (x - o.x) * pvx + (y - o.y) * pvy;
