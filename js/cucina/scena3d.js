@@ -13,12 +13,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261113i';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113i';
+} from './modello.js?v=20261113j';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113j';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113i';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113j';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -719,7 +719,7 @@ function cassetti(g, w, h, d, n, matAnta) {
   // Fughe da 2 mm, una in più dei cassetti (sopra, sotto e tra i fronti):
   // fronte = (h − (n + 1) × 2) ÷ n, come nella distinta
   const uw = w - FUGA_W, FC = 2;
-  const ph = (h - (n + 1) * FC) / n;
+  const ph = Math.floor((h - (n + 1) * FC) / n);    // per difetto, come in distinta
   for (let i = 0; i < n; i++) {
     const py = -h / 2 + FC + ph / 2 + i * (ph + FC);
     if (_fingerPull) {

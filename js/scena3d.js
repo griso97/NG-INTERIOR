@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261113i';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261113j';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261111b';
 import { sfondoDi } from './sfondi.js?v=20261111b';
 
@@ -638,7 +638,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       }
       const altFianchi = AltMax - 4 * sC;
       const As = AltMax - 2 * sC;
-      const altFronte = (As - (N + 1) * 2) / N;
+      const altFronte = Math.floor((As - (N + 1) * 2) / N);   // per difetto, come in distinta
       const larFronte = larTF - 4;
       const xCentro = xOffset + W / 2;
       const zScatolaCentro = zScatolaFronte - profScatola / 2;

@@ -254,7 +254,7 @@ function _pezziCasScorrevole(config, cassettiera, modulo, indiceModulo) {
   const guida = c.guida || 500;
   const As = AltMax - 2 * sC;
   const larFronte = (Lm - 4 * sC) - 4;
-  const altFronte = Math.round((As - (N + 1) * 2) / N);
+  const altFronte = Math.floor((As - (N + 1) * 2) / N);
 
   pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fronte cassetto',
     larghezza: Math.round(larFronte), altezza: altFronte,
@@ -277,7 +277,7 @@ function _pezziCasBattente(config, cassettiera, modulo, indiceModulo) {
   const guida = c.guida || 500;
   const As = AltMax - 2 * sC;
   const larFronte = (Lm - 2 * sC - 80) - 4;
-  const altFronte = Math.round((As - (N + 1) * 2) / N);
+  const altFronte = Math.floor((As - (N + 1) * 2) / N);
 
   pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fronte cassetto',
     larghezza: Math.round(larFronte), altezza: altFronte,
@@ -347,7 +347,7 @@ export function pezziCassettieraScorrevoleModulo(config, modulo, indiceModulo) {
     const altFianchi = AltMax - 4 * sC;                  // 5.3
     const As = AltMax - 2 * sC;                          // 5.4
     const larFronte = larTF - 4;                         // 5.7
-    const altFronte = (As - (N + 1) * 2) / N;            // 5.7
+    const altFronte = Math.floor((As - (N + 1) * 2) / N);            // 5.7
 
     pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Top / Fondo',
       larghezza: larTF, altezza: profScatolaM,
@@ -399,7 +399,7 @@ export function pezziCassettieraBattenteModulo(config, modulo, indiceModulo) {
     const altFianchi = AltMax - 4 * sC;                  // uguale allo scorrevole
     const As = AltMax - 2 * sC;                          // uguale
     const larFronte = larTF - 4;                         // 5BIS.4
-    const altFronte = (As - (N + 1) * 2) / N;            // uguale
+    const altFronte = Math.floor((As - (N + 1) * 2) / N);            // uguale
 
     pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Top / Fondo',
       larghezza: larTF, altezza: Pscatola,
