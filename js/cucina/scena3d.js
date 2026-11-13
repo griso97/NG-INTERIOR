@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261115m';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115m';
+} from './modello.js?v=20261115n';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115n';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261115m';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115m';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261115n';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115n';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115m';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115n';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -376,6 +376,12 @@ function animate() {
   requestAnimationFrame(animate);
   controls.update();
   renderer.render(scene, camera);
+}
+
+/** Punta la vista 3D da un punto verso un altro (mm, coordinate della pianta: x, altezza, y). */
+export function guardaDa(px, py, pz, tx, ty, tz) {
+  if (!camera || !controls) return;
+  camera.position.set(px, py, -pz); controls.target.set(tx, ty, -tz); controls.update();
 }
 
 export function forzaResize3d() {
@@ -1398,7 +1404,7 @@ function aggiungiLedPensile(g, w, h, d, colore, avanti = 0) {
  * sul fronte interno di ogni braccio. L'angolo pieno sta verso il retro-
  * sinistra (lato muri); l'utente ruota il modulo per l'angolo giusto.
  */
-function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, prof = PROFONDITA_PENSILE, basso = false) {
+function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, prof = PROFONDITA_PENSILE, basso = false, sporg = false) {
   // prof = profondità di ogni braccio (pensile 350, base 600); basso = base angolo
   const matCorpo = (coloreCorpo && coloreCorpo.isMaterial) ? coloreCorpo
     : new THREE.MeshStandardMaterial({ color: coloreCorpo, roughness: 0.7, metalness: 0.05 });
@@ -1412,27 +1418,30 @@ function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, prof = PROFONDITA_PENS
   };
   // Braccio A: lungo X, addossato al retro (-z).
   mkBox(w, prof, 0, -d / 2 + prof / 2);
-  // Braccio B: lungo Z, addossato al lato sinistro (-x).
-  mkBox(prof, d, -w / 2 + prof / 2, 0);
+  // Braccio B: lungo Z, addossato al lato sinistro (-x), DAVANTI al braccio A
+  // (niente scatole sovrapposte nell'angolo: facce doppie che "sfarfallano")
+  mkBox(prof, d - prof, -w / 2 + prof / 2, prof / 2);
   // Anta A: sul fronte del braccio A (+z), sulla parte non coperta dal braccio B.
   const antaAw = w - prof;
   const antaAcx = (-w / 2 + prof + w / 2) / 2;
   const zA = -d / 2 + prof;
   const anta = (gg, cx, z, aw, verso) => {
-    if (basso && _fingerPull) {                      // base con gola: canale in alto, niente maniglia
-      const CH = 30;
-      pannello(gg, cx, -CH / 2, z, aw, Math.max(60, h - FUGA_H - CH), matAnta || COL.anta);
-      canaleFingerPull(gg, cx, (h - FUGA_H) / 2 - CH / 2, z, aw, CH, true, matAnta);
+    if (!basso && sporg) {                           // pensile con anta sporgente sotto (come gli altri pensili)
+      pannello(gg, cx, -10, z, aw, h + 20, matAnta || COL.anta);
+    } else if (_fingerPull) {                        // gola: in alto nella base, in basso nel pensile
+      const CH = 30, hA = h - FUGA_H;
+      pannello(gg, cx, basso ? -CH / 2 : CH / 2, z, aw, Math.max(60, hA - CH), matAnta || COL.anta);
+      canaleFingerPull(gg, cx, basso ? hA / 2 - CH / 2 : -hA / 2 + CH / 2, z, aw, CH, true, matAnta, !basso);
     } else {
       pannello(gg, cx, 0, z, aw, h - FUGA_H, matAnta || COL.anta);
       manigliaOrizzAnta(gg, cx, 0, aw, h - FUGA_H, z, verso, basso);
     }
   };
-  anta(g, antaAcx, zA, antaAw - FUGA_W, -1);
+  anta(g, antaAcx, zA, antaAw - FUGA_W, 1);                // maniglie verso l'esterno, non nell'angolo
   // Anta B: sul fronte del braccio B (+x), in un subgruppo ruotato +90°.
   const subB = new THREE.Group();
   const antaBw = d - prof;
-  anta(subB, 0, 0, antaBw - FUGA_W, 1);
+  anta(subB, 0, 0, antaBw - FUGA_W, -1);
   subB.rotation.y = Math.PI / 2;                     // fronte +z locale → +x mondo
   subB.position.set(-w / 2 + prof, 0, (-d / 2 + prof + d / 2) / 2);
   g.add(subB);
@@ -1470,7 +1479,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
     : cat === 'regletta' ? COL.regletta : cat === 'lavatrice' ? 0x17181d
     : cat === 'lavastoviglie' ? 0xbcbdc2 : COL.corpo;
   // Pensile angolo a L: corpo a L (due bracci), non il box quadrato.
-  if (tipo === 'pensile-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta); return g; }
+  if (tipo === 'pensile-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, PROFONDITA_PENSILE, false, !!opt.sporg); return g; }
   if (tipo === 'base-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, Math.min((m && m.profBraccio_mm) || PROFONDITA_BASE, Math.min(w, d) - 10), true); return g; }
   // Colonna con VANO APERTO: carcassa a fronte aperto (si vede dentro);
   // le altre colonne/mobili restano scatola piena.
@@ -1714,9 +1723,15 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       cimeAlte.set(m.id, base + h);
       // LED sotto i pensili (opzionale, con scelta temperatura colore).
       // Il pensile-angolo (diagonale) non lo prende: ha una geometria dedicata.
-      if (progetto.led && progetto.led.attivo && !String(m.tipo).startsWith('pensile-angolo')) {
+      if (progetto.led && progetto.led.attivo && m.tipo !== 'pensile-angolo-45') {
         const conPannello = progetto.schienale && progetto.schienale.attivo;
         aggiungiLedPensile(gPens, dim.w, h, dim.d, progetto.led.colore, conPannello ? SP_SCHIENALE : 0);
+        if (m.tipo === 'pensile-angolo') {                       // anche sotto il secondo braccio
+          const gB = new THREE.Group();
+          gB.rotation.y = Math.PI / 2; gB.position.z = PROFONDITA_PENSILE / 2;
+          aggiungiLedPensile(gB, dim.d - PROFONDITA_PENSILE, h, dim.w, progetto.led.colore, conPannello ? SP_SCHIENALE : 0);
+          gPens.add(gB);
+        }
       }
       if (m.tipo === 'pensile-angolo') {
         // La L è asimmetrica: il 3D usa -rot e la pianta +rot, quindi con
