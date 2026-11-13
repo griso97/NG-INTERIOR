@@ -10,8 +10,8 @@ import {
   calcolaVertici, bboxPerimetro,
   moduliDiParete, nomeTipo, PROFONDITA_BASE, PROFONDITA_PENSILE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
-  dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili,
-} from './modello.js?v=20261114b';
+  dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili, angoloInternoVertice,
+} from './modello.js?v=20261114c';
 
 const NS = 'http://www.w3.org/2000/svg';
 const el = (tag, attrs = {}) => {
@@ -97,10 +97,10 @@ export function renderPianta(svg, progetto, opts = {}) {
     else { Y0 -= extra / 2; Y1 += extra / 2; }
   }
 
-  const w = X1 - X0;
-  const h = Y1 - Y0;
-  const vbX = X0;
-  const vbY = -Y1;        // y SVG parte dall'alto → invertito
+  // Durante un trascinamento (mano libera) la vista resta ferma
+  const [vbX, vbY, w, h] = opts.viewBoxFisso
+    ? opts.viewBoxFisso.split(/[\s,]+/).map(Number)
+    : [X0, -Y1, X1 - X0, Y1 - Y0];        // y SVG parte dall'alto → invertito
   svg.setAttribute('viewBox', `${vbX} ${vbY} ${w} ${h}`);
   svg.innerHTML = '';
 
@@ -160,7 +160,7 @@ export function renderPianta(svg, progetto, opts = {}) {
     svg.appendChild(g);
 
     // Indicatore vertice/angolo (pallini sui nodi)
-    vertici.forEach((v) => {
+    vertici.forEach((v, k) => {
       const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       c.setAttribute('cx', v.x);
       c.setAttribute('cy', -v.y);
@@ -168,6 +168,43 @@ export function renderPianta(svg, progetto, opts = {}) {
       c.setAttribute('class', 'sv-angolo');
       svg.appendChild(c);
     });
+    // MANO LIBERA: vertici da prendere (estremità per aggiungere pareti) e
+    // angolo interno scritto vicino a ogni vertice
+    if (opts.manoLibera) {
+      const sc = Math.max(w, h) / 900;                 // misure leggibili a ogni zoom
+      vertici.forEach((v, k) => {
+        const estremo = k === 0 || k === vertici.length - 1;
+        const cls = 'sv-vertice' + (estremo ? ' estremo' : '') + (opts.verticeSel === k ? ' sel' : '')
+          + (opts.aggiunta && estremo ? ' aggiungi' : '');
+        svg.appendChild(el('circle', { cx: v.x, cy: -v.y, r: Math.max(70, 16 * sc), class: cls, 'data-vertice': k }));
+        if (opts.aggiunta && estremo) {
+          const t = el('text', { x: v.x, y: -v.y + 9 * sc, class: 'sv-vertice-piu', 'font-size': 26 * sc, 'text-anchor': 'middle' });
+          t.textContent = '+'; svg.appendChild(t);
+        }
+        const ang = angoloInternoVertice(pareti, k);
+        if (ang != null) {
+          // scritta verso l'interno, sulla bisettrice dell'angolo
+          const a = vertici[k - 1], b = vertici[k + 1];
+          const u1 = { x: a.x - v.x, y: a.y - v.y }, u2 = { x: b.x - v.x, y: b.y - v.y };
+          const l1 = Math.hypot(u1.x, u1.y) || 1, l2 = Math.hypot(u2.x, u2.y) || 1;
+          let bx = u1.x / l1 + u2.x / l2, by = u1.y / l1 + u2.y / l2;
+          let bl = Math.hypot(bx, by);
+          if (bl < 1e-3) { bx = -u1.y / l1; by = u1.x / l1; bl = 1; }
+          if (ang > 180) { bx = -bx; by = -by; }
+          const d = 48 * sc;
+          const t = el('text', { x: v.x + (bx / bl) * d, y: -(v.y + (by / bl) * d), class: 'sv-angolo-testo' + (opts.verticeSel === k ? ' sel' : ''),
+            'font-size': 24 * sc, 'text-anchor': 'middle', 'dominant-baseline': 'middle' });
+          t.textContent = `${String(ang).replace('.', ',')}°`;
+          svg.appendChild(t);
+        }
+      });
+      if (opts.anteprima) {
+        const { a, b, testo } = opts.anteprima;
+        svg.appendChild(el('line', { x1: a.x, y1: -a.y, x2: b.x, y2: -b.y, class: 'sv-anteprima' }));
+        const t = el('text', { x: (a.x + b.x) / 2, y: -(a.y + b.y) / 2 - 22 * sc, class: 'sv-anteprima-testo', 'font-size': 16 * sc, 'text-anchor': 'middle' });
+        t.textContent = testo; svg.appendChild(t);
+      }
+    }
 
     // Mobili liberi: sopra a muri e quote, così restano sempre toccabili
     const gMob = el('g', { class: 'sv-mobili-liberi' });

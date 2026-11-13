@@ -21,12 +21,13 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
-} from './modello.js?v=20261114b';
-import { renderPianta } from './pianta.js?v=20261114b';
-import { calcolaDistintaCucina } from './distinta.js?v=20261114b';
+  angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
+} from './modello.js?v=20261114c';
+import { renderPianta } from './pianta.js?v=20261114c';
+import { calcolaDistintaCucina } from './distinta.js?v=20261114c';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261114b';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114b';
+import { agganciaTema } from '../tema.js?v=20261114c';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114c';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -85,6 +86,14 @@ let step2 = {
   nudgeCm: 1,            // ultimo passo (cm) usato dalle frecce di spostamento
 };
 let pareteSelId = null;  // muro toccato nello Step 1
+// --- PIANTA A MANO LIBERA (Step 1) ---
+let manoLibera = false;       // modalità attiva
+let aggiuntaParete = false;   // "Aggiungi parete": si tira da un'estremità
+let verticeSel = null;        // vertice toccato (per scrivere l'angolo)
+let tracciaML = null;         // trascinamento in corso: { tipo:'vertice'|'nuova', ... }
+let vbFisso = null;           // vista ferma mentre si trascina
+let anteprimaML = null;       // parete nuova in anteprima
+let tastiML = '';             // numeri scritti con la tastiera
 let trascinamento = null; // { id, dx, dy, mosso } mentre si sposta un mobile
 const palette = document.getElementById('palette');
 const modale = document.getElementById('modale');
@@ -278,6 +287,24 @@ function renderPannelloStep1() {
     </section>
 
     <section>
+      <h3>Mano libera</h3>
+      <button type="button" id="ml-toggle" class="btn-ghost ${manoLibera ? 'attivo' : ''}" style="width:100%">${manoLibera ? '✓ ' : ''}✏ Disegna a mano libera</button>
+      ${manoLibera ? `
+      <div class="riga-3d" style="margin:8px 0">
+        <strong>Sposta un vertice</strong>: prendilo e trascinalo (la squadra a 90° tiene). Vicino a ogni vertice c'è l'angolo interno.<br>
+        <strong>Scrivi l'angolo</strong>: tocca un vertice, scrivi i gradi (es. 95, 120, 180) e premi Invio.<br>
+        <strong>Nuova parete</strong>: premi qui sotto, poi tira da un'estremità (pallino col +); scrivi la lunghezza in mm e premi Invio.
+      </div>
+      <button type="button" id="ml-aggiungi" class="btn-ghost ${aggiuntaParete ? 'attivo' : ''}" style="width:100%">${aggiuntaParete ? '✓ ' : ''}+ Aggiungi parete (tira da un'estremità)</button>
+      ${verticeSel != null && angoloInternoVertice(progetto.piano.pareti, verticeSel) != null ? `
+      <div class="riga-3d" style="margin:10px 0 4px">Angolo interno al vertice selezionato (°):</div>
+      <div style="display:flex;gap:8px">
+        <input type="number" id="ml-angolo" class="modale-num" value="${angoloInternoVertice(progetto.piano.pareti, verticeSel)}" min="1" max="359" step="1" style="flex:1" />
+        <button type="button" id="ml-angolo-ok" class="btn-oro">Applica</button>
+      </div>` : ''}` : ''}
+    </section>
+
+    <section>
       <h3>Pareti · tutte le misure in mm</h3>
       ${progetto.piano.pareti.length > 0 ? `
         <div class="orienta-row">
@@ -335,6 +362,19 @@ function renderPannelloStep1() {
     </section>
   `;
   attaccaEventiPannello();
+  document.getElementById('ml-toggle')?.addEventListener('click', () => {
+    manoLibera = !manoLibera; aggiuntaParete = false; verticeSel = null; tastiML = ''; aggiorna();
+  });
+  document.getElementById('ml-aggiungi')?.addEventListener('click', () => {
+    aggiuntaParete = !aggiuntaParete; verticeSel = null; aggiorna();
+  });
+  const appAng = () => {
+    const v = Number(String(document.getElementById('ml-angolo').value).replace(',', '.'));
+    if (!(v > 0 && v < 360) || verticeSel == null) return;
+    registraStoria(); impostaAngoloVertice(progetto, verticeSel, v); aggiorna();
+  };
+  document.getElementById('ml-angolo-ok')?.addEventListener('click', appAng);
+  document.getElementById('ml-angolo')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') appAng(); });
 }
 
 function iconaTipologia(id) {
@@ -1442,7 +1482,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114b');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114c');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1465,6 +1505,11 @@ function disegna() {
       pareteAttivaId: st === 2 ? step2.pareteAttivaId : null,
       pareteSelId: st === 1 ? pareteSelId : null,
       mobSelId: step2.mobSelId,
+      manoLibera: st === 1 && manoLibera,
+      aggiunta: aggiuntaParete,
+      verticeSel,
+      viewBoxFisso: vbFisso,
+      anteprima: anteprimaML,
       interattivo: st === 2 || st === 3,
       livelloAttivo: (st === 2 || st === 3) ? livelloStep() : null,
     });
@@ -1737,6 +1782,126 @@ function annullaSpostamento() {
   step2.movePending = null;
   aggiorna();
 }
+
+// --------- PIANTA A MANO LIBERA (Step 1) ---------
+// Trascinare un vertice lo sposta (le altre pareti restano ferme); con
+// "Aggiungi parete" si tira una parete nuova da un'estremità. La squadra a
+// 90° "tiene" (calamita di qualche grado). Numeri da tastiera: lunghezza della
+// parete selezionata / angolo del vertice selezionato, poi Invio.
+const infoML = (() => {
+  const d = document.createElement('div'); d.className = 'ml-info'; d.hidden = true;
+  svg.parentElement.style.position = svg.parentElement.style.position || 'relative';
+  svg.parentElement.appendChild(d); return d;
+})();
+const trML = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
+function mostraInfoML(e, testo) {
+  const r = svg.parentElement.getBoundingClientRect();
+  infoML.textContent = testo; infoML.hidden = false;
+  infoML.style.left = `${e.clientX - r.left + 16}px`; infoML.style.top = `${e.clientY - r.top + 16}px`;
+}
+const fmtG = (a) => `${String(Math.round(a * 10) / 10).replace('.', ',')}°`;
+svg.addEventListener('pointerdown', (e) => {
+  if (progetto.stepCorrente !== 1 || !manoLibera) return;
+  const vEl = e.target.closest && e.target.closest('[data-vertice]');
+  if (!vEl) { if (verticeSel != null) { verticeSel = null; aggiorna(); } return; }
+  const k = Number(vEl.dataset.vertice);
+  const pareti = progetto.piano.pareti, V = calcolaVertici(pareti);
+  const estremo = k === 0 || k === V.length - 1;
+  e.stopImmediatePropagation(); e.preventDefault();
+  try { svg.setPointerCapture(e.pointerId); } catch (_) { /* niente */ }
+  vbFisso = svg.getAttribute('viewBox');
+  if (aggiuntaParete && estremo) {
+    tracciaML = { tipo: 'nuova', estremo: k === 0 ? 'inizio' : 'fine', da: V[k], mosso: false };
+  } else {
+    registraStoria();
+    tracciaML = { tipo: 'vertice', k, mosso: false };
+  }
+  tastiML = '';
+}, true);
+svg.addEventListener('pointermove', (e) => {
+  if (!tracciaML) return;
+  e.stopImmediatePropagation();
+  const P0 = puntoMm(e);
+  const V = calcolaVertici(progetto.piano.pareti);
+  if (tracciaML.tipo === 'nuova') {
+    const P = agganciaSquadra(P0, [tracciaML.da], 7);
+    const dx = P.x - tracciaML.da.x, dy = P.y - tracciaML.da.y;
+    let L = Math.round(Math.hypot(dx, dy) / 10) * 10;
+    const ang = (Math.atan2(dy, dx) * 180) / Math.PI;
+    if (tastiML) L = Number(tastiML);
+    const rad = (ang * Math.PI) / 180;
+    const B = { x: tracciaML.da.x + Math.cos(rad) * L, y: tracciaML.da.y + Math.sin(rad) * L };
+    tracciaML.L = L; tracciaML.ang = ang; tracciaML.mosso = L >= 50;
+    anteprimaML = { a: tracciaML.da, b: B, testo: `${L} mm` };
+    mostraInfoML(e, `${L} mm${P.agganciato ? ' · ⟂' : ` · ${fmtG(((ang % 360) + 360) % 360)}`}${tastiML ? '' : ` · ${trML('scrivi la misura e Invio')}`}`);
+  } else {
+    const k = tracciaML.k;
+    const P = agganciaSquadra({ x: Math.round(P0.x / 5) * 5, y: Math.round(P0.y / 5) * 5 }, [V[k - 1], V[k + 1]], 5);
+    muoviVertice(progetto, k, P.x, P.y);
+    tracciaML.mosso = true;
+    const pareti = progetto.piano.pareti;
+    const ang = angoloInternoVertice(pareti, k);
+    const lung = [pareti[k - 1], pareti[k]].filter(Boolean).map((p) => `${p.lunghezza_mm}`).join(' / ');
+    mostraInfoML(e, `${ang != null ? `${trML('Angolo')} ${fmtG(ang)} · ` : ''}${lung} mm`);
+  }
+  disegna();
+}, true);
+const fineML = (e) => {
+  if (!tracciaML) return;
+  if (e) e.stopImmediatePropagation();
+  const tr = tracciaML; tracciaML = null; anteprimaML = null; vbFisso = null; infoML.hidden = true;
+  if (tr.tipo === 'nuova') {
+    if (tr.mosso || tastiML) {
+      registraStoria();
+      const id = aggiungiPareteLibera(progetto, tr.estremo, Number(tastiML) || tr.L, tr.ang);
+      pareteSelId = id; verticeSel = null;
+    }
+  } else {
+    verticeSel = tr.k;                     // vertice selezionato: si può scrivere l'angolo
+    if (!tr.mosso && storiaPast.length) storiaPast.pop();
+  }
+  tastiML = '';
+  aggiorna();
+};
+svg.addEventListener('pointerup', fineML, true);
+svg.addEventListener('pointercancel', fineML, true);
+document.addEventListener('keydown', (e) => {
+  if (progetto.stepCorrente !== 1 || !manoLibera) return;
+  if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if (/^[0-9]$/.test(e.key) || ((e.key === ',' || e.key === '.') && !tastiML.includes('.'))) {
+    tastiML += e.key === ',' ? '.' : e.key;
+  } else if (e.key === 'Backspace') {
+    tastiML = tastiML.slice(0, -1);
+  } else if (e.key === 'Escape') {
+    tastiML = ''; aggiuntaParete = false; verticeSel = null; infoML.hidden = true; aggiorna(); return;
+  } else if (e.key === 'Enter') {
+    const v = Number(tastiML);
+    if (tracciaML) return;                  // durante il trascinamento vale al rilascio
+    if (v > 0) {
+      registraStoria();
+      if (verticeSel != null && angoloInternoVertice(progetto.piano.pareti, verticeSel) != null) {
+        if (v < 360) impostaAngoloVertice(progetto, verticeSel, v);
+      } else if (pareteSelId != null) {
+        const p = progetto.piano.pareti.find((x) => x.id === pareteSelId);
+        if (p && v >= 50) { p.lunghezza_mm = Math.round(v); progetto.pianoConfermato = false; }
+      }
+    }
+    tastiML = ''; infoML.hidden = true; aggiorna(); return;
+  } else return;
+  e.preventDefault();
+  // mostra cosa si sta scrivendo
+  const r = svg.getBoundingClientRect();
+  const cosa = tracciaML && tracciaML.tipo === 'nuova' ? trML('Lunghezza') + ': ' + (tastiML || '…') + ' mm'
+    : verticeSel != null ? trML('Angolo') + ': ' + (tastiML || '…') + '°'
+      : pareteSelId != null ? trML('Lunghezza') + ': ' + (tastiML || '…') + ' mm' : trML('Tocca un vertice o una parete');
+  infoML.textContent = `⌨ ${cosa}${tastiML ? ' — ' + trML('Invio') : ''}`; infoML.hidden = false;
+  infoML.style.left = `${r.width / 2 - 80}px`; infoML.style.top = '12px';
+  if (tracciaML && tracciaML.tipo === 'nuova' && tastiML) {
+    const rad = (tracciaML.ang * Math.PI) / 180, L = Number(tastiML);
+    anteprimaML = { a: tracciaML.da, b: { x: tracciaML.da.x + Math.cos(rad) * L, y: tracciaML.da.y + Math.sin(rad) * L }, testo: `${L} mm` };
+    tracciaML.L = L; disegna();
+  }
+});
 
 svg.addEventListener('pointerdown', (e) => {
   const mobEl = e.target.closest && e.target.closest('[data-mob-id]');

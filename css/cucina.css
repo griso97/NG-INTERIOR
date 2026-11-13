@@ -691,3 +691,17 @@
 .ra-campi { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .ra-campi label { font-size: 12px; color: var(--testo-dim); display: flex; flex-direction: column; gap: 3px; }
 .ra-campi input { padding: 6px 8px; border-radius: 4px; border: 1px solid var(--bordo); background: var(--bg-3); color: var(--testo); font-size: 14px; }
+
+/* Pianta a mano libera */
+.sv-vertice { fill: rgba(212,175,55,0.18); stroke: var(--oro-chiaro, #e6c46a); stroke-width: 14; cursor: grab; }
+.sv-vertice.sel { fill: rgba(212,175,55,0.55); stroke: #fff; }
+.sv-vertice.aggiungi { fill: rgba(212,175,55,0.75); stroke: #fff; cursor: crosshair; }
+.sv-vertice-piu { fill: #111; font-weight: 700; pointer-events: none; }
+.sv-angolo-testo { fill: var(--oro-chiaro, #e6c46a); font-weight: 600; paint-order: stroke; stroke: rgba(0,0,0,0.65); stroke-width: 10; pointer-events: none; }
+.sv-angolo-testo.sel { fill: #fff; }
+.sv-anteprima { stroke: var(--oro-chiaro, #e6c46a); stroke-width: 60; stroke-dasharray: 120 80; opacity: 0.85; }
+.sv-anteprima-testo { fill: #fff; font-weight: 700; paint-order: stroke; stroke: rgba(0,0,0,0.7); stroke-width: 10; }
+.ml-info { position: absolute; z-index: 12; pointer-events: none; white-space: nowrap; padding: 6px 10px; border-radius: 6px;
+  background: rgba(13,10,6,0.9); color: #fff; font-size: 13px; border: 1px solid var(--oro-chiaro, #e6c46a); }
+.ml-info[hidden] { display: none; }
+#pianta-svg { touch-action: none; }

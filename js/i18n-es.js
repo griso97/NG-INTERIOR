@@ -1063,5 +1063,20 @@ window.NG_I18N_ES = {
  "Foto di lato": "Foto lateral",
  "Foto da sopra": "Foto desde arriba",
  "Lato": "Lateral",
- "Per le maniglie con forme particolari (ad arco, a J, piedini sagomati): con più viste il 3D è più fedele. Foto dritte, alla stessa distanza, su sfondo chiaro. Nessuna è obbligatoria.": "Para tiradores con formas especiales (en arco, en J, patas perfiladas): con más vistas el 3D es más fiel. Fotos rectas, a la misma distancia, sobre fondo claro. Ninguna es obligatoria."
+ "Per le maniglie con forme particolari (ad arco, a J, piedini sagomati): con più viste il 3D è più fedele. Foto dritte, alla stessa distanza, su sfondo chiaro. Nessuna è obbligatoria.": "Para tiradores con formas especiales (en arco, en J, patas perfiladas): con más vistas el 3D es más fiel. Fotos rectas, a la misma distancia, sobre fondo claro. Ninguna es obligatoria.",
+ "Mano libera": "Mano alzada",
+ "✏ Disegna a mano libera": "✏ Dibujar a mano alzada",
+ "Sposta un vertice": "Mueve un vértice",
+ ": prendilo e trascinalo (la squadra a 90° tiene). Vicino a ogni vertice c'è l'angolo interno.": ": tómalo y arrástralo (la escuadra a 90° se mantiene). Junto a cada vértice está el ángulo interior.",
+ "Scrivi l'angolo": "Escribe el ángulo",
+ ": tocca un vertice, scrivi i gradi (es. 95, 120, 180) e premi Invio.": ": toca un vértice, escribe los grados (ej. 95, 120, 180) y pulsa Intro.",
+ "Nuova parete": "Nueva pared",
+ ": premi qui sotto, poi tira da un'estremità (pallino col +); scrivi la lunghezza in mm e premi Invio.": ": pulsa aquí abajo, luego tira desde un extremo (punto con +); escribe la longitud en mm y pulsa Intro.",
+ "+ Aggiungi parete (tira da un'estremità)": "+ Añadir pared (tira desde un extremo)",
+ "Angolo interno al vertice selezionato (°):": "Ángulo interior en el vértice seleccionado (°):",
+ "Applica": "Aplicar",
+ "scrivi la misura e Invio": "escribe la medida e Intro",
+ "Angolo": "Ángulo",
+ "Invio": "Intro",
+ "Tocca un vertice o una parete": "Toca un vértice o una pared"
 };

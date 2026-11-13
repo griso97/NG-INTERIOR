@@ -1452,6 +1452,11 @@ export function ruotaPianta(progetto, delta = 90) {
   for (const p of progetto.piano.pareti) {
     p.angolo_gradi = normAngolo(p.angolo_gradi + delta);
   }
+  const p0 = progetto.piano.pareti[0];
+  if (p0 && (p0.x0 || p0.y0)) {                      // primo vertice spostato: ruota anche lui
+    const r = (delta * Math.PI) / 180, x = p0.x0 || 0, y = p0.y0 || 0;
+    p0.x0 = Math.round(x * Math.cos(r) - y * Math.sin(r)); p0.y0 = Math.round(x * Math.sin(r) + y * Math.cos(r));
+  }
   progetto.pianoConfermato = false;
 }
 
@@ -1465,6 +1470,8 @@ export function specchiaPianta(progetto) {
     p.angolo_gradi = normAngolo(-p.angolo_gradi);
     p.latoInterno = p.latoInterno === 'interno' ? 'esterno' : 'interno';
   }
+  const p0 = progetto.piano.pareti[0];
+  if (p0 && p0.y0) p0.y0 = -p0.y0;
   progetto.pianoConfermato = false;
 }
 
@@ -1493,8 +1500,11 @@ export function inverteAngolo(progetto, pareteId) {
  * Ritorna: array di punti { x, y } compresi il punto iniziale e quello finale.
  */
 export function calcolaVertici(pareti) {
-  const pts = [{ x: 0, y: 0 }];
-  let x = 0, y = 0;
+  // punto di partenza: (0,0), o quello salvato sulla prima parete se il primo
+  // vertice è stato spostato a mano libera
+  const o = (pareti && pareti[0]) || {};
+  let x = Number(o.x0) || 0, y = Number(o.y0) || 0;
+  const pts = [{ x, y }];
   for (const p of pareti) {
     const rad = (p.angolo_gradi * Math.PI) / 180;
     x += p.lunghezza_mm * Math.cos(rad);
@@ -1555,4 +1565,116 @@ export function frontiCassetti(H, n, piccolo = null) {
   if (!piccolo || n < 2) return Array(n).fill(Math.floor(netto / n));
   const hs = Math.floor(Math.max(60, Math.min(Number(piccolo), netto - (n - 1) * 80)));
   return [hs, ...Array(n - 1).fill(Math.floor((netto - hs) / (n - 1)))];
+}
+
+// =============================================================================
+// PIANTA A MANO LIBERA: vertici spostabili, angoli, pareti tirate col mouse
+// =============================================================================
+const normA = (a) => { let x = a % 360; if (x <= -180) x += 360; if (x > 180) x -= 360; return x; };
+const r1 = (v) => Math.round(v * 10) / 10;
+
+/**
+ * Angolo INTERNO al vertice k (tra la parete k−1 e la parete k), in gradi
+ * 0..360: 90 = angolo retto verso l'interno, 180 = dritto, >180 = verso fuori.
+ * null per i vertici d'estremità.
+ */
+export function angoloInternoVertice(pareti, k) {
+  if (k <= 0 || k >= pareti.length) return null;
+  const a = pareti[k - 1], b = pareti[k];
+  const sgn = a.latoInterno === 'esterno' ? -1 : 1;
+  let v = 180 - sgn * normA(b.angolo_gradi - a.angolo_gradi);
+  if (v <= 0) v += 360; if (v > 360) v -= 360;
+  return r1(v);
+}
+
+/** Scrive l'angolo interno al vertice k: ruota la parete k e tutte le seguenti. */
+export function impostaAngoloVertice(progetto, k, gradi) {
+  const pareti = progetto.piano.pareti;
+  if (k <= 0 || k >= pareti.length) return;
+  const a = pareti[k - 1];
+  const sgn = a.latoInterno === 'esterno' ? -1 : 1;
+  const nuovo = a.angolo_gradi + sgn * (180 - Number(gradi));
+  const diff = nuovo - pareti[k].angolo_gradi;
+  for (let j = k; j < pareti.length; j++) pareti[j].angolo_gradi = r1(pareti[j].angolo_gradi + diff);
+  progetto.pianoConfermato = false;
+}
+
+/** Imposta la parete i a partire da due punti (lunghezza e direzione). */
+function pareteDaPunti(p, A, B) {
+  p.lunghezza_mm = Math.max(50, Math.round(Math.hypot(B.x - A.x, B.y - A.y)));
+  p.angolo_gradi = r1((Math.atan2(B.y - A.y, B.x - A.x) * 180) / Math.PI);
+}
+
+/**
+ * Sposta il vertice k nel punto (x,y): cambiano solo le due pareti che ci
+ * arrivano, il resto della pianta resta fermo.
+ */
+export function muoviVertice(progetto, k, x, y) {
+  const pareti = progetto.piano.pareti;
+  const V = calcolaVertici(pareti);
+  const P = { x, y };
+  if (k === 0) {
+    const v1 = V[1];
+    pareti[0].x0 = Math.round(x); pareti[0].y0 = Math.round(y);
+    pareteDaPunti(pareti[0], P, v1);
+  } else if (k === pareti.length) {
+    pareteDaPunti(pareti[k - 1], V[k - 1], P);
+  } else {
+    pareteDaPunti(pareti[k - 1], V[k - 1], P);
+    pareteDaPunti(pareti[k], P, V[k + 1]);
+  }
+  progetto.pianoConfermato = false;
+}
+
+/**
+ * "Squadra": il punto P (vertice spostato o fine di una nuova parete) si
+ * aggancia alle direzioni a 0/90/180/270° dalle pareti vicine se ci è vicino
+ * (entro `tol` gradi). ancore = punti fissi collegati a P.
+ */
+export function agganciaSquadra(P, ancore, tol = 6) {
+  const linee = [];
+  for (const A of ancore) {
+    if (!A) continue;
+    const ang = (Math.atan2(P.y - A.y, P.x - A.x) * 180) / Math.PI;
+    const q = Math.round(ang / 90) * 90;
+    if (Math.abs(normA(ang - q)) <= tol) linee.push({ A, ang: (q * Math.PI) / 180 });
+  }
+  if (linee.length === 0) return { ...P, agganciato: false };
+  if (linee.length === 1 || Math.abs(normA((linee[0].ang - linee[1].ang) * 180 / Math.PI)) % 180 < 1) {
+    const { A, ang } = linee[0], c = Math.cos(ang), s = Math.sin(ang);
+    const t = (P.x - A.x) * c + (P.y - A.y) * s;
+    return { x: A.x + c * t, y: A.y + s * t, agganciato: true };
+  }
+  // due direzioni: incrocio delle due rette
+  const [l1, l2] = linee;
+  const c1 = Math.cos(l1.ang), s1 = Math.sin(l1.ang), c2 = Math.cos(l2.ang), s2 = Math.sin(l2.ang);
+  const den = c1 * s2 - s1 * c2;
+  if (Math.abs(den) < 1e-6) return { ...P, agganciato: false };
+  const t = ((l2.A.x - l1.A.x) * s2 - (l2.A.y - l1.A.y) * c2) / den;
+  return { x: l1.A.x + c1 * t, y: l1.A.y + s1 * t, agganciato: true };
+}
+
+/**
+ * Aggiunge una parete a un'ESTREMITÀ della pianta ('fine' o 'inizio'), lunga
+ * `lung` mm in direzione `ang` gradi (dall'estremità verso fuori).
+ * Ritorna l'id della nuova parete.
+ */
+export function aggiungiPareteLibera(progetto, estremo, lung, ang) {
+  const pareti = progetto.piano.pareti;
+  const id = pareti.reduce((m, p) => Math.max(m, p.id), 0) + 1;
+  const vicino = estremo === 'inizio' ? pareti[0] : pareti[pareti.length - 1];
+  const lato = (vicino && vicino.latoInterno) || 'interno';
+  if (estremo === 'inizio' && pareti.length) {
+    const V = calcolaVertici(pareti);
+    const rad = (ang * Math.PI) / 180;
+    const nuovoInizio = { x: V[0].x + Math.cos(rad) * lung, y: V[0].y + Math.sin(rad) * lung };
+    delete pareti[0].x0; delete pareti[0].y0;
+    pareti.unshift({ id, lunghezza_mm: Math.round(lung), angolo_gradi: r1(normA(ang + 180)), latoInterno: lato,
+      x0: Math.round(nuovoInizio.x), y0: Math.round(nuovoInizio.y) });
+  } else {
+    pareti.push({ id, lunghezza_mm: Math.round(lung), angolo_gradi: r1(normA(ang)), latoInterno: lato });
+  }
+  progetto.piano.tipologia = 'personalizzata';
+  progetto.pianoConfermato = false;
+  return id;
 }
