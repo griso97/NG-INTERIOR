@@ -697,7 +697,42 @@ export function posizionaVincolata(progetto, m, x, y, libera = false) {
   }
   ({ x, y } = aggancioMagnetico(progetto, m, x, y));
   if (!libero) ({ x, y } = vincolaAiMuri(progetto, m, x, y));
+  // MAI SOVRAPPOSTI: se resta dentro a un altro mobile (es. trascinato sopra
+  // un mobile in fondo contro il muro, che non può spingerlo oltre), provo le
+  // posizioni ATTACCATE a quel mobile (prima/dopo lungo il muro, o sui 4 lati
+  // per l'isola) e prendo la più vicina al dito; se non c'è posto resta dov'era.
+  const urto = sovrapposto(progetto, m, x, y);
+  if (urto) {
+    const voluto = { x, y };
+    const cand = [];
+    for (const o of urto) {
+      const A = aabb(m, 0, 0), B = aabb(o, o.x, o.y);
+      const u = libero ? null : muroPiuVicino(progetto, o.x, o.y);
+      const passi = u ? [[u[0], u[1]], [-u[0], -u[1]]] : [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      for (const [ux, uy] of passi) {
+        const e = (A.hx + B.hx) * Math.abs(ux) + (A.hy + B.hy) * Math.abs(uy);
+        let c = { x: o.x + ux * e, y: o.y + uy * e };
+        if (!u) c = { x: ux ? c.x : voluto.x, y: uy ? c.y : voluto.y };
+        if (!libero) c = vincolaAiMuri(progetto, m, c.x, c.y);
+        if (!sovrapposto(progetto, m, c.x, c.y)) cand.push(c);
+      }
+    }
+    cand.sort((a, b) => Math.hypot(a.x - voluto.x, a.y - voluto.y) - Math.hypot(b.x - voluto.x, b.y - voluto.y));
+    return cand[0] || { x: m.x, y: m.y };
+  }
   return { x, y };
+}
+
+/** Mobili (stessa fascia di altezza) dentro cui il mobile m finirebbe in (x,y). */
+function sovrapposto(progetto, m, x, y) {
+  const rv = rangeVerticale(m), A = aabb(m, x, y), out = [];
+  for (const o of (progetto.mobiliLiberi || [])) {
+    if (o.id === m.id || categoriaTipo(o.tipo) === 'oggetto') continue;
+    if (!rangeSovrappone(rv, rangeVerticale(o))) continue;
+    const B = aabb(o, o.x, o.y);
+    if ((A.hx + B.hx) - Math.abs(x - o.x) > 2 && (A.hy + B.hy) - Math.abs(y - o.y) > 2) out.push(o);
+  }
+  return out.length ? out : null;
 }
 
 export const LARGHEZZA_ANGOLO = 630;  // pensile d'angolo nelle cucine a L/U
