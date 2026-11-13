@@ -8,10 +8,10 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, eliminaFoto, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261114m';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi } from './analisi-foto.js?v=20261114m';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261114m';
-import { agganciaTema } from './tema.js?v=20261114m';
+} from './catalogo.js?v=20261114o';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie } from './analisi-foto.js?v=20261114o';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261114o';
+import { agganciaTema } from './tema.js?v=20261114o';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -50,6 +50,8 @@ function dettagli(m) {
   if (m.campione) r.push(`campione ${Math.round(m.campione.wMm / 10)}×${Math.round(m.campione.hMm / 10)} cm`);
   if (m.lunghezzaMm) r.push(`lunghezza ${Math.round(m.lunghezzaMm / 10)} cm`);
   if (m.viste) r.push(`viste: ${['davanti', ...Object.keys(m.viste)].join(', ')}`);
+  if (m.ral) r.push(`RAL ${esc(m.ral)}`);
+  if (m.proprio && m.lucido != null && m.categoria !== 'maniglia') r.push(m.lucido ? 'lucido' : 'opaco');
   if (m.gola) r.push('con gola');
   return r.join(' · ');
 }
@@ -146,6 +148,7 @@ function apriScheda(m) {
       <div id="f-auto" class="imp-auto" hidden>
         <canvas id="f-vista" class="imp-vista"></canvas>
         <div class="imp-auto-tiles" id="f-tiles"></div>
+        <div id="f-superficie" class="imp-superficie"></div>
         <div class="imp-auto-msg" id="f-msg"></div>
         <button type="button" class="btn-ghost btn-mini" id="f-mano">Correggi a mano</button>
       </div>
@@ -216,6 +219,7 @@ function apriScheda(m) {
       if (!file) return;
       img = await caricaImmagine(file).catch(() => null);
       if (!img) { errore(tr('Non riesco ad aprire questa foto. Prova con un JPG o PNG.')); return; }
+      corpo._fotoId = Date.now();                 // foto nuova: si riparte dalla proposta del sito
       rit = await analisiAutomatica(img, corpo, tipo);
     });
   }
@@ -256,9 +260,12 @@ function apriScheda(m) {
         ? { w: p.campioneCm.w * (w / p.oggettoCm.w), h: p.campioneCm.h * (h / p.oggettoCm.h) } : { w, h };
       if (img) {
         const z = rit();
+        const sc = corpo._scelta;
+        const tinta = sc && sc.tinta && tipo !== 'man' ? sc.ral : null;
         if (tipo === 'fp') {
           // PORTA raddrizzata (vista di fronte), pixel della foto
           const cp = cartellaRaddrizzata(img, z.porta, w, h, z.portaFrazione);
+          if (tinta) riempi(cp.canvas, tinta.hex);
           campioneZona = cp.cm;
           const portaBlob = await canvasBlob(cp.canvas, 'image/jpeg');
           // GOLA: la sua foto raddrizzata se pulita, altrimenti il suo colore
@@ -278,6 +285,7 @@ function apriScheda(m) {
           manN.rapporto = Math.min(r.w, r.h) / Math.max(r.w, r.h);
         } else {
           const cp = cartellaRaddrizzata(img, z.main, w, h, z.portaFrazione);
+          if (tinta) riempi(cp.canvas, tinta.hex);
           campioneZona = cp.cm;
           await salvaFoto(id, await canvasBlob(cp.canvas, 'image/jpeg'), 'foto');
           await salvaFoto(id, await thumbDaCanvas(cp.canvas, null, null), 'thumb');
@@ -298,7 +306,13 @@ function apriScheda(m) {
         }
         if (!Object.keys(manN.viste).length) delete manN.viste;
       }
-      const dati = { id, sezione: sez, nome, info: infoN, colore, aggiornato: Date.now(),
+      // superficie scelta: tinta unita (RAL) / legno, lucido / opaco
+      const scS = corpo._scelta;
+      const sup = tipo !== 'man' && scS && scS.foto === corpo._fotoId
+        ? (scS.tinta ? { tinta: { ral: scS.ral.codice, colore: scS.ral.hex, lucido: !!scS.lucido } } : { tinta: null, lucido: !!scS.lucido })
+        : {};
+      if (sup.tinta) colore = sup.tinta.colore;
+      const dati = { id, sezione: sez, nome, info: infoN, colore, aggiornato: Date.now(), ...sup,
         ...(tipo === 'man' ? { maniglia: manN } : { campioneCm: campioneZona, oggettoCm: { w, h } }),
         ...(tipo === 'fp' ? { coloreGola } : {}) };
       if (nuovo) stato.prodotti.push({ ...dati, creato: Date.now() });
@@ -327,6 +341,39 @@ async function thumbFingerPull(img, porta, gola, coloreGola) {
 function canvasBlob(c, tipo = 'image/jpeg') { return new Promise((ok) => c.toBlob(ok, tipo, 0.95)); }
 
 /**
+ * SUPERFICIE della porta/campione: legno-disegno (si usa la foto pulita) o
+ * TINTA UNITA (colore pieno = RAL più vicino, finitura lucida o opaca). Il
+ * sito propone dalla foto; l'utente può cambiare tutto.
+ */
+function mostraSuperficie(corpo, sup) {
+  const box = corpo.querySelector('#f-superficie'); if (!box) return;
+  // prima analisi di questa foto: scelte proposte dal sito
+  if (!corpo._scelta || corpo._scelta.foto !== corpo._fotoId) {
+    corpo._scelta = { foto: corpo._fotoId, tinta: sup.tintaUnita, ral: sup.ral[0], lucido: sup.lucido, proposta: { ...sup } };
+  }
+  corpo._scelta.ralLista = sup.ral;
+  const sc = corpo._scelta, hx = (h) => `#${h.toString(16).padStart(6, '0')}`;
+  box.innerHTML = `
+    <div class="imp-sup-titolo">${tr('Superficie')} <span class="imp-aiuto">(${tr('proposta dalla foto, puoi cambiarla')})</span></div>
+    <div class="imp-sup-scelte">
+      <button type="button" class="btn-ghost btn-mini ${!sc.tinta ? 'attivo' : ''}" data-sup="legno">${!sc.tinta ? '✓ ' : ''}${tr('Legno / disegno (usa la foto)')}</button>
+      <button type="button" class="btn-ghost btn-mini ${sc.tinta ? 'attivo' : ''}" data-sup="tinta">${sc.tinta ? '✓ ' : ''}${tr('Tinta unita (colore RAL)')}</button>
+    </div>
+    ${sc.tinta ? `
+    <div class="imp-ral">${sc.ralLista.map((r) => `<button type="button" class="imp-ral-c ${r.codice === sc.ral.codice ? 'sel' : ''}" data-ral="${r.codice}" title="RAL ${r.codice}">
+      <span style="background:${hx(r.hex)}"></span>RAL ${r.codice}</button>`).join('')}</div>
+    <div class="imp-aiuto">${tr('Colore della foto senza riflessi')}: <span class="imp-ral-foto" style="background:${hx(sup.colore)}"></span> → ${tr('il RAL più vicino è il primo')}.</div>` : ''}
+    <div class="imp-sup-scelte">
+      <button type="button" class="btn-ghost btn-mini ${!sc.lucido ? 'attivo' : ''}" data-fin="opaco">${!sc.lucido ? '✓ ' : ''}${tr('Opaco')}</button>
+      <button type="button" class="btn-ghost btn-mini ${sc.lucido ? 'attivo' : ''}" data-fin="lucido">${sc.lucido ? '✓ ' : ''}${tr('Lucido')}</button>
+    </div>`;
+  const ridisegna = () => corpo._ridisegnaAnalisi && corpo._ridisegnaAnalisi();
+  box.querySelectorAll('[data-sup]').forEach((b) => b.addEventListener('click', () => { sc.tinta = b.dataset.sup === 'tinta'; ridisegna(); }));
+  box.querySelectorAll('[data-ral]').forEach((b) => b.addEventListener('click', () => { sc.ral = sc.ralLista.find((r) => r.codice === b.dataset.ral); ridisegna(); }));
+  box.querySelectorAll('[data-fin]').forEach((b) => b.addEventListener('click', () => { sc.lucido = b.dataset.fin === 'lucido'; ridisegna(); }));
+}
+
+/**
  * Porta/campione RADDRIZZATO alla sua forma vera: proporzioni dalla misura
  * reale (cm) della parte usata, lato lungo max 1600 px.
  */
@@ -340,6 +387,9 @@ function cartellaRaddrizzata(img, quad, wCm, hCm, frazione) {
   const pul = pulisciRiflessi(raddrizza(img, quad, OW, OH, 0));
   return { canvas: pul.canvas, cm, uniforme: pul.uniforme };
 }
+
+/** Riempie un canvas con un colore pieno (tinta unita). */
+function riempi(c, hex) { const g = c.getContext('2d'); g.fillStyle = `#${hex.toString(16).padStart(6, '0')}`; g.fillRect(0, 0, c.width, c.height); }
 
 /** Miniatura dalla porta raddrizzata (+ gola in alto, foto o colore). */
 function thumbDaCanvas(porta, gola, coloreGola) {
@@ -396,9 +446,17 @@ async function analisiAutomatica(img, corpo, tipo) {
     };
     const q = a[chiave];
     const asp = (L(q[0], q[1]) + L(q[3], q[2])) / Math.max(1, L(q[0], q[3]) + L(q[1], q[2]));
-    tile(tipo === 'fp' ? 'Porta' : 'Campione', pulisciRiflessi(raddrizza(img, q, 280, Math.max(40, Math.round(280 / Math.max(0.2, asp))), 0)).canvas);
+    const sup = analizzaSuperficie(raddrizza(img, q, 280, Math.max(40, Math.round(280 / Math.max(0.2, asp))), 0));
+    mostraSuperficie(corpo, sup);
+    const scelta = corpo._scelta;
+    if (scelta && scelta.tinta) {
+      const t = document.createElement('canvas'); t.width = 280; t.height = Math.max(40, Math.round(280 / Math.max(0.2, asp)));
+      const tg = t.getContext('2d'); tg.fillStyle = `#${scelta.ral.hex.toString(16).padStart(6, '0')}`; tg.fillRect(0, 0, t.width, t.height);
+      tile(tipo === 'fp' ? 'Porta' : 'Campione', t);
+    } else tile(tipo === 'fp' ? 'Porta' : 'Campione', sup.pulita);
     if (tipo === 'fp') tile('Gola', a.gola ? pulisciRiflessi(raddrizza(img, a.gola, 280, 40, 0)).canvas : null, a.coloreGola);
   };
+  corpo._ridisegnaAnalisi = disegna;
   disegna();
   corpo.querySelector('#f-msg').textContent = tr(a.messaggio || '');
   // --- correzione a mano: angoli trascinabili sulla foto

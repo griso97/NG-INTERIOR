@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261114m';
+import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261114o';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -165,6 +165,12 @@ async function applicaCatalogo() {
     }
     // Finger-pull da foto: la gola (maniglia sopra) ha la sua immagine
     if (gola) def.gola = { texture: URL.createObjectURL(gola), colore: p.coloreGola ?? 0x111111 };
+    // TINTA UNITA (RAL): colore pieno, niente foto ripetuta; lucido o opaco
+    if (p.tinta && p.tinta.colore != null) {
+      Object.assign(def, { solido: true, colore: p.tinta.colore, ral: p.tinta.ral, lucido: !!p.tinta.lucido,
+        roughness: p.tinta.lucido ? 0.08 : 0.9, metalness: 0, envMapIntensity: p.tinta.lucido ? undefined : 0.35 });
+      delete def.campione;
+    } else if (p.lucido != null) def.lucido = !!p.lucido;
     // Maniglia da foto: misura reale (lato lungo) e proporzioni dalla foto
     if (p.sezione === 'maniglie' && p.maniglia) {
       def.lunghezzaMm = (Number(p.maniglia.lunghezzaCm) || 15) * 10;
@@ -282,16 +288,17 @@ function coloreFoto(m, rif = LUCE_FOTO) {
     m.userData.ngFoto = true;
     m.onBeforeCompile = (sh) => {
       sh.uniforms.ngLuceRif = m.userData.ngRif;
-      sh.fragmentShader = 'uniform float ngLuceRif;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', `{
+      sh.uniforms.ngSpec = { value: m.userData.ngSpec || 0 };   // lucido: riflessi sommati
+      sh.fragmentShader = 'uniform float ngLuceRif;\nuniform float ngSpec;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', `{
         vec3 wl = vec3(0.2126, 0.7152, 0.0722);
         float f = dot(totalDiffuse, wl) / max(dot(diffuseColor.rgb, wl), 1e-4) / ngLuceRif;
         // luce in più (es. LED): schiarisce ma non "brucia" la foto
         if (f > 1.0) f = 1.0 + 0.45 * (1.0 - exp(-(f - 1.0) * 1.6));
-        outgoingLight = diffuseColor.rgb * mix(1.0, f, ${CONTRASTO_FOTO.toFixed(2)}) + totalEmissiveRadiance;
+        outgoingLight = diffuseColor.rgb * mix(1.0, f, ${CONTRASTO_FOTO.toFixed(2)}) + totalEmissiveRadiance + totalSpecular * ngSpec;
       }
       #include <opaque_fragment>`);
     };
-    m.customProgramCacheKey = () => 'ng-foto';
+    m.customProgramCacheKey = () => 'ng-foto' + (m.userData.ngSpec ? '-l' : '');
   }
   m.needsUpdate = true;
 }
@@ -455,6 +462,12 @@ export function getMaterialeTHREE(id, onPronto) {
         envMapIntensity: def.envMapIntensity ?? 0.4,
       });
     }
+    // finger-pull in tinta unita: la gola ha il suo materiale (es. nero)
+    if (def.gola) {
+      const mg = new THREE.MeshStandardMaterial({ color: def.gola.colore, roughness: 0.7, metalness: 0.05, envMapIntensity: 0.3 });
+      mat.userData.matGola = mg;
+      loader.load(def.gola.texture, (tex) => { tex.colorSpace = THREE.SRGBColorSpace; mg.map = tex; coloreFoto(mg); if (onPronto) onPronto(); });
+    }
     cacheMat.set(id, mat);
     return mat;
   }
@@ -474,9 +487,10 @@ export function getMaterialeTHREE(id, onPronto) {
   // Prodotti PROPRI (foto del campione): superficie opaca e poco riflettente,
   // così il colore resta quello della foto.
   const mat = new THREE.MeshStandardMaterial(def.proprio
-    ? { color: def.colore, ...PARAM_FOTO }
+    ? { color: def.colore, ...PARAM_FOTO, ...(def.lucido ? { roughness: 0.2, envMapIntensity: 0.9 } : {}) }
     : { color: def.colore, roughness: 0.6, metalness: 0.05 });
   if (def.campione) mat.userData.campioneMm = def.campione;
+  if (def.proprio && def.lucido) mat.userData.ngSpec = 1;   // foto lucida: riflessi veri nel 3D
   // Finger-pull da foto: materiale della GOLA (la parte sopra, es. nera)
   if (def.gola) {
     const mg = new THREE.MeshStandardMaterial({ color: def.gola.colore, roughness: 0.7, metalness: 0.05, envMapIntensity: 0.3 });

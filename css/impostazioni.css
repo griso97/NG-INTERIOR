@@ -70,3 +70,12 @@
 .imp-viste { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
 .imp-viste figure { margin: 0; width: 96px; text-align: center; font-size: 11px; color: var(--testo-dim, #9a9384); }
 .imp-viste img { width: 96px; height: 72px; object-fit: contain; background: #fff; border-radius: 6px; border: 1px solid var(--bordo); }
+
+.imp-superficie { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.imp-sup-titolo { font-size: 13px; color: var(--oro-chiaro, #e6c46a); letter-spacing: 1px; text-transform: uppercase; }
+.imp-sup-scelte { display: flex; gap: 6px; flex-wrap: wrap; }
+.imp-ral { display: flex; gap: 6px; flex-wrap: wrap; }
+.imp-ral-c { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--bordo); background: transparent; color: inherit; font-size: 12px; cursor: pointer; }
+.imp-ral-c span { width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(0,0,0,.3); display: inline-block; }
+.imp-ral-c.sel { border-color: var(--oro-chiaro, #e6c46a); box-shadow: 0 0 0 2px var(--oro-chiaro, #e6c46a); }
+.imp-ral-foto { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; border: 1px solid rgba(0,0,0,.3); }

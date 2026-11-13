@@ -500,9 +500,14 @@ export function analizzaPorta(img, tipo = 'fp') {
   const L = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
   const largh = (L(quad[0], quad[1]) + L(quad[3], quad[2])) / 2, alt = (L(quad[0], quad[3]) + L(quad[1], quad[2])) / 2;
   const W = 300, H = Math.max(60, Math.min(900, Math.round(300 * alt / Math.max(1, largh))));
-  const R = raddrizza(img, quad, W, H, 0);
+  // bordi e gola si cercano sulla porta già PULITA dai riflessi (un riflesso
+  // non deve sembrare un bordo o una gola)
+  const Rraw = raddrizza(img, quad, W, H, 0);
+  const R = pulisciRiflessi(Rraw, { luce: false }).canvas;
   const d = R.getContext('2d').getImageData(0, 0, W, H).data;
+  const dRaw = Rraw.getContext('2d').getImageData(0, 0, W, H).data;     // colori veri (gola)
   const pr = (x, y) => { const i = (y * W + x) * 4; return [d[i], d[i + 1], d[i + 2]]; };
+  const prRaw = (x, y) => { const i = (y * W + x) * 4; return [dRaw[i], dRaw[i + 1], dRaw[i + 2]]; };
   // colore della porta: centro della porta raddrizzata
   const centro = [];
   for (let y = Math.round(H * 0.3); y < H * 0.7; y += 3) for (let x = Math.round(W * 0.25); x < W * 0.75; x += 3) centro.push(pr(x, y));
@@ -552,7 +557,8 @@ export function analizzaPorta(img, tipo = 'fp') {
   const media = (ax, ay, bx, by) => {
     const pts = [];
     for (let y = Math.max(0, Math.round(ay) - 2); y < Math.min(H, by + 2); y++) for (let x = Math.round(ax); x < bx; x++) {
-      const c = pr(x, y); if (dist(c, colPorta) > T) pts.push(c);
+      // la fascia si riconosce sulla foto pulita, il colore si prende dall'originale
+      if (dist(pr(x, y), colPorta) > T) pts.push(prRaw(x, y));
     }
     const c = pts.length ? mediana(pts) : colPorta.map((v) => v * 0.7);
     media.pulita = pts.length / Math.max(1, (Math.min(H, by + 2) - Math.max(0, Math.round(ay) - 2)) * (bx - Math.round(ax)));
@@ -592,7 +598,7 @@ export function analizzaPorta(img, tipo = 'fp') {
 //    il risultato è un colore pieno pulito, preso dalle zone senza riflessi.
 // Ritorna { canvas, uniforme, colore } (colore = 0xRRGGBB).
 // =============================================================================
-export function pulisciRiflessi(src) {
+export function pulisciRiflessi(src, opz = {}) {
   const W = src.width, H = src.height;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d', { willReadFrequently: true });
@@ -664,8 +670,10 @@ export function pulisciRiflessi(src) {
   //     prende dalle parti pulite intorno; il dettaglio (venature) resta, e
   //     dove la foto era bruciata le venature si copiano lungo il loro verso.
   if (colorato) rifinisciRiflesso(d, W, H, alfaRif);
-  // 2) LUCE NON UNIFORME: luminosità "lenta" (mediana a blocchi) spianata,
+  // 2) LUCE NON UNIFORME: luminosità "lenta" (mediana a blocchi) spianata
+  //    (non per riconoscere bordi e gola: lì la fascia scura deve restare scura),
   //    venature e dettagli fini restano
+  if (opz.luce !== false) {
   const lum = new Float32Array(N);
   for (let i = 0; i < N; i++) lum[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
   const BX = Math.max(4, Math.min(16, Math.round(W / 40))), BY = Math.max(4, Math.min(24, Math.round(H / 40)));
@@ -688,6 +696,7 @@ export function pulisciRiflessi(src) {
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = y * W + x, k = Math.min(2.5, Math.max(0.4, ref / Math.max(1, luce(x, y))));
     for (let q = 0; q < 3; q++) d[i * 4 + q] = Math.min(255, d[i * 4 + q] * k);
+  }
   }
   // colore del materiale (mediana per canale)
   const ch = [0, 1, 2].map((q) => { const a = new Float32Array(Math.ceil(N / 3)); let j = 0; for (let i = 0; i < N; i += 3) a[j++] = d[i * 4 + q]; return perc(a.subarray(0, j), 0.5); });
@@ -812,4 +821,84 @@ function rifinisciRiflesso(d, W, H, alfa) {
       d[i * 4 + q] = Math.max(0, Math.min(255, d[i * 4 + q] * (1 - m) + pulito * m));
     }
   }
+}
+
+// =============================================================================
+// COLORI RAL (classici, valori sRGB indicativi): per le porte a TINTA UNITA si
+// usa il RAL più vicino al colore della foto (pulito dai riflessi).
+// =============================================================================
+const RAL = [
+  ['1000', 0xBEBD7F], ['1001', 0xC2B078], ['1002', 0xC6A664], ['1003', 0xE5BE01], ['1004', 0xCDA434], ['1005', 0xA98307],
+  ['1006', 0xE4A010], ['1007', 0xDC9D00], ['1011', 0x8A6642], ['1012', 0xC7B446], ['1013', 0xEAE6CA], ['1014', 0xE1CC4F],
+  ['1015', 0xE6D690], ['1016', 0xEDFF21], ['1017', 0xF5D033], ['1018', 0xF8F32B], ['1019', 0x9E9764], ['1020', 0x999950],
+  ['1021', 0xF3DA0B], ['1023', 0xFAD201], ['1024', 0xAEA04B], ['1027', 0x9D9101], ['1028', 0xF4A900], ['1032', 0xD6AE01],
+  ['1033', 0xF3A505], ['1034', 0xEFA94A], ['1037', 0xF39F18], ['2000', 0xED760E], ['2001', 0xC93C20], ['2002', 0xCB2821],
+  ['2003', 0xFF7514], ['2004', 0xF44611], ['2008', 0xF75E25], ['2009', 0xF54021], ['2010', 0xD84B20], ['2011', 0xEC7C26],
+  ['2012', 0xE55137], ['3000', 0xAF2B1E], ['3001', 0xA52019], ['3002', 0xA2231D], ['3003', 0x9B111E], ['3004', 0x75151E],
+  ['3005', 0x5E2129], ['3007', 0x412227], ['3009', 0x642424], ['3011', 0x781F19], ['3012', 0xC1876B], ['3013', 0xA12312],
+  ['3014', 0xD36E70], ['3015', 0xEA899A], ['3016', 0xB32821], ['3017', 0xE63244], ['3018', 0xD53032], ['3020', 0xCC0605],
+  ['3022', 0xD95030], ['3027', 0xC51D34], ['3031', 0xB32428], ['4001', 0x6D3F5B], ['4002', 0x922B3E], ['4003', 0xDE4C8A],
+  ['4004', 0x641C34], ['4005', 0x6C4675], ['4006', 0xA03472], ['4007', 0x4A192C], ['4008', 0x924E7D], ['4009', 0xA18594],
+  ['5000', 0x354D73], ['5001', 0x1F3438], ['5002', 0x20214F], ['5003', 0x1D1E33], ['5004', 0x18171C], ['5005', 0x1E2460],
+  ['5007', 0x3E5F8A], ['5008', 0x26252D], ['5009', 0x025669], ['5010', 0x0E294B], ['5011', 0x231A24], ['5012', 0x3B83BD],
+  ['5013', 0x1E213D], ['5014', 0x606E8C], ['5015', 0x2271B3], ['5017', 0x063971], ['5018', 0x3F888F], ['5019', 0x1B5583],
+  ['5020', 0x1D334A], ['5021', 0x256D7B], ['5022', 0x252850], ['5023', 0x49678D], ['5024', 0x5D9B9B], ['6000', 0x316650],
+  ['6001', 0x287233], ['6002', 0x2D572C], ['6003', 0x424632], ['6004', 0x1F3A3D], ['6005', 0x2F4538], ['6006', 0x3E3B32],
+  ['6007', 0x343B29], ['6008', 0x39352A], ['6009', 0x31372B], ['6010', 0x35682D], ['6011', 0x587246], ['6012', 0x343E40],
+  ['6013', 0x6C7156], ['6014', 0x47402E], ['6015', 0x3B3C36], ['6016', 0x1E5945], ['6017', 0x4C9141], ['6018', 0x57A639],
+  ['6019', 0xBDECB6], ['6020', 0x2E3A23], ['6021', 0x89AC76], ['6022', 0x25221B], ['6024', 0x308446], ['6025', 0x3D642D],
+  ['6026', 0x015D52], ['6027', 0x84C3BE], ['6028', 0x2C5545], ['6029', 0x20603D], ['6032', 0x317F43], ['6033', 0x497E76],
+  ['6034', 0x7FB5B5], ['7000', 0x78858B], ['7001', 0x8A9597], ['7002', 0x7E7B52], ['7003', 0x6C7059], ['7004', 0x969992],
+  ['7005', 0x646B63], ['7006', 0x6D6552], ['7008', 0x6A5F31], ['7009', 0x4D5645], ['7010', 0x4C514A], ['7011', 0x434B4D],
+  ['7012', 0x4E5754], ['7013', 0x464531], ['7015', 0x434750], ['7016', 0x293133], ['7021', 0x23282B], ['7022', 0x332F2C],
+  ['7023', 0x686C5E], ['7024', 0x474A51], ['7026', 0x2F353B], ['7030', 0x8B8C7A], ['7031', 0x474B4E], ['7032', 0xB8B799],
+  ['7033', 0x7D8471], ['7034', 0x8F8B66], ['7035', 0xD7D7D7], ['7036', 0x7F7679], ['7037', 0x7D7F7D], ['7038', 0xB5B8B1],
+  ['7039', 0x6C6960], ['7040', 0x9DA1AA], ['7042', 0x8D948D], ['7043', 0x4E5452], ['7044', 0xCAC4B0], ['7045', 0x909090],
+  ['7046', 0x82898F], ['7047', 0xD0D0D0], ['8000', 0x826C34], ['8001', 0x955F20], ['8002', 0x6C3B2A], ['8003', 0x734222],
+  ['8004', 0x8E402A], ['8007', 0x59351F], ['8008', 0x6F4F28], ['8011', 0x5B3A29], ['8012', 0x592321], ['8014', 0x382C1E],
+  ['8015', 0x633A34], ['8016', 0x4C2F27], ['8017', 0x45322E], ['8019', 0x403A3A], ['8022', 0x212121], ['8023', 0xA65E2E],
+  ['8024', 0x79553D], ['8025', 0x755C48], ['8028', 0x4E3B31], ['9001', 0xFDF4E3], ['9002', 0xE7EBDA], ['9003', 0xF4F4F4],
+  ['9004', 0x282828], ['9005', 0x0A0A0A], ['9006', 0xA5A5A5], ['9007', 0x8F8F8F], ['9010', 0xFFFFFF], ['9011', 0x1C1C1C],
+  ['9016', 0xF6F6F6], ['9017', 0x1E1E1E], ['9018', 0xD7D7D7]
+].map(([codice, hex]) => ({ codice, hex }));
+function lab(hex) {
+  const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  const r = lin((hex >> 16) & 255), g = lin((hex >> 8) & 255), b = lin(hex & 255);
+  let x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047, y = r * 0.2126 + g * 0.7152 + b * 0.0722, z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+  const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  x = f(x); y = f(y); z = f(z);
+  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+}
+/** I RAL più vicini a un colore (0xRRGGBB), dal più simile: [{ codice, hex, diff }]. */
+export function ralVicini(hex, quanti = 5) {
+  const a = lab(hex);
+  return RAL.map((r) => { const b = lab(r.hex); return { ...r, diff: Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) }; })
+    .sort((x, y) => x.diff - y.diff).slice(0, quanti);
+}
+
+/**
+ * Analisi della SUPERFICIE della porta (foto raddrizzata, prima della pulizia):
+ * - lucida o opaca: una superficie lucida ha riflessi netti (zone molto più
+ *   chiare del resto, anche se piccole); una opaca no;
+ * - tinta unita o legno/disegno: il legno ha un disegno con una direzione
+ *   (venature), la tinta unita no. È una PROPOSTA: l'utente può cambiarla.
+ * Ritorna { lucido, tintaUnita, colore (pulito), ral: [...] }.
+ */
+export function analizzaSuperficie(raddrizzata) {
+  const W = raddrizzata.width, H = raddrizzata.height;
+  const d0 = raddrizzata.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, W, H).data;
+  const lum = []; for (let i = 0; i < W * H; i += 2) lum.push(0.299 * d0[i * 4] + 0.587 * d0[i * 4 + 1] + 0.114 * d0[i * 4 + 2]);
+  lum.sort((a, b) => a - b);
+  const med = lum[Math.floor(lum.length / 2)], p995 = lum[Math.floor(lum.length * 0.995)];
+  const forte = lum.filter((v) => v > med + Math.max(45, (255 - med) * 0.45)).length / lum.length;
+  const lucido = forte > 0.003 && p995 - med > 45;
+  const P = pulisciRiflessi(raddrizzata);
+  const d = P.canvas.getContext('2d').getImageData(0, 0, W, H).data;
+  const L = (x, y) => { const i = (y * W + x) * 4; return 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; };
+  let gx = 0, gy = 0, n = 0;
+  const m = Math.round(Math.min(W, H) * 0.06);
+  for (let y = m; y < H - m; y += 2) for (let x = m; x < W - m; x += 2) { gx += Math.abs(L(x + 2, y) - L(x - 2, y)); gy += Math.abs(L(x, y + 2) - L(x, y - 2)); n++; }
+  const grana = (gx + gy) / 2 / Math.max(1, n), aniso = Math.max(gx, gy) / Math.max(1e-6, Math.min(gx, gy));
+  const tintaUnita = aniso < 1.18 || grana < 0.8;
+  return { lucido, tintaUnita, colore: P.colore, ral: ralVicini(P.colore, 6), pulita: P.canvas };
 }
