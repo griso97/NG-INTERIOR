@@ -1047,5 +1047,9 @@ window.NG_I18N_ES = {
  "Costadi uguali": "Costados iguales",
  "Costadi diversi": "Costados distintos",
  "Il colore vale solo per il costado selezionato: tocca gli altri costadi per scegliere il loro.": "El color vale solo para el costado seleccionado: toca los demás costados para elegir el suyo.",
- "Il colore vale per tutti i costadi (quelli dei pensili prendono il colore delle ante dei pensili).": "El color vale para todos los costados (los de los altos toman el color de las puertas de los altos)."
+ "Il colore vale per tutti i costadi (quelli dei pensili prendono il colore delle ante dei pensili).": "El color vale para todos los costados (los de los altos toman el color de las puertas de los altos).",
+ "Forno": "Horno",
+ "Inox": "Inox",
+ "Bianco": "Blanco",
+ "Forno e microonde": "Horno y microondas"
 };

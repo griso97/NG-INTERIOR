@@ -13,12 +13,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261113m';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113m';
+} from './modello.js?v=20261113p';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113p';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113m';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113p';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -642,6 +642,229 @@ function griglia(g, z, gw, gh, yc) {
   g.add(lam);
 }
 
+// ---------------------------------------------------------------------------
+// FORNO in 3 versioni (come i forni veri): INOX (pannello comandi in acciaio
+// spazzolato, 3 manopole, porta in vetro nero, maniglia a barra in acciaio),
+// NERO (tutto vetro nero, 2 manopole con anello cromato, display, maniglia
+// nera), BIANCO (vetro bianco, 2 manopole bianche, display nero, finestra
+// grande con l'interno chiaro, maniglia in acciaio). Niente riflessi
+// "stampati": i riflessi li fanno le luci della scena sul vetro.
+// ---------------------------------------------------------------------------
+let _stileForno = 'inox';
+const matVetroBianco = new THREE.MeshPhysicalMaterial({ color: 0xf1f1ef, roughness: 0.15, metalness: 0,
+  clearcoat: 1.0, clearcoatRoughness: 0.04, envMapIntensity: 0.6 });
+const matNeroOpaco = new THREE.MeshStandardMaterial({ color: 0x0d0d0f, roughness: 0.5, metalness: 0.0, envMapIntensity: 0.35 });
+const matCromo = new THREE.MeshStandardMaterial({ color: 0xe6e8ec, roughness: 0.12, metalness: 1.0, envMapIntensity: 1.1 });
+const matManopolaBianca = new THREE.MeshStandardMaterial({ color: 0xf4f4f2, roughness: 0.35, metalness: 0.0 });
+// Interno chiaro del forno bianco: smalto grigio chiaro, guide e griglia
+const texCavitaChiara = canvasTex(512, 384, (g, w, h) => {
+  const gr = g.createLinearGradient(0, 0, 0, h);
+  gr.addColorStop(0, '#d9dadb'); gr.addColorStop(1, '#b9babc');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  g.fillStyle = 'rgba(0,0,0,0.08)'; g.fillRect(w * 0.12, h * 0.1, w * 0.76, h * 0.8);   // fondo della cavità
+  g.strokeStyle = 'rgba(120,122,126,0.9)'; g.lineWidth = 3;
+  for (const x of [0.06, 0.94]) for (const y of [0.25, 0.4, 0.55, 0.7]) { g.beginPath(); g.moveTo(w * x - 14, h * y); g.lineTo(w * x + 14, h * y); g.stroke(); }
+  g.lineWidth = 3; g.strokeStyle = 'rgba(150,152,156,0.95)';                  // griglia
+  g.beginPath(); g.moveTo(w * 0.08, h * 0.42); g.lineTo(w * 0.92, h * 0.42); g.stroke();
+  g.lineWidth = 1.5; for (let x = 0.1; x < 0.92; x += 0.035) { g.beginPath(); g.moveTo(w * x, h * 0.4); g.lineTo(w * x, h * 0.44); g.stroke(); }
+  g.fillStyle = 'rgba(140,142,146,0.7)'; g.fillRect(w * 0.1, h * 0.74, w * 0.8, h * 0.05);   // teglia
+});
+const matCavitaChiara = new THREE.MeshBasicMaterial({ map: texCavitaChiara, toneMapped: false });
+// Display (ora/temperatura) e simboli attorno alle manopole: texture disegnate
+function texDisplayForno(stile) {
+  return canvasTex(256, 72, (g, w, h) => {
+    g.fillStyle = '#040405'; g.fillRect(0, 0, w, h);
+    const col = stile === 'bianco' ? '#ff4a3a' : '#f2f2f2';
+    g.fillStyle = col; g.shadowColor = col; g.shadowBlur = 6; g.textBaseline = 'middle';
+    if (stile === 'nero') {
+      g.font = 'bold 30px Arial, sans-serif'; g.textAlign = 'left';
+      g.fillText('01:00', 62, h / 2); g.fillText('200°', 168, h / 2);
+      g.strokeStyle = col; g.lineWidth = 2; g.strokeRect(14, 16, 34, 40);       // icona ventola
+      g.beginPath(); g.arc(31, 36, 9, 0, Math.PI * 2); g.stroke();
+    } else {
+      g.font = 'bold 34px Arial, sans-serif'; g.textAlign = 'center';
+      g.fillText('02:00', w / 2, h / 2 - 6);
+      g.font = '12px Arial, sans-serif'; g.shadowBlur = 0; g.fillStyle = 'rgba(255,255,255,0.7)';
+      g.fillText('⏲      −      +      △', w / 2, h - 12);
+    }
+  });
+}
+const _texDisplay = {};
+function simboliManopola(stile) {
+  const col = stile === 'bianco' ? 'rgba(60,60,64,0.85)' : 'rgba(235,235,240,0.85)';
+  return canvasTex(128, 128, (g, w, h) => {
+    g.clearRect(0, 0, w, h); g.strokeStyle = col; g.fillStyle = col; g.lineWidth = 2;
+    for (let i = 0; i < 9; i++) {                       // tacche attorno alla manopola
+      const an = -Math.PI * 0.85 + (i / 8) * Math.PI * 1.7 - Math.PI / 2;
+      const r1 = 50, r2 = i % 2 ? 55 : 59;
+      g.beginPath(); g.moveTo(w / 2 + Math.cos(an) * r1, h / 2 + Math.sin(an) * r1);
+      g.lineTo(w / 2 + Math.cos(an) * r2, h / 2 + Math.sin(an) * r2); g.stroke();
+    }
+  });
+}
+const _texSimboli = {};
+
+function fornoVero(grp, pw, ph, Z0, stile) {
+  const st = ['inox', 'nero', 'bianco'].includes(stile) ? stile : 'inox';
+  const box = (w, h, d, x, y, zFront, mat) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(2, w), Math.max(2, h), d), mat);
+    m.position.set(x, y, zFront - d / 2); m.castShadow = true; grp.add(m); return m;
+  };
+  const piano = (w, h, x, y, z, mat) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.position.set(x, y, z); grp.add(m); return m;
+  };
+  const panH = Math.min(ph * 0.19, 112);                 // pannello comandi
+  const baseH = Math.min(ph * 0.035, 22);                // fascia sotto la porta
+  const doorH = ph - panH - baseH;
+  const yPan = ph / 2 - panH / 2, yDoor = -ph / 2 + baseH + doorH / 2;
+  const matPan = st === 'inox' ? matElInox : st === 'nero' ? matElVetro : matVetroBianco;
+  const matPorta = st === 'bianco' ? matVetroBianco : matElVetro;
+  // corpo/telaio dietro (bordo sottile tutto intorno)
+  box(pw, ph, 8, 0, 0, Z0 - 2, st === 'bianco' ? matVetroBianco : matNeroOpaco);
+  // PANNELLO COMANDI
+  box(pw - 4, panH - 4, 10, 0, yPan, Z0 + 8, matPan);
+  // display (nero e bianco)
+  if (st !== 'inox') {
+    if (!_texDisplay[st]) _texDisplay[st] = new THREE.MeshBasicMaterial({ map: texDisplayForno(st), toneMapped: false });
+    const dw = pw * (st === 'nero' ? 0.26 : 0.3), dh = panH * (st === 'nero' ? 0.36 : 0.62);
+    piano(dw, dh, 0, yPan + (st === 'nero' ? panH * 0.08 : panH * 0.04), Z0 + 8.6, _texDisplay[st]);
+  }
+  // MANOPOLE
+  if (!_texSimboli[st]) _texSimboli[st] = new THREE.MeshBasicMaterial({ map: simboliManopola(st), transparent: true, toneMapped: false, depthWrite: false });
+  const rK = Math.min(panH * 0.27, 25);
+  const xs = st === 'inox' ? [-pw * 0.33, 0, pw * 0.33] : [-pw * 0.36, pw * 0.36];
+  for (const kx of xs) {
+    piano(rK * 2.7, rK * 2.7, kx, yPan, Z0 + 8.4, _texSimboli[st]);
+    const corpoK = new THREE.Mesh(new THREE.CylinderGeometry(rK, rK * 1.02, 20, 40),
+      st === 'bianco' ? matManopolaBianca : matNeroOpaco);
+    corpoK.rotation.x = Math.PI / 2; corpoK.position.set(kx, yPan, Z0 + 18); corpoK.castShadow = true; grp.add(corpoK);
+    // anello cromato (inox e nero) e cappello
+    if (st !== 'bianco') {
+      const anello = new THREE.Mesh(new THREE.TorusGeometry(rK * 0.92, 2.2, 10, 48), st === 'inox' ? matElInox : matCromo);
+      anello.position.set(kx, yPan, Z0 + 28.5); grp.add(anello);
+    }
+    const capp = new THREE.Mesh(new THREE.CylinderGeometry(rK * 0.82, rK * 0.82, 2, 40),
+      st === 'inox' ? matElInox : st === 'nero' ? matNeroOpaco : matManopolaBianca);
+    capp.rotation.x = Math.PI / 2; capp.position.set(kx, yPan, Z0 + 28.5); grp.add(capp);
+    const tacca = new THREE.Mesh(new THREE.BoxGeometry(3, rK * 0.8, 3), st === 'bianco' ? matNeroOpaco : matCromo);
+    tacca.position.set(kx, yPan + rK * 0.4, Z0 + 30); grp.add(tacca);
+  }
+  if (st === 'inox') {                                   // spia rossa
+    const spia = new THREE.Mesh(new THREE.CircleGeometry(4, 20), new THREE.MeshBasicMaterial({ color: 0xff2a1a, toneMapped: false }));
+    spia.position.set(pw * 0.33 - rK * 1.9, yPan + rK * 0.55, Z0 + 8.6); grp.add(spia);
+  }
+  // PORTA: vetro (nero o bianco) a tutta larghezza
+  box(pw - 4, doorH - 4, 16, 0, yDoor, Z0 + 14, matPorta);
+  // FINESTRA: interno del forno visto attraverso il vetro
+  const winW = pw * (st === 'bianco' ? 0.8 : 0.74), winH = doorH * (st === 'bianco' ? 0.68 : 0.6);
+  const yWin = yDoor - doorH * 0.07;
+  if (st === 'bianco') {
+    box(winW + 16, winH + 16, 1, 0, yWin, Z0 + 14.4, matNeroOpaco);           // bordo scuro della finestra
+    piano(winW, winH, 0, yWin, Z0 + 14.6, matCavitaChiara);
+  } else {
+    piano(winW, winH, 0, yWin, Z0 + 14.3, matElCavita);
+  }
+  piano(winW, winH, 0, yWin, Z0 + 14.9, matElVetroTrasp);                     // vetro sopra: riflessi
+  // MANIGLIA a barra in alto sulla porta
+  const yBar = yDoor + doorH / 2 - Math.min(doorH * 0.1, 46), barL = pw * 0.84;
+  if (st === 'nero') {
+    box(barL, 16, 22, 0, yBar, Z0 + 46, matNeroOpaco);                       // barra nera piatta
+    for (const sx of [-barL / 2 + 24, barL / 2 - 24]) box(14, 12, 24, sx, yBar, Z0 + 26, matNeroOpaco);
+  } else {
+    const barra = new THREE.Mesh(new THREE.CylinderGeometry(11, 11, barL, 28), matElInox);
+    barra.rotation.z = Math.PI / 2; barra.position.set(0, yBar, Z0 + 46); barra.castShadow = true; grp.add(barra);
+    for (const sx of [-barL / 2 + 12, barL / 2 - 12]) {
+      const sup = new THREE.Mesh(new THREE.CylinderGeometry(7, 8, 34, 16), matElInox);
+      sup.rotation.x = Math.PI / 2; sup.position.set(sx, yBar, Z0 + 30); grp.add(sup);
+    }
+  }
+  // fascia in basso (sotto la porta)
+  box(pw - 4, baseH - 2, 10, 0, -ph / 2 + baseH / 2, Z0 + 6, st === 'bianco' ? matVetroBianco : matNeroOpaco);
+}
+
+// MICROONDE in 3 versioni, abbinato al forno: INOX (cornice d'incasso e
+// sportello in acciaio spazzolato, finestra scura, colonna comandi con
+// display, tasti e manopola), NERO (tutto vetro nero uniforme, finestra con
+// profilo argento, display, icone touch, manopola con anello cromato),
+// BIANCO (cornice e sportello bianchi, finestra scura, display rosso).
+const texIconeTouch = canvasTex(128, 192, (g, w, h) => {
+  g.clearRect(0, 0, w, h); g.strokeStyle = 'rgba(235,235,240,0.85)'; g.fillStyle = 'rgba(235,235,240,0.85)'; g.lineWidth = 3;
+  const c = [[0.3, 0.17], [0.7, 0.17], [0.3, 0.5], [0.7, 0.5], [0.3, 0.83], [0.7, 0.83]];
+  g.beginPath(); g.arc(w * c[0][0], h * c[0][1], 11, 0, Math.PI * 2); g.stroke();
+  g.beginPath(); for (let i = 0; i < 6; i++) { const an = i * Math.PI / 3; g.moveTo(w * c[1][0], h * c[1][1]); g.lineTo(w * c[1][0] + Math.cos(an) * 12, h * c[1][1] + Math.sin(an) * 12); } g.stroke();
+  for (let i = -1; i <= 1; i++) { g.beginPath(); g.moveTo(w * c[2][0] - 12, h * c[2][1] + i * 7); g.lineTo(w * c[2][0] + 12, h * c[2][1] + i * 7); g.stroke(); }
+  g.beginPath(); for (let x = -12; x <= 12; x += 2) g.lineTo(w * c[3][0] + x, h * c[3][1] + Math.sin(x / 2.5) * 4); g.stroke();
+  g.beginPath(); g.moveTo(w * c[4][0], h * c[4][1] - 11); g.lineTo(w * c[4][0] + 11, h * c[4][1]); g.lineTo(w * c[4][0], h * c[4][1] + 11); g.lineTo(w * c[4][0] - 11, h * c[4][1]); g.closePath(); g.stroke();
+  g.beginPath(); g.arc(w * c[5][0], h * c[5][1], 10, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.arc(w * c[5][0], h * c[5][1], 4, 0, Math.PI * 2); g.fill();
+});
+const matIconeTouch = new THREE.MeshBasicMaterial({ map: texIconeTouch, transparent: true, toneMapped: false, depthWrite: false });
+function texDisplayMicro(col) {
+  return canvasTex(160, 64, (g, w, h) => {
+    g.fillStyle = '#040405'; g.fillRect(0, 0, w, h);
+    g.fillStyle = col; g.shadowColor = col; g.shadowBlur = 6;
+    g.font = 'bold 34px Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(col === '#ff4a3a' ? '00:00' : '00:35', w / 2, h / 2 + 2);
+  });
+}
+const _matDisplayMicro = {};
+
+function microondeVero(grp, pw, ph, Z0, stile) {
+  const st = ['inox', 'nero', 'bianco'].includes(stile) ? stile : 'inox';
+  const box = (w, h, d, x, y, zFront, mat) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(2, w), Math.max(2, h), d), mat);
+    m.position.set(x, y, zFront - d / 2); m.castShadow = true; grp.add(m); return m;
+  };
+  const piano = (w, h, x, y, z, mat) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.position.set(x, y, z); grp.add(m); return m;
+  };
+  const matF = st === 'inox' ? matElInox : st === 'nero' ? matElVetro : matVetroBianco;
+  // CORNICE d'incasso (tutto il vano) + fessura scura attorno allo sportello
+  const cb = st === 'nero' ? 0 : Math.min(ph * 0.1, 40);
+  box(pw, ph, 8, 0, 0, Z0 + 2, matF);
+  if (cb) box(pw - 2 * cb, ph - 2 * cb, 1, 0, 0, Z0 + 2.4, matNeroOpaco);
+  // SPORTELLO (finestra a sinistra) + COLONNA COMANDI (a destra)
+  const iw = pw - 2 * cb - 8, ih = ph - 2 * cb - 8;
+  const colW = Math.min(iw * 0.24, 120);
+  const porW = iw - colW - 4;
+  const xPor = -iw / 2 + porW / 2, xCol = iw / 2 - colW / 2;
+  box(porW, ih, 12, xPor, 0, Z0 + 12, matF);
+  box(colW, ih, 12, xCol, 0, Z0 + 12, matF);
+  // finestra scura (con profilo argento nel nero)
+  const ww = porW * 0.8, wh = ih * 0.76;
+  piano(ww, wh, xPor, 0, Z0 + 12.4, matElCavita);
+  if (st === 'nero') {
+    for (const [x, y, w, h] of [[0, wh / 2 + 3, ww + 8, 2.5], [0, -wh / 2 - 3, ww + 8, 2.5], [-ww / 2 - 3, 0, 2.5, wh + 8], [ww / 2 + 3, 0, 2.5, wh + 8]]) {
+      box(w, h, 2, xPor + x, y, Z0 + 13.4, matCromo);
+    }
+  }
+  piano(ww, wh, xPor, 0, Z0 + 12.9, matElVetroTrasp);
+  // display
+  const dc = st === 'bianco' ? '#ff4a3a' : st === 'nero' ? '#6fd7ff' : '#9fe0ff';
+  if (!_matDisplayMicro[st]) _matDisplayMicro[st] = new THREE.MeshBasicMaterial({ map: texDisplayMicro(dc), toneMapped: false });
+  const dW = colW * 0.7, dH = dW * 0.4;
+  piano(dW, dH, xCol, ih / 2 - ih * 0.15, Z0 + 12.6, _matDisplayMicro[st]);
+  // tasti (inox, bianco) o icone touch (nero)
+  if (st === 'nero') {
+    piano(colW * 0.7, colW * 1.05, xCol, ih * 0.07, Z0 + 12.6, matIconeTouch);
+  } else {
+    const matT = st === 'bianco' ? matManopolaBianca : matElButton;
+    for (let r = 0; r < 3; r++) for (let c = -1; c <= 1; c++) {
+      const t = new THREE.Mesh(new THREE.BoxGeometry(colW * 0.2, ih * 0.035, 4), matT);
+      t.position.set(xCol + c * colW * 0.26, ih * 0.16 - r * ih * 0.085, Z0 + 14); grp.add(t);
+    }
+  }
+  // manopola
+  const rK = Math.min(colW * 0.22, 22), yK = -ih * 0.24;
+  const k = new THREE.Mesh(new THREE.CylinderGeometry(rK, rK, 16, 36), st === 'bianco' ? matManopolaBianca : st === 'nero' ? matNeroOpaco : matElButton);
+  k.rotation.x = Math.PI / 2; k.position.set(xCol, yK, Z0 + 20); grp.add(k);
+  if (st !== 'bianco') {
+    const an = new THREE.Mesh(new THREE.TorusGeometry(rK * 0.95, 2, 10, 40), matCromo);
+    an.position.set(xCol, yK, Z0 + 28); grp.add(an);
+  }
+  // tasto apertura in basso
+  box(colW * 0.62, ih * 0.09, 4, xCol, -ih / 2 + ih * 0.09, Z0 + 14, st === 'nero' ? matElInox : st === 'bianco' ? matManopolaBianca : matElButton);
+}
+
 /**
  * Elettrodomestico da incasso REALE (forno / microonde).
  * IMPORTANTE: il mobile che lo contiene è una scatola PIENA con la faccia a
@@ -661,84 +884,9 @@ function pannelloElettro(g, py, z, pw, ph, tipo) {
   };
 
   if (tipo === 'forno') {
-    const fb = 20;
-    const topH = Math.min(ph * 0.2, 88);
-    const topY = ph / 2 - fb - topH / 2;             // fascia comandi
-    const doorTop = topY - topH / 2 - 3;
-    const doorBot = -ph / 2 + fb;
-    const doorH = Math.max(60, doorTop - doorBot);
-    const doorY = (doorTop + doorBot) / 2;
-    // Porta: grande vetro SCURO (fronte a Z0).
-    box(pw - 2 * fb, doorH, 12, 0, doorY, Z0, matElVetro);
-    // Finestra interna (un filo più chiara) + cornice inox che la delimita.
-    const winW = pw - 2 * fb - 80, winH = Math.max(30, doorH - 80);
-    box(winW, winH, 4, 0, doorY, Z0 + 1.5, matElCavita);
-    box(winW, winH, 1, 0, doorY, Z0 + 2.6, matElVetroTrasp);   // vetro davanti: riflessi
-    const wt = 6;
-    for (const [bx, by, bw, bh] of [
-      [0, doorY + winH / 2 + wt / 2, winW + 2 * wt, wt],
-      [0, doorY - winH / 2 - wt / 2, winW + 2 * wt, wt],
-      [-winW / 2 - wt / 2, doorY, wt, winH],
-      [winW / 2 + wt / 2, doorY, wt, winH],
-    ]) box(bw, bh, 5, bx, by, Z0 + 3, matElInox);
-    // Fascia comandi inox in alto + display + manopole
-    box(pw - 2 * fb, topH, 10, 0, topY, Z0 + 1, matElInox);
-    box(pw * 0.24, topH * 0.42, 4, 0, topY, Z0 + 4, matElDisplay);
-    const knobR = Math.min(topH * 0.3, 17);
-    for (const kx of [-pw * 0.37, -pw * 0.26, pw * 0.26, pw * 0.37]) {
-      const knob = new THREE.Mesh(new THREE.CylinderGeometry(knobR, knobR * 0.8, 20, 20), matElInox);
-      knob.rotation.x = Math.PI / 2; knob.position.set(kx, topY, Z0 + 12); grp.add(knob);
-    }
-    // Telaio inox esterno (incornicia, sporge un po' di più)
-    telaioInox(grp, pw, ph, Z0 + 5, fb, 14);
-    // Maniglia orizzontale a barra in cima alla porta
-    const barL = pw - 2 * fb - 40, barY = doorTop - 16;
-    const barra = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, barL, 16), matElInox);
-    barra.rotation.z = Math.PI / 2; barra.position.set(0, barY, Z0 + 26); grp.add(barra);
-    for (const sx of [-barL / 2 + 8, barL / 2 - 8]) {
-      const sup = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 32, 12), matElInox);
-      sup.rotation.x = Math.PI / 2; sup.position.set(sx, barY, Z0 + 11); grp.add(sup);
-    }
+    fornoVero(grp, pw, ph, Z0, _stileForno);
   } else {
-    // MICROONDE orizzontale: grande sportello a vetro SCURO (sx) con cornice
-    // inox, pannello comandi (dx) con display e bottoni, maniglia verticale.
-    const fb = 12;
-    const inW = pw - 2 * fb, inH = ph - 2 * fb;
-    const panW = Math.min(inW * 0.3, 150);
-    const gap = 10;
-    const glassW = inW - panW - gap;
-    const glassCx = -inW / 2 + glassW / 2;
-    const panCx = inW / 2 - panW / 2;
-    // Sportello a vetro scuro (dominante).
-    box(glassW, inH, 12, glassCx, 0, Z0, matElVetro);
-    // Cornice inox sottile attorno allo sportello → sembra una porta.
-    const tw = 7;
-    for (const [bx, by, bw, bh] of [
-      [glassCx, inH / 2 - tw / 2, glassW, tw],
-      [glassCx, -inH / 2 + tw / 2, glassW, tw],
-      [glassCx - glassW / 2 + tw / 2, 0, tw, inH - 2 * tw],
-      [glassCx + glassW / 2 - tw / 2, 0, tw, inH - 2 * tw],
-    ]) box(bw, bh, 5, bx, by, Z0 + 2, matElInox);
-    // Pannello comandi a destra (scuro) con display e bottoni.
-    box(panW, inH, 12, panCx, 0, Z0, matElCorpo);
-    box(panW * 0.78, inH * 0.12, 4, panCx, inH * 0.3, Z0 + 3, matElDisplay);
-    const br = Math.min(panW * 0.1, 7);
-    for (let r = 0; r < 3; r++) for (let cc = 0; cc < 2; cc++) {
-      const bt = new THREE.Mesh(new THREE.CylinderGeometry(br, br, 5, 14), matElButton);
-      bt.rotation.x = Math.PI / 2;
-      bt.position.set(panCx + (cc ? br * 2.3 : -br * 2.3), inH * 0.02 - r * br * 3.4, Z0 + 5);
-      grp.add(bt);
-    }
-    // Telaio inox esterno
-    telaioInox(grp, pw, ph, Z0 + 4, fb, 14);
-    // Maniglia verticale a barra, fra vetro e pannello
-    const barH = inH - 20, barX = glassCx + glassW / 2 + gap / 2;
-    const barra = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, barH, 14), matElInox);
-    barra.position.set(barX, 0, Z0 + 20); grp.add(barra);
-    for (const sy of [-barH / 2 + 8, barH / 2 - 8]) {
-      const sup = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 26, 12), matElInox);
-      sup.rotation.x = Math.PI / 2; sup.position.set(barX, sy, Z0 + 10); grp.add(sup);
-    }
+    microondeVero(grp, pw, ph, Z0, _stileForno);
   }
   g.add(grp);
 }
@@ -1177,7 +1325,10 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
   _fingerPull = fpCat(_fpByCat, cat);   // finger-pull per categoria del mobile
   _maniglia = manigliaCat(cat);         // maniglia del catalogo per categoria
-  const coloreCorpo = cat === 'pensile' ? COL.pensile : cat === 'colonna' ? COL.colonna
+  // Colonna: il fianco si vede (sopra i pensili, di lato) → stesso materiale
+  // delle ante della colonna, non il colore crema del corpo
+  const coloreCorpo = cat === 'pensile' ? COL.pensile
+    : cat === 'colonna' ? ((matAnta && matAnta.isMaterial) ? matAnta : COL.colonna)
     : cat === 'regletta' ? COL.regletta : cat === 'lavatrice' ? 0x17181d
     : cat === 'lavastoviglie' ? 0xbcbdc2 : COL.corpo;
   // Pensile angolo a L: corpo a L (due bracci), non il box quadrato.
@@ -1261,6 +1412,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   _lastProgetto = progetto;
   _fpByCat = progetto.fingerPull || {};
   _manByCat = progetto.maniglie || {};
+  _stileForno = (progetto.finiture || {}).forno || 'inox';
   _reRenderMan = () => { if (_lastProgetto) aggiornaScena3d(_lastProgetto, false, selId); };
   // L'illuminazione della scena resta sempre al valore pieno (giorno) sia
   // con i LED spenti che accesi: non si vuole che i LED spengano l'ambiente.
@@ -1359,7 +1511,8 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   // Cima di ogni pensile (stessa regola del pensile qui sotto): serve ai
   // costadi alti, che vanno SEMPRE a filo sopra col pensile vicino.
   const cimePensili = (progetto.mobiliLiberi || []).filter((x) => categoriaTipo(x.tipo) === 'pensile')
-    .map((x) => { const h = x.altezza_mm || 700; return { x: x.x, y: x.y, cima: (topLine != null ? topLine - h : MONTAGGIO_PENSILE) + h }; });
+    .map((x) => { const h = x.altezza_mm || 700; return { x: x.x, y: x.y, cima: (topLine != null ? topLine - h : MONTAGGIO_PENSILE) + h,
+      hAnta: h + (antaPensileSporge(progetto.antaPensile, h) ? 20 : 0) }; });
 
   // Mobili liberi
   for (const m of (progetto.mobiliLiberi || [])) {
@@ -1414,7 +1567,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const h = m.altezza_mm || 2200;
       g3d = collocaMobile(corpo(dim.w, h, dim.d, matBase || COL.anta), cx, 0, cz, h, m.rot);
     } else if (cat === 'costado') {
-      const h = m.altezza_mm || 850;
+      let h = m.altezza_mm || 850;
       // Costado "alto" (profondità da pensile): sta in alto, appeso all'altezza
       // di montaggio dei pensili, non per terra.
       // Il costado ALTO è a filo SOPRA col pensile più vicino (qualunque sia
@@ -1424,7 +1577,9 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       if (alto) {
         let vicino = null, dMin = Infinity;
         for (const pz of cimePensili) { const dd = Math.hypot(pz.x - m.x, pz.y - m.y); if (dd < dMin) { dMin = dd; vicino = pz; } }
-        if (vicino && dMin < 2500) base = vicino.cima - h;
+        // altezza = quella delle ante del pensile vicino (70, 72, 90, 92):
+        // cambia da sola quando si sceglie l'anta sporgente
+        if (vicino && dMin < 2500) { h = vicino.hAnta; base = vicino.cima - h; }
         else if (topLine != null) base = topLine - h;
       }
       fianchi.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, h, cat: 'costado' });

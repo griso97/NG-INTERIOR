@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261113m';
+} from './modello.js?v=20261113p';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -154,7 +154,17 @@ function pezziDiModulo(progetto, m) {
     pz.push({ modulo: mod, nome: 'Anta bassa', larghezza: aw, altezza: round(ab - 2), spessore: SP, materiale: 'anta', quantita: 1 });
     if (topDoor > 60) pz.push({ modulo: mod, nome: 'Anta alta', larghezza: aw, altezza: round(topDoor - 2), spessore: SP, materiale: 'anta', quantita: 1 });
   } else if (cat === 'costado') {
-    pz.push({ modulo: mod, nome: 'Pannello fianco (costado)', larghezza: round(m.profondita_mm || d.d || 620), altezza: H, spessore: m.spessore_mm || 20, materiale: 'anta', quantita: 1 });
+    // costado ALTO: alto come le ante del pensile vicino (70/72/90/92), come nel 3D
+    let hC = H;
+    if ((m.profondita_mm || 620) < 500) {
+      let best = null, dMin = Infinity;
+      for (const x of progetto.mobiliLiberi || []) {
+        if (categoriaTipo(x.tipo) !== 'pensile') continue;
+        const dd = Math.hypot(x.x - m.x, x.y - m.y); if (dd < dMin) { dMin = dd; best = x; }
+      }
+      if (best && dMin < 2500) { const hp = best.altezza_mm || 700; hC = hp + (pensileAntaSporge(progetto.antaPensile, hp) ? 20 : 0); }
+    }
+    pz.push({ modulo: mod, nome: 'Pannello fianco (costado)', larghezza: round(m.profondita_mm || d.d || 620), altezza: hC, spessore: m.spessore_mm || 20, materiale: 'anta', quantita: 1 });
   } else if (cat === 'pannello') {
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(m.larghezza_mm || L), altezza: H, spessore: SP, materiale: 'anta', quantita: 1 });
   } else if (cat === 'regletta') {

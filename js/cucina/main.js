@@ -21,12 +21,12 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA,
-} from './modello.js?v=20261113m';
+} from './modello.js?v=20261113p';
 import { renderPianta } from './pianta.js?v=20261111x';
-import { calcolaDistintaCucina } from './distinta.js?v=20261113m';
+import { calcolaDistintaCucina } from './distinta.js?v=20261113p';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261113m';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113m';
+import { agganciaTema } from '../tema.js?v=20261113p';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113p';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -881,11 +881,19 @@ function htmlFiniture() {
           return `<button type="button" class="btn-ghost opt-fin ${on ? 'attivo' : ''}" data-fin="${chiave}" data-val="${v}" style="flex:1">${on ? '✓ ' : ''}${et}</button>`;
         }).join('')}
       </div>`;
+  const forno = f.forno || 'inox';
   return `
     <section class="step3-pannello">
       <h3>Lavello e rubinetto</h3>
       ${riga('lavello', 'Lavello')}
       ${riga('rubinetto', 'Rubinetto')}
+    </section>
+    <section class="step3-pannello">
+      <h3>Forno e microonde</h3>
+      <div style="display:flex;gap:8px">
+        ${[['inox', 'Inox'], ['nero', 'Nero'], ['bianco', 'Bianco']].map(([v, et]) =>
+          `<button type="button" class="btn-ghost opt-fin ${forno === v ? 'attivo' : ''}" data-fin="forno" data-val="${v}" style="flex:1">${forno === v ? '✓ ' : ''}${et}</button>`).join('')}
+      </div>
     </section>`;
 }
 function agganciaFiniture(root) {
@@ -1394,7 +1402,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261113m');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261113p');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
