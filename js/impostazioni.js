@@ -8,12 +8,12 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261114y';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, finituraVicina, formaDaRapporto, anteprimaManiglia } from './maniglia3d.js?v=20261114y';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261114y';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini } from './analisi-foto.js?v=20261114y';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261114y';
-import { agganciaTema } from './tema.js?v=20261114y';
+} from './catalogo.js?v=20261114z';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261114z';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261114z';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini } from './analisi-foto.js?v=20261114z';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261114z';
+import { agganciaTema } from './tema.js?v=20261114z';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -178,7 +178,7 @@ function apriScheda(m) {
       <fieldset class="imp-misura">
         <legend>Forma e finitura</legend>
         <div id="f-man3d"></div>
-        <div class="imp-aiuto">La finitura dà la lucentezza (metallo o no). La forma serve solo se carichi soltanto la foto davanti.</div>
+        <div class="imp-aiuto"><strong>La mia forma</strong>: il 3D si costruisce dalle tue foto, anche da una sola (davanti, oppure da sopra / di tre quarti con i piedini). Le altre sono forme pronte. Il colore lo puoi cambiare: <strong>Colore della foto</strong> tiene quello vero.</div>
       </fieldset>` : ''}` : ''}
       ${proprio && tipo !== 'man' ? `
       <div class="grid-2">
@@ -216,7 +216,11 @@ function apriScheda(m) {
   if (proprio) {
     // maniglia: forma e finitura per il 3D (proposte dalla foto, correggibili)
     if (tipo === 'man') {
-      corpo._man3d = { forma: man.forma || null, finitura: man.finitura || null, sceltaUtente: !!man.forma };
+      // "La mia forma" e "Colore della foto" di base; le maniglie salvate prima (senza formaV) ripartono da lì
+      corpo._man3d = man.formaV ? { forma: man.forma || 'foto', finitura: man.finitura || 'foto' }
+        : { forma: 'foto', finitura: man.finitura || 'foto' };
+      corpo._man3d.sceltaUtente = !!man.formaV;          // scelta già salvata: non la cambio
+      corpo._coloreSalvato = p ? p.colore : null;
       mostraMan3d(corpo);
       corpo._vistePng = {};                  // viste nuove già isolate: { sopra: seg, lato: seg }
       corpo._visteImg = {};                  // immagini (isolate) per l'anteprima
@@ -379,8 +383,9 @@ function apriScheda(m) {
       // MANIGLIA: forma e finitura + le altre viste (sopra / lato) isolate per il 3D vero
       if (tipo === 'man') {
         const m3 = corpo._man3d || {};
-        manN.forma = m3.forma || 'barra';
-        manN.finitura = m3.finitura || finituraVicina(colore);
+        manN.forma = m3.forma || 'foto';
+        manN.finitura = m3.finitura || 'foto';
+        manN.formaV = 2;
         manN.viste = { ...((p && p.maniglia && p.maniglia.viste) || {}) };
         for (const v of ['sopra', 'lato']) {
           const sg = (corpo._vistePng || {})[v];
@@ -447,19 +452,23 @@ function aggiornaAnteprima3d(corpo) {
     const L = (pers ? Number(String(corpo.querySelector('#f-lung')?.value || '').replace(',', '.')) : MANIGLIA_STANDARD_CM) * 10 || 160;
     const vi = corpo._visteImg || {}, m3 = corpo._man3d || {};
     if (_chiudiAnteprima) _chiudiAnteprima();
-    _chiudiAnteprima = await anteprimaManiglia(box, corpo._fronte, vi.sopra || null, vi.lato || null, L, m3.finitura, m3.forma);
+    _chiudiAnteprima = await anteprimaManiglia(box, corpo._fronte, vi.sopra || null, vi.lato || null, L, m3.finitura, m3.forma, coloreFoto(corpo));
   }, 120);
+}
+/** Colore vero della maniglia (dalla foto davanti isolata). */
+function coloreFoto(corpo) {
+  return corpo._segFronte ? corpo._segFronte.colore : (corpo._coloreSalvato ?? null);
 }
 /** Scheda maniglia: forma (con disegno) e finitura del modello 3D. */
 function mostraMan3d(corpo) {
   const box = corpo.querySelector('#f-man3d'); if (!box) return;
   const m3 = corpo._man3d;
-  const hx = (h) => `#${h.toString(16).padStart(6, '0')}`;
+  const hx = (h) => `#${(h ?? 0x999999).toString(16).padStart(6, '0')}`;
   box.innerHTML = `
     <div class="imp-sup-titolo">${tr('Forma')}</div>
     <div class="imp-forme">${FORME_MANIGLIA.map((f) => `<button type="button" class="imp-forma ${m3.forma === f.id ? 'sel' : ''}" data-forma="${f.id}">${f.svg}<span>${tr(f.nome)}</span></button>`).join('')}</div>
     <div class="imp-sup-titolo">${tr('Finitura')}</div>
-    <div class="imp-ral">${FINITURE_MANIGLIA.map((f) => `<button type="button" class="imp-ral-c ${m3.finitura === f.id ? 'sel' : ''}" data-fin3="${f.id}"><span style="background:${hx(f.colore)}"></span>${tr(f.nome)}</button>`).join('')}</div>`;
+    <div class="imp-ral">${[{ ...FINITURA_FOTO, colore: coloreFoto(corpo) }, ...FINITURE_MANIGLIA].map((f) => `<button type="button" class="imp-ral-c ${m3.finitura === f.id ? 'sel' : ''}" data-fin3="${f.id}"><span style="background:${hx(f.colore)}"></span>${tr(f.nome)}</button>`).join('')}</div>`;
   box.querySelectorAll('[data-forma]').forEach((b) => b.addEventListener('click', () => { m3.forma = b.dataset.forma; m3.sceltaUtente = true; mostraMan3d(corpo); aggiornaAnteprima3d(corpo); }));
   box.querySelectorAll('[data-fin3]').forEach((b) => b.addEventListener('click', () => { m3.finitura = b.dataset.fin3; m3.sceltaUtente = true; mostraMan3d(corpo); aggiornaAnteprima3d(corpo); }));
 }
@@ -732,8 +741,10 @@ async function analisiManiglia(img, corpo, tipo, salvata = null) {
     // proposta di forma e finitura dalla foto (se l'utente non ha già scelto)
     const m3 = corpo._man3d;
     if (m3 && !m3.sceltaUtente) {
-      m3.finitura = finituraVicina(corpo._segFronte ? corpo._segFronte.colore : coloreManiglia(img, a.main));
-      m3.forma = formaDaRapporto(corpo._segFronte ? corpo._segFronte.rapporto : Math.min(a.main.w, a.main.h) / Math.max(a.main.w, a.main.h));
+      m3.finitura = 'foto'; m3.forma = 'foto';
+    }
+    if (m3) {
+      if (!corpo._segFronte) corpo._coloreSalvato = coloreManiglia(img, a.main);
       mostraMan3d(corpo);
     }
   }

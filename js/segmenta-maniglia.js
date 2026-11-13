@@ -203,12 +203,27 @@ export function segmentaManiglia(img, zona = null, tol = 1) {
   // trasparenza: maschera ruotata e ammorbidita
   const mc = document.createElement('canvas'); mc.width = w; mc.height = h;
   const mg = mc.getContext('2d'); const md = mg.createImageData(w, h);
-  for (let i = 0; i < w * h; i++) { md.data[i * 4] = md.data[i * 4 + 1] = md.data[i * 4 + 2] = 255; md.data[i * 4 + 3] = m[i] ? 255 : 0; }
+  // bordo morbido (2 medie 3×3) prima di ruotare/ingrandire: niente scalini a dente di sega
+  let sm = Float32Array.from(m);
+  for (let pass = 0; pass < 2; pass++) {
+    const B = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let t = 0, n = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < w && yy < h) { t += sm[yy * w + xx]; n++; } }
+      B[y * w + x] = t / n;
+    }
+    sm = B;
+  }
+  for (let i = 0; i < w * h; i++) { md.data[i * 4] = md.data[i * 4 + 1] = md.data[i * 4 + 2] = 255; md.data[i * 4 + 3] = Math.round(sm[i] * 255); }
   mg.putImageData(md, 0, 0);
   const al = document.createElement('canvas'); al.width = OW; al.height = OH;
-  const ag = al.getContext('2d'); ag.imageSmoothingEnabled = true;
+  const ag = al.getContext('2d', { willReadFrequently: true }); ag.imageSmoothingEnabled = true;
   ag.save(); ag.scale(fo, fo); ag.translate(-u0, -v0); ag.rotate(-ang); ag.translate(-mx, -my);
   ag.drawImage(mc, 0, 0); ag.restore();
+  // contorno netto ma liscio: soglia a metà con una sfumatura di ~1 px
+  { const ad = ag.getImageData(0, 0, OW, OH), d = ad.data, ripid = Math.max(2, fo * 0.9);
+    for (let i = 3; i < d.length; i += 4) d[i] = Math.max(0, Math.min(255, Math.round((d[i] - 127.5) * ripid + 127.5)));
+    ag.putImageData(ad, 0, 0); }
   og.globalCompositeOperation = 'destination-in'; og.drawImage(al, 0, 0); og.globalCompositeOperation = 'source-over';
   // colore mediano della maniglia
   const cols = []; for (let i = 0; i < w * h; i += 3) if (m[i]) cols.push(px(i));

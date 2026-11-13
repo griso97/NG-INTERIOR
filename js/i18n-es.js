@@ -1155,4 +1155,10 @@ window.NG_I18N_ES = {
   'Aggiorna': 'Actualizar',
   '✕ Togli questa foto': '✕ Quitar esta foto',
   'Carica la foto davanti della maniglia.': 'Sube la foto frontal del tirador.',
+  'La mia forma (dalla foto)': 'Mi forma (de la foto)',
+  'Colore della foto': 'Color de la foto',
+  '<strong>La mia forma</strong>: il 3D si costruisce dalle tue foto, anche da una sola (davanti, oppure da sopra / di tre quarti con i piedini). Le altre sono forme pronte. Il colore lo puoi cambiare: <strong>Colore della foto</strong> tiene quello vero.': '<strong>Mi forma</strong>: el 3D se construye con tus fotos, incluso con una sola (de frente, o desde arriba / de tres cuartos con las patas). Las demás son formas ya hechas. Puedes cambiar el color: <strong>Color de la foto</strong> mantiene el real.',
+  'La mia forma': 'Mi forma',
+  ': il 3D si costruisce dalle tue foto, anche da una sola (davanti, oppure da sopra / di tre quarti con i piedini). Le altre sono forme pronte. Il colore lo puoi cambiare:': ': el 3D se construye con tus fotos, incluso con una sola (de frente, o desde arriba / de tres cuartos con las patas). Las demás son formas ya hechas. Puedes cambiar el color:',
+  'tiene quello vero.': 'mantiene el real.',
 };

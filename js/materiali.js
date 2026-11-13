@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261114y';
+import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261114z';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -180,7 +180,8 @@ async function applicaCatalogo() {
       def.lunghezzaMm = (Number(p.maniglia.lunghezzaCm) || 15) * 10;
       def.altezzaMm = Math.max(6, def.lunghezzaMm * (Number(p.maniglia.rapporto) || 0.08));
       def.verticale = !!p.maniglia.verticale;
-      def.forma = p.maniglia.forma || 'barra';                       // modello 3D del suo tipo
+      def.forma = p.maniglia.forma || 'foto';
+      def.formaV = p.maniglia.formaV || 0;                            // 0 = salvata prima della scelta "La mia forma"
       def.finitura = p.maniglia.finitura || null;                    // null = dal colore della foto
       if (p.maniglia.viste) {                                        // lato / sopra (facoltative)
         def.viste = p.maniglia.viste;

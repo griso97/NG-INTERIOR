@@ -13,13 +13,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261114y';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261114y';
+} from './modello.js?v=20261114z';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261114z';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { costruisciManiglia, finituraVicina, manigliaDaFoto } from '../maniglia3d.js?v=20261114y';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261114z';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261114y';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261114z';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -583,8 +583,9 @@ function formaManiglia() { return (_maniglia && _maniglia.texture && _maniglia.l
 /** giu = il bordo dell'anta è SOTTO (pensili aperti dal basso): profilo/bordo girati. */
 function maniglia(g, x, y, z, orizz, lung, giu = false) {
   const def = _maniglia;
-  if (def && def.texture && def.lunghezzaMm && (def.vistaSopra || def.vistaLato)) {
-    // MANIGLIA DALLE FOTO (davanti + sopra/lato): 3D reale ricostruito dalle viste
+  // "La mia forma" (o maniglie salvate prima della scelta della forma): 3D dalle foto
+  if (def && def.texture && def.lunghezzaMm && (def.forma === 'foto' || !def.formaV)) {
+    // MANIGLIA DALLE FOTO (davanti, + sopra/lato se ci sono): 3D reale ricostruito dalle viste
     const r = manigliaDaFoto(def, _reRenderMan);
     if (r) {
       const mesh = new THREE.Mesh(r.geo, r.mat); mesh.castShadow = true; mesh.receiveShadow = true;
@@ -598,7 +599,7 @@ function maniglia(g, x, y, z, orizz, lung, giu = false) {
   }
   if (def && def.texture && def.lunghezzaMm) {
     // MANIGLIA DEL CATALOGO: modello 3D vero del suo tipo, misura e finitura reali
-    const grp = costruisciManiglia(def.forma || 'barra', def.finitura || finituraVicina(def.colore), def.lunghezzaMm);
+    const grp = costruisciManiglia(!def.forma || def.forma === 'foto' ? 'barra' : def.forma, def.finitura, def.lunghezzaMm, def.colore);
     grp.position.set(x, y, z + 20);                    // 20 = faccia davanti dell'anta
     if (!orizz) grp.rotation.z = Math.PI / 2;
     else if (giu) grp.rotation.z = Math.PI;
