@@ -13,13 +13,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261114i';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261114i';
+} from './modello.js?v=20261114j';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261114j';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { maniglia3D } from '../maniglia3d.js?v=20261114i';
+import { maniglia3D } from '../maniglia3d.js?v=20261114j';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261114i';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261114j';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1420,7 +1420,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
     : cat === 'lavastoviglie' ? 0xbcbdc2 : COL.corpo;
   // Pensile angolo a L: corpo a L (due bracci), non il box quadrato.
   if (tipo === 'pensile-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta); return g; }
-  if (tipo === 'base-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, PROFONDITA_BASE, true); return g; }
+  if (tipo === 'base-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, Math.min((m && m.profBraccio_mm) || PROFONDITA_BASE, Math.min(w, d) - 10), true); return g; }
   // Colonna con VANO APERTO: carcassa a fronte aperto (si vede dentro);
   // le altre colonne/mobili restano scatola piena.
   const colonnaVano = cat === 'colonna' && m && m.variante === 'vano';
@@ -1705,7 +1705,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
         gL.position.set(cx, zocc + porta / 2, cz);
         gL.rotation.y = (m.rot || 0) * Math.PI / 180;
         g3d = gL;
-        const P = PROFONDITA_BASE, hw = dim.w / 2, hd = dim.d / 2;
+        const P = Math.min(m.profBraccio_mm || PROFONDITA_BASE, Math.min(dim.w, dim.d) - 10), hw = dim.w / 2, hd = dim.d / 2;
         const rr = (m.rot || 0) * Math.PI / 180, c = Math.cos(rr), s = Math.sin(rr);
         const vp = (lx, ly) => ({ x: m.x + lx * c - ly * s, y: m.y + lx * s + ly * c });
         const A = vp(0, hd - P / 2), B = vp(-hw + P / 2, -P / 2);

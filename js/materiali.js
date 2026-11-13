@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261114i';
+import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261114j';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il

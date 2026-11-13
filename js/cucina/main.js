@@ -22,13 +22,13 @@ import {
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
-  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL,
-} from './modello.js?v=20261114i';
-import { renderPianta } from './pianta.js?v=20261114i';
-import { calcolaDistintaCucina } from './distinta.js?v=20261114i';
+  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo,
+} from './modello.js?v=20261114j';
+import { renderPianta } from './pianta.js?v=20261114j';
+import { calcolaDistintaCucina } from './distinta.js?v=20261114j';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261114i';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114i';
+import { agganciaTema } from '../tema.js?v=20261114j';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114j';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -756,6 +756,7 @@ function attaccaEventiStep2() {
 
   const mobSel = trovaMobileLibero(progetto, step2.mobSelId);
   if (mobSel) {
+    agganciaBaseAngolo(pannello, mobSel);
     // piano cottura / lavello anche sulla cassettiera (non solo sulla base con ante)
     document.getElementById('mob-placca')?.addEventListener('click', () => {
       registraStoria(); mobSel.placca = !mobSel.placca; if (mobSel.placca) mobSel.lavello = false; aggiorna();
@@ -918,6 +919,33 @@ const fineSpost = (e) => {
 };
 canvas3d.addEventListener('pointerup', fineSpost, true);
 canvas3d.addEventListener('pointercancel', fineSpost, true);
+
+// BASE ANGOLO: lati e profondità modificabili (misure del fornitore)
+function htmlBaseAngolo(m) {
+  if (m.tipo !== 'base-angolo') return '';
+  const lA = m.larghezza_mm || 630, lB = m.latoB_mm || lA, P = m.profBraccio_mm || 600;
+  const { a, b } = anteBaseAngolo(m), H = m.altezza_mm || 700;
+  return `
+    <section class="step3-pannello">
+      <h3>Base angolo · misure</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+        <label class="riga-3d">Lato A (mm)<input type="number" class="modale-num ba-mis" data-campo="larghezza_mm" value="${lA}" min="300" step="10" style="width:100%"></label>
+        <label class="riga-3d">Lato B (mm)<input type="number" class="modale-num ba-mis" data-campo="latoB_mm" value="${lB}" min="300" step="10" style="width:100%"></label>
+        <label class="riga-3d">Profondità (mm)<input type="number" class="modale-num ba-mis" data-campo="profBraccio_mm" value="${P}" min="200" step="10" style="width:100%"></label>
+      </div>
+      <div class="riga-3d" style="margin-top:6px">Ante: <strong>${a} × ${H - 2}</strong> e <strong>${b} × ${H - 2}</strong> mm (lato − profondità).</div>
+      ${Math.min(a, b) < 150 ? `<div class="avviso-pannello">⚠ Ante molto strette (${Math.min(a, b)} mm): controlla lati e profondità del tuo fornitore.</div>` : ''}
+    </section>`;
+}
+function agganciaBaseAngolo(root, m) {
+  root.querySelectorAll('.ba-mis').forEach((inp) => inp.addEventListener('change', () => {
+    const v = Math.round(Number(String(inp.value).replace(',', '.')));
+    if (!(v > 0)) return;
+    registraStoria();
+    m[inp.dataset.campo] = v;
+    aggiorna();
+  }));
+}
 
 // Lavello e rubinetto: acciaio o nero
 function htmlFiniture() {
@@ -1101,6 +1129,7 @@ function renderPannelloModificaMobile(m) {
       <h3>Modulo selezionato</h3>
       <div class="mod-row ${m.tipo}"><span>${nomeTipo(m.tipo)} · <strong>${descrizioneMobile(m)}</strong></span></div>
     </section>
+    ${htmlBaseAngolo(m)}
     ${cat === 'colonna' ? `
     <section class="step3-pannello">
       <h3>Colonna · parte alta</h3>
@@ -1271,6 +1300,7 @@ function renderPannelloModificaMobile(m) {
     progetto.antaPensile = b.dataset.anta;
     aggiorna();
   }));
+  agganciaBaseAngolo(pannello, m);
   pannello.querySelectorAll('.opt-ncass').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     m.cassetti = Number(b.dataset.ncass);
@@ -1491,7 +1521,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114i');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114j');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1609,6 +1639,7 @@ function blocMobileSelezionato() {
         <button id="mob-misura" class="btn-ghost" type="button">Cambia misura</button>
         <button id="mob-elimina" class="btn-ghost" type="button">Elimina</button>
       </div>
+      ${htmlBaseAngolo(m)}
       ${(m.tipo === 'base-ante' || m.tipo === 'base-cassetti') ? `
       <div class="mob-azioni-grid" style="margin-top:8px">
         <button id="mob-placca" class="btn-ghost ${m.placca ? 'attivo' : ''}" type="button">${m.placca ? '✓ ' : ''}🔥 Piano cottura</button>

@@ -84,11 +84,11 @@ export const CATALOGO_MOBILI = [
     larghezze: [600, 450], altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
   { id: 'forno',         nome: 'Modulo forno', categoria: 'base',
     larghezze: [600], altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
-  // Base ANGOLO a L (come il pensile angolo sotto): ante larghe come quelle del
-  // pensile angolo (630 − 350 = 280), bracci profondi come gli altri bassi →
-  // ingombro 600 + 280 = 880 × 880. Altezza 70 o 80 come gli altri bassi.
+  // Base ANGOLO a L (come il pensile angolo, sotto): lati 63 × 63, bracci
+  // profondi come gli altri bassi. Lati e profondità si cambiano dal pannello
+  // (latoB_mm, profBraccio_mm); le ante sono lato − profondità.
   { id: 'base-angolo',   nome: 'Base angolo', categoria: 'base',
-    larghezze: [880], altezze: ALTEZZE_BASE, profondita: 880 },
+    larghezze: [630], altezze: ALTEZZE_BASE, profondita: 630 },
   { id: 'pensile',       nome: 'Pensile', categoria: 'pensile',
     larghezze: LARGHEZZE_BASE, altezze: ALTEZZE_PENSILE, profondita: PROFONDITA_PENSILE },
   { id: 'pensile-angolo', nome: 'Pensile angolo', categoria: 'pensile',
@@ -231,6 +231,10 @@ export function dimMobile(m) {
   }
   if (cat === 'costado') {
     return { w: m.spessore_mm || 20, d: m.profondita_mm || 620 };
+  }
+  if (m.tipo === 'base-angolo') {
+    const w = m.larghezza_mm || 630;
+    return { w, d: m.latoB_mm || w };
   }
   return { w: m.larghezza_mm, d: profonditaTipo(m.tipo) };
 }
@@ -1714,8 +1718,14 @@ export function latoInternoAutomatico(progetto) {
 }
 
 /** Mobili d'angolo a L (pensile angolo e base angolo): profondità dei bracci. */
-export function profBraccioL(tipo) {
-  return tipo === 'base-angolo' ? PROFONDITA_BASE : tipo === 'pensile-angolo' ? PROFONDITA_PENSILE : null;
+export function profBraccioL(tipo, m = null) {
+  if (tipo === 'base-angolo') return (m && m.profBraccio_mm) || PROFONDITA_BASE;
+  return tipo === 'pensile-angolo' ? PROFONDITA_PENSILE : null;
+}
+/** Larghezza delle due ante della base angolo (lato − profondità braccio). */
+export function anteBaseAngolo(m) {
+  const d = dimMobile(m), P = profBraccioL('base-angolo', m);
+  return { a: Math.round(d.w - P), b: Math.round(d.d - P) };
 }
 /**
  * Aggancio di un mobile a L all'ANGOLO INTERNO più vicino (entro ~1 m): lo
@@ -1723,7 +1733,7 @@ export function profBraccioL(tipo) {
  * Ritorna { x, y, rot } oppure null se non c'è un angolo vicino.
  */
 export function agganciaAngoloL(progetto, m, x, y) {
-  const prof = profBraccioL(m.tipo);
+  const prof = profBraccioL(m.tipo, m);
   if (!prof) return null;
   const full = progetto.piano.pareti || [];
   const V = calcolaVertici(full);

@@ -12,11 +12,10 @@
 // =============================================================================
 
 import {
-  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti,
-} from './modello.js?v=20261114i';
+  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo,
+} from './modello.js?v=20261114j';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
-const PROFONDITA_BASE_D = 600;   // profondità dei bassi (bracci della base angolo)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
 const round = (n) => Math.round(n);
@@ -117,9 +116,12 @@ function pezziDiModulo(progetto, m) {
     // BASE ANGOLO a L: 2 ante larghe come quelle del pensile angolo
     // (larghezza − profondità bassi = 280), alte come la base (−2 mm);
     // zoccolo sulle due facce interne (arretrato 5 cm: +50 per lato)
-    const aw = round(L - PROFONDITA_BASE_D);
-    pz.push({ modulo: mod, nome: 'Anta (base angolo)', larghezza: Math.max(100, aw), altezza: round(H - 2), spessore: SP, materiale: 'anta', quantita: 2 });
-    pz.push({ modulo: mod, nome: 'Zoccolo (frontale)', larghezza: aw + 50, altezza: zoccoloH(H), spessore: SP, materiale: 'zoccolo', quantita: 2 });
+    const { a, b } = anteBaseAngolo(m);
+    for (const aw of a === b ? [a] : [a, b]) {
+      const q = a === b ? 2 : 1;
+      pz.push({ modulo: mod, nome: 'Anta (base angolo)', larghezza: Math.max(1, aw), altezza: round(H - 2), spessore: SP, materiale: 'anta', quantita: q });
+      pz.push({ modulo: mod, nome: 'Zoccolo (frontale)', larghezza: Math.max(1, aw) + 50, altezza: zoccoloH(H), spessore: SP, materiale: 'zoccolo', quantita: q });
+    }
   } else if (cat === 'base') {
     // carcassa, ripiani e cassetti interni: già nel modulo (non si tagliano)
     zoccolo(pz, mod, L, H);

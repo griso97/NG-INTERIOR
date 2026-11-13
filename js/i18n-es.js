@@ -1097,5 +1097,12 @@ window.NG_I18N_ES = {
  "clicca per fissare": "haz clic para fijar",
  " (dal vertice iniziale)": " (desde el vértice inicial)",
  " (dal vertice selezionato)": " (desde el vértice seleccionado)",
- ": tocca il vertice di un'estremità, premi \"Aggiungi parete\" e muovi il mouse: vedi l'angolo interno e la misura; clicca per fissarla, oppure scrivi la misura in mm e premi Invio.": ": toca el vértice de un extremo, pulsa \"Añadir pared\" y mueve el ratón: ves el ángulo interior y la medida; haz clic para fijarla, o escribe la medida en mm y pulsa Intro."
+ ": tocca il vertice di un'estremità, premi \"Aggiungi parete\" e muovi il mouse: vedi l'angolo interno e la misura; clicca per fissarla, oppure scrivi la misura in mm e premi Invio.": ": toca el vértice de un extremo, pulsa \"Añadir pared\" y mueve el ratón: ves el ángulo interior y la medida; haz clic para fijarla, o escribe la medida en mm y pulsa Intro.",
+ "Base angolo · misure": "Bajo rincón · medidas",
+ "Lato A (mm)": "Lado A (mm)",
+ "Lato B (mm)": "Lado B (mm)",
+ "Ante:": "Puertas:",
+ "e": "y",
+ "mm (lato − profondità).": "mm (lado − profundidad).",
+ "⚠ Ante molto strette ({0} mm): controlla lati e profondità del tuo fornitore.": "⚠ Puertas muy estrechas ({0} mm): revisa lados y profundidad de tu proveedor."
 };
