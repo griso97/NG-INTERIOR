@@ -1678,3 +1678,31 @@ export function aggiungiPareteLibera(progetto, estremo, lung, ang) {
   progetto.pianoConfermato = false;
   return id;
 }
+
+/**
+ * LATO INTERNO SEMPRE VERSO L'INTERNO della forma (L, U, personalizzata):
+ * dalla somma delle svolte (sinistra = +, destra = −) si capisce da che parte
+ * è l'interno, e tutte le pareti lo prendono da quel lato. Così, comunque si
+ * giri, specchi o modifichi la pianta, i mobili vanno dentro e non dietro il
+ * muro. Una parete sola (lineare) resta come l'ha scelta l'utente.
+ * Ritorna true se ha cambiato qualcosa.
+ */
+export function correggiLatoInterno(progetto) {
+  const pareti = (progetto.piano && progetto.piano.pareti) || [];
+  if (pareti.length < 2) return false;
+  let svolte = 0;
+  for (let i = 1; i < pareti.length; i++) svolte += normA(pareti[i].angolo_gradi - pareti[i - 1].angolo_gradi);
+  if (Math.abs(svolte) < 1) return false;            // nessun angolo netto: decide l'utente
+  const lato = svolte > 0 ? 'interno' : 'esterno';   // 'interno' = a sinistra del verso della parete
+  let cambiato = false;
+  for (const p of pareti) if (p.latoInterno !== lato) { p.latoInterno = lato; cambiato = true; }
+  return cambiato;
+}
+
+/** Il lato interno è deciso dalla forma (pianta con angoli)? */
+export function latoInternoAutomatico(progetto) {
+  const pareti = (progetto.piano && progetto.piano.pareti) || [];
+  let svolte = 0;
+  for (let i = 1; i < pareti.length; i++) svolte += normA(pareti[i].angolo_gradi - pareti[i - 1].angolo_gradi);
+  return pareti.length >= 2 && Math.abs(svolte) >= 1;
+}

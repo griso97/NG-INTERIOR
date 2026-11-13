@@ -11,7 +11,7 @@ import {
   moduliDiParete, nomeTipo, PROFONDITA_BASE, PROFONDITA_PENSILE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
   dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili, angoloInternoVertice,
-} from './modello.js?v=20261114e';
+} from './modello.js?v=20261114g';
 
 const NS = 'http://www.w3.org/2000/svg';
 const el = (tag, attrs = {}) => {
@@ -412,7 +412,10 @@ function renderMobileLibero(m, selezionato, interattivo, bloccato = false) {
   // parte aprono, senza andare nel rendering
   if (!['costado', 'regletta', 'pannello', 'oggetto'].includes(categoria) && m.tipo !== 'pensile-angolo') {
     const F = Math.min(90, Math.max(40, hd * 0.22));
-    const fr = [[-hw, -hd], [hw, -hd], [hw, -hd + F], [-hw, -hd + F]].map(([x, y]) => versoSvg(x, y));
+    // fronte come nel 3D: direzione (−sin r, −cos r) in pianta
+    const fx = -s, fy = -c, px = -fy, py = fx;          // fronte e sua perpendicolare
+    const P = (a, b) => [m.x + fx * a + px * b, -(m.y + fy * a + py * b)];
+    const fr = [P(hd, -hw), P(hd, hw), P(hd - F, hw), P(hd - F, -hw)];
     g.appendChild(el('polygon', { points: fr.map((p) => p.join(',')).join(' '), class: 'sv-mob-fronte' }));
   }
   if (m.tipo === 'base-ante' || m.tipo === 'pensile') {

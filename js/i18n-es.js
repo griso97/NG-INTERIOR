@@ -1089,5 +1089,6 @@ window.NG_I18N_ES = {
  "misure in mm": "medidas en mm",
  "Il browser ha bloccato la finestra di stampa: consenti i popup per questo sito.": "El navegador ha bloqueado la ventana de impresión: permite las ventanas emergentes para este sitio.",
  "🔥 Piano cottura": "🔥 Placa de cocción",
- "🚰 Lavello": "🚰 Fregadero"
+ "🚰 Lavello": "🚰 Fregadero",
+ "✓ Automatico: i mobili vanno sempre verso l'interno della forma": "✓ Automático: los muebles van siempre hacia el interior de la forma"
 };

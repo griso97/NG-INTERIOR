@@ -22,12 +22,13 @@ import {
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
-} from './modello.js?v=20261114e';
-import { renderPianta } from './pianta.js?v=20261114e';
-import { calcolaDistintaCucina } from './distinta.js?v=20261114e';
+  correggiLatoInterno, latoInternoAutomatico,
+} from './modello.js?v=20261114g';
+import { renderPianta } from './pianta.js?v=20261114g';
+import { calcolaDistintaCucina } from './distinta.js?v=20261114g';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261114e';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114e';
+import { agganciaTema } from '../tema.js?v=20261114g';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114g';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -334,10 +335,12 @@ function renderPannelloStep1() {
               <div style="font-size:11px;color:var(--testo-dim);letter-spacing:1px;text-transform:uppercase;">
                 Lato interno (mobili)
               </div>
+              ${latoInternoAutomatico(progetto) ? `
+              <div class="riga-3d">✓ Automatico: i mobili vanno sempre verso l'interno della forma</div>` : `
               <button type="button" class="lato-btn ${p.latoInterno === 'interno' ? 'interno' : ''}"
                 data-id="${p.id}">
                 ${p.latoInterno === 'interno' ? '← Interno' : 'Esterno →'}
-              </button>
+              </button>`}
             </div>
           </div>
         `).join('')}
@@ -1489,7 +1492,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114e');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114g');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1523,6 +1526,7 @@ function disegna() {
   }
 }
 function aggiorna() {
+  correggiLatoInterno(progetto);      // lato interno delle pareti sempre verso l'interno della forma
   riorientaMobili(progetto);          // ante sempre verso l'interno (a parete)
   if (progetto.autoRegletta !== false) applicaRegletteAngolo(progetto);  // angolo cieco: apre il gap della regletta (solo se auto attiva)
   renderStepper();
