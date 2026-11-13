@@ -13,12 +13,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261113j';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113j';
+} from './modello.js?v=20261113l';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113l';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113j';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113l';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1039,7 +1039,7 @@ function aggiungiLedPensile(g, w, h, d, colore, avanti = 0) {
   // SpotLight diffusa (penumbra 1 = bordi morbidi, nessun cono/rettangolo
   // netto) puntata in basso sul piano di lavoro: la luce si posa sul top
   // in modo naturale, con il colore scelto.
-  const spot = new THREE.SpotLight(hex, 2000, 2800, Math.PI / 2.1, 1.0, 1.0);
+  const spot = new THREE.SpotLight(hex, 3400, 3000, Math.PI / 2.1, 1.0, 1.0);
   spot.position.set(0, -h / 2 - 6, zStrip + 10);
   spot.target.position.set(0, -h / 2 - 1000, zStrip + 120);
   g.add(spot);
@@ -1047,7 +1047,7 @@ function aggiungiLedPensile(g, w, h, d, colore, avanti = 0) {
   // PointLight morbida verso la parete di fondo: dà il bagliore del LED
   // sul muro/alzata, come nella cucina reale, diffondendosi sulla
   // superficie vera senza pannelli sovrapposti.
-  const point = new THREE.PointLight(hex, 1200, 1800, 1.0);
+  const point = new THREE.PointLight(hex, 2200, 2000, 1.0);
   point.position.set(0, -h / 2 - 30, zStrip - 12);
   g.add(point);
 }
@@ -1366,7 +1366,10 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
         else if (topLine != null) base = topLine - h;
       }
       fianchi.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, h, cat: 'costado' });
-      const matC = alto ? (matPensile || matCostado || COL.costado) : (matCostado || COL.costado);
+      // Colore: costadi DIVERSI → quello scelto per questo costado; UGUALI (o
+      // non ancora scelto) → come sempre: alto = ante dei pensili, basso = colore costadi
+      const matProprio = progetto.costadiDiversi && m.colore ? getMaterialeTHREE(m.colore, reRender) : null;
+      const matC = matProprio || (alto ? (matPensile || matCostado) : matCostado) || COL.costado;
       g3d = collocaMobile(corpo(dim.w, h, dim.d, matC), cx, base, cz, h, m.rot);
     } else {
       // base / lavello / forno: porta = altezza scelta, zoccolo 150/100.
@@ -1507,6 +1510,22 @@ function materialePerTop(mat) {
   });
   pianoComeFoto(m);          // colori, sfumature e venature identici alla foto
   _matTopCache.set(mat, m);
+  return m;
+}
+
+/** Il pannello dietro il piano è VERTICALE: stessa foto del piano ma con la
+ *  luce di riferimento delle pareti (sennò viene più scuro della foto). */
+const _matSchCache = new WeakMap();
+function materialePerSchienale(mat) {
+  if (!mat || !mat.isMaterial || !mat.map || !mat.userData || !mat.userData.ngFoto) return mat;
+  let m = _matSchCache.get(mat);
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({ map: mat.map, color: 0xffffff,
+      userData: mat.userData.campioneMm ? { campioneMm: mat.userData.campioneMm } : {} });
+    pannelloComeFoto(m);
+    _matSchCache.set(mat, m);
+  }
+  m.map = mat.map;
   return m;
 }
 
@@ -1657,7 +1676,7 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
           const H = Number.isFinite(yPens) && yPens - yTop > 100 ? yPens - yTop : H_SCHIENALE;
           // coordinate locali della lastra: +z = fronte (stanza), il muro è dietro (−z)
           const zMuro = -(perpMuro - perpTop);
-          const pann = corpo(len, H, SP_SCHIENALE, schienale.mat || matTop || COL.top);
+          const pann = corpo(len, H, SP_SCHIENALE, materialePerSchienale(schienale.mat || matTop) || COL.top);
           pann.position.set(0, thickness / 2 + H / 2, zMuro + SP_SCHIENALE / 2);
           pann.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
           slab.add(pann);

@@ -1042,5 +1042,10 @@ window.NG_I18N_ES = {
  "↕ Trascina un ripiano per spostarlo": "↕ Arrastra un estante para moverlo",
  "Ripiani automatici": "Estantes automáticos",
  "Ripiani rimessi alla stessa distanza.": "Estantes devueltos a la misma distancia.",
- "Colore da scegliere": "Color por elegir"
+ "Colore da scegliere": "Color por elegir",
+ "questo costado": "este costado",
+ "Costadi uguali": "Costados iguales",
+ "Costadi diversi": "Costados distintos",
+ "Il colore vale solo per il costado selezionato: tocca gli altri costadi per scegliere il loro.": "El color vale solo para el costado seleccionado: toca los demás costados para elegir el suyo.",
+ "Il colore vale per tutti i costadi (quelli dei pensili prendono il colore delle ante dei pensili).": "El color vale para todos los costados (los de los altos toman el color de las puertas de los altos)."
 };

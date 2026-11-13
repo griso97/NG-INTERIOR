@@ -21,12 +21,12 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA,
-} from './modello.js?v=20261113j';
+} from './modello.js?v=20261113l';
 import { renderPianta } from './pianta.js?v=20261111x';
-import { calcolaDistintaCucina } from './distinta.js?v=20261113j';
+import { calcolaDistintaCucina } from './distinta.js?v=20261113l';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261113j';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113j';
+import { agganciaTema } from '../tema.js?v=20261113l';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113l';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1035,7 +1035,9 @@ function renderPannelloModificaMobile(m) {
   const perSez = (sz) => ((scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer(sz) : materialiTutti.filter((mt) => mt.categoria !== 'encimera'));
   const materiali = perSez(fpGruppo && gruppoColore !== 'costado' ? 'fingerpull' : 'legno');
   const materialiEncimera = (scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer('encimera') : materialiTutti.filter((mt) => mt.categoria === 'encimera');
-  const colAttuale = (progetto.coloriFronti || {})[gruppoColore];
+  // Costadi: tutti uguali (un colore per tutti) oppure diversi (ognuno il suo)
+  const costadoSingolo = gruppoColore === 'costado' && !!progetto.costadiDiversi;
+  const colAttuale = costadoSingolo ? (m.colore || null) : (progetto.coloriFronti || {})[gruppoColore];
   const encAttuale = (progetto.encimera || {}).materiale || null;
   pannello.innerHTML = `
     <section class="step3-pannello">
@@ -1091,8 +1093,16 @@ function renderPannelloModificaMobile(m) {
       'Per aggiungere lavello o piano cottura seleziona una base con ante o cassetti.'}</div></section>`}
     ${gruppoColore ? `
     <section class="step3-pannello">
-      <h3>Colore ${gruppoColore === 'costado' ? '' : 'ante '}· ${nomeGruppo}</h3>
-      <div class="riga-3d" style="margin-bottom:6px">Si applica a tutti i ${nomeGruppo}.</div>
+      <h3>Colore ${gruppoColore === 'costado' ? '' : 'ante '}· ${gruppoColore === 'costado' && costadoSingolo ? 'questo costado' : nomeGruppo}</h3>
+      ${gruppoColore === 'costado' ? `
+      <div class="opzioni-anta" style="margin-bottom:8px">
+        <button type="button" class="btn-ghost opt-costadi ${!costadoSingolo ? 'attivo' : ''}" data-costadi="uguali">${!costadoSingolo ? '✓ ' : ''}Costadi uguali</button>
+        <button type="button" class="btn-ghost opt-costadi ${costadoSingolo ? 'attivo' : ''}" data-costadi="diversi">${costadoSingolo ? '✓ ' : ''}Costadi diversi</button>
+      </div>
+      <div class="riga-3d" style="margin-bottom:6px">${costadoSingolo
+        ? 'Il colore vale solo per il costado selezionato: tocca gli altri costadi per scegliere il loro.'
+        : 'Il colore vale per tutti i costadi (quelli dei pensili prendono il colore delle ante dei pensili).'}</div>` : `
+      <div class="riga-3d" style="margin-bottom:6px">Si applica a tutti i ${nomeGruppo}.</div>`}
       <div class="palette-colori">
         ${materiali.map((mt) => `<button type="button" class="swatch ${mt.id === colAttuale ? 'sel' : ''}"
           data-mat="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`).join('')}
@@ -1155,8 +1165,14 @@ function renderPannelloModificaMobile(m) {
     </section>`;
   pannello.querySelectorAll('.swatch[data-mat]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
+    if (costadoSingolo) { m.colore = b.dataset.mat; aggiorna(); return; }
     if (!progetto.coloriFronti) progetto.coloriFronti = {};
     progetto.coloriFronti[gruppoColore] = b.dataset.mat;
+    aggiorna();
+  }));
+  pannello.querySelectorAll('.opt-costadi').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    progetto.costadiDiversi = b.dataset.costadi === 'diversi';
     aggiorna();
   }));
   pannello.querySelectorAll('.swatch[data-enc]').forEach((b) => b.addEventListener('click', () => {
@@ -1378,7 +1394,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261113j');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261113l');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste

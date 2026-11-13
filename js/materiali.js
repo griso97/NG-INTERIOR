@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261113j';
+import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261113l';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -279,6 +279,8 @@ function coloreFoto(m, rif = LUCE_FOTO) {
       sh.fragmentShader = 'uniform float ngLuceRif;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', `{
         vec3 wl = vec3(0.2126, 0.7152, 0.0722);
         float f = dot(totalDiffuse, wl) / max(dot(diffuseColor.rgb, wl), 1e-4) / ngLuceRif;
+        // luce in più (es. LED): schiarisce ma non "brucia" la foto
+        if (f > 1.0) f = 1.0 + 0.45 * (1.0 - exp(-(f - 1.0) * 1.6));
         outgoingLight = diffuseColor.rgb * mix(1.0, f, ${CONTRASTO_FOTO.toFixed(2)}) + totalEmissiveRadiance;
       }
       #include <opaque_fragment>`);
@@ -297,6 +299,17 @@ export function pianoComeFoto(m) {
   if (!m || !m.map) return m;
   Object.assign(m, PARAM_FOTO);
   coloreFoto(m, LUCE_PIANO);
+  return m;
+}
+
+/**
+ * Pannello VERTICALE (es. pannello dietro il piano) con i colori esatti
+ * della sua foto: usa la luce di riferimento delle pareti, non quella dei piani.
+ */
+export function pannelloComeFoto(m) {
+  if (!m || !m.map) return m;
+  Object.assign(m, PARAM_FOTO);
+  coloreFoto(m, LUCE_FOTO);
   return m;
 }
 

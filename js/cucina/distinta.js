@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261113j';
+} from './modello.js?v=20261113l';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -175,7 +175,7 @@ function pezziDiModulo(progetto, m) {
   const col = progetto.coloriFronti || {};
   const alto = cat === 'costado' && (m.profondita_mm || 620) < 500;
   const idAnte = cat === 'pensile' ? col.pensile : cat === 'colonna' ? col.colonna
-    : cat === 'costado' ? (alto ? (col.pensile || col.costado) : col.costado) : col.base;
+    : cat === 'costado' ? ((progetto.costadiDiversi && m.colore) || (alto ? (col.pensile || col.costado) : col.costado)) : col.base;
   for (const p of pz) {
     p.moduloId = m.id;                                // chiave di raggruppamento univoca
     p.materialeNome = p.materiale === 'melaminico' ? 'Melaminico bianco'
