@@ -5,19 +5,20 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261111b';
+import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261113g';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo,
-} from './scena3d.js?v=20261111b';
-import { SFONDI_LISTA } from './sfondi.js?v=20261111b';
-import { agganciaTema } from './tema.js?v=20261111b';
-import { renderPannello, configDefault } from './interfaccia.js?v=20261111b';
-import { renderDistinta } from './distinta.js?v=20261111b';
-import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261113f';
-import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261113f';
+  iniziaSpostamentoRipiano, muoviSpostamentoRipiano, fineSpostamentoRipiano,
+} from './scena3d.js?v=20261113g';
+import { SFONDI_LISTA } from './sfondi.js?v=20261113g';
+import { agganciaTema } from './tema.js?v=20261113g';
+import { renderPannello, configDefault } from './interfaccia.js?v=20261113g';
+import { renderDistinta } from './distinta.js?v=20261113g';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261113g';
+import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261113g';
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js?v=20261111b';
+} from './storage.js?v=20261113g';
 
 // Config iniziale: ultima salvata, oppure default
 let config = caricaLocale() || configDefault();
@@ -75,6 +76,7 @@ function aggiorna() {
   mostraAvvisi();
   aggiornaHeader();
   salvaLocale(config); // autosalvataggio in locale
+  if (typeof aggiornaHintRipiani === 'function') aggiornaHintRipiani();
 }
 
 function aggiornaHeader() {
@@ -165,6 +167,57 @@ if (btnFabApri) {
     aggiornaFab(nuovo);
   });
 }
+
+// RIPIANI SPOSTABILI: a porte aperte si trascina un ripiano su e giù; la
+// posizione resta salvata nel modulo (ripianiY). "Ripiani automatici" le toglie.
+const hintRip = document.getElementById('ripiani-hint');
+const misuraRip = document.getElementById('ripiano-misura');
+function aggiornaHintRipiani() {
+  if (!hintRip) return;
+  const conRipiani = (config.moduli || []).some((m) => m.ripiani > 0);
+  hintRip.hidden = !(btnToggleAnte.checked && conRipiani);
+}
+btnToggleAnte.addEventListener('change', aggiornaHintRipiani);
+if (btnFabApri) btnFabApri.addEventListener('click', aggiornaHintRipiani);
+document.getElementById('ripiani-auto')?.addEventListener('click', () => {
+  (config.moduli || []).forEach((m) => { delete m.ripianiY; });
+  aggiorna();
+  flash('Ripiani rimessi alla stessa distanza.');
+});
+let trascinoRipiano = false;
+const cm = (mm) => `${String(Math.round(mm / 10 * 10) / 10).replace('.', ',')} cm`;
+function mostraMisura(e, mis) {
+  if (!misuraRip || !mis) return;
+  const r = canvas.getBoundingClientRect();
+  const t = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
+  misuraRip.innerHTML = `${t('Da terra')}: <b>${cm(mis.daTerra)}</b><br>↑ ${t('spazio sopra')}: ${cm(mis.sopra)}<br>↓ ${t('spazio sotto')}: ${cm(mis.sotto)}`;
+  misuraRip.style.left = `${e.clientX - r.left}px`; misuraRip.style.top = `${e.clientY - r.top}px`;
+  misuraRip.hidden = false;
+}
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.button > 0 || !iniziaSpostamentoRipiano(e.clientX, e.clientY)) return;
+  trascinoRipiano = true;
+  e.stopImmediatePropagation(); e.preventDefault();
+  try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* no-op */ }
+  mostraMisura(e, muoviSpostamentoRipiano(e.clientX, e.clientY));
+}, true);
+canvas.addEventListener('pointermove', (e) => {
+  if (!trascinoRipiano) return;
+  e.stopImmediatePropagation();
+  mostraMisura(e, muoviSpostamentoRipiano(e.clientX, e.clientY));
+}, true);
+const fineRipiano = (e) => {
+  if (!trascinoRipiano) return;
+  trascinoRipiano = false;
+  if (e) e.stopImmediatePropagation();
+  if (misuraRip) misuraRip.hidden = true;
+  const r = fineSpostamentoRipiano();
+  if (!r || !config.moduli[r.modulo]) return;
+  config.moduli[r.modulo].ripianiY = r.ripianiY;
+  salvaLocale(config);           // niente ricostruzione: la vista resta dov'è
+};
+canvas.addEventListener('pointerup', fineRipiano, true);
+canvas.addEventListener('pointercancel', fineRipiano, true);
 
 // Montaggio iniziale
 renderPannello(pannello, config, onChange);

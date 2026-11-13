@@ -1035,5 +1035,11 @@ window.NG_I18N_ES = {
  "Maniglie · {0}": "Tiradores · {0}",
  "Grappe zoccolo (fissaggio ai piedini)": "Grapas zócalo (fijación a las patas)",
  "Kit per appendere i pensili": "Kit para colgar los altos",
- "Angoli zoccolo 90°": "Esquinas zócalo 90°"
+ "Angoli zoccolo 90°": "Esquinas zócalo 90°",
+ "Da terra": "Desde el suelo",
+ "spazio sopra": "espacio arriba",
+ "spazio sotto": "espacio abajo",
+ "↕ Trascina un ripiano per spostarlo": "↕ Arrastra un estante para moverlo",
+ "Ripiani automatici": "Estantes automáticos",
+ "Ripiani rimessi alla stessa distanza.": "Estantes devueltos a la misma distancia."
 };

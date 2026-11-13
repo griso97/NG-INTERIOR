@@ -6,7 +6,7 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer } from './materiali.js?v=20261113f';
+import { MATERIALI, PARTI, materialiDefault, materialiPer } from './materiali.js?v=20261113g';
 
 export function configDefault() {
   return {
@@ -690,6 +690,7 @@ function ripartisciModuli(config, n = config.moduli.length) {
         ripiani: v?.ripiani ?? t.ripiani,
         riduzioneRipiano: v?.riduzioneRipiano ?? t.riduzioneRipiano,
         cassettiere: (t.cassettiere || []).map((c) => ({ ...c })),
+        ...(v?.ripianiY ? { ripianiY: v.ripianiY } : {}),   // ripiani spostati a mano nel 3D
       });
     }
   } else {
@@ -702,6 +703,7 @@ function ripartisciModuli(config, n = config.moduli.length) {
         numeroAnte: t.numeroAnte, antaLato: t.antaLato ?? 'dx', ripiani: t.ripiani,
         riduzioneRipiano: t.riduzioneRipiano,
         cassettiere: (t.cassettiere || []).map((c) => ({ ...c })),
+        ...(vecchi[i]?.ripianiY ? { ripianiY: vecchi[i].ripianiY } : {}),   // ripiani spostati a mano nel 3D
       });
     }
   }

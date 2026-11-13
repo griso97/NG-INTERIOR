@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261113f';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261113g';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261111b';
 import { sfondoDi } from './sfondi.js?v=20261111b';
 
@@ -269,6 +269,65 @@ export function impostaApertura(valore) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// SPOSTARE I RIPIANI (a porte aperte): si trascina un ripiano su e giù.
+// ---------------------------------------------------------------------------
+let trascRip = null;    // { mesh, piano, dy }
+const _ray = new THREE.Raycaster();
+function raggio(clientX, clientY) {
+  const r = renderer.domElement.getBoundingClientRect();
+  _ray.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), camera);
+  return _ray;
+}
+export function iniziaSpostamentoRipiano(clientX, clientY) {
+  if (!porteAperte || !gruppoArmadio || !camera) return false;
+  const hit = raggio(clientX, clientY).intersectObjects(gruppoArmadio.children, true)[0];
+  if (!hit || hit.object.userData.tipo !== 'ripiano') return false;
+  // piano verticale rivolto alla camera, passante per il punto toccato
+  const n = new THREE.Vector3(); camera.getWorldDirection(n); n.y = 0;
+  if (n.lengthSq() < 1e-6) n.set(0, 0, -1);
+  n.normalize();
+  const piano = new THREE.Plane().setFromNormalAndCoplanarPoint(n, hit.point);
+  // limiti: tra il ripiano sotto e quello sopra (non si scavalcano)
+  const m = hit.object, u = m.userData, sC = m.geometry.parameters.height;
+  const altri = gruppoArmadio.children.filter((o) => o !== m && o.userData.tipo === 'ripiano' && o.userData.modulo === u.modulo).map((o) => o.position.y);
+  const lo = Math.max(u.yMin, ...altri.filter((y) => y < m.position.y).map((y) => y + sC + 30));
+  const hi = Math.min(u.yMax, ...altri.filter((y) => y > m.position.y).map((y) => y - sC - 30));
+  trascRip = { mesh: m, piano, dy: m.position.y - hit.point.y, lo, hi };
+  controls.enabled = false;
+  renderer.domElement.style.cursor = 'ns-resize';
+  return true;
+}
+/** Sposta il ripiano; ritorna { daTerra, sotto, sopra } in mm per l'etichetta. */
+export function muoviSpostamentoRipiano(clientX, clientY) {
+  if (!trascRip) return null;
+  const p = new THREE.Vector3();
+  if (!raggio(clientX, clientY).ray.intersectPlane(trascRip.piano, p)) return null;
+  const m = trascRip.mesh;
+  m.position.y = Math.round(Math.min(trascRip.hi, Math.max(trascRip.lo, p.y + trascRip.dy)));
+  return misureRipiano(m);
+}
+function misureRipiano(m) {
+  const u = m.userData, sC = m.geometry.parameters.height;
+  const altri = gruppoArmadio.children.filter((o) => o !== m && o.userData.tipo === 'ripiano' && o.userData.modulo === u.modulo)
+    .map((o) => o.position.y);
+  const giu = Math.max(u.yMin - 20 - sC / 2, ...altri.filter((y) => y < m.position.y).map((y) => y + sC / 2));
+  const su = Math.min(u.yMax + 20 + sC / 2, ...altri.filter((y) => y > m.position.y).map((y) => y - sC / 2));
+  return { daTerra: Math.round(m.position.y + sC / 2), sotto: Math.round(m.position.y - sC / 2 - giu), sopra: Math.round(su - (m.position.y + sC / 2)) };
+}
+/** Fine: ritorna { modulo, ripianiY: [...] } con le altezze di tutti i ripiani del modulo. */
+export function fineSpostamentoRipiano() {
+  if (!trascRip) return null;
+  const u = trascRip.mesh.userData;
+  trascRip = null;
+  controls.enabled = true;
+  renderer.domElement.style.cursor = '';
+  const ys = gruppoArmadio.children.filter((o) => o.userData.tipo === 'ripiano' && o.userData.modulo === u.modulo)
+    .sort((a, b) => a.userData.indice - b.userData.indice).map((o) => Math.round(o.position.y));
+  return { modulo: u.modulo, ripianiY: ys };
+}
+export function porteSonoAperte() { return porteAperte; }
+
 // Alias per compatibilità con chi aggancia il vecchio toggle
 export function toggleAnte(valore) { impostaApertura(valore); }
 
@@ -432,12 +491,17 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
     const yFine = H - sC;                          // sotto il top
     const altLibera = Math.max(0, yFine - yBase);
     const passo = altLibera / (modulo.ripiani + 1);
+    // Posizioni scelte a mano (trascinando i ripiani nel 3D a porte aperte):
+    // valgono se il numero di ripiani è lo stesso; restano dentro il vano.
+    const yMin = yBase + sC / 2 + 20, yMax = yFine - sC / 2 - 20;
+    const aMano = Array.isArray(modulo.ripianiY) && modulo.ripianiY.length === modulo.ripiani;
     for (let r = 1; r <= modulo.ripiani; r++) {
-      const yCentro = yBase + r * passo;
-      aggiungiBox(larRipiano, sC, profRipianoVisivo,
+      const yCentro = aMano ? Math.min(yMax, Math.max(yMin, modulo.ripianiY[r - 1])) : yBase + r * passo;
+      const m = aggiungiBox(larRipiano, sC, profRipianoVisivo,
         xOffset + W / 2, yCentro,
         sS + profRipianoVisivo / 2,
         matDi(config, "carcassa"), 'ripiano');
+      Object.assign(m.userData, { modulo: indice, indice: r - 1, yMin, yMax });
     }
   }
 
