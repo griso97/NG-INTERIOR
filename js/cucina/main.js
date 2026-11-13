@@ -23,12 +23,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo,
-} from './modello.js?v=20261115a';
-import { renderPianta } from './pianta.js?v=20261115a';
-import { calcolaDistintaCucina } from './distinta.js?v=20261115a';
+} from './modello.js?v=20261115b';
+import { renderPianta } from './pianta.js?v=20261115b';
+import { calcolaDistintaCucina } from './distinta.js?v=20261115b';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261115a';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115a';
+import { agganciaTema } from '../tema.js?v=20261115b';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115b';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1128,7 +1128,10 @@ function renderPannelloModificaMobile(m) {
   const materialiEncimera = (scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer('encimera') : materialiTutti.filter((mt) => mt.categoria === 'encimera');
   // Costadi: tutti uguali (un colore per tutti) oppure diversi (ognuno il suo)
   const costadoSingolo = gruppoColore === 'costado' && !!progetto.costadiDiversi;
-  const colAttuale = costadoSingolo ? (m.colore || null) : (progetto.coloriFronti || {})[gruppoColore];
+  // Ante: colore di tutto il gruppo, oppure SOLO di questo modulo (es. un armadio di stacco)
+  const soloQuesto = gruppoColore && gruppoColore !== 'costado' && (step2.coloreSolo === m.id || !!m.coloreFronte);
+  const colAttuale = costadoSingolo ? (m.colore || null)
+    : soloQuesto ? (m.coloreFronte || null) : (progetto.coloriFronti || {})[gruppoColore];
   const encAttuale = (progetto.encimera || {}).materiale || null;
   pannello.innerHTML = `
     <section class="step3-pannello">
@@ -1207,7 +1210,7 @@ function renderPannelloModificaMobile(m) {
       'Per aggiungere lavello o piano cottura seleziona una base con ante o cassetti.'}</div></section>`}
     ${gruppoColore ? `
     <section class="step3-pannello">
-      <h3>Colore ${gruppoColore === 'costado' ? '' : 'ante '}· ${gruppoColore === 'costado' && costadoSingolo ? 'questo costado' : nomeGruppo}</h3>
+      <h3>Colore ${gruppoColore === 'costado' ? '' : 'ante '}· ${gruppoColore === 'costado' && costadoSingolo ? 'questo costado' : soloQuesto ? 'solo questo modulo' : nomeGruppo}</h3>
       ${gruppoColore === 'costado' ? `
       <div class="opzioni-anta" style="margin-bottom:8px">
         <button type="button" class="btn-ghost opt-costadi ${!costadoSingolo ? 'attivo' : ''}" data-costadi="uguali">${!costadoSingolo ? '✓ ' : ''}Costadi uguali</button>
@@ -1216,7 +1219,13 @@ function renderPannelloModificaMobile(m) {
       <div class="riga-3d" style="margin-bottom:6px">${costadoSingolo
         ? 'Il colore vale solo per il costado selezionato: tocca gli altri costadi per scegliere il loro.'
         : 'Il colore vale per tutti i costadi (quelli dei pensili prendono il colore delle ante dei pensili).'}</div>` : `
-      <div class="riga-3d" style="margin-bottom:6px">Si applica a tutti i ${nomeGruppo}.</div>`}
+      <div class="opzioni-anta" style="margin-bottom:8px">
+        <button type="button" class="btn-ghost opt-colsolo ${!soloQuesto ? 'attivo' : ''}" data-colsolo="tutti">${!soloQuesto ? '✓ ' : ''}Tutti i ${nomeGruppo}</button>
+        <button type="button" class="btn-ghost opt-colsolo ${soloQuesto ? 'attivo' : ''}" data-colsolo="solo">${soloQuesto ? '✓ ' : ''}Solo questo modulo</button>
+      </div>
+      <div class="riga-3d" style="margin-bottom:6px">${soloQuesto
+        ? (m.coloreFronte ? 'Questo modulo ha un colore suo, diverso dagli altri. Per farlo tornare come gli altri tocca «Tutti».' : 'Scegli il colore: vale solo per questo modulo (es. un armadio per staccare).')
+        : `Si applica a tutti i ${nomeGruppo}.`}</div>`}
       ${gruppoColore === 'costado' ? (() => {
         const enc = materialiEncimera.find((mt) => mt.id === encAttuale);
         return `
@@ -1293,9 +1302,16 @@ function renderPannelloModificaMobile(m) {
   pannello.querySelectorAll('.swatch[data-mat], .opt-piano[data-mat]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     if (costadoSingolo) { m.colore = b.dataset.mat; aggiorna(); return; }
+    if (soloQuesto) { m.coloreFronte = b.dataset.mat; aggiorna(); return; }
     if (!progetto.coloriFronti) progetto.coloriFronti = {};
     progetto.coloriFronti[gruppoColore] = b.dataset.mat;
     aggiorna();
+  }));
+  pannello.querySelectorAll('.opt-colsolo').forEach((b) => b.addEventListener('click', () => {
+    if (b.dataset.colsolo === 'solo') { step2.coloreSolo = m.id; renderPannello(); return; }
+    // «Tutti»: il modulo torna al colore del suo gruppo
+    step2.coloreSolo = null;
+    if (m.coloreFronte) { registraStoria(); delete m.coloreFronte; aggiorna(); } else renderPannello();
   }));
   pannello.querySelectorAll('.opt-costadi').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
@@ -1540,7 +1556,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115a');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115b');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste

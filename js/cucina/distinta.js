@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo,
-} from './modello.js?v=20261115a';
+} from './modello.js?v=20261115b';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -202,6 +202,7 @@ function pezziDiModulo(progetto, m) {
     : cat === 'costado' ? ((progetto.costadiDiversi && m.colore) || (alto ? (col.pensile || col.costado)
       : (col.costado || ((m.altezza_mm || 0) >= 1500 ? (col.colonna || col.base) : col.base)))) : col.base;
   // costado "come il piano di lavoro": materiale dell'encimera
+  if (m.coloreFronte && cat !== 'costado') idAnte = m.coloreFronte;   // colore proprio di questo modulo
   if (idAnte === '@piano') idAnte = (progetto.encimera && progetto.encimera.materiale) || null;
   const pianoStd = cat === 'costado' && idAnte === null && ((progetto.costadiDiversi && m.colore) === '@piano' || col.costado === '@piano');
   for (const p of pz) {

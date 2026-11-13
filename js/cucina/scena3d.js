@@ -13,13 +13,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261115a';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115a';
+} from './modello.js?v=20261115b';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115b';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115a';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115b';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115a';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115b';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1613,6 +1613,8 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
     const cat = categoriaTipo(m.tipo);
     const dim = dimMobile(m);
     const cx = m.x, cz = -m.y;
+    // colore proprio di QUESTO modulo (es. un armadio di stacco), altrimenti quello del gruppo
+    const matMio = m.coloreFronte && cat !== 'costado' ? getMaterialeTHREE(m.coloreFronte, reRender) : null;
     let g3d = null;
     if (cat === 'oggetto') {
       // Oggetto 3D (sgabello, decor): posato a terra, nessuno zoccolo/piano.
@@ -1625,7 +1627,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const base = topLine != null ? (topLine - h) : MONTAGGIO_PENSILE;
       pensiliPlan.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, yBottom: base });
       const sporg = antaPensileSporge(progetto.antaPensile, h);
-      const gPens = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matPensile, { sporg });
+      const gPens = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matPensile, { sporg });
       // LED sotto i pensili (opzionale, con scelta temperatura colore).
       // Il pensile-angolo (diagonale) non lo prende: ha una geometria dedicata.
       if (progetto.led && progetto.led.attivo && !String(m.tipo).startsWith('pensile-angolo')) {
@@ -1649,7 +1651,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const zocc = zoccoloColonna(progetto, m);
       zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
       fianchi.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, h: h + zocc, cat: 'colonna' });
-      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matColonna), cx, zocc, cz, h, m.rot);
+      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matColonna), cx, zocc, cz, h, m.rot);
     } else if (cat === 'regletta') {
       const h = m.altezza_mm || 700;
       const zocc = zoccoloPerAltezza(h);
@@ -1704,7 +1706,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       if (m.tipo === 'base-angolo') {
         // BASE ANGOLO a L: come il pensile angolo usa +rot (L asimmetrica);
         // piano e zoccolo = due rettangoli, uno per braccio
-        const gL = costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d, matBase);
+        const gL = costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d, matMio || matBase);
         gL.position.set(cx, zocc + porta / 2, cz);
         gL.rotation.y = (m.rot || 0) * Math.PI / 180;
         g3d = gL;
@@ -1718,7 +1720,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
           zoccoli.push({ x: br.x, y: br.y, rot: br.rot, w: br.w, d: br.d, zocc });
         }
       } else {
-      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d, matBase, { cieco: ciecoOpt }), cx, zocc, cz, porta, m.rot);
+      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d, matMio || matBase, { cieco: ciecoOpt }), cx, zocc, cz, porta, m.rot);
       if (cieco && progetto.autoRegletta !== false) renderRegolettaAngolo(cieco, m, porta, zocc, matBase, progetto.reglettaAngolo);
       basiTop.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc, topY: zocc + porta });
       zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });

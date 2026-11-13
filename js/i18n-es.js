@@ -1161,4 +1161,11 @@ window.NG_I18N_ES = {
   'La mia forma': 'Mi forma',
   ': il 3D si costruisce dalle tue foto, anche da una sola (davanti, oppure da sopra / di tre quarti con i piedini). Le altre sono forme pronte. Il colore lo puoi cambiare:': ': el 3D se construye con tus fotos, incluso con una sola (de frente, o desde arriba / de tres cuartos con las patas). Las demás son formas ya hechas. Puedes cambiar el color:',
   'tiene quello vero.': 'mantiene el real.',
+  'Tutti i {0}': 'Todos los {0}',
+  '✓ Tutti i {0}': '✓ Todos los {0}',
+  'Solo questo modulo': 'Solo este módulo',
+  '✓ Solo questo modulo': '✓ Solo este módulo',
+  'solo questo modulo': 'solo este módulo',
+  'Questo modulo ha un colore suo, diverso dagli altri. Per farlo tornare come gli altri tocca «Tutti».': 'Este módulo tiene su propio color, distinto de los demás. Para que vuelva a ser como los demás toca «Todos».',
+  'Scegli il colore: vale solo per questo modulo (es. un armadio per staccare).': 'Elige el color: vale solo para este módulo (p. ej. un mueble para contrastar).',
 };
