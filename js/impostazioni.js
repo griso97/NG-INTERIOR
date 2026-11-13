@@ -8,13 +8,13 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261115l';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261115l';
-import { anteprimaOggetto } from './oggetto3d.js?v=20261115l';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261115l';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini } from './analisi-foto.js?v=20261115l';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261115l';
-import { agganciaTema } from './tema.js?v=20261115l';
+} from './catalogo.js?v=20261115m';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261115m';
+import { anteprimaOggetto, riconosciViste } from './oggetto3d.js?v=20261115m';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261115m';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini } from './analisi-foto.js?v=20261115m';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261115m';
+import { agganciaTema } from './tema.js?v=20261115m';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -862,12 +862,22 @@ render();
 // ognuna isolata dallo sfondo in automatico; misure reali; anteprima 3D.
 // ---------------------------------------------------------------------------
 const VISTE_OGG = [
-  { id: 'fronte', nome: 'Foto davanti', obbl: true },
-  { id: 'lato', nome: 'Foto di lato' },
-  { id: 'sopra', nome: 'Foto da sopra' },
-  { id: 'dietro', nome: 'Foto da dietro' },
+  { id: 'fronte', nome: 'Davanti', aiuto: 'dove ci sono comandi, display, maniglia', obbl: true,
+    svg: '<svg viewBox="0 0 40 30"><rect x="12" y="6" width="16" height="18" rx="2"/><rect x="16" y="9" width="8" height="3" fill="currentColor"/><circle cx="20" cy="28" r="1.6" fill="currentColor"/><path d="M20 26.5v-1.5"/></svg>' },
+  { id: 'lato', nome: 'Di lato', aiuto: 'di fianco; l\'altro lato è uguale, specchiato',
+    svg: '<svg viewBox="0 0 40 30"><rect x="10" y="6" width="20" height="18" rx="2"/><rect x="5" y="14" width="5" height="6"/><circle cx="37" cy="15" r="1.6" fill="currentColor"/></svg>' },
+  { id: 'sopra', nome: 'Da sopra', aiuto: 'guardando giù, dritto dall\'alto (facoltativa)',
+    svg: '<svg viewBox="0 0 40 30"><rect x="11" y="10" width="18" height="16" rx="3"/><rect x="17" y="26" width="6" height="3"/><circle cx="20" cy="3" r="1.6" fill="currentColor"/><path d="M20 5v3"/></svg>' },
+  { id: 'dietro', nome: 'Dietro', aiuto: 'il retro (facoltativa)',
+    svg: '<svg viewBox="0 0 40 30"><rect x="12" y="6" width="16" height="18" rx="2"/><path d="M15 10h10M15 13h10M15 16h10"/><circle cx="20" cy="2.5" r="1.6" fill="currentColor"/></svg>' },
 ];
+const NOMI_VISTA = Object.fromEntries(VISTE_OGG.map((v) => [v.id, v.nome]));
 let _chiudiAntOgg = null, _tAntOgg = 0;
+function aCanvas(im) {
+  if (im instanceof HTMLCanvasElement) return im;
+  const c = document.createElement('canvas'); c.width = im.naturalWidth || im.width; c.height = im.naturalHeight || im.height;
+  c.getContext('2d').drawImage(im, 0, 0); return c;
+}
 function apriSchedaOggetto(p) {
   const nuovo = !p;
   const o = (p && p.oggetto) || { w: '', d: '', h: '', pianta: 'squadrata' };
@@ -875,21 +885,30 @@ function apriSchedaOggetto(p) {
   const corpo = document.getElementById('imp-modale-corpo');
   corpo.innerHTML = `
     <div class="imp-form">
-      <div class="imp-aiuto">Foto dell'oggetto su sfondo uniforme: vanno benissimo le foto del sito del produttore (su bianco). Il sito <strong>isola l'oggetto</strong> in ogni foto e costruisce il <strong>3D con le misure vere</strong>. Foto dritte: davanti, di lato, da sopra; quella da dietro serve per i colori del retro.</div>
+      <div class="imp-aiuto">Carica le foto dell'oggetto su sfondo uniforme: vanno benissimo quelle del sito del produttore (su bianco). Il sito <strong>riconosce da solo quale foto è davanti, di lato, dietro o da sopra</strong>, isola l'oggetto e costruisce il <strong>3D con le misure vere e le tue foto sopra</strong>. Se sbaglia una vista, correggila con «Questa foto è».</div>
+      <label class="imp-tutte">📷 Carica tutte le foto insieme<input type="file" accept="image/*" multiple id="o-tutte"></label>
       <div class="imp-viste3">
         ${VISTE_OGG.map((v) => `
-        <div class="imp-vista3"><label>${v.nome}${v.obbl ? ' <span class="imp-obbl">*</span>' : ''}<input type="file" accept="image/*" data-vista="${v.id}"></label>
+        <div class="imp-vista3">
+          <div class="imp-vista-tit"><span class="imp-vista-ico" aria-hidden="true">${v.svg}</span><span><strong>${v.nome}</strong>${v.obbl ? ' <span class="imp-obbl">*</span>' : ''}<br><small>${v.aiuto}</small></span></div>
+          <label class="imp-vista-file">Scegli foto<input type="file" accept="image/*" data-vista="${v.id}"></label>
           <div class="imp-vista3-img" data-img="${v.id}"></div>
-          <button type="button" class="btn-ghost btn-mini imp-togli" data-togli="${v.id}" hidden>✕ Togli questa foto</button></div>`).join('')}
+          <div class="imp-vista-azioni" data-azioni="${v.id}" hidden>
+            <label class="imp-vista-ruolo">Questa foto è:
+              <select data-ruolo="${v.id}">${VISTE_OGG.map((q) => `<option value="${q.id}"${q.id === v.id ? ' selected' : ''}>${q.nome}</option>`).join('')}</select></label>
+            <button type="button" class="btn-ghost btn-mini imp-togli" data-togli="${v.id}">✕ Togli questa foto</button>
+          </div>
+        </div>`).join('')}
       </div>
+      <div class="imp-auto-msg" id="o-msg" hidden></div>
       <fieldset class="imp-misura">
         <legend>Misure reali (cm) <span class="imp-obbl">*</span></legend>
         <div class="imp-misure3">
-          <label>Larghezza<input type="number" min="1" step="0.1" id="o-w" value="${esc(o.w)}" placeholder="es. 32"></label>
-          <label>Profondità<input type="number" min="1" step="0.1" id="o-d" value="${esc(o.d)}" placeholder="es. 38"></label>
-          <label>Altezza<input type="number" min="1" step="0.1" id="o-h" value="${esc(o.h)}" placeholder="es. 30"></label>
+          <label>Larghezza<input type="number" min="1" step="0.1" id="o-w" value="${esc(o.w)}" placeholder="es. 28"></label>
+          <label>Profondità<input type="number" min="1" step="0.1" id="o-d" value="${esc(o.d)}" placeholder="es. 36"></label>
+          <label>Altezza<input type="number" min="1" step="0.1" id="o-h" value="${esc(o.h)}" placeholder="es. 31"></label>
         </div>
-        <div class="imp-aiuto">Le trovi nella scheda del prodotto. Il 3D esce in scala vera.</div>
+        <div class="imp-aiuto">Le trovi nella scheda del prodotto (la profondità con la maniglia). Il 3D esce in scala vera.</div>
       </fieldset>
       <fieldset class="imp-misura" id="o-pianta-box">
         <legend>Forma vista da sopra</legend>
@@ -909,16 +928,19 @@ function apriSchedaOggetto(p) {
       </div>
     </div>`;
   modale.hidden = false;
-  const imgs = {}, nuove = {}, tolte = {};
+  const imgs = {}, colori = {}, cambiate = new Set();
   let pianta = o.pianta || 'squadrata';
   const errore = (t) => { const e = corpo.querySelector('#f-err'); e.textContent = t; e.hidden = false; e.scrollIntoView({ block: 'nearest' }); };
+  const avviso = (t) => { const m = corpo.querySelector('#o-msg'); m.textContent = t; m.hidden = !t; };
   const num = (id) => Number(String(corpo.querySelector(id).value).replace(',', '.'));
   const mostra = (v) => {
     const box = corpo.querySelector(`[data-img="${v}"]`); box.innerHTML = '';
-    if (imgs[v]) { const c = document.createElement('canvas'); disegnaScacchi(c, imgs[v], 150, 110); box.appendChild(c); }
-    corpo.querySelector(`[data-togli="${v}"]`).hidden = !imgs[v];
+    if (imgs[v]) { const c = document.createElement('canvas'); disegnaScacchi(c, imgs[v], 300, 220); box.appendChild(c); }
+    corpo.querySelector(`[data-azioni="${v}"]`).hidden = !imgs[v];
+    corpo.querySelector(`[data-ruolo="${v}"]`).value = v;
     corpo.querySelector('#o-pianta-box').hidden = !!imgs.sopra;
   };
+  const mostraTutte = () => VISTE_OGG.forEach((x) => mostra(x.id));
   const anteprima = () => {
     clearTimeout(_tAntOgg);
     _tAntOgg = setTimeout(async () => {
@@ -927,26 +949,60 @@ function apriSchedaOggetto(p) {
       if (_chiudiAntOgg) { _chiudiAntOgg(); _chiudiAntOgg = null; }
       if (!imgs.fronte || !(W > 0 && D > 0 && H > 0)) { box.innerHTML = `<div class="imp-aiuto">${tr('Carica la foto davanti e scrivi le misure.')}</div>`; return; }
       box.innerHTML = `<div class="imp-aiuto">${tr('Costruisco il 3D…')}</div>`;
+      await new Promise((r) => setTimeout(r, 30));
       _chiudiAntOgg = await anteprimaOggetto(box, imgs, W, D, H, pianta);
-    }, 200);
+    }, 250);
+  };
+  /** Sposta/scambia la foto della casella da → a. */
+  const scambia = (da, a) => {
+    if (da === a) return;
+    [imgs[da], imgs[a]] = [imgs[a], imgs[da]]; [colori[da], colori[a]] = [colori[a], colori[da]];
+    for (const k of [da, a]) { if (!imgs[k]) delete imgs[k]; cambiate.add(k); }
+  };
+  /** Riconosce le viste e rimette ogni foto nella casella giusta (lo dice). */
+  const riconosci = () => {
+    const r = riconosciViste(imgs);
+    if (!r) { avviso(''); return; }
+    const vecchie = { ...imgs }, vecchiCol = { ...colori };
+    for (const k of VISTE_OGG.map((x) => x.id)) { delete imgs[k]; delete colori[k]; }
+    for (const [dest, orig] of Object.entries(r.mappa)) { imgs[dest] = vecchie[orig]; colori[dest] = vecchiCol[orig]; }
+    for (const k of Object.keys(vecchie)) if (!Object.values(r.mappa).includes(k) && !imgs[k]) { imgs[k] = vecchie[k]; colori[k] = vecchiCol[k]; }
+    for (const k of VISTE_OGG.map((x) => x.id)) if (vecchie[k] !== imgs[k]) cambiate.add(k);
+    const frasi = Object.entries(r.cambi).map(([dest, orig]) => `${tr('la foto messa in')} «${tr(NOMI_VISTA[orig])}» ${tr('è')} «${tr(NOMI_VISTA[dest])}»`);
+    avviso(`✓ ${tr('Ho riconosciuto le viste')}: ${frasi.join('; ')}. ${tr('Se è sbagliato, correggi con «Questa foto è».')}`);
+  };
+  const carica = async (f, v) => {
+    const im = await caricaImmagine(f).catch(() => null);
+    if (!im) { errore(tr('Non riesco ad aprire questa foto. Prova con un JPG o PNG.')); return false; }
+    const seg = segmentaManiglia(im, null, 1, { raddrizza: false });
+    if (!seg) { errore(tr('Non riesco a isolare l\'oggetto in questa foto: usa una foto con lo sfondo uniforme (es. bianco).')); return false; }
+    imgs[v] = seg.canvas; colori[v] = seg.colore; cambiate.add(v);
+    return true;
   };
   for (const v of VISTE_OGG.map((x) => x.id)) {
     corpo.querySelector(`[data-vista="${v}"]`).addEventListener('change', async (e) => {
       const f = e.target.files && e.target.files[0]; if (!f) return;
       corpo.querySelector('#f-err').hidden = true;
-      const im = await caricaImmagine(f).catch(() => null);
-      if (!im) { errore(tr('Non riesco ad aprire questa foto. Prova con un JPG o PNG.')); return; }
-      const seg = segmentaManiglia(im, null, 1, { raddrizza: false });
-      if (!seg) { errore(tr('Non riesco a isolare l\'oggetto in questa foto: usa una foto con lo sfondo uniforme (es. bianco).')); return; }
-      imgs[v] = seg.canvas; nuove[v] = seg; delete tolte[v];
-      mostra(v); anteprima();
+      if (await carica(f, v)) { riconosci(); mostraTutte(); anteprima(); }
+      e.target.value = '';
     });
     corpo.querySelector(`[data-togli="${v}"]`).addEventListener('click', () => {
-      delete imgs[v]; delete nuove[v]; tolte[v] = true;
-      corpo.querySelector(`[data-vista="${v}"]`).value = '';
-      mostra(v); anteprima();
+      delete imgs[v]; delete colori[v]; cambiate.add(v); avviso('');
+      mostraTutte(); anteprima();
+    });
+    corpo.querySelector(`[data-ruolo="${v}"]`).addEventListener('change', (e) => {
+      scambia(v, e.target.value); avviso(''); mostraTutte(); anteprima();
     });
   }
+  // tutte insieme: le metto nelle caselle libere e poi le riconosco
+  corpo.querySelector('#o-tutte').addEventListener('change', async (e) => {
+    const files = [...(e.target.files || [])].slice(0, 4); if (!files.length) return;
+    corpo.querySelector('#f-err').hidden = true;
+    const libere = VISTE_OGG.map((x) => x.id).filter((k) => !imgs[k]);
+    for (const f of files) { const v = libere.shift() || 'dietro'; await carica(f, v); }
+    riconosci(); mostraTutte(); anteprima();
+    e.target.value = '';
+  });
   corpo.querySelectorAll('[data-pianta]').forEach((b) => b.addEventListener('click', () => {
     pianta = b.dataset.pianta;
     corpo.querySelectorAll('[data-pianta]').forEach((x) => x.classList.toggle('attivo', x === b));
@@ -958,9 +1014,9 @@ function apriSchedaOggetto(p) {
     Promise.all(VISTE_OGG.map((v) => leggiFoto(p.id, v.id))).then(async (bl) => {
       for (let i = 0; i < bl.length; i++) {
         const v = VISTE_OGG[i].id;
-        if (bl[i] && !imgs[v] && !tolte[v]) { imgs[v] = await caricaImmagine(bl[i]).catch(() => null); mostra(v); }
+        if (bl[i] && !imgs[v] && !cambiate.has(v)) { imgs[v] = await caricaImmagine(bl[i]).catch(() => null); if (!imgs[v]) delete imgs[v]; }
       }
-      anteprima();
+      mostraTutte(); anteprima();
     });
   }
   corpo.querySelector('#f-annulla').addEventListener('click', () => { if (_chiudiAntOgg) { _chiudiAntOgg(); _chiudiAntOgg = null; } chiudi(); });
@@ -976,16 +1032,17 @@ function apriSchedaOggetto(p) {
     try {
       const id = nuovo ? nuovoId() : p.id;
       for (const v of VISTE_OGG.map((x) => x.id)) {
-        if (nuove[v]) await salvaFoto(id, await canvasPng(nuove[v].canvas), v);
-        else if (tolte[v]) await eliminaFotoTipo(id, v);
+        if (!cambiate.has(v)) continue;
+        if (imgs[v]) await salvaFoto(id, await canvasPng(aCanvas(imgs[v])), v);
+        else await eliminaFotoTipo(id, v);
       }
-      if (nuove.fronte) {                                    // la foto "principale" e la miniatura = la vista davanti
-        const png = await canvasPng(nuove.fronte.canvas);
+      if (cambiate.has('fronte')) {                            // la foto "principale" e la miniatura = la vista davanti
+        const png = await canvasPng(aCanvas(imgs.fronte));
         await salvaFoto(id, png, 'foto'); await salvaFoto(id, png, 'thumb');
       }
       const viste = Object.fromEntries(['lato', 'sopra', 'dietro'].map((v) => [v, !!imgs[v]]));
       const dati = { id, sezione: 'oggetti', nome, info: { note: corpo.querySelector('#f-note').value.trim() },
-        colore: nuove.fronte ? nuove.fronte.colore : (p && p.colore), aggiornato: Date.now(),
+        colore: colori.fronte ?? (p && p.colore), aggiornato: Date.now(),
         oggetto: { w, d, h, pianta, viste } };
       if (nuovo) stato.prodotti.push({ ...dati, creato: Date.now() });
       else stato.prodotti = stato.prodotti.map((x) => (x.id === id ? { ...x, ...dati } : x));
@@ -998,4 +1055,3 @@ function apriSchedaOggetto(p) {
     }
   });
 }
-

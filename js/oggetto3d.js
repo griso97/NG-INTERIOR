@@ -1,22 +1,26 @@
 // =============================================================================
 // OGGETTI ED ELETTRODOMESTICI DALLE FOTO → 3D (friggitrice, microonde, vasi…)
 // =============================================================================
-// Stessa tecnica delle maniglie: ogni foto (davanti, lato, sopra) è già isolata
-// dallo sfondo (PNG trasparente); le sagome, portate alle misure reali
-// (larghezza × profondità × altezza), si incrociano e danno il volume; la
-// superficie si leviga (marching cubes + Taubin) e prende i colori veri delle
-// foto (anche quella da dietro, se c'è). Senza la foto da sopra la pianta è
-// squadrata, tonda o ovale (scelta nella scheda).
+// Stessa tecnica delle maniglie, con le FOTO VERE sopra:
+// 1) ogni foto è già isolata dallo sfondo (PNG trasparente, alta risoluzione);
+// 2) FORMA: le sagome (davanti, lato, sopra), portate alle misure reali
+//    (larghezza × profondità × altezza), si incrociano e danno il volume; la
+//    superficie si leviga (marching cubes + Taubin). Senza la foto da sopra:
+//    - le parti che sporgono davanti (es. la maniglia del cestello) prendono la
+//      larghezza vista nella foto davanti, non tutta la larghezza;
+//    - la pianta può essere squadrata, tonda o ovale (scelta nella scheda);
+// 3) ASPETTO: ogni faccia prende la FOTO che la guarda, in alta risoluzione:
+//    davanti, dietro, i due lati (la stessa foto, specchiata), sopra.
 // Assi (mm): x = larghezza (centro 0) · y = altezza (0 = appoggio) · z = profondità (+ = davanti)
 // =============================================================================
 import * as THREE from 'three';
 import { edgeTable, triTable } from '../vendor/three/addons/objects/mc-tabelle.js';
 
-/** Vista: alfa e colori di una foto isolata, normalizzata al suo contorno (u,v in 0..1). */
+/** Analisi di una foto isolata: sagoma (alfa), colori, contorno, simmetria, dettaglio. */
 function vista(src) {
   if (!src) return null;
   const w0 = src.naturalWidth || src.width, h0 = src.naturalHeight || src.height;
-  const k = Math.min(1, 320 / Math.max(w0, h0));
+  const k = Math.min(1, 360 / Math.max(w0, h0));
   const w = Math.max(2, Math.round(w0 * k)), h = Math.max(2, Math.round(h0 * k));
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(src, 0, 0, w, h);
@@ -25,76 +29,219 @@ function vista(src) {
   const bg = [0, 1, 2].map((q) => (d[q] + d[(w - 1) * 4 + q] + d[(h - 1) * w * 4 + q] + d[((h - 1) * w + w - 1) * 4 + q]) / 4);
   const A = new Float32Array(w * h);
   for (let i = 0; i < w * h; i++) A[i] = haAlfa ? d[i * 4 + 3] / 255 : (Math.hypot(d[i * 4] - bg[0], d[i * 4 + 1] - bg[1], d[i * 4 + 2] - bg[2]) > 40 ? 1 : 0);
-  // bordo morbido (niente scalini)
-  for (let pass = 0; pass < 2; pass++) {
-    const B = new Float32Array(w * h);
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      let s = 0, n = 0;
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < w && yy < h) { s += A[yy * w + xx]; n++; } }
-      B[y * w + x] = s / n;
-    }
-    A.set(B);
-  }
   let x0 = w, y0 = h, x1 = -1, y1 = -1;
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (A[y * w + x] > 0.5) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   if (x1 < 0) return null;
   const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
-  const V = { w, h, A, d };
-  V.alfa = (u, v) => {                                   // bilineare, 0 fuori dal contorno
+  const V = { src, w, h, A, d, x0, y0, bw, bh, flipU: false };
+  V.aspetto = bw / bh;
+  const X = (u) => x0 + (V.flipU ? 1 - u : u) * (bw - 1), Y = (v) => y0 + v * (bh - 1);
+  V.alfa = (u, v) => {                                     // bilineare, 0 fuori dal contorno
     if (u < 0 || u > 1 || v < 0 || v > 1) return 0;
-    const x = x0 + u * (bw - 1), y = y0 + v * (bh - 1);
+    const x = X(u), y = Y(v);
     const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
     const a = (xx, yy) => (xx < 0 || yy < 0 || xx >= w || yy >= h ? 0 : A[yy * w + xx]);
     return (a(xi, yi) * (1 - fx) + a(xi + 1, yi) * fx) * (1 - fy) + (a(xi, yi + 1) * (1 - fx) + a(xi + 1, yi + 1) * fx) * fy;
   };
-  V.col = (u, v) => {                                    // colore del pixel pieno più vicino
-    u = Math.min(1, Math.max(0, u)); v = Math.min(1, Math.max(0, v));
-    const cx = Math.round(x0 + u * (bw - 1)), cy = Math.round(y0 + v * (bh - 1));
-    for (let r = 0; r < 6; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-      const xx = cx + dx, yy = cy + dy; if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
-      const i = yy * w + xx; if (A[i] > 0.6) return [d[i * 4], d[i * 4 + 1], d[i * 4 + 2]];
-    }
-    return null;
+  V.col = (u, v) => {
+    const xi = Math.round(X(Math.min(1, Math.max(0, u)))), yi = Math.round(Y(Math.min(1, Math.max(0, v))));
+    const i = yi * w + xi; return A[i] > 0.6 ? [d[i * 4], d[i * 4 + 1], d[i * 4 + 2]] : null;
   };
-  let sr = 0, sg = 0, sb = 0, nn = 0; for (let i = 0; i < w * h; i += 2) if (A[i] > 0.6) { sr += d[i * 4]; sg += d[i * 4 + 1]; sb += d[i * 4 + 2]; nn++; }
-  V.media = nn ? [sr / nn, sg / nn, sb / nn] : [160, 160, 160];
+  // colore mediano dell'oggetto
+  const rr = [], gg = [], bb = [];
+  for (let i = 0; i < w * h; i += 3) if (A[i] > 0.6) { rr.push(d[i * 4]); gg.push(d[i * 4 + 1]); bb.push(d[i * 4 + 2]); }
+  const med = (l) => { l.sort((p, q) => p - q); return l[l.length >> 1] || 128; };
+  V.media = [med(rr), med(gg), med(bb)];
+  // SIMMETRIA destra/sinistra della sagoma (davanti/dietro ~1, lato con maniglia < 1)
+  let inter = 0, uni = 0;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const a = A[y * w + x] > 0.5, b = A[y * w + (x0 + x1 - x)] > 0.5;
+    if (a && b) inter++; if (a || b) uni++;
+  }
+  V.simmetria = uni ? inter / uni : 1;
+  // DETTAGLIO: bordi interni + scritte/luci chiare (il davanti ha comandi, display, logo)
+  let bordi = 0, chiari = 0, n = 0;
+  const lum = (i) => 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+  const Lm = 0.299 * V.media[0] + 0.587 * V.media[1] + 0.114 * V.media[2];
+  for (let y = y0 + 2; y < y1 - 1; y++) for (let x = x0 + 2; x < x1 - 1; x++) {
+    const i = y * w + x; if (A[i] < 0.9 || A[i - 2] < 0.9 || A[i + 2] < 0.9 || A[i - 2 * w] < 0.9 || A[i + 2 * w] < 0.9) continue;
+    n++;
+    const gx = lum(i + 1) - lum(i - 1), gy = lum(i + w) - lum(i - w);
+    if (Math.hypot(gx, gy) > 40) bordi++;
+    if (lum(i) > Lm + 70) chiari++;
+  }
+  V.dettaglio = n ? (bordi + 3 * chiari) / n : 0;
   return V;
 }
 
 /**
- * Geometria 3D dell'oggetto. foto: { fronte (obbligatoria), lato, sopra, dietro }
- * (immagini isolate); W, D, H in mm; pianta: 'squadrata' | 'tonda' | 'ovale'
- * (vale solo senza la foto da sopra). Ritorna { geo, W, D, H, colore } o null.
+ * RICONOSCE LE VISTE: date le foto messe nelle caselle { fronte, dietro, lato, sopra },
+ * dice in quale casella va davvero ognuna. Le foto prodotto del davanti sono spesso
+ * scattate un po' dall'alto e finiscono in "sopra": se una foto ha la stessa sagoma
+ * simmetrica del davanti/dietro, è un davanti o un dietro; il DAVANTI è quella con
+ * più dettagli (comandi, display, logo, maniglia). Il LATO è la sagoma asimmetrica.
+ * Ritorna { fronte: chiaveOrigine, … } solo per le caselle che cambiano, o null.
+ */
+export function riconosciViste(foto) {
+  const V = {};
+  for (const k of ['fronte', 'dietro', 'lato', 'sopra']) if (foto[k]) V[k] = vista(foto[k]);
+  const chiavi = Object.keys(V).filter((k) => V[k]);
+  if (chiavi.length < 2) return null;
+  const nuovo = {};
+  // lato: la più asimmetrica, se è chiaramente meno simmetrica delle altre
+  const perSim = [...chiavi].sort((a, b) => V[a].simmetria - V[b].simmetria);
+  const lato = V[perSim[0]].simmetria < 0.86 && (perSim.length < 2 || V[perSim[1]].simmetria - V[perSim[0]].simmetria > 0.05) ? perSim[0] : (V.lato ? 'lato' : null);
+  // davanti/dietro: le sagome simmetriche con proporzioni simili
+  const rif = ['fronte', 'dietro', 'sopra'].filter((k) => V[k] && k !== lato);
+  const simili = [];
+  for (const k of rif) {
+    if (V[k].simmetria < 0.86) continue;
+    const altri = rif.filter((q) => q !== k && V[q].simmetria >= 0.86);
+    const ok = !altri.length || altri.some((q) => Math.abs(V[q].aspetto - V[k].aspetto) / V[q].aspetto < 0.14);
+    if (k !== 'sopra' || (altri.length && ok)) simili.push(k);
+  }
+  simili.sort((a, b) => V[b].dettaglio - V[a].dettaglio);
+  // davanti/dietro si decidono solo confrontando almeno DUE foto simili; se no ognuna resta dov'è
+  if (simili.length >= 2) { nuovo.fronte = simili[0]; nuovo.dietro = simili[1]; }
+  else for (const k of rif) if (k !== 'sopra' || !V.sopra || simili.includes('sopra')) nuovo[k] = k;
+  if (lato) nuovo.lato = lato;
+  const usate = new Set(Object.values(nuovo));
+  const resto = chiavi.filter((k) => !usate.has(k));
+  if (resto.length && !nuovo.sopra) { const s = resto.find((k) => k === 'sopra') || resto[0]; if (!nuovo[s] || s === 'sopra') nuovo.sopra = s; }
+  // solo i cambi veri
+  const cambi = {};
+  for (const [dest, orig] of Object.entries(nuovo)) if (dest !== orig) cambi[dest] = orig;
+  return Object.keys(cambi).length ? { mappa: nuovo, cambi } : null;
+}
+
+/** Il davanti nella foto di lato: dalla parte dove c'è la sporgenza (maniglia, cestello). */
+function orientaLato(S) {
+  const sx = [], dx = [];
+  for (let v = 0.04; v <= 0.96; v += 0.02) {
+    let l = -1, r = -1;
+    for (let u = 0; u <= 1; u += 0.005) if (S.alfa(u, v) > 0.5) { if (l < 0) l = u; r = u; }
+    if (l >= 0) { sx.push(l); dx.push(1 - r); }
+  }
+  const med = (a) => [...a].sort((p, q) => p - q)[a.length >> 1] || 0;
+  const mS = med(sx), mD = med(dx);
+  const spS = sx.filter((x) => x < mS - 0.03).length, spD = dx.filter((x) => x < mD - 0.03).length;
+  S.flipU = spD > spS;                                     // sporgenza a destra → il davanti è a destra
+  // fascia della sporgenza davanti (righe dove il davanti esce oltre il corpo)
+  const fronte = S.flipU ? dx : sx, mF = S.flipU ? mD : mS;
+  const righe = [];
+  let i = 0; for (let v = 0.04; v <= 0.96; v += 0.02) { if (i < fronte.length && fronte[i] < mF - 0.03) righe.push(v); i++; }
+  return { corpo: mF, righe };                             // corpo: dove inizia il corpo (0 = punta davanti)
+}
+
+/** Larghezza della sporgenza davanti (es. maniglia) letta nella foto davanti, alle sue altezze. */
+function larghezzaSporgenza(F, righe) {
+  if (!righe.length) return null;
+  const v0 = Math.min(...righe), v1 = Math.max(...righe);
+  // colore del corpo: righe appena sopra la sporgenza
+  const ref = [];
+  for (let v = Math.max(0, v0 - 0.12); v < v0 - 0.02; v += 0.01) for (let u = 0.1; u <= 0.9; u += 0.02) { const c = F.col(u, v); if (c) ref.push(c); }
+  if (!ref.length) return null;
+  const mc = [0, 1, 2].map((q) => ref.map((c) => c[q]).sort((a, b) => a - b)[ref.length >> 1]);
+  const N = 100, diff = new Array(N).fill(0);
+  for (let i = 0; i < N; i++) {
+    const u = (i + 0.5) / N; let s = 0, n = 0;
+    for (let v = v0; v <= v1; v += 0.01) { const c = F.col(u, v); if (!c) continue; s += Math.hypot(c[0] - mc[0], c[1] - mc[1], c[2] - mc[2]); n++; }
+    diff[i] = n ? s / n : 0;
+  }
+  // colonne "diverse dal corpo" (bordi della maniglia + sua faccia) → tratto attorno al centro
+  const soglia = Math.max(12, [...diff].sort((a, b) => a - b)[Math.floor(N * 0.3)] * 1.8);
+  const on = diff.map((x) => x > soglia);
+  let best = null;
+  for (let i = 0; i < N;) {
+    if (!on[i]) { i++; continue; }
+    let j = i; while (j + 1 < N && (on[j + 1] || (j + 2 < N && on[j + 2]))) j++;
+    const cen = (i + j) / 2 / N, larg = (j - i + 1) / N;
+    const punti = larg - Math.abs(cen - 0.5);
+    if (!best || punti > best.punti) best = { a: i / N, b: (j + 1) / N, punti, larg };
+    i = j + 1;
+  }
+  if (!best || best.larg < 0.08 || best.larg > 0.85) return { a: 0.3, b: 0.7 };   // non chiara: centrata, 40%
+  return { a: best.a, b: best.b };
+}
+
+/** Texture ad alta risoluzione della foto isolata, col colore che "trabocca" oltre il bordo (niente aloni). */
+function texturaVista(src) {
+  const w0 = src.naturalWidth || src.width, h0 = src.naturalHeight || src.height;
+  const k = Math.min(1, 1024 / Math.max(w0, h0));
+  const w = Math.max(2, Math.round(w0 * k)), h = Math.max(2, Math.round(h0 * k));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(src, 0, 0, w, h);
+  const im = g.getImageData(0, 0, w, h), d = im.data;
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  const pieno = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x;
+    if (d[i * 4 + 3] > 128) { pieno[i] = 1; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  }
+  for (let pass = 0; pass < 10; pass++) {
+    const nuovi = [];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x; if (pieno[i]) continue;
+      let r = 0, gg = 0, b = 0, n = 0;
+      for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1]) {
+        if (j < 0 || !pieno[j]) continue; r += d[j * 4]; gg += d[j * 4 + 1]; b += d[j * 4 + 2]; n++;
+      }
+      if (n) nuovi.push([i, r / n, gg / n, b / n]);
+    }
+    if (!nuovi.length) break;
+    for (const [i, r, gg, b] of nuovi) { d[i * 4] = r; d[i * 4 + 1] = gg; d[i * 4 + 2] = b; pieno[i] = 1; }
+  }
+  for (let i = 3; i < d.length; i += 4) d[i] = 255;
+  g.putImageData(im, 0, 0);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  return { tex, bx0: x0 / w, by0: y0 / h, bw: (x1 - x0 + 1) / w, bh: (y1 - y0 + 1) / h };
+}
+const hex = (rgb) => (Math.round(rgb[0]) << 16) | (Math.round(rgb[1]) << 8) | Math.round(rgb[2]);
+
+/**
+ * Geometria 3D dell'oggetto + materiali con le foto. foto: { fronte (obbligatoria),
+ * lato, sopra, dietro } (immagini isolate); W, D, H in mm; pianta: 'squadrata' |
+ * 'tonda' | 'ovale' (solo senza la foto da sopra). Ritorna { geo, mats, colore } o null.
  */
 export function geometriaOggetto(foto, W, D, H, pianta = 'squadrata') {
   const F = vista(foto.fronte); if (!F) return null;
-  const S = vista(foto.lato), T = vista(foto.sopra), B = vista(foto.dietro);
+  const S = vista(foto.lato), T = vista(foto.sopra), B = foto.dietro ? true : false;
   W = Math.max(10, W); D = Math.max(10, D); H = Math.max(10, H);
-  const passo = Math.max(W, D, H) / 96;
+  // lato: dov'è il davanti, dove sporge; davanti: quanto è larga la sporgenza
+  let corpoZ = 0, sporg = null;
+  if (S) {
+    const o = orientaLato(S);
+    corpoZ = o.righe.length ? o.corpo : 0;                 // 0..1 dalla punta: profondità della sporgenza
+    if (!T && o.righe.length) sporg = larghezzaSporgenza(F, o.righe);
+  }
+  const passo = Math.max(W, D, H) / 112;
   const NX = Math.max(16, Math.round(W / passo)), NY = Math.max(16, Math.round(H / passo)), NZ = Math.max(16, Math.round(D / passo));
   const GX = NX + 2, GY = NY + 2, GZ = NZ + 2;
   const id = (i, j, k) => (k * GY + j) * GX + i;
   const occ = new Float32Array(GX * GY * GZ);
   const tonda = !T && (pianta === 'tonda' || pianta === 'ovale');
+  const zCorpo = 1 - corpoZ;                               // wz oltre cui c'è solo la sporgenza
   for (let k = 1; k <= NZ; k++) for (let j = 1; j <= NY; j++) for (let i = 1; i <= NX; i++) {
     const u = (i - 0.5) / NX, vy = 1 - (j - 0.5) / NY, wz = (k - 0.5) / NZ;          // wz: 0 = dietro, 1 = davanti
     let o = F.alfa(u, vy);
-    if (o > 0 && S) o = Math.min(o, S.alfa(1 - wz, vy));                           // lato: a sinistra il davanti
+    if (o > 0 && S) o = Math.min(o, S.alfa(1 - wz, vy));                           // lato: u = 0 il davanti
     if (o > 0 && T) o = Math.min(o, T.alfa(u, wz));                                // sopra: in basso il davanti
-    if (o > 0 && tonda) {
-      const ex = (u - 0.5) * 2, ez = (wz - 0.5) * 2, r = Math.sqrt(ex * ex + ez * ez);
+    if (o > 0 && !T && wz > zCorpo + 0.5 / NZ && sporg) o = (u >= sporg.a && u <= sporg.b) ? o : 0;   // la sporgenza solo dov'è davvero
+    if (o > 0 && tonda && wz <= zCorpo) {
+      const ex = (u - 0.5) * 2, ez = (wz / Math.max(0.05, zCorpo) - 0.5) * 2, r = Math.sqrt(ex * ex + ez * ez);
       o = Math.min(o, Math.max(0, Math.min(1, 0.5 + (1 - r) * Math.min(NX, NZ) / 2)));
     }
     occ[id(i, j, k)] = o;
   }
-  // ammorbidisco (3×3×3)
-  const f = new Float32Array(occ.length);
+  const f = new Float32Array(occ.length);                  // ammorbidisco appena (spigoli puliti)
   for (let k = 1; k < GZ - 1; k++) for (let j = 1; j < GY - 1; j++) for (let i = 1; i < GX - 1; i++) {
-    let s = 0; for (let c = -1; c <= 1; c++) for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) s += occ[id(i + a, j + b, k + c)];
-    f[id(i, j, k)] = s / 27;
+    let s = occ[id(i, j, k)] * 8, n = 8;
+    for (const [a, b, c] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) { s += occ[id(i + a, j + b, k + c)]; n++; }
+    f[id(i, j, k)] = s / n;
   }
   const pos = (i, j, k) => [(i - 0.5) / NX * W - W / 2, (j - 0.5) / NY * H, (k - 0.5) / NZ * D - D / 2];
-  // MARCHING CUBES con vertici condivisi
+  // MARCHING CUBES
   const vert = [], ind = [], cache = new Map();
   const ang = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]];
   const spig = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]];
@@ -122,8 +269,7 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'squadrata') {
     for (let q = 0; triTable[ci * 16 + q] !== -1; q += 3) ind.push(vSp[triTable[ci * 16 + q]], vSp[triTable[ci * 16 + q + 1]], vSp[triTable[ci * 16 + q + 2]]);
   }
   if (!ind.length) return null;
-  // LEVIGATURA (Taubin)
-  {
+  {                                                        // LEVIGATURA (Taubin)
     const nV = vert.length / 3, vic = Array.from({ length: nV }, () => new Set());
     for (let q = 0; q < ind.length; q += 3) { const [a, b, c] = [ind[q], ind[q + 1], ind[q + 2]]; vic[a].add(b).add(c); vic[b].add(a).add(c); vic[c].add(a).add(b); }
     const passoT = (fatt) => {
@@ -134,39 +280,60 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'squadrata') {
       }
       for (let i = 0; i < vert.length; i++) vert[i] = nuovo[i];
     };
-    for (let it = 0; it < 6; it++) { passoT(0.5); passoT(-0.53); }
+    for (let it = 0; it < 4; it++) { passoT(0.5); passoT(-0.53); }
   }
+  const gi = new THREE.BufferGeometry();
+  gi.setAttribute('position', new THREE.Float32BufferAttribute(vert, 3));
+  gi.setIndex(ind);
+  gi.computeVertexNormals();
+  const N0 = gi.attributes.normal, P0 = gi.attributes.position;
+  let segno = 0; for (let v = 0; v < P0.count; v += 7) segno += N0.getX(v) * P0.getX(v) + N0.getY(v) * (P0.getY(v) - H / 2) + N0.getZ(v) * P0.getZ(v);
+  if (segno < 0) { for (let q = 0; q < ind.length; q += 3) { const t = ind[q + 1]; ind[q + 1] = ind[q + 2]; ind[q + 2] = t; } gi.setIndex(ind); gi.computeVertexNormals(); }
+  // MATERIALI: le foto (alta risoluzione) e colori pieni dove manca la foto
+  const tF = texturaVista(foto.fronte);
+  const tB = B ? texturaVista(foto.dietro) : null;
+  const tS = S ? texturaVista(foto.lato) : null;
+  const tT = T ? texturaVista(foto.sopra) : null;
+  const mat = (t, col) => (t ? new THREE.MeshStandardMaterial({ map: t.tex, roughness: 0.55, metalness: 0.08, envMapIntensity: 0.5 })
+    : new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(...col.map((x) => Math.pow(x / 255, 2.2))), roughness: 0.55, metalness: 0.08, envMapIntensity: 0.5 }));
+  // colore della cima senza foto da sopra: le righe in alto della foto davanti
+  const cimaCol = (() => { const l = []; for (let u = 0.15; u <= 0.85; u += 0.05) for (let v = 0.005; v < 0.05; v += 0.01) { const c = F.col(u, v); if (c) l.push(c); } return l.length ? [0, 1, 2].map((q) => l.map((c) => c[q]).sort((a, b) => a - b)[l.length >> 1]) : F.media; })();
+  const corpoCol = S ? S.media : F.media;
+  const mats = [mat(tF, F.media), mat(tB, corpoCol), mat(tS, corpoCol), mat(tT, cimaCol), mat(null, F.media.map((x) => x * 0.55))];
+  // UV per ogni faccia, dalla foto che la guarda (0 davanti, 1 dietro, 2 lati, 3 sopra, 4 sotto)
+  const uvDa = (t, u, v) => (t ? [t.bx0 + Math.min(1, Math.max(0, u)) * t.bw, 1 - (t.by0 + Math.min(1, Math.max(0, v)) * t.bh)] : [0, 0]);
+  const gruppi = [[], [], [], [], []];
+  for (let q = 0; q < ind.length; q += 3) {
+    let nx = 0, ny = 0, nz = 0;
+    for (let r = 0; r < 3; r++) { nx += N0.getX(ind[q + r]); ny += N0.getY(ind[q + r]); nz += N0.getZ(ind[q + r]); }
+    const ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
+    const vista3 = az >= ax && az >= ay * 0.9 ? (nz > 0 ? 0 : 1) : ax >= ay ? 2 : (ny > 0 ? 3 : 4);
+    gruppi[vista3].push(q);
+  }
+  const posA = [], nrmA = [], uvA = [];
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(vert, 3));
-  geo.setIndex(ind);
-  geo.computeVertexNormals();
-  const nrm = geo.attributes.normal, P = geo.attributes.position;
-  let segno = 0; for (let v = 0; v < P.count; v += 7) segno += nrm.getX(v) * P.getX(v) + nrm.getY(v) * (P.getY(v) - H / 2) + nrm.getZ(v) * P.getZ(v);
-  if (segno < 0) { for (let q = 0; q < ind.length; q += 3) { const t = ind[q + 1]; ind[q + 1] = ind[q + 2]; ind[q + 2] = t; } geo.setIndex(ind); geo.computeVertexNormals(); }
-  // COLORI VERI: ogni faccia prende la foto che la guarda
-  const lin = (c) => Math.pow(c / 255, 2.2);
-  const cols = new Float32Array(P.count * 3);
-  for (let v = 0; v < P.count; v++) {
-    const x = P.getX(v), y = P.getY(v), z = P.getZ(v);
-    const nx = nrm.getX(v), ny = nrm.getY(v), nz = nrm.getZ(v);
-    const u = (x + W / 2) / W, vy = 1 - y / H, wz = (z + D / 2) / D;
-    const cand = [];
-    if (nz > -0.2) { const c = F.col(u, vy); if (c) cand.push([c, Math.max(0.05, nz) + 0.1]); }
-    if (nz < 0) { const c = B ? B.col(1 - u, vy) : F.col(u, vy); if (c) cand.push([c, -nz]); }
-    if (S && Math.abs(nx) > 0.2) { const c = S.col(1 - wz, vy); if (c) cand.push([c, Math.abs(nx)]); }
-    if (T && ny > 0.2) { const c = T.col(u, wz); if (c) cand.push([c, ny]); }
-    let r = 0, g = 0, b = 0, sw = 0;
-    for (const [c, wgt] of cand) { r += c[0] * wgt; g += c[1] * wgt; b += c[2] * wgt; sw += wgt; }
-    const m = sw ? [r / sw, g / sw, b / sw] : F.media;
-    cols[v * 3] = lin(m[0]); cols[v * 3 + 1] = lin(m[1]); cols[v * 3 + 2] = lin(m[2]);
-  }
-  geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
-  const med = F.media;
-  return { geo, W, D, H, colore: (Math.round(med[0]) << 16) | (Math.round(med[1]) << 8) | Math.round(med[2]) };
-}
-
-export function materialeOggetto() {
-  return new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.12, envMapIntensity: 0.7 });
+  let inizio = 0;
+  gruppi.forEach((lista, m) => {
+    for (const q of lista) for (let r = 0; r < 3; r++) {
+      const vi = ind[q + r], x = P0.getX(vi), y = P0.getY(vi), z = P0.getZ(vi);
+      posA.push(x, y, z); nrmA.push(N0.getX(vi), N0.getY(vi), N0.getZ(vi));
+      const u = (x + W / 2) / W, vy = 1 - y / H, wz = (z + D / 2) / D;
+      let uv;
+      if (m === 0) uv = uvDa(tF, u, vy);
+      else if (m === 1) uv = uvDa(tB, 1 - u, vy);                              // dietro: vista da dietro (specchiata)
+      else if (m === 2) uv = uvDa(tS, S && S.flipU ? wz : 1 - wz, vy);          // i due lati: la stessa foto, specchiata
+      else if (m === 3) uv = uvDa(tT, u, wz);
+      else uv = [0, 0];
+      uvA.push(uv[0], uv[1]);
+    }
+    if (lista.length) geo.addGroup(inizio, lista.length * 3, m);
+    inizio += lista.length * 3;
+  });
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrmA, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvA, 2));
+  gi.dispose();
+  return { geo, mats, W, D, H, colore: hex(F.media) };
 }
 
 // ------------------------------------------------------------------ in cucina
@@ -189,7 +356,7 @@ export function oggettoDaFoto(def, quandoPronto) {
     .then(([fronte, lato, sopra, dietro]) => {
       const r = geometriaOggetto({ fronte, lato, sopra, dietro }, mi.w, mi.d, mi.h, def.pianta);
       if (!r) { _cache.set(chiave, 'errore'); return; }
-      _cache.set(chiave, { geo: r.geo, mat: materialeOggetto() });
+      _cache.set(chiave, { geo: r.geo, mat: r.mats });
       if (quandoPronto) quandoPronto();
     })
     .catch(() => _cache.set(chiave, 'errore'));
@@ -202,25 +369,24 @@ export async function anteprimaOggetto(box, foto, W, D, H, pianta) {
   box.innerHTML = '';
   const res = geometriaOggetto(foto, W, D, H, pianta);
   if (!res) { box.innerHTML = '<div class="imp-aiuto">Non riesco a costruire il 3D: controlla la foto davanti.</div>'; return () => {}; }
-  const LW = Math.min(box.clientWidth || 320, 420), LH = 260;
+  const LW = Math.min(box.clientWidth || 320, 520), LH = Math.round(LW * 0.75);
   const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
   r.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); r.setSize(LW, LH);
   r.outputColorSpace = THREE.SRGBColorSpace;
   box.appendChild(r.domElement);
   const sc = new THREE.Scene(); sc.background = new THREE.Color(0xeae7e1);
-  sc.add(new THREE.HemisphereLight(0xffffff, 0x8a8478, 1.5));
-  const dl = new THREE.DirectionalLight(0xffffff, 1.7); dl.position.set(1, 2, 3); sc.add(dl);
-  const dl2 = new THREE.DirectionalLight(0xffffff, 0.5); dl2.position.set(-2, 1, -1); sc.add(dl2);
+  sc.add(new THREE.HemisphereLight(0xffffff, 0xb8b2a6, 1.9));
+  const dl = new THREE.DirectionalLight(0xffffff, 1.1); dl.position.set(1, 2, 3); sc.add(dl);
   const pm = new THREE.PMREMGenerator(r);
   const env = new THREE.Scene(); env.background = new THREE.Color(0xd8d4cc);
   sc.environment = pm.fromScene(env, 0.04).texture;
-  sc.add(new THREE.Mesh(res.geo, materialeOggetto()));
-  const piano = new THREE.Mesh(new THREE.BoxGeometry(W * 1.6 + 200, 20, D * 1.6 + 200), new THREE.MeshStandardMaterial({ color: 0x3b3833, roughness: 0.6 }));
+  sc.add(new THREE.Mesh(res.geo, res.mats));
+  const piano = new THREE.Mesh(new THREE.BoxGeometry(W * 1.6 + 200, 20, D * 1.6 + 200), new THREE.MeshStandardMaterial({ color: 0xcfc9bd, roughness: 0.7 }));
   piano.position.y = -10; sc.add(piano);
   const cam = new THREE.PerspectiveCamera(30, LW / LH, 1, 20000);
-  const R = Math.max(W, D, H) * 2.9;
-  cam.position.set(R * 0.5, H * 0.5 + R * 0.3, R * 0.8);
-  const ctr = new OrbitControls(cam, r.domElement); ctr.target.set(0, H / 2, 0); ctr.enablePan = false; ctr.autoRotate = true; ctr.autoRotateSpeed = 2.2;
+  const R = Math.max(W, D, H) * 2.7;
+  cam.position.set(R * 0.45, H * 0.5 + R * 0.22, R * 0.85);
+  const ctr = new OrbitControls(cam, r.domElement); ctr.target.set(0, H / 2, 0); ctr.enablePan = false; ctr.autoRotate = true; ctr.autoRotateSpeed = 2;
   let vivo = true;
   const giro = () => { if (!vivo) return; ctr.update(); r.render(sc, cam); requestAnimationFrame(giro); };
   giro();

@@ -102,3 +102,14 @@
 .imp-misure3 input { width: 100%; box-sizing: border-box; }
 .imp-pianta { display: flex; gap: 6px; flex-wrap: wrap; }
 .imp-pianta .attivo { border-color: var(--oro, #c9a94a); color: var(--oro-chiaro, #e8c25a); }
+
+.imp-tutte { display: block; text-align: center; padding: 12px; border: 1px dashed var(--oro-scuro, #8a6a14); border-radius: 8px; cursor: pointer; color: var(--oro-chiaro, #e8c25a); margin: 8px 0; }
+.imp-tutte input { display: none; }
+.imp-vista-tit { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
+.imp-vista-tit small { color: var(--testo-dim, #a99f8c); font-size: 11px; }
+.imp-vista-ico svg { width: 40px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.6; color: var(--oro-chiaro, #e8c25a); }
+.imp-vista-file { font-size: 12px; }
+.imp-vista-file input { max-width: 100%; }
+.imp-vista-azioni { display: flex; flex-direction: column; gap: 6px; }
+.imp-vista-ruolo { font-size: 12px; display: flex; flex-direction: column; gap: 3px; }
+.imp-vista-ruolo select { padding: 6px; border-radius: 6px; }
