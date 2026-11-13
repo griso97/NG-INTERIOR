@@ -597,7 +597,7 @@
 
 /* Mobili di un altro livello: bloccati (non toccabili, attenuati) */
 .sv-mob-g.bloccato { opacity: 0.4; }
-.sv-mob-g.bloccato .sv-mob-hit { pointer-events: none; }
+.sv-mob-g.bloccato, .sv-mob-g.bloccato * { pointer-events: none; }   /* l'altro livello non ruba il tocco */
 
 /* ===== Chip scorciatoie sotto un input numerico (costado) ===== */
 .modale-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
@@ -705,3 +705,7 @@
   background: rgba(13,10,6,0.9); color: #fff; font-size: 13px; border: 1px solid var(--oro-chiaro, #e6c46a); }
 .ml-info[hidden] { display: none; }
 #pianta-svg { touch-action: none; }
+
+/* lato delle ante (davanti) in pianta: colore diverso dalla struttura oro */
+.sv-mob-fronte { fill: #29c4f6; stroke: #0b6f93; stroke-width: 6; pointer-events: none; }
+.sv-mob-pensile ~ .sv-mob-fronte, .sv-mob-g .sv-mob-pensile + .sv-mob-fronte { fill: #ff8a3d; stroke: #a8501a; }

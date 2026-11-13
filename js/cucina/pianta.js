@@ -11,7 +11,7 @@ import {
   moduliDiParete, nomeTipo, PROFONDITA_BASE, PROFONDITA_PENSILE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
   dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili, angoloInternoVertice,
-} from './modello.js?v=20261114c';
+} from './modello.js?v=20261114e';
 
 const NS = 'http://www.w3.org/2000/svg';
 const el = (tag, attrs = {}) => {
@@ -209,6 +209,8 @@ export function renderPianta(svg, progetto, opts = {}) {
     // Mobili liberi: sopra a muri e quote, così restano sempre toccabili
     const gMob = el('g', { class: 'sv-mobili-liberi' });
     (progetto.mobiliLiberi || []).forEach((m) => {
+      // stampa: solo i livelli scelti (es. solo bassi), gli altri non si disegnano
+      if (opts.livelliVisibili && !opts.livelliVisibili.includes(livelloDiMobile(m))) return;
       const bloccato = livelloAttivo !== null && livelloDiMobile(m) !== livelloAttivo;
       gMob.appendChild(renderMobileLibero(m, m.id === mobSelId, interattivo && !bloccato, bloccato));
     });
@@ -377,11 +379,12 @@ function renderMobileLibero(m, selezionato, interattivo, bloccato = false) {
     class: 'sv-mob-g' + (interattivo ? ' interattivo' : '') + (bloccato ? ' bloccato' : ''),
     'data-mob-id': m.id,
   });
-  // Area di tocco invisibile e ingrandita: i mobili piccoli (regletta) o
-  // sottili restano facili da selezionare e trascinare col dito.
-  const [hcx, hcy] = versoSvg(0, 0);
-  g.appendChild(el('circle', {
-    cx: hcx, cy: hcy, r: Math.max(hw, hd, 90) + 70,
+  // Area di tocco invisibile: TUTTO il mobile (anche la parte dietro) più un
+  // margine; i mobili piccoli (regletta) o sottili restano facili da prendere.
+  const mh = Math.max(40, 120 - Math.min(hw, hd));
+  const hitL = [[-hw - mh, -hd - mh], [hw + mh, -hd - mh], [hw + mh, hd + mh], [-hw - mh, hd + mh]].map(([x, y]) => versoSvg(x, y));
+  g.appendChild(el('polygon', {
+    points: hitL.map((p) => p.join(',')).join(' '),
     class: 'sv-mob-hit', 'data-mob-id': m.id,
   }));
   // Pensile angolo a L: contorno a 6 vertici (incavo fronte-destra), coerente
@@ -405,6 +408,13 @@ function renderMobileLibero(m, selezionato, interattivo, bloccato = false) {
     points: corners.map((p) => p.join(',')).join(' '),
     class: 'sv-mod sv-mob' + tipoCls + (selezionato ? ' sel' : ''),
   }));
+  // LATO DELLE ANTE (davanti) in un altro colore: si vede subito da che
+  // parte aprono, senza andare nel rendering
+  if (!['costado', 'regletta', 'pannello', 'oggetto'].includes(categoria) && m.tipo !== 'pensile-angolo') {
+    const F = Math.min(90, Math.max(40, hd * 0.22));
+    const fr = [[-hw, -hd], [hw, -hd], [hw, -hd + F], [-hw, -hd + F]].map(([x, y]) => versoSvg(x, y));
+    g.appendChild(el('polygon', { points: fr.map((p) => p.join(',')).join(' '), class: 'sv-mob-fronte' }));
+  }
   if (m.tipo === 'base-ante' || m.tipo === 'pensile') {
     const [x1, y1] = versoSvg(0, -hd + 20);
     const [x2, y2] = versoSvg(0, hd - 20);
@@ -418,13 +428,18 @@ function renderMobileLibero(m, selezionato, interattivo, bloccato = false) {
   const fs = Math.max(34, Math.min(80, m.larghezza_mm / (nome.length * 0.55)));
   const txt = el('text', {
     x: cx, y: cy, class: 'sv-mod-label',
-    transform: m.rot ? `rotate(${-m.rot} ${cx} ${cy})` : null,
+    // scritta sempre leggibile (mai capovolta): giro di 180° in più se serve
+    transform: (() => { const r = ((m.rot || 0) % 360 + 360) % 360; const a = r > 90 && r <= 270 ? -r + 180 : -r; return a ? `rotate(${a} ${cx} ${cy})` : null; })(),
   });
   txt.style.fontSize = `${fs}px`;
   const r1 = el('tspan', { x: cx, dy: -fs * 0.6 });
   r1.textContent = nome;
-  const r2 = el('tspan', { x: cx, dy: fs * 1.2, class: 'sv-mod-label-mis' });
-  r2.textContent = descrizioneMobile(m);
+  // seconda riga (misure): rimpicciolita per stare dentro la larghezza del mobile
+  const desc = descrizioneMobile(m);
+  const fs2 = Math.max(18, Math.min(fs * 0.85, (m.larghezza_mm || 600) * 0.92 / (desc.length * 0.56)));
+  const r2 = el('tspan', { x: cx, dy: fs * 0.6 + fs2 * 0.9, class: 'sv-mod-label-mis' });
+  r2.style.fontSize = `${fs2}px`;
+  r2.textContent = desc;
   txt.append(r1, r2);
   g.appendChild(txt);
   return g;

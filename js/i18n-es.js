@@ -1078,5 +1078,16 @@ window.NG_I18N_ES = {
  "scrivi la misura e Invio": "escribe la medida e Intro",
  "Angolo": "Ángulo",
  "Invio": "Intro",
- "Tocca un vertice o una parete": "Toca un vértice o una pared"
+ "Tocca un vertice o una parete": "Toca un vértice o una pared",
+ "🖨 Stampa": "🖨 Imprimir",
+ "Stampa": "Imprimir",
+ "Cosa stampare": "Qué imprimir",
+ "Mobili bassi": "Muebles bajos",
+ "Mobili alti": "Muebles altos",
+ "Consiglio: stampa bassi e alti separati, così le misure non si sovrappongono.": "Consejo: imprime bajos y altos por separado, así las medidas no se superponen.",
+ "Mobili bassi e alti": "Muebles bajos y altos",
+ "misure in mm": "medidas en mm",
+ "Il browser ha bloccato la finestra di stampa: consenti i popup per questo sito.": "El navegador ha bloqueado la ventana de impresión: permite las ventanas emergentes para este sitio.",
+ "🔥 Piano cottura": "🔥 Placa de cocción",
+ "🚰 Lavello": "🚰 Fregadero"
 };

@@ -22,12 +22,12 @@ import {
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
-} from './modello.js?v=20261114c';
-import { renderPianta } from './pianta.js?v=20261114c';
-import { calcolaDistintaCucina } from './distinta.js?v=20261114c';
+} from './modello.js?v=20261114e';
+import { renderPianta } from './pianta.js?v=20261114e';
+import { calcolaDistintaCucina } from './distinta.js?v=20261114e';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261114c';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114c';
+import { agganciaTema } from '../tema.js?v=20261114e';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114e';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -754,6 +754,13 @@ function attaccaEventiStep2() {
 
   const mobSel = trovaMobileLibero(progetto, step2.mobSelId);
   if (mobSel) {
+    // piano cottura / lavello anche sulla cassettiera (non solo sulla base con ante)
+    document.getElementById('mob-placca')?.addEventListener('click', () => {
+      registraStoria(); mobSel.placca = !mobSel.placca; if (mobSel.placca) mobSel.lavello = false; aggiorna();
+    });
+    document.getElementById('mob-lavello')?.addEventListener('click', () => {
+      registraStoria(); mobSel.lavello = !mobSel.lavello; if (mobSel.lavello) mobSel.placca = false; aggiorna();
+    });
     document.getElementById('mob-ruota').addEventListener('click', () => {
       registraStoria();
       ruotaMobileLibero(progetto, mobSel.id);
@@ -1482,7 +1489,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114c');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114e');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1525,6 +1532,7 @@ function aggiorna() {
   disegna();
   aggiornaVista();
   aggiornaBottoniStoria();
+  if (typeof aggiornaBtnStampa === 'function') aggiornaBtnStampa();
   salvaProgetto(progetto);
 }
 function aggiornaSoloDisegno() {
@@ -1597,6 +1605,11 @@ function blocMobileSelezionato() {
         <button id="mob-misura" class="btn-ghost" type="button">Cambia misura</button>
         <button id="mob-elimina" class="btn-ghost" type="button">Elimina</button>
       </div>
+      ${(m.tipo === 'base-ante' || m.tipo === 'base-cassetti') ? `
+      <div class="mob-azioni-grid" style="margin-top:8px">
+        <button id="mob-placca" class="btn-ghost ${m.placca ? 'attivo' : ''}" type="button">${m.placca ? '✓ ' : ''}🔥 Piano cottura</button>
+        <button id="mob-lavello" class="btn-ghost ${m.lavello ? 'attivo' : ''}" type="button">${m.lavello ? '✓ ' : ''}🚰 Lavello</button>
+      </div>` : ''}
       <div class="nudge">
         <label class="nudge-cm">Sposta di <input id="nudge-cm" type="number" value="${step2.nudgeCm ?? 1}" min="0.1" step="0.5" inputmode="decimal"> cm</label>
         <div class="nudge-grid">
@@ -1976,6 +1989,88 @@ const fineTrascinamento = () => {
 };
 svg.addEventListener('pointerup', fineTrascinamento);
 svg.addEventListener('pointercancel', fineTrascinamento);
+
+// --------- STAMPA DI OGNI PASSO (pianta / mobili bassi / mobili alti) ---------
+// Stampa SOLO la pianta (con misure), su fondo bianco, con intestazione. Ai
+// passi dei mobili si sceglie cosa stampare: bassi, alti o tutti e due (così
+// le misure non si sovrappongono).
+const btnStampa = document.getElementById('btn-stampa');
+function aggiornaBtnStampa() { if (btnStampa) btnStampa.hidden = progetto.stepCorrente === 4; }
+btnStampa?.addEventListener('click', () => {
+  const st = progetto.stepCorrente;
+  if (st === 1) { stampaPianta([], 'Pianta'); return; }
+  const tr2 = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
+  const ciSono = (liv) => (progetto.mobiliLiberi || []).some((m) => livelloDiMobile(m) === liv);
+  const box = document.createElement('div');
+  box.className = 'modale-fondo'; box.id = 'stampa-modale';
+  box.innerHTML = `
+    <div class="modale" role="dialog" aria-modal="true" style="max-width:380px">
+      <h3>${tr2('Cosa stampare')}</h3>
+      <label class="imp-vis"><input type="checkbox" id="st-bassi" ${st === 2 ? 'checked' : ''} ${ciSono('basso') ? '' : 'disabled'}> ${tr2('Mobili bassi')}</label>
+      <label class="imp-vis"><input type="checkbox" id="st-alti" ${st === 3 ? 'checked' : ''} ${ciSono('alto') ? '' : 'disabled'}> ${tr2('Mobili alti')}</label>
+      <div class="riga-3d" style="margin:8px 0">${tr2('Consiglio: stampa bassi e alti separati, così le misure non si sovrappongono.')}</div>
+      <div class="orienta-row">
+        <button type="button" id="st-ok" class="btn-oro" style="flex:1">🖨 ${tr2('Stampa')}</button>
+        <button type="button" id="st-no" class="btn-ghost">${tr2('Annulla')}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(box);
+  const chiudi = () => box.remove();
+  box.addEventListener('click', (e) => { if (e.target === box) chiudi(); });
+  box.querySelector('#st-no').addEventListener('click', chiudi);
+  box.querySelector('#st-ok').addEventListener('click', () => {
+    const liv = [];
+    if (box.querySelector('#st-bassi').checked) liv.push('basso');
+    if (box.querySelector('#st-alti').checked) liv.push('alto');
+    chiudi();
+    stampaPianta(liv, liv.length === 2 ? 'Mobili bassi e alti' : liv[0] === 'alto' ? 'Mobili alti' : liv[0] === 'basso' ? 'Mobili bassi' : 'Pianta');
+  });
+});
+async function stampaPianta(livelli, titolo) {
+  const tr2 = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
+  const fin = window.open('', '_blank');               // aperta subito (i telefoni bloccano le finestre aperte dopo)
+  if (!fin) { alert(tr2('Il browser ha bloccato la finestra di stampa: consenti i popup per questo sito.')); return; }
+  // pianta disegnata a parte, in formato A4 orizzontale, solo con i livelli scelti
+  const off = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  off.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  off.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  off.style.cssText = 'position:fixed;left:-20000px;top:0;width:1400px;height:900px';
+  document.body.appendChild(off);
+  renderPianta(off, progetto, { interattivo: false, livelloAttivo: null, livelliVisibili: livelli });
+  await new Promise((r) => setTimeout(r, 120));        // tempo per tradurre le scritte (ES)
+  off.removeAttribute('style');                        // nella pagina di stampa deve stare in vista
+  const svgTxt = new XMLSerializer().serializeToString(off);
+  off.remove();
+  const base = location.href.replace(/[^/]*$/, '');
+  const ver = (document.querySelector('script[src*="cucina/main.js"]')?.src.match(/v=([\w]+)/) || [])[1] || '';
+  const d = new Date(), data = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  const nomeProg = progetto.nome || progetto.cliente || '';
+  fin.document.write(`<!doctype html><html lang="${document.documentElement.lang || 'it'}" data-theme="chiaro"><head><meta charset="utf-8">
+<title>${tr2(titolo)}</title><base href="${base}">
+<link rel="stylesheet" href="css/style.css?v=${ver}"><link rel="stylesheet" href="css/cucina.css?v=${ver}">
+<style>
+  @page { size: A4 landscape; margin: 10mm; }
+  html, body { background: #fff !important; color: #111; margin: 0; }
+  .st-testa { display: flex; justify-content: space-between; align-items: baseline; font-family: Inter, Arial, sans-serif; padding: 6px 4px 8px; border-bottom: 2px solid #b8963a; }
+  .st-testa h1 { font-size: 20px; margin: 0; letter-spacing: 1px; }
+  .st-testa div { font-size: 12px; color: #555; }
+  svg { width: 100%; height: calc(100vh - 60px); display: block; background: #fff !important; }
+  .sv-griglia, .sv-grid { opacity: .35; }
+  /* su carta bianca: scritte scure e bordi marcati */
+  .sv-mod-label, .sv-mod-label tspan, .sv-mod-label-mis { fill: #1a1a1a !important; }
+  .sv-quota, text.sv-quota { fill: #1a1a1a !important; }
+  .sv-mob, .sv-mod { stroke: #8a6a14 !important; fill: rgba(201,169,74,.12) !important; }
+  .sv-mob-pensile { stroke: #2b6f9e !important; fill: rgba(80,150,200,.10) !important; }
+  .sv-parete, .sv-parete-conf { stroke: #222 !important; }
+  .sv-mob-anta { stroke: #8a6a14 !important; }
+  @media print { svg { height: 175mm; } }
+</style></head><body>
+<div class="st-testa"><h1>NG INTERIOR · ${tr2(titolo)}</h1><div>${nomeProg ? nomeProg + ' · ' : ''}${data} · ${tr2('misure in mm')}</div></div>
+${svgTxt}
+<script>window.onload = () => setTimeout(() => { window.focus(); window.print(); }, 300);<\/script>
+</body></html>`);
+  fin.document.close();
+}
 
 // Tema chiaro/scuro
 agganciaTema();

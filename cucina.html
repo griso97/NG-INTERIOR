@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
   <!-- Tema chiaro/scuro: applicato subito per evitare lo "sfarfallio" -->
   <script>(function(){try{var t=localStorage.getItem('ng-tema')||'scuro';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
-  <script src="js/i18n.js?v=20261114c"></script>
+  <script src="js/i18n.js?v=20261114e"></script>
 
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/cucina.css" />
@@ -69,6 +69,7 @@
       <div class="vista-strumenti">
         <span class="legenda">Griglia 100 mm · tutte le misure in mm</span>
         <span class="storia-azioni">
+          <button id="btn-stampa" type="button" class="btn-storia" title="Stampa">🖨 Stampa</button>
           <button id="btn-annulla" type="button" class="btn-storia" title="Annulla" disabled>↶ Annulla</button>
           <button id="btn-rifai" type="button" class="btn-storia" title="Rifai" disabled>Rifai ↷</button>
         </span>
@@ -109,6 +110,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/cucina/main.js?v=20261114c"></script>
+  <script type="module" src="js/cucina/main.js?v=20261114e"></script>
 </body>
 </html>
