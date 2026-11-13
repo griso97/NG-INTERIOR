@@ -72,7 +72,7 @@ export async function salvaCatalogo(stato) { await put('stato', stato); avvisaCa
 
 export async function leggiFoto(id, tipo = 'foto') { try { return await get(`${tipo}:${id}`); } catch { return null; } }
 export async function salvaFoto(id, blob, tipo = 'foto') { await put(`${tipo}:${id}`, blob); }
-export async function eliminaFoto(id) { for (const t of ['foto', 'thumb', 'gola', 'lato', 'sopra']) await del(`${t}:${id}`); }
+export async function eliminaFoto(id) { for (const t of ['foto', 'thumb', 'gola', 'lato', 'sopra', 'orig']) await del(`${t}:${id}`); }
 
 /** Nascosto in quella sezione? */
 export function nascosto(stato, sezione, id) { return ((stato.nascosti || {})[sezione] || []).includes(id); }

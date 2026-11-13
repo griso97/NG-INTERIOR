@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261114o';
+import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261114p';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -165,6 +165,10 @@ async function applicaCatalogo() {
     }
     // Finger-pull da foto: la gola (maniglia sopra) ha la sua immagine
     if (gola) def.gola = { texture: URL.createObjectURL(gola), colore: p.coloreGola ?? 0x111111 };
+    // gola in TINTA UNITA (RAL scelto, o porta tutta uguale in tinta): colore pieno, nessuna foto
+    if (def.gola && (p.golaTinta || (p.uguale && p.tinta))) {
+      def.gola = { colore: p.golaTinta ? p.golaTinta.colore : p.tinta.colore, solido: true, ral: p.golaTinta ? p.golaTinta.ral : p.tinta.ral };
+    }
     // TINTA UNITA (RAL): colore pieno, niente foto ripetuta; lucido o opaco
     if (p.tinta && p.tinta.colore != null) {
       Object.assign(def, { solido: true, colore: p.tinta.colore, ral: p.tinta.ral, lucido: !!p.tinta.lucido,
@@ -437,6 +441,11 @@ const loader = new THREE.TextureLoader();
 const cacheTex = new Map();     // id → THREE.Texture
 const cacheMat = new Map();     // id → THREE.MeshStandardMaterial
 
+/** Materiale della gola finger-pull: tinta unita (RAL) o dalla foto. */
+function matGolaDa(def) {
+  if (def.gola.solido) return new THREE.MeshStandardMaterial({ color: def.gola.colore, roughness: def.lucido ? 0.15 : 0.75, metalness: 0, envMapIntensity: def.lucido ? 1.2 : 0.3 });
+  return new THREE.MeshStandardMaterial({ color: def.gola.colore, roughness: 0.7, metalness: 0.05, envMapIntensity: 0.3 });
+}
 export function getMaterialeTHREE(id, onPronto) {
   if (cacheMat.has(id)) return cacheMat.get(id);
   const def = trovaMateriale(id);
@@ -464,9 +473,9 @@ export function getMaterialeTHREE(id, onPronto) {
     }
     // finger-pull in tinta unita: la gola ha il suo materiale (es. nero)
     if (def.gola) {
-      const mg = new THREE.MeshStandardMaterial({ color: def.gola.colore, roughness: 0.7, metalness: 0.05, envMapIntensity: 0.3 });
+      const mg = matGolaDa(def);
       mat.userData.matGola = mg;
-      loader.load(def.gola.texture, (tex) => { tex.colorSpace = THREE.SRGBColorSpace; mg.map = tex; coloreFoto(mg); if (onPronto) onPronto(); });
+      if (!def.gola.solido) loader.load(def.gola.texture, (tex) => { tex.colorSpace = THREE.SRGBColorSpace; mg.map = tex; coloreFoto(mg); if (onPronto) onPronto(); });
     }
     cacheMat.set(id, mat);
     return mat;
@@ -493,9 +502,9 @@ export function getMaterialeTHREE(id, onPronto) {
   if (def.proprio && def.lucido) mat.userData.ngSpec = 1;   // foto lucida: riflessi veri nel 3D
   // Finger-pull da foto: materiale della GOLA (la parte sopra, es. nera)
   if (def.gola) {
-    const mg = new THREE.MeshStandardMaterial({ color: def.gola.colore, roughness: 0.7, metalness: 0.05, envMapIntensity: 0.3 });
+    const mg = matGolaDa(def);
     mat.userData.matGola = mg;
-    loader.load(def.gola.texture, (tex) => {
+    if (!def.gola.solido) loader.load(def.gola.texture, (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
       mg.map = tex; coloreFoto(mg); mg.needsUpdate = true;
       if (onPronto) onPronto();

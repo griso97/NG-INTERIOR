@@ -1113,5 +1113,14 @@ window.NG_I18N_ES = {
  "Colore della foto senza riflessi": "Color de la foto sin reflejos",
  "il RAL più vicino è il primo": "el RAL más cercano es el primero",
  "Opaco": "Mate",
- "Lucido": "Brillo"
+ "Lucido": "Brillo",
+  'Trascina i pallini sugli angoli della porta.': 'Arrastra los puntos a las esquinas de la puerta.',
+  'Foto salvata: puoi correggere la selezione con "Correggi a mano".': 'Foto guardada: puedes corregir la selección con "Corregir a mano".',
+  'Tipo di porta': 'Tipo de puerta',
+  'Porta e gola di colori diversi': 'Puerta y finger de colores distintos',
+  'Porta tutta uguale (gola dello stesso colore)': 'Puerta toda igual (finger del mismo color)',
+  'Tinta unita': 'Color liso',
+  'Tinta legno (usa la foto)': 'Color madera (usa la foto)',
+  'Gola (sempre tinta unita)': 'Finger (siempre color liso)',
+  'Colore della gola nella foto': 'Color del finger en la foto',
 };

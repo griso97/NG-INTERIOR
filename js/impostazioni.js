@@ -6,12 +6,12 @@
 // dati e aggiungerne di nuovi da una FOTO del campione con la sua misura reale.
 // =============================================================================
 import {
-  SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, eliminaFoto, impostaNascosto, nascosto,
+  SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261114o';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie } from './analisi-foto.js?v=20261114o';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261114o';
-import { agganciaTema } from './tema.js?v=20261114o';
+} from './catalogo.js?v=20261114p';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini } from './analisi-foto.js?v=20261114p';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261114p';
+import { agganciaTema } from './tema.js?v=20261114p';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -220,8 +220,20 @@ function apriScheda(m) {
       img = await caricaImmagine(file).catch(() => null);
       if (!img) { errore(tr('Non riesco ad aprire questa foto. Prova con un JPG o PNG.')); return; }
       corpo._fotoId = Date.now();                 // foto nuova: si riparte dalla proposta del sito
+      corpo._file = file;                         // la foto ORIGINALE si salva: si potrà sempre ricorreggere
       rit = await analisiAutomatica(img, corpo, tipo);
     });
+    // MODIFICA: la foto originale salvata torna con la sua selezione, si può correggere
+    if (p && p.analisi) {
+      leggiFoto(p.id, 'orig').then(async (blob) => {
+        if (!blob || img) return;
+        img = await caricaImmagine(blob).catch(() => null);
+        if (!img) return;
+        corpo._fotoId = 'salvata';
+        corpo._scelta = sceltaDaProdotto(p);
+        rit = await analisiAutomatica(img, corpo, tipo, p.analisi);
+      });
+    }
   }
   corpo.querySelector('#f-salva').addEventListener('click', async () => {
     corpo.querySelector('#f-err').hidden = true;
@@ -268,13 +280,21 @@ function apriScheda(m) {
           if (tinta) riempi(cp.canvas, tinta.hex);
           campioneZona = cp.cm;
           const portaBlob = await canvasBlob(cp.canvas, 'image/jpeg');
-          // GOLA: la sua foto raddrizzata se pulita, altrimenti il suo colore
-          const golaCanvas = z.gola ? pulisciRiflessi(raddrizza(img, z.gola, 800, 60, 0)).canvas : null;
-          const golaBlob = golaCanvas ? await canvasBlob(golaCanvas, 'image/jpeg') : await bloccoColore(z.coloreGola ?? 0x1a1a1a);
+          // GOLA: sempre TINTA UNITA (RAL scelto). Porta tutta uguale: stessa tinta / stessa foto della porta.
+          let golaCanvas = null;
+          if (sc && sc.uguale) {
+            if (tinta) coloreGola = tinta.hex;
+            else {
+              golaCanvas = document.createElement('canvas'); golaCanvas.width = cp.canvas.width; golaCanvas.height = Math.max(8, Math.round(cp.canvas.height * 0.06));
+              golaCanvas.getContext('2d').drawImage(cp.canvas, 0, 0, cp.canvas.width, golaCanvas.height, 0, 0, golaCanvas.width, golaCanvas.height);
+              coloreGola = coloreMedio(golaCanvas);
+            }
+          } else coloreGola = sc && sc.golaRal ? sc.golaRal.hex : (z.coloreGola ?? 0x1a1a1a);
+          const golaBlob = golaCanvas ? await canvasBlob(golaCanvas, 'image/jpeg') : await bloccoColore(coloreGola);
           await salvaFoto(id, portaBlob, 'foto');
           await salvaFoto(id, golaBlob, 'gola');
-          await salvaFoto(id, await thumbDaCanvas(cp.canvas, golaCanvas, z.coloreGola), 'thumb');
-          colore = coloreMedio(cp.canvas); coloreGola = golaCanvas ? coloreMedio(golaCanvas) : (z.coloreGola ?? 0x1a1a1a);
+          await salvaFoto(id, await thumbDaCanvas(cp.canvas, golaCanvas, coloreGola), 'thumb');
+          colore = coloreMedio(cp.canvas);
         } else if (tipo === 'man') {
           const scont = corpo.querySelector('#f-scont').checked ? Number(corpo.querySelector('#f-tol').value) : 0;
           const r = await ritaglioBlob(img, z.main, { png: true, scontorna: scont, thumbIntera: true, max: 1024 });
@@ -291,6 +311,10 @@ function apriScheda(m) {
           await salvaFoto(id, await thumbDaCanvas(cp.canvas, null, null), 'thumb');
           colore = coloreMedio(cp.canvas);
         }
+        // FOTO ORIGINALE + SELEZIONE: la scheda si potrà sempre riaprire e correggere
+        if (corpo._file) await salvaFoto(id, corpo._file, 'orig');
+        const k = ['oggetto', 'main', 'porta', 'gola', 'golaZona', 'portaFrazione', 'coloreGola'];
+        var analisi = JSON.parse(JSON.stringify(Object.fromEntries(k.filter((x) => z[x] != null).map((x) => [x, z[x]]))));
       }
       // ALTRE VISTE della maniglia (lato, sopra): sfondo tolto e salvate
       if (tipo === 'man') {
@@ -314,7 +338,9 @@ function apriScheda(m) {
       if (sup.tinta) colore = sup.tinta.colore;
       const dati = { id, sezione: sez, nome, info: infoN, colore, aggiornato: Date.now(), ...sup,
         ...(tipo === 'man' ? { maniglia: manN } : { campioneCm: campioneZona, oggettoCm: { w, h } }),
-        ...(tipo === 'fp' ? { coloreGola } : {}) };
+        ...(tipo === 'fp' ? { coloreGola, uguale: !!(scS && scS.uguale),
+          golaTinta: scS && !scS.uguale && scS.golaRal ? { ral: scS.golaRal.codice, colore: scS.golaRal.hex } : null } : {}),
+        ...(analisi && (corpo._file || corpo._fotoId === 'salvata') ? { analisi } : {}) };
       if (nuovo) stato.prodotti.push({ ...dati, creato: Date.now() });
       else stato.prodotti = stato.prodotti.map((x) => (x.id === id ? { ...x, ...dati } : x));
       await salvaERicarica();
@@ -345,31 +371,53 @@ function canvasBlob(c, tipo = 'image/jpeg') { return new Promise((ok) => c.toBlo
  * TINTA UNITA (colore pieno = RAL più vicino, finitura lucida o opaca). Il
  * sito propone dalla foto; l'utente può cambiare tutto.
  */
-function mostraSuperficie(corpo, sup) {
+/** Gola quasi nera: i bordi della porta la "sporcano" di colore → la porto verso il grigio/nero. */
+function neutroScuro(c) {
+  const r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255, l = 0.299 * r + 0.587 * g + 0.114 * b;
+  if (l > 70) return c;
+  const k = l < 45 ? 0.15 : 0.5, m = (x) => Math.round(l + (x - l) * k);
+  return (m(r) << 16) | (m(g) << 8) | m(b);
+}
+function sceltaDaProdotto(p) {
+  const t = p.tinta || null;
+  return { foto: 'salvata', uguale: !!p.uguale, tinta: !!t, ral: t ? { codice: t.ral, hex: t.colore } : null, lucido: !!(t ? t.lucido : p.lucido),
+    golaRal: p.golaTinta ? { codice: p.golaTinta.ral, hex: p.golaTinta.colore } : null };
+}
+function mostraSuperficie(corpo, sup, tipo) {
   const box = corpo.querySelector('#f-superficie'); if (!box) return;
-  // prima analisi di questa foto: scelte proposte dal sito
+  // prima analisi di questa foto: proposta del sito (tinta/legno), opaco
   if (!corpo._scelta || corpo._scelta.foto !== corpo._fotoId) {
-    corpo._scelta = { foto: corpo._fotoId, tinta: sup.tintaUnita, ral: sup.ral[0], lucido: sup.lucido, proposta: { ...sup } };
+    corpo._scelta = { foto: corpo._fotoId, uguale: false, tinta: sup.tintaUnita, ral: null, lucido: false, golaRal: null };
   }
-  corpo._scelta.ralLista = sup.ral;
   const sc = corpo._scelta, hx = (h) => `#${h.toString(16).padStart(6, '0')}`;
+  sc.ralLista = sup.ral;
+  if (!sc.ral || !sc.ralLista.some((r) => r.codice === sc.ral.codice)) sc.ralLista = sc.ral ? [sc.ral, ...sup.ral.slice(0, 5)] : sup.ral;
+  if (!sc.ral) sc.ral = sc.ralLista[0];
+  if (tipo === 'fp') {
+    sc.golaLista = ralVicini(sup.colGola ?? 0x151515, 6);
+    if (sc.golaRal && !sc.golaLista.some((r) => r.codice === sc.golaRal.codice)) sc.golaLista = [sc.golaRal, ...sc.golaLista.slice(0, 5)];
+    if (!sc.golaRal) sc.golaRal = sc.golaLista[0];
+  }
+  const chips = (lista, sel, attr) => `<div class="imp-ral">${lista.map((r) => `<button type="button" class="imp-ral-c ${r.codice === sel.codice ? 'sel' : ''}" data-${attr}="${r.codice}" title="RAL ${r.codice}"><span style="background:${hx(r.hex)}"></span>RAL ${r.codice}</button>`).join('')}</div>`;
+  const btn = (attr, val, on, testo) => `<button type="button" class="btn-ghost btn-mini ${on ? 'attivo' : ''}" data-${attr}="${val}">${on ? '✓ ' : ''}${tr(testo)}</button>`;
   box.innerHTML = `
-    <div class="imp-sup-titolo">${tr('Superficie')} <span class="imp-aiuto">(${tr('proposta dalla foto, puoi cambiarla')})</span></div>
-    <div class="imp-sup-scelte">
-      <button type="button" class="btn-ghost btn-mini ${!sc.tinta ? 'attivo' : ''}" data-sup="legno">${!sc.tinta ? '✓ ' : ''}${tr('Legno / disegno (usa la foto)')}</button>
-      <button type="button" class="btn-ghost btn-mini ${sc.tinta ? 'attivo' : ''}" data-sup="tinta">${sc.tinta ? '✓ ' : ''}${tr('Tinta unita (colore RAL)')}</button>
-    </div>
-    ${sc.tinta ? `
-    <div class="imp-ral">${sc.ralLista.map((r) => `<button type="button" class="imp-ral-c ${r.codice === sc.ral.codice ? 'sel' : ''}" data-ral="${r.codice}" title="RAL ${r.codice}">
-      <span style="background:${hx(r.hex)}"></span>RAL ${r.codice}</button>`).join('')}</div>
+    ${tipo === 'fp' ? `
+    <div class="imp-sup-titolo">${tr('Tipo di porta')}</div>
+    <div class="imp-sup-scelte">${btn('ugu', 'no', !sc.uguale, 'Porta e gola di colori diversi')}${btn('ugu', 'si', sc.uguale, 'Porta tutta uguale (gola dello stesso colore)')}</div>` : ''}
+    <div class="imp-sup-titolo">${tr(tipo === 'fp' ? 'Porta' : 'Superficie')}</div>
+    <div class="imp-sup-scelte">${btn('sup', 'tinta', sc.tinta, 'Tinta unita')}${btn('sup', 'legno', !sc.tinta, 'Tinta legno (usa la foto)')}</div>
+    ${sc.tinta ? `${chips(sc.ralLista, sc.ral, 'ral')}
     <div class="imp-aiuto">${tr('Colore della foto senza riflessi')}: <span class="imp-ral-foto" style="background:${hx(sup.colore)}"></span> → ${tr('il RAL più vicino è il primo')}.</div>` : ''}
-    <div class="imp-sup-scelte">
-      <button type="button" class="btn-ghost btn-mini ${!sc.lucido ? 'attivo' : ''}" data-fin="opaco">${!sc.lucido ? '✓ ' : ''}${tr('Opaco')}</button>
-      <button type="button" class="btn-ghost btn-mini ${sc.lucido ? 'attivo' : ''}" data-fin="lucido">${sc.lucido ? '✓ ' : ''}${tr('Lucido')}</button>
-    </div>`;
+    <div class="imp-sup-scelte">${btn('fin', 'opaco', !sc.lucido, 'Opaco')}${btn('fin', 'lucido', sc.lucido, 'Lucido')}</div>
+    ${tipo === 'fp' && !sc.uguale ? `
+    <div class="imp-sup-titolo">${tr('Gola (sempre tinta unita)')}</div>
+    ${chips(sc.golaLista, sc.golaRal, 'gral')}
+    <div class="imp-aiuto">${tr('Colore della gola nella foto')}: <span class="imp-ral-foto" style="background:${hx(sup.colGola ?? 0x151515)}"></span></div>` : ''}`;
   const ridisegna = () => corpo._ridisegnaAnalisi && corpo._ridisegnaAnalisi();
+  box.querySelectorAll('[data-ugu]').forEach((b) => b.addEventListener('click', () => { sc.uguale = b.dataset.ugu === 'si'; corpo._applicaUguale && corpo._applicaUguale(sc.uguale); ridisegna(); }));
   box.querySelectorAll('[data-sup]').forEach((b) => b.addEventListener('click', () => { sc.tinta = b.dataset.sup === 'tinta'; ridisegna(); }));
   box.querySelectorAll('[data-ral]').forEach((b) => b.addEventListener('click', () => { sc.ral = sc.ralLista.find((r) => r.codice === b.dataset.ral); ridisegna(); }));
+  box.querySelectorAll('[data-gral]').forEach((b) => b.addEventListener('click', () => { sc.golaRal = sc.golaLista.find((r) => r.codice === b.dataset.gral); ridisegna(); }));
   box.querySelectorAll('[data-fin]').forEach((b) => b.addEventListener('click', () => { sc.lucido = b.dataset.fin === 'lucido'; ridisegna(); }));
 }
 
@@ -408,10 +456,18 @@ function thumbDaCanvas(porta, gola, coloreGola) {
  * cosa ha riconosciuto; "Correggi a mano" fa spostare i 4 ANGOLI (la
  * selezione segue la porta anche se è inclinata).
  */
-async function analisiAutomatica(img, corpo, tipo) {
-  if (tipo === 'man') return analisiManiglia(img, corpo, tipo);
-  const a = analizzaPorta(img, tipo);
+async function analisiAutomatica(img, corpo, tipo, salvata = null) {
+  if (tipo === 'man') return analisiManiglia(img, corpo, tipo, salvata);
+  const a = salvata ? JSON.parse(JSON.stringify(salvata)) : analizzaPorta(img, tipo);
   const chiave = tipo === 'fp' ? 'porta' : 'main';
+  // finger-pull "porta tutta uguale": un solo riquadro (porta + gola insieme)
+  const trovata = { porta: a.porta, golaZona: a.golaZona, gola: a.gola, portaFrazione: a.portaFrazione };
+  corpo._applicaUguale = (uguale) => {
+    if (tipo !== 'fp') return;
+    if (uguale) { a.porta = a.oggetto.map((p) => [...p]); a.golaZona = null; a.gola = null; a.portaFrazione = { w: 1, h: 1 }; }
+    else if (!a.golaZona) Object.assign(a, JSON.parse(JSON.stringify(trovata)));
+  };
+  if (tipo === 'fp' && corpo._scelta && corpo._scelta.uguale) corpo._applicaUguale(true);
   const box = corpo.querySelector('#f-auto');
   box.hidden = false;
   corpo.querySelector('#f-ritaglio-box').hidden = true;
@@ -433,7 +489,7 @@ async function analisiAutomatica(img, corpo, tipo) {
       g.save(); g.beginPath(); q.forEach(([x, y], i) => (i ? g.lineTo(x * k, y * k) : g.moveTo(x * k, y * k))); g.closePath();
       g.strokeStyle = col; g.lineWidth = Math.max(2, v.width / 250); if (tratt) g.setLineDash([8, 6]); g.stroke(); g.restore();
     };
-    poly(a.oggetto, '#9aa0a6', true); poly(a[chiave], '#e0a000'); poly(a.golaZona, '#1e90ff');
+    poly(a.oggetto, '#9aa0a6', true); poly(a[chiave], '#e0a000'); if (!(corpo._scelta && corpo._scelta.uguale)) poly(a.golaZona, '#1e90ff');
     // anteprime: porta raddrizzata e gola
     tiles.innerHTML = '';
     const tile = (titolo, sorgente, colore) => {
@@ -447,24 +503,27 @@ async function analisiAutomatica(img, corpo, tipo) {
     const q = a[chiave];
     const asp = (L(q[0], q[1]) + L(q[3], q[2])) / Math.max(1, L(q[0], q[3]) + L(q[1], q[2]));
     const sup = analizzaSuperficie(raddrizza(img, q, 280, Math.max(40, Math.round(280 / Math.max(0.2, asp))), 0));
-    mostraSuperficie(corpo, sup);
+    if (tipo === 'fp') {
+      sup.colGola = neutroScuro(a.coloreGola ?? 0x151515);  // colore della gola dalla foto vera (senza schiarire)
+    }
+    mostraSuperficie(corpo, sup, tipo);
     const scelta = corpo._scelta;
     if (scelta && scelta.tinta) {
       const t = document.createElement('canvas'); t.width = 280; t.height = Math.max(40, Math.round(280 / Math.max(0.2, asp)));
       const tg = t.getContext('2d'); tg.fillStyle = `#${scelta.ral.hex.toString(16).padStart(6, '0')}`; tg.fillRect(0, 0, t.width, t.height);
       tile(tipo === 'fp' ? 'Porta' : 'Campione', t);
     } else tile(tipo === 'fp' ? 'Porta' : 'Campione', sup.pulita);
-    if (tipo === 'fp') tile('Gola', a.gola ? pulisciRiflessi(raddrizza(img, a.gola, 280, 40, 0)).canvas : null, a.coloreGola);
+    if (tipo === 'fp' && !(scelta && scelta.uguale)) tile('Gola', null, scelta && scelta.golaRal ? scelta.golaRal.hex : a.coloreGola);
   };
   corpo._ridisegnaAnalisi = disegna;
   disegna();
-  corpo.querySelector('#f-msg').textContent = tr(a.messaggio || '');
+  corpo.querySelector('#f-msg').textContent = tr(salvata ? 'Foto salvata: puoi correggere la selezione con "Correggi a mano".' : (a.messaggio || ''));
   // --- correzione a mano: angoli trascinabili sulla foto
   corpo.querySelector('#f-mano').onclick = () => {
     const wrap = v.parentElement; wrap.style.position = 'relative';
     wrap.querySelectorAll('.imp-angolo').forEach((x) => x.remove());
     const gruppi = [[chiave, '#e0a000']];
-    if (tipo === 'fp') { if (!a.golaZona) { const o = a.oggetto; a.golaZona = [o[0], o[1], [o[1][0], o[1][1] + (o[2][1] - o[1][1]) * 0.06], [o[0][0], o[0][1] + (o[3][1] - o[0][1]) * 0.06]]; } gruppi.push(['golaZona', '#1e90ff']); }
+    if (tipo === 'fp' && !(corpo._scelta && corpo._scelta.uguale)) { if (!a.golaZona) { const o = a.oggetto; a.golaZona = [o[0], o[1], [o[1][0], o[1][1] + (o[2][1] - o[1][1]) * 0.06], [o[0][0], o[0][1] + (o[3][1] - o[0][1]) * 0.06]]; } gruppi.push(['golaZona', '#1e90ff']); }
     for (const [nome, col] of gruppi) {
       a[nome].forEach((pt, i) => {
         const h = document.createElement('div'); h.className = 'imp-angolo'; h.style.borderColor = col;
@@ -482,7 +541,7 @@ async function analisiAutomatica(img, corpo, tipo) {
         });
       });
     }
-    corpo.querySelector('#f-msg').textContent = tr('Trascina i pallini sugli angoli: oro = porta, blu = gola.');
+    corpo.querySelector('#f-msg').textContent = tr(corpo._scelta && corpo._scelta.uguale ? 'Trascina i pallini sugli angoli della porta.' : 'Trascina i pallini sugli angoli: oro = porta, blu = gola.');
   };
   let rq = 0;
   const disegnaVeloce = () => { cancelAnimationFrame(rq); rq = requestAnimationFrame(disegna); };
@@ -509,8 +568,9 @@ function bloccoColore(col) {
  * ha riconosciuto. "Correggi a mano" apre i riquadri già posizionati.
  * Ritorna una funzione che dà le zone (in pixel) da usare al salvataggio.
  */
-async function analisiManiglia(img, corpo, tipo) {
+async function analisiManiglia(img, corpo, tipo, salvata = null) {
   const a = analizzaFoto(img, tipo);
+  if (salvata && salvata.main) Object.assign(a, { main: salvata.main, oggetto: salvata.oggetto || a.oggetto, messaggio: 'Foto salvata: puoi correggere la selezione con "Correggi a mano".' });
   let manuale = null;
   const box = corpo.querySelector('#f-auto');
   box.hidden = false;

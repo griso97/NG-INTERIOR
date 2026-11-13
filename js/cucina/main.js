@@ -23,12 +23,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo,
-} from './modello.js?v=20261114o';
-import { renderPianta } from './pianta.js?v=20261114o';
-import { calcolaDistintaCucina } from './distinta.js?v=20261114o';
+} from './modello.js?v=20261114p';
+import { renderPianta } from './pianta.js?v=20261114p';
+import { calcolaDistintaCucina } from './distinta.js?v=20261114p';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261114o';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114o';
+import { agganciaTema } from '../tema.js?v=20261114p';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114p';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1527,7 +1527,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114o');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114p');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste

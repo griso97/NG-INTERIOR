@@ -57,6 +57,23 @@ function trovaOggetto(P) {
   return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1, sfondo: true, bg, soglia };
 }
 
+/** Riquadro stretto attorno ai pixel diversi dallo sfondo (oggetti sottili, es. maniglie). */
+function strettoSuOggetto(P, o) {
+  const { w, h } = P, bg = o.bg, soglia = Math.max(o.soglia, 20);
+  const righe = new Array(h).fill(0), colonne = new Array(w).fill(0);
+  let n = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (dist(px(P, x, y), bg) > soglia) { righe[y]++; colonne[x]++; n++; }
+  }
+  if (n < w * h * 0.004 || n > w * h * 0.9) return null;
+  const sr = Math.max(2, w * 0.01), sc = Math.max(2, h * 0.01);
+  const y0 = righe.findIndex((v) => v > sr), y1 = h - 1 - [...righe].reverse().findIndex((v) => v > sr);
+  const x0 = colonne.findIndex((v) => v > sc), x1 = w - 1 - [...colonne].reverse().findIndex((v) => v > sc);
+  if (y0 < 0 || x0 < 0 || y1 <= y0 || x1 <= x0) return null;
+  if ((x1 - x0 + 1) * (y1 - y0 + 1) > w * h * 0.95) return null;
+  return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+}
+
 /** Rettangolo rientrato di una frazione per lato (via bordi, fughe, ombre). */
 const rientra = (r, fx, fy = fx) => ({ x: r.x + r.w * fx, y: r.y + r.h * fy, w: r.w * (1 - 2 * fx), h: r.h * (1 - 2 * fy) });
 
@@ -142,7 +159,9 @@ export function analizzaFoto(img, tipo = 'base') {
   const o = trovaOggetto(P);
   const out = { oggetto: su(o), sfondo: o.sfondo };
   if (tipo === 'man') {
-    const r = o.sfondo ? rientra(o, -0.04) : o;
+    // maniglia: oggetto sottile → riquadro STRETTO sui pixel diversi dallo sfondo (niente bianco attorno)
+    const st = strettoSuOggetto(P, o);
+    const r = st ? rientra(st, -0.015, -0.04) : o.sfondo ? rientra(o, -0.02) : o;
     out.main = su({ x: Math.max(0, r.x), y: Math.max(0, r.y), w: Math.min(P.w - Math.max(0, r.x), r.w), h: Math.min(P.h - Math.max(0, r.y), r.h) });
     return out;
   }
