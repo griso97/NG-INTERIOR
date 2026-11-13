@@ -162,7 +162,7 @@ export function campiMobile(tipoId) {
   if (t.categoria === 'colonna') {
     return [
       { campo: 'altezza_mm',      et: 'Altezza totale (mm)', opzioni: ALTEZZE_COLONNA, default: ALTEZZE_COLONNA[0] },
-      { campo: 'altezzaBassa_mm', et: 'Porta bassa (mm)',    opzioni: ALTEZZE_BASE,    default: ALTEZZE_BASE[0] },
+      { campo: 'altezzaBassa_mm', et: 'Porta bassa (mm) — con i mobili bassi si allinea da sola',    opzioni: ALTEZZE_BASE,    default: ALTEZZE_BASE[0] },
       { campo: 'variante',        et: 'Parte alta',
         opzioni: VARIANTI_COLONNA.map((v) => ({ v: v.id, l: v.nome })), default: 'porta' },
       { campo: 'altezzaVano_mm',  et: 'Altezza vano aperto (mm) — solo con "Vano aperto"',
@@ -1481,4 +1481,28 @@ export function bboxPerimetro(pareti) {
     minX: Math.min(...xs), maxX: Math.max(...xs),
     minY: Math.min(...ys), maxY: Math.max(...ys),
   };
+}
+
+/**
+ * Altezza dei mobili BASSI della cucina (la più usata: 700 o 800). Serve
+ * per allineare tutta la parte bassa: la porta bassa delle colonne è alta
+ * come i bassi, così le linee di porte e cassetti sono tutte alla stessa quota.
+ * null se non ci sono mobili bassi.
+ */
+const CAT_NON_BASSE_M = new Set(['pensile', 'colonna', 'regletta', 'pannello', 'costado', 'oggetto']);
+export function altezzaBassiCucina(progetto) {
+  const conteggio = new Map();
+  for (const m of (progetto.mobiliLiberi || [])) {
+    if (CAT_NON_BASSE_M.has(categoriaTipo(m.tipo))) continue;
+    const h = m.altezza_mm || 700;
+    conteggio.set(h, (conteggio.get(h) || 0) + 1);
+  }
+  if (!conteggio.size) return null;
+  let best = null, bestN = -1;
+  for (const [h, n] of conteggio) if (n > bestN) { bestN = n; best = h; }
+  return best;
+}
+/** Porta bassa della colonna: alta come i mobili bassi (se ce ne sono). */
+export function portaBassaColonna(progetto, m) {
+  return altezzaBassiCucina(progetto) ?? m.altezzaBassa_mm ?? 700;
 }

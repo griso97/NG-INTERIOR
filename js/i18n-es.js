@@ -1051,5 +1051,6 @@ window.NG_I18N_ES = {
  "Forno": "Horno",
  "Inox": "Inox",
  "Bianco": "Blanco",
- "Forno e microonde": "Horno y microondas"
+ "Forno e microonde": "Horno y microondas",
+ "Porta bassa (mm) — con i mobili bassi si allinea da sola": "Puerta baja (mm) — con módulos bajos se alinea sola"
 };

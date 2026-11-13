@@ -11,14 +11,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111x';
 import {
-  calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
+  calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261113p';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113p';
+} from './modello.js?v=20261113q';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113q';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113p';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113q';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -977,10 +977,12 @@ function lavelloTop(g, w, h, d) {
     new THREE.MeshStandardMaterial({ color: 0xcfcfcf, roughness: 0.3, metalness: 0.6 }));
   rub.position.set(0, yTop + 90, -d * 0.28); g.add(rub);
 }
+let _progColonne = null;     // progetto corrente (porta bassa delle colonne = bassi)
 function colonnaFronte(g, w, h, d, m, matAnta) {
   const z = d / 2;
   const pw = w - FUGA_W;
-  const ab = m.altezzaBassa_mm || 700;
+  // porta bassa alta come i mobili bassi (70 o 80): tutta la parte bassa allineata
+  const ab = _progColonne ? portaBassaColonna(_progColonne, m) : (m.altezzaBassa_mm || 700);
   const bottom = -h / 2;
   const porta = (yB, segH) => {
     const cyc = yB + segH / 2;
@@ -1413,6 +1415,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   _fpByCat = progetto.fingerPull || {};
   _manByCat = progetto.maniglie || {};
   _stileForno = (progetto.finiture || {}).forno || 'inox';
+  _progColonne = progetto;
   _reRenderMan = () => { if (_lastProgetto) aggiornaScena3d(_lastProgetto, false, selId); };
   // L'illuminazione della scena resta sempre al valore pieno (giorno) sia
   // con i LED spenti che accesi: non si vuole che i LED spengano l'ambiente.

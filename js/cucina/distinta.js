@@ -12,8 +12,8 @@
 // =============================================================================
 
 import {
-  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261113p';
+  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna,
+} from './modello.js?v=20261113q';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -145,10 +145,11 @@ function pezziDiModulo(progetto, m) {
     }
   } else if (cat === 'colonna') {
     // Zoccolo della colonna: segue la porta bassa (70→150, 80→100), come i mobili bassi.
-    zoccolo(pz, mod, L, m.altezzaBassa_mm || 700);
+    const abC = portaBassaColonna(progetto, m);      // alta come i mobili bassi
+    zoccolo(pz, mod, L, abC);
     // Due ante reali: sotto = porta bassa − 2 (come il mobile base 70/80),
     // sopra = lo spazio che resta − 2 (tolto forno/microonde/vano, come nel 3D).
-    const ab = m.altezzaBassa_mm || 700;
+    const ab = abC;
     const aw = round(L - 3);                        // larghezza anta (1 anta)
     const topDoor = restoAntaColonna(m, H - ab);
     pz.push({ modulo: mod, nome: 'Anta bassa', larghezza: aw, altezza: round(ab - 2), spessore: SP, materiale: 'anta', quantita: 1 });
