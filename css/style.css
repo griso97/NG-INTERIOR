@@ -638,3 +638,18 @@ table.distinta td.qta {
   background: rgba(13,10,6,0.9); color: #fff; font-size: 12px; line-height: 1.5;
   border: 1px solid var(--oro-chiaro); transform: translate(14px, -50%);
 }
+
+/* Azioni sul ripiano toccato nel 3D (Elimina / Copia / Incolla) */
+.ripiano-azioni {
+  position: absolute; z-index: 12; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  transform: translate(-50%, -100%); max-width: calc(100% - 20px);
+  padding: 6px; border-radius: 8px; background: rgba(13,10,6,0.94); border: 1px solid var(--oro-chiaro);
+  color: #fff; font-size: 12px;
+}
+.ripiano-azioni[hidden] { display: none; }
+.ripiano-azioni span { padding: 0 4px; color: var(--oro-chiaro); white-space: nowrap; }
+.ripiano-azioni button {
+  cursor: pointer; padding: 7px 10px; font-size: 12px; border-radius: 6px; white-space: nowrap;
+  border: 1px solid var(--bordo); background: #1a1510; color: #fff;
+}
+.ripiano-azioni button:hover { border-color: var(--oro-chiaro); }

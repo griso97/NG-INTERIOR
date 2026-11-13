@@ -6,7 +6,7 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer } from './materiali.js?v=20261115c';
+import { MATERIALI, PARTI, materialiDefault, materialiPer } from './materiali.js?v=20261115d';
 
 export function configDefault() {
   return {
@@ -345,6 +345,9 @@ function renderModuli(config) {
   // --- MODALITÀ "TUTTI UGUALI": UNA sola card condivisa (vale per tutti) ---
   const m = config.moduli[0] || { numeroAnte: 2, ripiani: 3, riduzioneRipiano: 0, cassettiere: [] };
   const larModulo = m.larghezza || Math.round(config.larghezzaTotale / config.moduli.length);
+  // ripiani tolti/aggiunti nel 3D: i moduli possono averne un numero diverso
+  const ripUguali = config.moduli.every((x) => (x.ripiani || 0) === (m.ripiani || 0));
+  const ripTesto = ripUguali ? '' : config.moduli.map((x, i) => `M${i + 1}: ${x.ripiani || 0}`).join(' · ');
   wrap.innerHTML = `
     <div class="modulo-card">
       <header>Impostazioni di ogni modulo · ${larModulo} mm</header>
@@ -354,8 +357,8 @@ function renderModuli(config) {
           <input type="number" class="m-ante" value="${m.numeroAnte}" min="1" max="6" step="1" />
         </label>
         ${campoLatoApertura(m)}`}
-        <label>Nº ripiani
-          <input type="number" class="m-ripiani" value="${m.ripiani}" min="0" max="20" step="1" />
+        <label>Nº ripiani${ripUguali ? '' : ` <small class="hint">(${ripTesto})</small>`}
+          <input type="number" class="m-ripiani" value="${ripUguali ? m.ripiani : ''}" ${ripUguali ? '' : 'placeholder="diversi per modulo"'} min="0" max="20" step="1" />
         </label>
         <label>Riduzione ripiano (mm)
           <input type="number" class="m-rid" value="${m.riduzioneRipiano || 0}" min="0" step="1" />
@@ -739,7 +742,9 @@ function ripartisciModuli(config, n = config.moduli.length) {
     for (let i = 0; i < n; i++) {
       nuovi.push({
         larghezza: larModulo,
-        numeroAnte: t.numeroAnte, antaLato: t.antaLato ?? 'dx', ripiani: t.ripiani,
+        numeroAnte: t.numeroAnte, antaLato: t.antaLato ?? 'dx',
+        // ogni modulo tiene i SUOI ripiani (si possono eliminare/incollare nel 3D)
+        ripiani: vecchi[i]?.ripiani ?? t.ripiani,
         riduzioneRipiano: t.riduzioneRipiano,
         cassettiere: (t.cassettiere || []).map((c) => ({ ...c })),
         ...(vecchi[i]?.ripianiY ? { ripianiY: vecchi[i].ripianiY } : {}),   // ripiani spostati a mano nel 3D

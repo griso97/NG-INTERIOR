@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261115c';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261115d';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261111b';
 import { sfondoDi } from './sfondi.js?v=20261111b';
 
@@ -359,6 +359,58 @@ export function fineSpostamentoRipiano() {
 }
 export function porteSonoAperte() { return porteAperte; }
 
+// -----------------------------------------------------------------------------
+// TOCCO NEL 3D (a porte aperte): ripiano toccato, o modulo + altezza toccati.
+// -----------------------------------------------------------------------------
+export function toccoArmadio(clientX, clientY) {
+  if (!porteAperte || !gruppoArmadio || !camera) return null;
+  const hit = raggio(clientX, clientY).intersectObjects(gruppoArmadio.children, true)[0];
+  if (!hit) return null;
+  const u = hit.object.userData;
+  if (u.tipo === 'ripiano') return { tipo: 'ripiano', modulo: u.modulo, indice: u.indice };
+  const loc = gruppoArmadio.worldToLocal(hit.point.clone());
+  const k = _zoneModuli.findIndex((z) => z && loc.x >= z.x0 && loc.x <= z.x1);
+  return k < 0 ? null : { tipo: 'modulo', modulo: k, y: Math.round(loc.y) };
+}
+/** Altezze (centro, mm) dei ripiani di un modulo, nell'ordine dei ripiani. */
+export function ripianiCorrenti(modulo) {
+  if (!gruppoArmadio) return [];
+  return gruppoArmadio.children.filter((o) => o.userData.tipo === 'ripiano' && o.userData.modulo === modulo)
+    .sort((a, b) => a.userData.indice - b.userData.indice).map((o) => Math.round(o.position.y));
+}
+/**
+ * Dove mettere un ripiano in più nel modulo: all'altezza voluta se c'è posto
+ * (almeno 3 cm dagli altri ripiani e dal perchero), altrimenti a metà dello
+ * spazio libero più grande. null = non c'è posto.
+ */
+export function posizioneNuovoRipiano(modulo, yVoluto = null) {
+  const z = _zoneModuli[modulo]; if (!z) return null;
+  const d = z.sC + 30;
+  const occ = [...ripianiCorrenti(modulo).map((y) => ({ y, d })),
+    ...gruppoArmadio.children.filter((o) => o.userData.tipo === 'perchero' && o.userData.modulo === modulo).map((o) => ({ y: o.position.y, d: z.sC / 2 + 40 }))]
+    .sort((a, b) => a.y - b.y);
+  const liberi = []; let lo = z.yMin;
+  for (const o of occ) { liberi.push([lo, o.y - o.d]); lo = Math.max(lo, o.y + o.d); }
+  liberi.push([lo, z.yMax]);
+  const validi = liberi.filter(([a, b]) => b >= a);
+  if (!validi.length) return null;
+  if (yVoluto != null) { const g = validi.find(([a, b]) => yVoluto >= a && yVoluto <= b); if (g) return Math.round(yVoluto); }
+  const [a, b] = validi.reduce((m, g) => (g[1] - g[0] > m[1] - m[0] ? g : m));
+  return Math.round((a + b) / 2);
+}
+/** Contorno dorato sul ripiano selezionato (null = nessuno). */
+let _selRip = null;
+export function evidenziaRipiano(modulo, indice) {
+  if (_selRip) { _selRip.parent?.remove(_selRip); _selRip.geometry.dispose(); _selRip = null; }
+  if (modulo == null || !gruppoArmadio) return;
+  const m = gruppoArmadio.children.find((o) => o.userData.tipo === 'ripiano' && o.userData.modulo === modulo && o.userData.indice === indice);
+  if (!m) return;
+  _selRip = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), new THREE.LineBasicMaterial({ color: 0xe0b450 }));
+  _selRip.scale.setScalar(1.01);
+  _selRip.raycast = () => {};                                       // non intralcia il tocco/trascinamento
+  m.add(_selRip);
+}
+
 // Alias per compatibilità con chi aggancia il vecchio toggle
 export function toggleAnte(valore) { impostaApertura(valore); }
 
@@ -367,6 +419,7 @@ export function toggleAnte(valore) { impostaApertura(valore); }
  */
 export function aggiornaScena(config) {
   if (!gruppoArmadio) return;
+  _zoneModuli = []; _selRip = null;
   impostaSfondo(config.sfondo || 'chiaro');
   // Pulisce i figli precedenti
   while (gruppoArmadio.children.length) {
@@ -438,7 +491,21 @@ function materialeBarra(id) {
   return _matBarra[id];
 }
 
+/** Zona dove possono stare i ripiani di un modulo (sopra le cassettiere, sotto il cielo). */
+function zonaRipiani(config, modulo, indice) {
+  const sC = config.spessoreCarcassa, H = config.altezzaEsterna;
+  let yOccupato = 0;
+  (config.cassettiere || []).forEach((cas) => {
+    const idxs = Array.isArray(cas.moduli) && cas.moduli.length > 0 ? cas.moduli : config.moduli.map((_, i) => i);
+    if (idxs.includes(indice)) yOccupato += Math.max(100, cas.altMax || 800) + 10;
+  });
+  const yBase = sC + yOccupato, yFine = H - sC;
+  return { yMin: yBase + sC / 2 + 20, yMax: yFine - sC / 2 - 20, sC };
+}
+let _zoneModuli = [];          // per modulo: x0, x1 (coordinate dell'armadio), yMin, yMax dei ripiani
+
 function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1) {
+  _zoneModuli[indice] = { x0: xOffset, x1: xOffset + modulo.larghezza, ...zonaRipiani(config, modulo, indice) };
   const sC = config.spessoreCarcassa;
   const sS = config.spessoreSchiena;
   const sA = config.spessoreAnte;

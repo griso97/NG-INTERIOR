@@ -5,20 +5,21 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261115c';
+import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261115d';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo,
   iniziaSpostamentoRipiano, muoviSpostamentoRipiano, fineSpostamentoRipiano,
-} from './scena3d.js?v=20261115c';
-import { SFONDI_LISTA } from './sfondi.js?v=20261115c';
-import { agganciaTema } from './tema.js?v=20261115c';
-import { renderPannello, configDefault } from './interfaccia.js?v=20261115c';
-import { renderDistinta } from './distinta.js?v=20261115c';
-import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261115c';
-import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261115c';
+  toccoArmadio, ripianiCorrenti, posizioneNuovoRipiano, evidenziaRipiano,
+} from './scena3d.js?v=20261115d';
+import { SFONDI_LISTA } from './sfondi.js?v=20261115d';
+import { agganciaTema } from './tema.js?v=20261115d';
+import { renderPannello, configDefault } from './interfaccia.js?v=20261115d';
+import { renderDistinta } from './distinta.js?v=20261115d';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261115d';
+import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261115d';
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js?v=20261115c';
+} from './storage.js?v=20261115d';
 
 // Config iniziale: ultima salvata, oppure default
 let config = caricaLocale() || configDefault();
@@ -178,6 +179,7 @@ function aggiornaHintRipiani() {
   hintRip.hidden = !(btnToggleAnte.checked && conRipiani);
 }
 btnToggleAnte.addEventListener('change', aggiornaHintRipiani);
+btnToggleAnte.addEventListener('change', () => { if (!btnToggleAnte.checked) chiudiAzioniRipiano(); });
 if (btnFabApri) btnFabApri.addEventListener('click', aggiornaHintRipiani);
 document.getElementById('ripiani-auto')?.addEventListener('click', () => {
   (config.moduli || []).forEach((m) => { delete m.ripianiY; delete m.barraY; });
@@ -194,7 +196,9 @@ function mostraMisura(e, mis) {
   misuraRip.style.left = `${e.clientX - r.left}px`; misuraRip.style.top = `${e.clientY - r.top}px`;
   misuraRip.hidden = false;
 }
+let inizioTocco = null;                // per capire se è un tocco (non un trascinamento)
 canvas.addEventListener('pointerdown', (e) => {
+  inizioTocco = { x: e.clientX, y: e.clientY };
   if (e.button > 0 || !iniziaSpostamentoRipiano(e.clientX, e.clientY)) return;
   trascinoRipiano = true;
   e.stopImmediatePropagation(); e.preventDefault();
@@ -213,11 +217,101 @@ const fineRipiano = (e) => {
   if (misuraRip) misuraRip.hidden = true;
   const r = fineSpostamentoRipiano();
   if (!r || !config.moduli[r.modulo]) return;
+  // solo un TOCCO (senza muovere): seleziono il ripiano, niente da salvare
+  if (e && inizioTocco && Math.hypot(e.clientX - inizioTocco.x, e.clientY - inizioTocco.y) < 6) {
+    if (r.barraY == null) toccoRipiano(e);
+    return;
+  }
+  chiudiAzioniRipiano();
   if (r.barraY != null) config.moduli[r.modulo].barraY = r.barraY;   // perchero spostato
   else config.moduli[r.modulo].ripianiY = r.ripianiY;
   salvaLocale(config);           // niente ricostruzione: la vista resta dov'è
 };
 canvas.addEventListener('pointerup', fineRipiano, true);
+// tocco su un altro punto dell'armadio (non un ripiano): incolla lì, o chiudi la selezione
+canvas.addEventListener('pointerup', (e) => {
+  if (trascinoRipiano || !inizioTocco || Math.hypot(e.clientX - inizioTocco.x, e.clientY - inizioTocco.y) >= 6) return;
+  const t = toccoArmadio(e.clientX, e.clientY);
+  // si incolla solo nello STESSO modulo da cui l'hai copiato (stessa misura di ripiano)
+  if (t && t.tipo === 'modulo' && ripianoCopiato && ripianoCopiato.modulo === t.modulo) mostraAzioniRipiano(e, { incollaIn: t });
+  else {
+    chiudiAzioniRipiano();
+    if (t && t.tipo === 'modulo' && ripianoCopiato) flash(tt('Il ripiano copiato si incolla nello stesso modulo: tocca un punto del Modulo {0}.').replace('{0}', ripianoCopiato.modulo + 1));
+  }
+});
+
+// ---------------------------------------------------------------------------
+// RIPIANI: tocca un ripiano (a porte aperte) → Elimina / Copia / Incolla.
+// Tutto finisce subito anche nella distinta (nº ripiani del modulo).
+// ---------------------------------------------------------------------------
+let ripianoSel = null;          // { modulo, indice }
+let ripianoCopiato = null;      // { modulo } (il ripiano copiato)
+const azioniRip = document.createElement('div');
+azioniRip.className = 'ripiano-azioni'; azioniRip.hidden = true;
+(misuraRip?.parentNode || canvas.parentNode).appendChild(azioniRip);
+const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
+function toccoRipiano(e) {
+  const t = toccoArmadio(e.clientX, e.clientY);
+  if (!t || t.tipo !== 'ripiano') { chiudiAzioniRipiano(); return; }
+  ripianoSel = { modulo: t.modulo, indice: t.indice };
+  evidenziaRipiano(t.modulo, t.indice);
+  mostraAzioniRipiano(e, {});
+}
+function mostraAzioniRipiano(e, { incollaIn = null }) {
+  const r = canvas.getBoundingClientRect();
+  if (incollaIn) {
+    ripianoSel = null; evidenziaRipiano(null);
+    azioniRip.innerHTML = `<button type="button" data-az="incolla-qui">📋 ${tt('Incolla qui')} · ${tt('Modulo')} ${incollaIn.modulo + 1}</button><button type="button" data-az="chiudi" title="${tt('Chiudi')}">✕</button>`;
+  } else {
+    azioniRip.innerHTML = `<span>${tt('Ripiano')} · ${tt('Modulo')} ${ripianoSel.modulo + 1}</span>
+      <button type="button" data-az="elimina">🗑 ${tt('Elimina')}</button>
+      <button type="button" data-az="copia">⧉ ${tt('Copia')}</button>
+      ${ripianoCopiato && ripianoCopiato.modulo === ripianoSel.modulo ? `<button type="button" data-az="incolla">📋 ${tt('Incolla')}</button>` : ''}
+      <button type="button" data-az="chiudi" title="${tt('Chiudi')}">✕</button>`;
+  }
+  azioniRip.style.left = `${Math.min(r.width - 20, Math.max(10, e.clientX - r.left))}px`;
+  azioniRip.style.top = `${Math.max(10, e.clientY - r.top - 12)}px`;
+  azioniRip.hidden = false;
+  azioniRip.onclick = (ev) => {
+    const az = ev.target.closest('[data-az]')?.dataset.az; if (!az) return;
+    ev.stopPropagation();
+    if (az === 'chiudi') return chiudiAzioniRipiano();
+    if (az === 'elimina') return eliminaRipiano();
+    if (az === 'copia') { ripianoCopiato = { modulo: ripianoSel.modulo }; chiudiAzioniRipiano(); flash(tt('Ripiano copiato: tocca nello stesso modulo il punto dove incollarlo, oppure premi Incolla su un suo ripiano.')); return; }
+    if (az === 'incolla') return incollaRipiano(ripianoSel.modulo, null);
+    if (az === 'incolla-qui') return incollaRipiano(incollaIn.modulo, incollaIn.y);
+  };
+}
+function chiudiAzioniRipiano() {
+  azioniRip.hidden = true; ripianoSel = null; evidenziaRipiano(null);
+}
+/** Dopo un cambio dei ripiani: scena, distinta e pannello (nº ripiani del modulo). */
+function aggiornaTutto() {
+  renderPannello(pannello, config, onChange);
+  agganciaAzioniGlobali();
+  aggiorna();
+}
+function eliminaRipiano() {
+  const s = ripianoSel; if (!s) return;
+  const mod = config.moduli[s.modulo]; if (!mod) return;
+  const ys = ripianiCorrenti(s.modulo);
+  ys.splice(s.indice, 1);
+  mod.ripiani = Math.max(0, (mod.ripiani || 0) - 1);
+  if (mod.ripiani > 0) mod.ripianiY = ys; else delete mod.ripianiY;   // gli altri restano dove sono
+  chiudiAzioniRipiano();
+  aggiornaTutto();
+  flash(tt('Ripiano eliminato (anche dalla distinta).'));
+}
+function incollaRipiano(k, yVoluto) {
+  const mod = config.moduli[k]; if (!mod) return;
+  const y = posizioneNuovoRipiano(k, yVoluto);
+  if (y == null) { flash(tt('In questo modulo non c\'è spazio per un altro ripiano.'), true); return; }
+  mod.ripianiY = [...ripianiCorrenti(k), y].sort((a, b) => a - b);
+  mod.ripiani = mod.ripianiY.length;
+  chiudiAzioniRipiano();
+  aggiornaTutto();
+  flash(tt('Ripiano incollato (aggiunto anche alla distinta).'));
+}
 canvas.addEventListener('pointercancel', fineRipiano, true);
 
 // Montaggio iniziale
