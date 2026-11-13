@@ -1,197 +1,138 @@
 // =============================================================================
-// MANIGLIA 3D DALLE FOTO (in automatico, per qualsiasi cliente)
+// MANIGLIE 3D: modelli VERI per tipo (barra, piatta, profilo, pomolo, incasso,
+// a bordo), con la misura e la finitura (inox, nero, oro…) della maniglia.
 // =============================================================================
-// Dalle sagome delle foto della maniglia (davanti, e se ci sono lato e sopra)
-// si ricava il VOLUME vero: si tiene solo lo spazio che sta dentro a tutte le
-// sagome ("involucro visivo"). Poi la superficie si leviga e si colora con i
-// colori veri delle foto. Assi della maniglia (in mm):
-//   x = lunghezza (−L/2..L/2) · y = altezza (−T/2..T/2) · z = sporgenza (0 = anta)
-// Nessuna vista è obbligatoria oltre a una: con la sola foto davanti si usa
-// la barra con i piedini (scena3d.js).
+// La foto serve per riconoscere la finitura (colore) e per l'anteprima nel
+// catalogo; la forma 3D è un modello pulito, così il risultato è sempre
+// realistico qualunque foto carichi il cliente (anche storta o con sfondo).
+// Assi (mm): x = lunghezza (−L/2..L/2) · y = altezza · z = sporgenza (0 = anta)
 // =============================================================================
 import * as THREE from 'three';
 
-const _cache = new Map();          // id → { geo, colore } | 'attesa'
+export const FORME_MANIGLIA = [
+  { id: 'barra', nome: 'Barra tonda', svg: '<svg viewBox="0 0 48 24"><line x1="6" y1="9" x2="42" y2="9" stroke-width="5" stroke-linecap="round"/><line x1="12" y1="9" x2="12" y2="19"/><line x1="36" y1="9" x2="36" y2="19"/></svg>' },
+  { id: 'piatta', nome: 'Barra piatta', svg: '<svg viewBox="0 0 48 24"><rect x="5" y="6" width="38" height="6" rx="1"/><line x1="12" y1="12" x2="12" y2="19"/><line x1="36" y1="12" x2="36" y2="19"/></svg>' },
+  { id: 'profilo', nome: 'Profilo (a J)', svg: '<svg viewBox="0 0 48 24"><polyline points="6,20 6,6 42,6 42,20" fill="none"/><line x1="6" y1="6" x2="6" y2="2"/><line x1="42" y1="6" x2="42" y2="2"/></svg>' },
+  { id: 'bordo', nome: 'A bordo anta', svg: '<svg viewBox="0 0 48 24"><rect x="12" y="4" width="24" height="5"/><rect x="12" y="9" width="24" height="9" fill="none"/></svg>' },
+  { id: 'pomolo', nome: 'Pomolo', svg: '<svg viewBox="0 0 48 24"><circle cx="24" cy="12" r="8"/></svg>' },
+  { id: 'incasso', nome: 'Incasso (conchiglia)', svg: '<svg viewBox="0 0 48 24"><rect x="10" y="6" width="28" height="12" rx="5" fill="none"/><rect x="14" y="9" width="20" height="6" rx="3"/></svg>' },
+];
 
-function caricaImg(url) {
-  return new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
-}
+export const FINITURE_MANIGLIA = [
+  { id: 'inox', nome: 'Acciaio inox', colore: 0xc5c8cc, metal: 0.9, rough: 0.28 },
+  { id: 'alluminio', nome: 'Alluminio', colore: 0xb9bcc0, metal: 0.75, rough: 0.42 },
+  { id: 'nero', nome: 'Nero opaco', colore: 0x1c1c1c, metal: 0.35, rough: 0.5 },
+  { id: 'antracite', nome: 'Antracite / titanio', colore: 0x4a4c50, metal: 0.8, rough: 0.35 },
+  { id: 'oro', nome: 'Oro / ottone', colore: 0xc9a65c, metal: 0.92, rough: 0.28 },
+  { id: 'bronzo', nome: 'Bronzo', colore: 0x6f5238, metal: 0.85, rough: 0.38 },
+  { id: 'rame', nome: 'Rame', colore: 0xb2704a, metal: 0.9, rough: 0.3 },
+  { id: 'bianco', nome: 'Bianco', colore: 0xeeeeec, metal: 0.05, rough: 0.4 },
+];
 
-/** Maschera (sagoma) + colori di una foto già scontornata (PNG con trasparenza). */
-function maschera(img) {
-  const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
-  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0);
-  const d = g.getImageData(0, 0, c.width, c.height).data;
-  const w = c.width, h = c.height;
-  // trasparenza se c'è, altrimenti differenza dal colore degli angoli (sfondo)
-  let haAlfa = false; for (let i = 3; i < d.length; i += 4 * 7) if (d[i] < 128) { haAlfa = true; break; }
-  const bg = [0, 1, 2].map((k) => (d[k] + d[(w - 1) * 4 + k] + d[((h - 1) * w) * 4 + k] + d[((h - 1) * w + w - 1) * 4 + k]) / 4);
-  const m = new Uint8Array(w * h);
-  for (let i = 0; i < w * h; i++) {
-    m[i] = haAlfa ? (d[i * 4 + 3] > 128 ? 1 : 0)
-      : (Math.hypot(d[i * 4] - bg[0], d[i * 4 + 1] - bg[1], d[i * 4 + 2] - bg[2]) > 40 ? 1 : 0);
+/** Finitura più vicina a un colore (dalla foto). */
+export function finituraVicina(col) {
+  if (col == null) return 'inox';
+  const r = (col >> 16) & 255, g = (col >> 8) & 255, b = col & 255;
+  const l = 0.299 * r + 0.587 * g + 0.114 * b, sat = Math.max(r, g, b) - Math.min(r, g, b);
+  // grigi: dalla luminosità (la foto di un metallo lucido è spesso più scura o più chiara)
+  if (sat < 28) return l < 55 ? 'nero' : l < 115 ? 'antracite' : l > 225 ? 'bianco' : l > 175 ? 'inox' : 'alluminio';
+  let best = 'inox', bd = Infinity;
+  for (const f of FINITURE_MANIGLIA) {
+    const fr = (f.colore >> 16) & 255, fg = (f.colore >> 8) & 255, fb = f.colore & 255;
+    const d = (r - fr) ** 2 * 0.3 + (g - fg) ** 2 * 0.59 + (b - fb) ** 2 * 0.11;
+    if (d < bd) { bd = d; best = f.id; }
   }
-  // ritaglio al contorno della sagoma
-  let x0 = w, y0 = h, x1 = -1, y1 = -1;
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (m[y * w + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-  if (x1 < 0) return null;
-  return { m, d, w, h, x0, y0, x1, y1, bw: x1 - x0 + 1, bh: y1 - y0 + 1 };
+  return best;
 }
 
-/** Vista come funzione (u,v ∈ 0..1 nel riquadro della sagoma) → dentro? e colore. */
-function vista(M, ruota = false, specchiaU = false, specchiaV = false) {
-  const lato = (u, v) => {
-    if (ruota) [u, v] = [v, u];
-    if (specchiaU) u = 1 - u;
-    if (specchiaV) v = 1 - v;
-    const x = Math.min(M.x1, Math.max(M.x0, Math.round(M.x0 + u * (M.bw - 1))));
-    const y = Math.min(M.y1, Math.max(M.y0, Math.round(M.y0 + v * (M.bh - 1))));
-    return y * M.w + x;
-  };
-  return {
-    dentro: (u, v) => M.m[lato(u, v)] === 1,
-    colore: (u, v) => { const i = lato(u, v) * 4; return [M.d[i], M.d[i + 1], M.d[i + 2]]; },
-    larg: ruota ? M.bh : M.bw, alt: ruota ? M.bw : M.bh,
-  };
+/** Forma proposta dalla sagoma della foto (rapporto lato corto / lato lungo). */
+export function formaDaRapporto(rapporto) {
+  if (rapporto > 0.6) return 'pomolo';
+  return 'barra';
 }
 
-/** Copertura media delle due metà (per capire da che parte c'è l'anta). */
-function piuPienoVersoFine(V, lungoV) {
-  let a = 0, b = 0, n = 0;
-  for (let s = 0; s < 40; s++) for (let t = 0; t < 10; t++) {
-    const p = (s + 0.5) / 40, q = (t + 0.5) / 20;          // prima metà / seconda metà
-    if (lungoV) { a += V.dentro(p, q); b += V.dentro(p, 1 - q); } else { a += V.dentro(q, p); b += V.dentro(1 - q, p); }
-    n++;
-  }
-  return b > a;
+const _mat = new Map();
+export function materialeFinitura(id) {
+  if (_mat.has(id)) return _mat.get(id);
+  const f = FINITURE_MANIGLIA.find((x) => x.id === id) || FINITURE_MANIGLIA[0];
+  const m = new THREE.MeshStandardMaterial({ color: f.colore, metalness: f.metal, roughness: f.rough, envMapIntensity: f.metal > 0.5 ? 1.0 : 0.4 });
+  _mat.set(id, m);
+  return m;
+}
+const matOmbra = new THREE.MeshStandardMaterial({ color: 0x0b0b0b, roughness: 0.9, metalness: 0 });
+
+/** Cilindro lungo l'asse x. */
+function barraX(L, r, mat) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L, 24), mat);
+  m.rotation.z = Math.PI / 2; return m;
+}
+/** Piedino (cilindro lungo z) da z=0 a z=h. */
+function piedino(x, r, h, mat) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 18), mat);
+  m.rotation.x = Math.PI / 2; m.position.set(x, 0, h / 2); return m;
+}
+function box(w, h, d, x, y, z, mat) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); return m;
 }
 
 /**
- * Costruisce (una volta per maniglia) la geometria 3D dalle viste.
- * def: { id, texture (davanti), vistaSopra?, vistaLato?, lunghezzaMm }
- * Ritorna la voce di cache quando pronta, null se non serve (solo davanti).
+ * Maniglia 3D pronta, centrata in (0,0) sulla faccia dell'anta (z = 0).
+ * forma: id di FORME_MANIGLIA · finitura: id di FINITURE_MANIGLIA · L: lunghezza mm.
+ * Per profilo / a bordo il lato "bordo anta" è in alto (+y).
  */
-export function maniglia3D(def, quandoPronta) {
-  if (!def || !(def.vistaSopra || def.vistaLato)) return null;
-  const c = _cache.get(def.id);
-  if (c && c !== 'attesa') return c;
-  if (!c) {
-    _cache.set(def.id, 'attesa');
-    costruisci(def).then((r) => { _cache.set(def.id, r); if (r && quandoPronta) quandoPronta(); })
-      .catch((e) => { console.warn('Maniglia 3D non costruita', e); _cache.set(def.id, null); });
-  }
-  return null;
-}
-
-async function costruisci(def) {
-  const [iF, iS, iL] = await Promise.all([def.texture, def.vistaSopra, def.vistaLato].map((u) => (u ? caricaImg(u) : null)));
-  const mF = iF && maschera(iF), mS = iS && maschera(iS), mL = iL && maschera(iL);
-  // DAVANTI: lunghezza in orizzontale (x), altezza in verticale (y)
-  let F = mF ? vista(mF, mF.bh > mF.bw) : null;
-  const L = def.lunghezzaMm || 150;
-  let T = F ? L * F.alt / F.larg : L * 0.08;
-  // SOPRA: lunghezza (x) × sporgenza (z); il lato più "pieno" è la barra (davanti)
-  let S = null, P = null;
-  if (mS) {
-    S = vista(mS, mS.bh > mS.bw);
-    P = L * S.alt / S.larg;
-    // v = 0 in alto nella foto: voglio v → z crescente dall'anta (0) alla barra (1)
-    const barraInAlto = !piuPienoVersoFine(S, true);
-    S = vista(mS, mS.bh > mS.bw, false, barraInAlto);
-  }
-  // LATO: se è una vista "lunga" (lunghezza × sporgenza) vale come vista da sopra;
-  // altrimenti è la sezione: sporgenza (orizzontale) × altezza (verticale)
-  let Lt = null;
-  if (mL) {
-    const lungo = Math.max(mL.bw, mL.bh) / Math.min(mL.bw, mL.bh) > 3;
-    if (lungo && !S) {
-      S = vista(mL, mL.bh > mL.bw); P = L * S.alt / S.larg;
-      S = vista(mL, mL.bh > mL.bw, false, !piuPienoVersoFine(S, true));
-    } else if (!lungo) {
-      Lt = vista(mL, false);                               // u = sporgenza, v = altezza
-      if (!P) P = T * Lt.larg / Lt.alt;
-      Lt = vista(mL, false, !piuPienoVersoFine(Lt, false), false);
+export function costruisciManiglia(forma, finitura, L) {
+  const mat = materialeFinitura(finitura);
+  const g = new THREE.Group();
+  L = Math.max(20, L || 160);
+  const inter = Math.max(L * 0.5, L - Math.max(24, L * 0.18));     // interasse dei piedini
+  switch (forma) {
+    case 'piatta': {
+      const T = 6, H = Math.max(10, Math.min(16, L * 0.08)), sp = 26;
+      g.add(box(L, H, T, 0, 0, sp + T / 2, mat));
+      for (const s of [-inter / 2, inter / 2]) g.add(box(Math.min(10, H), Math.min(8, H * 0.7), sp, s, 0, sp / 2, mat));
+      break;
+    }
+    case 'profilo': {
+      // profilo in alluminio a J sul bordo dell'anta: piastra + labbro che sporge e scende
+      const t = 2;
+      g.add(box(L, 38, t, 0, -2, t / 2, mat));                // piastra sull'anta
+      g.add(box(L, t, 22, 0, 17, 11, mat));                    // labbro sopra (sporge)
+      g.add(box(L, 14, t, 0, 11, 22 - t / 2, mat));            // davanti che scende
+      g.add(box(L, 12, 18, 0, 10, 11.5, matOmbra));            // ombra dentro la presa
+      break;
+    }
+    case 'bordo': {
+      // maniglia a bordo: aletta sul davanti dell'anta che gira sopra il bordo
+      const t = 2.5;
+      g.add(box(L, 30, t, 0, -4, t / 2, mat));
+      g.add(box(L, t, 26, 0, 11, 13, mat));
+      g.add(box(L, 12, t, 0, 5, 26, mat));
+      break;
+    }
+    case 'pomolo': {
+      const D = Math.max(18, Math.min(L, 45));
+      g.add(piedino(0, Math.max(5, D * 0.22), 20, mat));
+      const testa = new THREE.Mesh(new THREE.SphereGeometry(D / 2, 28, 18), mat);
+      testa.scale.set(1, 1, 0.55); testa.position.set(0, 0, 20 + D * 0.25); g.add(testa);
+      break;
+    }
+    case 'incasso': {
+      // conchiglia a filo anta: cornice metallica + fondo scuro
+      const H = Math.max(28, Math.min(48, L * 0.3)), c = 4, sp = 2;
+      g.add(box(L, c, sp, 0, H / 2 - c / 2, sp / 2, mat));
+      g.add(box(L, c, sp, 0, -H / 2 + c / 2, sp / 2, mat));
+      g.add(box(c, H, sp, -L / 2 + c / 2, 0, sp / 2, mat));
+      g.add(box(c, H, sp, L / 2 - c / 2, 0, sp / 2, mat));
+      g.add(box(L - 2 * c, H - 2 * c, 1, 0, 0, 0.6, matOmbra));
+      g.add(box(L - 2 * c, (H - 2 * c) * 0.45, 1.2, 0, (H - 2 * c) * 0.27, 0.9, mat));   // labbro di presa
+      break;
+    }
+    default: {   // barra tonda a ponte
+      const r = Math.max(5, Math.min(7, L * 0.04)), sp = 30;
+      g.add((() => { const b = barraX(L, r, mat); b.position.z = sp + r; return b; })());
+      for (const s of [-inter / 2, inter / 2]) g.add(piedino(s, r * 0.8, sp + r, mat));
     }
   }
-  if (!P) P = 30;
-  P = Math.max(10, Math.min(120, P));
-  // GRIGLIA di cubetti: dentro se è dentro a TUTTE le sagome presenti
-  const NX = 180, vs = L / NX;
-  const NY = Math.max(6, Math.min(60, Math.round(T / vs))), NZ = Math.max(6, Math.min(80, Math.round(P / vs)));
-  const vy = T / NY, vz = P / NZ;
-  const pieno = new Uint8Array(NX * NY * NZ);
-  const idx = (i, j, k) => (k * NY + j) * NX + i;
-  for (let k = 0; k < NZ; k++) for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
-    const u = (i + 0.5) / NX, v = 1 - (j + 0.5) / NY, w = (k + 0.5) / NZ;   // v: immagine dall'alto
-    if (F && !F.dentro(u, v)) continue;
-    if (S && !S.dentro(u, w)) continue;
-    if (Lt && !Lt.dentro(w, v)) continue;
-    pieno[idx(i, j, k)] = 1;
-  }
-  // SUPERFICIE: facce dei cubetti verso il vuoto, vertici condivisi
-  const vert = new Map(), pos = [], tri = [];
-  const vId = (i, j, k) => {
-    const key = (k * (NY + 1) + j) * (NX + 1) + i;
-    let id = vert.get(key);
-    if (id === undefined) { id = pos.length / 3; vert.set(key, id); pos.push(i * vs - L / 2, j * vy - T / 2, k * vz); }
-    return id;
-  };
-  const vuoto = (i, j, k) => i < 0 || j < 0 || k < 0 || i >= NX || j >= NY || k >= NZ || !pieno[idx(i, j, k)];
-  const quad = (a, b, c, d) => { tri.push(a, b, c, a, c, d); };
-  for (let k = 0; k < NZ; k++) for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
-    if (!pieno[idx(i, j, k)]) continue;
-    if (vuoto(i + 1, j, k)) quad(vId(i + 1, j, k), vId(i + 1, j + 1, k), vId(i + 1, j + 1, k + 1), vId(i + 1, j, k + 1));
-    if (vuoto(i - 1, j, k)) quad(vId(i, j, k), vId(i, j, k + 1), vId(i, j + 1, k + 1), vId(i, j + 1, k));
-    if (vuoto(i, j + 1, k)) quad(vId(i, j + 1, k), vId(i, j + 1, k + 1), vId(i + 1, j + 1, k + 1), vId(i + 1, j + 1, k));
-    if (vuoto(i, j - 1, k)) quad(vId(i, j, k), vId(i + 1, j, k), vId(i + 1, j, k + 1), vId(i, j, k + 1));
-    if (vuoto(i, j, k + 1)) quad(vId(i, j, k + 1), vId(i + 1, j, k + 1), vId(i + 1, j + 1, k + 1), vId(i, j + 1, k + 1));
-    if (vuoto(i, j, k - 1)) quad(vId(i, j, k), vId(i, j + 1, k), vId(i + 1, j + 1, k), vId(i + 1, j, k));
-  }
-  if (!tri.length) return null;
-  // LEVIGATURA (niente gradini): ogni vertice verso la media dei vicini
-  const nV = pos.length / 3, vicini = Array.from({ length: nV }, () => new Set());
-  for (let t = 0; t < tri.length; t += 3) {
-    const [a, b, c] = [tri[t], tri[t + 1], tri[t + 2]];
-    vicini[a].add(b).add(c); vicini[b].add(a).add(c); vicini[c].add(a).add(b);
-  }
-  let P0 = Float32Array.from(pos);
-  for (let it = 0; it < 16; it++) {
-    const P1 = new Float32Array(P0.length), lam = it % 2 ? -0.52 : 0.5;   // Taubin: non si restringe
-    for (let v = 0; v < nV; v++) {
-      let sx = 0, sy = 0, sz = 0; for (const n of vicini[v]) { sx += P0[n * 3]; sy += P0[n * 3 + 1]; sz += P0[n * 3 + 2]; }
-      const c = vicini[v].size || 1;
-      for (let q = 0; q < 3; q++) P1[v * 3 + q] = P0[v * 3 + q] + lam * ([sx, sy, sz][q] / c - P0[v * 3 + q]);
-      if (P0[v * 3 + 2] <= 0.01) P1[v * 3 + 2] = 0;      // la base resta appoggiata all'anta
-    }
-    P0 = P1;
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(P0, 3));
-  geo.setIndex(tri);
-  geo.computeVertexNormals();
-  // COLORI dalle foto: ogni punto prende il colore della vista da cui si vede
-  const nor = geo.attributes.normal, col = new Float32Array(nV * 3);
-  const media = [0, 0, 0]; let nm = 0;
-  for (let v = 0; v < nV; v++) {
-    const x = (P0[v * 3] + L / 2) / L, y = 1 - (P0[v * 3 + 1] + T / 2) / T, z = P0[v * 3 + 2] / P;
-    const ax = Math.abs(nor.getX(v)), ay = Math.abs(nor.getY(v)), az = Math.abs(nor.getZ(v));
-    let c = null;
-    if (az >= ax && az >= ay && F) c = F.colore(Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y)));
-    else if (ay >= ax && S) c = S.colore(Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, z)));
-    else if (Lt) c = Lt.colore(Math.min(1, Math.max(0, z)), Math.min(1, Math.max(0, y)));
-    else if (F) c = F.colore(Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y)));
-    if (c) { col[v * 3] = c[0] / 255; col[v * 3 + 1] = c[1] / 255; col[v * 3 + 2] = c[2] / 255; media[0] += c[0]; media[1] += c[1]; media[2] += c[2]; nm++; }
-  }
-  for (let v = 0; v < nV; v++) if (!col[v * 3] && !col[v * 3 + 1] && !col[v * 3 + 2] && nm) {
-    col[v * 3] = media[0] / nm / 255; col[v * 3 + 1] = media[1] / nm / 255; col[v * 3 + 2] = media[2] / nm / 255;
-  }
-  // colori della foto (sRGB) → lineari per il rendering
-  for (let q = 0; q < col.length; q++) col[q] = col[q] <= 0.04045 ? col[q] / 12.92 : Math.pow((col[q] + 0.055) / 1.055, 2.4);
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const cm = new THREE.Color(nm ? media[0] / nm / 255 : 0.5, nm ? media[1] / nm / 255 : 0.5, nm ? media[2] / nm / 255 : 0.5);
-  const hsl = {}; cm.getHSL(hsl);
-  const metallo = hsl.s < 0.18;
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: metallo ? 0.32 : 0.5,
-    metalness: metallo ? 0.7 : 0.1, envMapIntensity: metallo ? 0.9 : 0.4 });
-  return { geo, mat, L, T, P };
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  return g;
 }

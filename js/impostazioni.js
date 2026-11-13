@@ -8,10 +8,11 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261114u';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini } from './analisi-foto.js?v=20261114u';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261114u';
-import { agganciaTema } from './tema.js?v=20261114u';
+} from './catalogo.js?v=20261114v';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, finituraVicina, formaDaRapporto } from './maniglia3d.js?v=20261114v';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini } from './analisi-foto.js?v=20261114v';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261114v';
+import { agganciaTema } from './tema.js?v=20261114v';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -163,11 +164,9 @@ function apriScheda(m) {
       </div>
       ${tipo === 'man' ? `
       <fieldset class="imp-misura">
-        <legend>Altre viste (facoltative)</legend>
-        <label>Foto di lato<input type="file" accept="image/*" id="f-lato"></label>
-        <label>Foto da sopra<input type="file" accept="image/*" id="f-sopra"></label>
-        <div class="imp-viste" id="f-viste"></div>
-        <div class="imp-aiuto">Per le maniglie con forme particolari (ad arco, a J, piedini sagomati): con più viste il 3D è più fedele. Foto dritte, alla stessa distanza, su sfondo chiaro. Nessuna è obbligatoria.</div>
+        <legend>Forma e finitura (per il 3D)</legend>
+        <div id="f-man3d"></div>
+        <div class="imp-aiuto">Il sito propone forma e finitura dalla foto: controlla e correggi se serve. Nel 3D la maniglia è un modello vero di quel tipo, con la sua misura.</div>
       </fieldset>` : ''}` : ''}
       ${proprio && tipo !== 'man' ? `
       <div class="grid-2">
@@ -203,17 +202,11 @@ function apriScheda(m) {
   }));
   let img = null, rit = null;
   if (proprio) {
-    // altre viste della maniglia: anteprima delle foto scelte
-    const viste = {};
-    for (const v of ['lato', 'sopra']) {
-      corpo.querySelector(`#f-${v}`)?.addEventListener('change', async (e) => {
-        const f = e.target.files && e.target.files[0];
-        viste[v] = f ? await caricaImmagine(f) : null;
-        corpo.querySelector('#f-viste').innerHTML = ['lato', 'sopra'].filter((k) => viste[k])
-          .map((k) => `<figure><img src="${viste[k].src}" alt=""><figcaption>${k === 'lato' ? tr('Lato') : tr('Sopra')}</figcaption></figure>`).join('');
-      });
+    // maniglia: forma e finitura per il 3D (proposte dalla foto, correggibili)
+    if (tipo === 'man') {
+      corpo._man3d = { forma: man.forma || null, finitura: man.finitura || null, sceltaUtente: !!man.forma };
+      mostraMan3d(corpo);
     }
-    corpo._viste = viste;
     corpo.querySelector('#f-foto').addEventListener('change', async (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
@@ -316,19 +309,12 @@ function apriScheda(m) {
         const k = ['oggetto', 'main', 'porta', 'gola', 'golaZona', 'portaFrazione', 'coloreGola'];
         var analisi = JSON.parse(JSON.stringify(Object.fromEntries(k.filter((x) => z[x] != null).map((x) => [x, z[x]]))));
       }
-      // ALTRE VISTE della maniglia (lato, sopra): sfondo tolto e salvate
+      // MANIGLIA: forma e finitura del modello 3D
       if (tipo === 'man') {
-        const viste = corpo._viste || {};
-        manN.viste = { ...((p && p.maniglia && p.maniglia.viste) || {}) };
-        for (const v of ['lato', 'sopra']) {
-          const im = viste[v];
-          if (!im) continue;
-          const scont = corpo.querySelector('#f-scont')?.checked === false ? 0 : Number(corpo.querySelector('#f-tol')?.value || 45);
-          const r = await ritaglioBlob(im, { x: 0, y: 0, w: im.naturalWidth || im.width, h: im.naturalHeight || im.height }, { png: true, scontorna: scont, max: 1024 });
-          await salvaFoto(id, r.blob, v);
-          manN.viste[v] = { w: r.w, h: r.h };
-        }
-        if (!Object.keys(manN.viste).length) delete manN.viste;
+        const m3 = corpo._man3d || {};
+        manN.forma = m3.forma || 'barra';
+        manN.finitura = m3.finitura || finituraVicina(colore);
+        delete manN.viste;
       }
       // superficie scelta: tinta unita (RAL) / legno, lucido / opaco
       const scS = corpo._scelta;
@@ -371,6 +357,33 @@ function canvasBlob(c, tipo = 'image/jpeg') { return new Promise((ok) => c.toBlo
  * TINTA UNITA (colore pieno = RAL più vicino, finitura lucida o opaca). Il
  * sito propone dalla foto; l'utente può cambiare tutto.
  */
+/** Scheda maniglia: forma (con disegno) e finitura del modello 3D. */
+function mostraMan3d(corpo) {
+  const box = corpo.querySelector('#f-man3d'); if (!box) return;
+  const m3 = corpo._man3d;
+  const hx = (h) => `#${h.toString(16).padStart(6, '0')}`;
+  box.innerHTML = `
+    <div class="imp-sup-titolo">${tr('Forma')}</div>
+    <div class="imp-forme">${FORME_MANIGLIA.map((f) => `<button type="button" class="imp-forma ${m3.forma === f.id ? 'sel' : ''}" data-forma="${f.id}">${f.svg}<span>${tr(f.nome)}</span></button>`).join('')}</div>
+    <div class="imp-sup-titolo">${tr('Finitura')}</div>
+    <div class="imp-ral">${FINITURE_MANIGLIA.map((f) => `<button type="button" class="imp-ral-c ${m3.finitura === f.id ? 'sel' : ''}" data-fin3="${f.id}"><span style="background:${hx(f.colore)}"></span>${tr(f.nome)}</button>`).join('')}</div>`;
+  box.querySelectorAll('[data-forma]').forEach((b) => b.addEventListener('click', () => { m3.forma = b.dataset.forma; m3.sceltaUtente = true; mostraMan3d(corpo); }));
+  box.querySelectorAll('[data-fin3]').forEach((b) => b.addEventListener('click', () => { m3.finitura = b.dataset.fin3; m3.sceltaUtente = true; mostraMan3d(corpo); }));
+}
+/** Colore della maniglia nella zona scelta: i pixel diversi dallo sfondo (mediana). */
+function coloreManiglia(img, r) {
+  const k = Math.min(1, 220 / Math.max(r.w, r.h)), w = Math.max(4, Math.round(r.w * k)), h = Math.max(4, Math.round(r.h * k));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, r.x, r.y, r.w, r.h, 0, 0, w, h);
+  const d = g.getImageData(0, 0, w, h).data, px = (i) => [d[i * 4], d[i * 4 + 1], d[i * 4 + 2]];
+  const med = (l) => { const s = [...l].sort((a, b) => a - b); return s[Math.floor(s.length / 2)] || 0; };
+  const bordo = []; for (let x = 0; x < w; x++) bordo.push(px(x), px((h - 1) * w + x)); for (let y = 0; y < h; y++) bordo.push(px(y * w), px(y * w + w - 1));
+  const bg = [0, 1, 2].map((q) => med(bordo.map((v) => v[q])));
+  let sel = []; for (let i = 0; i < w * h; i++) { const v = px(i); if (Math.hypot(v[0] - bg[0], v[1] - bg[1], v[2] - bg[2]) > 45) sel.push(v); }
+  if (sel.length < w * h * 0.04) sel = Array.from({ length: w * h }, (_, i) => px(i));
+  const [rr, gg, bb] = [0, 1, 2].map((q) => Math.round(med(sel.map((v) => v[q]))));
+  return (rr << 16) | (gg << 8) | bb;
+}
 /** Gola quasi nera: i bordi della porta la "sporcano" di colore → la porto verso il grigio/nero. */
 function neutroScuro(c) {
   const r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255, l = 0.299 * r + 0.587 * g + 0.114 * b;
@@ -609,7 +622,16 @@ async function analisiManiglia(img, corpo, tipo, salvata = null) {
   };
   tiles.innerHTML = '';
   if (tipo === 'fp') { await tile('Porta', a.porta); await tile('Gola', a.gola, { colore: a.coloreGola }); }
-  else if (tipo === 'man') await tile('Maniglia (sfondo tolto)', a.main, { png: true });
+  else if (tipo === 'man') {
+    await tile('Maniglia (sfondo tolto)', a.main, { png: true });
+    // proposta di forma e finitura dalla foto (se l'utente non ha già scelto)
+    const m3 = corpo._man3d;
+    if (m3 && !m3.sceltaUtente) {
+      m3.finitura = finituraVicina(coloreManiglia(img, a.main));
+      m3.forma = formaDaRapporto(Math.min(a.main.w, a.main.h) / Math.max(a.main.w, a.main.h));
+      mostraMan3d(corpo);
+    }
+  }
   else await tile('Campione', a.main);
   corpo.querySelector('#f-msg').textContent = tr(a.messaggio || (tipo === 'man' ? 'Maniglia trovata.' : 'Campione trovato.'));
   corpo.querySelector('#f-mano').onclick = () => {

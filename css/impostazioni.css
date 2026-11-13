@@ -79,3 +79,9 @@
 .imp-ral-c span { width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(0,0,0,.3); display: inline-block; }
 .imp-ral-c.sel { border-color: var(--oro-chiaro, #e6c46a); box-shadow: 0 0 0 2px var(--oro-chiaro, #e6c46a); }
 .imp-ral-foto { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; border: 1px solid rgba(0,0,0,.3); }
+/* Maniglie: forme del modello 3D */
+.imp-forme { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin-bottom: 8px; }
+.imp-forma { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border: 1px solid var(--bordo); border-radius: 8px; background: transparent; color: inherit; font-size: 12px; cursor: pointer; }
+.imp-forma svg { width: 48px; height: 24px; stroke: currentColor; stroke-width: 2; fill: currentColor; }
+.imp-forma svg [fill="none"] { fill: none; }
+.imp-forma.sel { border-color: var(--oro, #c9a94a); color: var(--oro, #c9a94a); box-shadow: 0 0 0 1px var(--oro, #c9a94a) inset; }

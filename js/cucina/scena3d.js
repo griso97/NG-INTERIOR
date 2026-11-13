@@ -13,13 +13,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261114u';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261114u';
+} from './modello.js?v=20261114v';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261114v';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { maniglia3D } from '../maniglia3d.js?v=20261114u';
+import { costruisciManiglia, finituraVicina } from '../maniglia3d.js?v=20261114v';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261114u';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261114v';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -578,43 +578,18 @@ function barraManiglia(g, x, y, z, w, h, D, matFronte, matLati, ruota, sporg = S
   if (ruota) grp.rotation.z = Math.PI / 2;
   g.add(grp);
 }
-function maniglia(g, x, y, z, orizz, lung) {
+/** Forma della maniglia del catalogo (barra, piatta, profilo, bordo, pomolo, incasso). */
+function formaManiglia() { return (_maniglia && _maniglia.texture && _maniglia.lunghezzaMm) ? (_maniglia.forma || 'barra') : 'barra'; }
+/** giu = il bordo dell'anta è SOTTO (pensili aperti dal basso): profilo/bordo girati. */
+function maniglia(g, x, y, z, orizz, lung, giu = false) {
   const def = _maniglia;
-  if (def && def.texture && def.lunghezzaMm && (def.vistaSopra || def.vistaLato)) {
-    // MANIGLIA DA PIÙ FOTO: forma 3D vera ricavata dalle viste (davanti/lato/sopra)
-    const r = maniglia3D(def, _reRenderMan);
-    if (r) {
-      const m = new THREE.Mesh(r.geo, r.mat);
-      m.castShadow = true; m.receiveShadow = true;
-      const grp = new THREE.Group(); grp.add(m);
-      grp.position.set(x, y, z + 20);                  // base appoggiata all'anta
-      if (!orizz) grp.rotation.z = Math.PI / 2;
-      g.add(grp);
-      return;
-    }
-    // finché non è pronta: la barra con i piedini (sotto)
-  }
   if (def && def.texture && def.lunghezzaMm) {
-    // MANIGLIA DA FOTO: misura reale, costruita in 3D (non più una foto piatta).
-    // La barra segue il verso della foto; se sull'anta serve nell'altro verso
-    // si gira tutta la maniglia (foto compresa), come nella realtà.
-    const L = def.lunghezzaMm, T = Math.max(8, def.altezzaMm || 20);
-    let D = Math.max(8, Math.min(T * 0.9, 22)), sporg = SPORGENZA_MAN;
-    // Viste in più (facoltative): quanto sporge la maniglia dall'anta.
-    // Da sopra si vede lunghezza × sporgenza (il lato lungo è la lunghezza);
-    // di lato si vede altezza × sporgenza (foto con la maniglia come montata).
-    const v = def.viste || {};
-    let P = null;
-    if (v.sopra && v.sopra.w && v.sopra.h) P = L * Math.min(v.sopra.w, v.sopra.h) / Math.max(v.sopra.w, v.sopra.h);
-    else if (v.lato && v.lato.w && v.lato.h) P = T * Math.max(v.lato.w, v.lato.h) / Math.min(v.lato.w, v.lato.h);
-    if (P) {
-      P = Math.max(14, Math.min(90, P));             // sporgenza totale (mm)
-      D = Math.max(6, Math.min(D, P * 0.45));
-      sporg = Math.max(6, P - D);
-    }
-    const w = def.verticale ? T : L, h = def.verticale ? L : T;
-    const ruota = !!def.verticale === !!orizz;       // foto verticale ↔ serve orizzontale (o viceversa)
-    barraManiglia(g, x, y, z, w, h, D, getMaterialeTHREE(def.id, _reRenderMan), materialeLatiManiglia(def), ruota, sporg);
+    // MANIGLIA DEL CATALOGO: modello 3D vero del suo tipo, misura e finitura reali
+    const grp = costruisciManiglia(def.forma || 'barra', def.finitura || finituraVicina(def.colore), def.lunghezzaMm);
+    grp.position.set(x, y, z + 20);                    // 20 = faccia davanti dell'anta
+    if (!orizz) grp.rotation.z = Math.PI / 2;
+    else if (giu) grp.rotation.z = Math.PI;
+    g.add(grp);
     return;
   }
   // maniglia standard: barra in acciaio con i suoi piedini
@@ -975,8 +950,11 @@ function lungManiglia(standard) {
 function manigliaOrizzAnta(g, px, py, pw, ph, z, verso, inAlto) {
   const L = lungManiglia(Math.min(pw * 0.5, 320));
   const off = Math.max(0, pw / 2 - L / 2 - 40);       // verso il lato che apre (0 = centrata)
-  const y = inAlto ? py + ph / 2 - 45 : py - ph / 2 + 45;
-  maniglia(g, px + verso * off, y, z, true, Math.min(pw * 0.5, 320));
+  // profilo / a bordo: attaccati al bordo dell'anta; le altre a 45 mm dal bordo
+  const aBordo = ['profilo', 'bordo'].includes(formaManiglia());
+  const dB = aBordo ? 17 : 45;
+  const y = inAlto ? py + ph / 2 - dB : py - ph / 2 + dB;
+  maniglia(g, px + verso * off, y, z, true, Math.min(pw * 0.5, 320), !inAlto);
 }
 let _anteInBasso = false;    // pensili: maniglia vicino al bordo basso
 function ante(g, w, h, d, n, matAnta, sporg, lato) {
