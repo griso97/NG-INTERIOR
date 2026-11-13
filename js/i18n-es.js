@@ -1093,5 +1093,9 @@ window.NG_I18N_ES = {
  "✓ Automatico: i mobili vanno sempre verso l'interno della forma": "✓ Automático: los muebles van siempre hacia el interior de la forma",
  "Base angolo": "Bajo rincón",
  "Anta (base angolo)": "Puerta (bajo rincón)",
- "Cerniere 165° (angoli e Ciaflan)": "Bisagras 165° (rincones y chaflán)"
+ "Cerniere 165° (angoli e Ciaflan)": "Bisagras 165° (rincones y chaflán)",
+ "clicca per fissare": "haz clic para fijar",
+ " (dal vertice iniziale)": " (desde el vértice inicial)",
+ " (dal vertice selezionato)": " (desde el vértice seleccionado)",
+ ": tocca il vertice di un'estremità, premi \"Aggiungi parete\" e muovi il mouse: vedi l'angolo interno e la misura; clicca per fissarla, oppure scrivi la misura in mm e premi Invio.": ": toca el vértice de un extremo, pulsa \"Añadir pared\" y mueve el ratón: ves el ángulo interior y la medida; haz clic para fijarla, o escribe la medida en mm y pulsa Intro."
 };

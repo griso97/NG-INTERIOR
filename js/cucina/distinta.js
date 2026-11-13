@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti,
-} from './modello.js?v=20261114h';
+} from './modello.js?v=20261114i';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const PROFONDITA_BASE_D = 600;   // profondità dei bassi (bracci della base angolo)

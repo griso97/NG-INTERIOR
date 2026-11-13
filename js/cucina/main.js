@@ -23,12 +23,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL,
-} from './modello.js?v=20261114h';
-import { renderPianta } from './pianta.js?v=20261114h';
-import { calcolaDistintaCucina } from './distinta.js?v=20261114h';
+} from './modello.js?v=20261114i';
+import { renderPianta } from './pianta.js?v=20261114i';
+import { calcolaDistintaCucina } from './distinta.js?v=20261114i';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261114h';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114h';
+import { agganciaTema } from '../tema.js?v=20261114i';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114i';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -95,6 +95,7 @@ let tracciaML = null;         // trascinamento in corso: { tipo:'vertice'|'nuova
 let vbFisso = null;           // vista ferma mentre si trascina
 let anteprimaML = null;       // parete nuova in anteprima
 let tastiML = '';             // numeri scritti con la tastiera
+let seguiML = null;           // parete appena aggiunta: { k } = vertice libero che segue il mouse
 let trascinamento = null; // { id, dx, dy, mosso } mentre si sposta un mobile
 const palette = document.getElementById('palette');
 const modale = document.getElementById('modale');
@@ -294,9 +295,9 @@ function renderPannelloStep1() {
       <div class="riga-3d" style="margin:8px 0">
         <strong>Sposta un vertice</strong>: prendilo e trascinalo (la squadra a 90° tiene). Vicino a ogni vertice c'è l'angolo interno.<br>
         <strong>Scrivi l'angolo</strong>: tocca un vertice, scrivi i gradi (es. 95, 120, 180) e premi Invio.<br>
-        <strong>Nuova parete</strong>: premi qui sotto, poi tira da un'estremità (pallino col +); scrivi la lunghezza in mm e premi Invio.
+        <strong>Nuova parete</strong>: tocca il vertice di un'estremità, premi "Aggiungi parete" e muovi il mouse: vedi l'angolo interno e la misura; clicca per fissarla, oppure scrivi la misura in mm e premi Invio.
       </div>
-      <button type="button" id="ml-aggiungi" class="btn-ghost ${aggiuntaParete ? 'attivo' : ''}" style="width:100%">${aggiuntaParete ? '✓ ' : ''}+ Aggiungi parete (tira da un'estremità)</button>
+      <button type="button" id="ml-aggiungi" class="btn-oro" style="width:100%">+ Aggiungi parete${progetto.piano.pareti.length ? (verticeSel === 0 ? ' (dal vertice iniziale)' : ' (dal vertice selezionato)') : ''}</button>
       ${verticeSel != null && angoloInternoVertice(progetto.piano.pareti, verticeSel) != null ? `
       <div class="riga-3d" style="margin:10px 0 4px">Angolo interno al vertice selezionato (°):</div>
       <div style="display:flex;gap:8px">
@@ -368,9 +369,7 @@ function renderPannelloStep1() {
   document.getElementById('ml-toggle')?.addEventListener('click', () => {
     manoLibera = !manoLibera; aggiuntaParete = false; verticeSel = null; tastiML = ''; aggiorna();
   });
-  document.getElementById('ml-aggiungi')?.addEventListener('click', () => {
-    aggiuntaParete = !aggiuntaParete; verticeSel = null; aggiorna();
-  });
+  document.getElementById('ml-aggiungi')?.addEventListener('click', aggiungiPareteML);
   const appAng = () => {
     const v = Number(String(document.getElementById('ml-angolo').value).replace(',', '.'));
     if (!(v > 0 && v < 360) || verticeSel == null) return;
@@ -1492,7 +1491,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114h');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114i');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1815,11 +1814,75 @@ const trML = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
 function mostraInfoML(e, testo) {
   const r = svg.parentElement.getBoundingClientRect();
   infoML.textContent = testo; infoML.hidden = false;
-  infoML.style.left = `${e.clientX - r.left + 16}px`; infoML.style.top = `${e.clientY - r.top + 16}px`;
+  // resta dentro la pianta: se non c'è posto a destra va a sinistra del puntatore
+  const w = infoML.offsetWidth || 200, h = infoML.offsetHeight || 30;
+  let x = e.clientX - r.left + 16, y = e.clientY - r.top + 16;
+  if (x + w > r.width - 6) x = e.clientX - r.left - w - 16;
+  if (y + h > r.height - 6) y = e.clientY - r.top - h - 16;
+  infoML.style.left = `${Math.max(6, x)}px`; infoML.style.top = `${Math.max(6, y)}px`;
 }
 const fmtG = (a) => `${String(Math.round(a * 10) / 10).replace('.', ',')}°`;
+const normG = (a) => { let x = a % 360; if (x <= -180) x += 360; if (x > 180) x -= 360; return x; };
+/**
+ * Muove il vertice di un'ESTREMITÀ (k = 0 o ultimo): la parete attaccata ruota
+ * attorno al vertice d'unione e si allunga/accorcia. Squadra: si aggancia a
+ * 90°/180°/270° rispetto alla parete vicina (o agli assi se è la sola).
+ * Ritorna il testo informativo (angolo interno + misura).
+ */
+function muoviEstremoML(k, P0) {
+  const pareti = progetto.piano.pareti, V = calcolaVertici(pareti);
+  const ultimo = k === pareti.length;
+  const giunto = ultimo ? k - 1 : 1;                       // vertice d'unione (fisso)
+  const anc = V[giunto];
+  const vicina = ultimo ? pareti[k - 2] : pareti[1];       // parete accanto (per la squadra)
+  let base = vicina ? vicina.angolo_gradi : 0;
+  if (!ultimo && vicina) base += 180;                      // all'inizio la direzione è al contrario
+  let ang = (Math.atan2(P0.y - anc.y, P0.x - anc.x) * 180) / Math.PI;
+  const q = Math.round((ang - base) / 90) * 90;
+  let squadra = false;
+  if (Math.abs(normG(ang - base - q)) <= 6) { ang = base + q; squadra = true; }
+  let L = Math.max(50, Math.round(Math.hypot(P0.x - anc.x, P0.y - anc.y) / 10) * 10);
+  if (tastiML && Number(tastiML) >= 50) L = Math.round(Number(tastiML));
+  const r = (ang * Math.PI) / 180;
+  muoviVertice(progetto, k, anc.x + Math.cos(r) * L, anc.y + Math.sin(r) * L);
+  const angI = angoloInternoVertice(progetto.piano.pareti, giunto);
+  return `${angI != null ? `${trML('Angolo')} ${fmtG(angI)}${squadra ? ' ⟂' : ''} · ` : ''}${L} mm`;
+}
+/** "Aggiungi parete": parte dal vertice d'estremità selezionato e segue il mouse. */
+function aggiungiPareteML() {
+  registraStoria();
+  const pareti = progetto.piano.pareti;
+  if (!pareti.length) {
+    aggiungiPareteLibera(progetto, 'fine', 3000, 0);
+    seguiML = { k: 1 };
+  } else if (verticeSel === 0) {
+    const a = pareti[0].angolo_gradi;
+    aggiungiPareteLibera(progetto, 'inizio', 1000, a - 90 + 180);
+    seguiML = { k: 0 };
+  } else {
+    const a = pareti[pareti.length - 1].angolo_gradi;
+    aggiungiPareteLibera(progetto, 'fine', 1000, a + 90);
+    seguiML = { k: progetto.piano.pareti.length };
+  }
+  verticeSel = seguiML.k; tastiML = '';
+  vbFisso = null;
+  aggiorna();
+  vbFisso = svg.getAttribute('viewBox');                   // la vista resta ferma mentre la muovi
+}
+// la parete appena aggiunta segue il mouse finché non clicchi
+svg.addEventListener('pointermove', (e) => {
+  if (!seguiML || tracciaML || progetto.stepCorrente !== 1) return;
+  mostraInfoML(e, muoviEstremoML(seguiML.k, puntoMm(e)) + (tastiML ? '' : ` · ${trML('clicca per fissare')}`));
+  disegna();
+});
+function fineSeguiML() { seguiML = null; vbFisso = null; infoML.hidden = true; tastiML = ''; aggiorna(); }
 svg.addEventListener('pointerdown', (e) => {
   if (progetto.stepCorrente !== 1 || !manoLibera) return;
+  if (seguiML) {                                       // clic = fissa la parete nuova
+    e.stopImmediatePropagation(); e.preventDefault();
+    if (e.pointerType !== 'mouse') muoviEstremoML(seguiML.k, puntoMm(e));   // col dito: va dove tocchi
+    fineSeguiML(); return;
+  }
   const vEl = e.target.closest && e.target.closest('[data-vertice]');
   if (!vEl) { if (verticeSel != null) { verticeSel = null; aggiorna(); } return; }
   const k = Number(vEl.dataset.vertice);
@@ -1854,13 +1917,17 @@ svg.addEventListener('pointermove', (e) => {
     mostraInfoML(e, `${L} mm${P.agganciato ? ' · ⟂' : ` · ${fmtG(((ang % 360) + 360) % 360)}`}${tastiML ? '' : ` · ${trML('scrivi la misura e Invio')}`}`);
   } else {
     const k = tracciaML.k;
-    const P = agganciaSquadra({ x: Math.round(P0.x / 5) * 5, y: Math.round(P0.y / 5) * 5 }, [V[k - 1], V[k + 1]], 5);
-    muoviVertice(progetto, k, P.x, P.y);
     tracciaML.mosso = true;
-    const pareti = progetto.piano.pareti;
-    const ang = angoloInternoVertice(pareti, k);
-    const lung = [pareti[k - 1], pareti[k]].filter(Boolean).map((p) => `${p.lunghezza_mm}`).join(' / ');
-    mostraInfoML(e, `${ang != null ? `${trML('Angolo')} ${fmtG(ang)} · ` : ''}${lung} mm`);
+    if (k === 0 || k === progetto.piano.pareti.length) {
+      mostraInfoML(e, muoviEstremoML(k, P0));            // estremità: angolo al giunto + misura
+    } else {
+      const P = agganciaSquadra({ x: Math.round(P0.x / 5) * 5, y: Math.round(P0.y / 5) * 5 }, [V[k - 1], V[k + 1]], 5);
+      muoviVertice(progetto, k, P.x, P.y);
+      const pareti = progetto.piano.pareti;
+      const ang = angoloInternoVertice(pareti, k);
+      const lung = [pareti[k - 1], pareti[k]].filter(Boolean).map((p) => `${p.lunghezza_mm}`).join(' / ');
+      mostraInfoML(e, `${ang != null ? `${trML('Angolo')} ${fmtG(ang)} · ` : ''}${lung} mm`);
+    }
   }
   disegna();
 }, true);
@@ -1891,10 +1958,20 @@ document.addEventListener('keydown', (e) => {
   } else if (e.key === 'Backspace') {
     tastiML = tastiML.slice(0, -1);
   } else if (e.key === 'Escape') {
+    if (seguiML) { fineSeguiML(); return; }
     tastiML = ''; aggiuntaParete = false; verticeSel = null; infoML.hidden = true; aggiorna(); return;
   } else if (e.key === 'Enter') {
     const v = Number(tastiML);
     if (tracciaML) return;                  // durante il trascinamento vale al rilascio
+    if (seguiML) { if (v >= 50) { const V = calcolaVertici(progetto.piano.pareti); muoviEstremoML(seguiML.k, V[seguiML.k]); } fineSeguiML(); return; }
+    const nP = progetto.piano.pareti.length;
+    if (v >= 50 && (verticeSel === 0 || (verticeSel === nP && nP > 0))) {
+      // estremità selezionata: misura della parete attaccata (stessa direzione)
+      registraStoria();
+      const V = calcolaVertici(progetto.piano.pareti);
+      muoviEstremoML(verticeSel, V[verticeSel]);
+      tastiML = ''; infoML.hidden = true; aggiorna(); return;
+    }
     if (v > 0) {
       registraStoria();
       if (verticeSel != null && angoloInternoVertice(progetto.piano.pareti, verticeSel) != null) {
@@ -1909,7 +1986,9 @@ document.addEventListener('keydown', (e) => {
   e.preventDefault();
   // mostra cosa si sta scrivendo
   const r = svg.getBoundingClientRect();
-  const cosa = tracciaML && tracciaML.tipo === 'nuova' ? trML('Lunghezza') + ': ' + (tastiML || '…') + ' mm'
+  const nP2 = progetto.piano.pareti.length;
+  const estSel = seguiML || verticeSel === 0 || (verticeSel === nP2 && nP2 > 0);
+  const cosa = (tracciaML && tracciaML.tipo === 'nuova') || estSel ? trML('Lunghezza') + ': ' + (tastiML || '…') + ' mm'
     : verticeSel != null ? trML('Angolo') + ': ' + (tastiML || '…') + '°'
       : pareteSelId != null ? trML('Lunghezza') + ': ' + (tastiML || '…') + ' mm' : trML('Tocca un vertice o una parete');
   infoML.textContent = `⌨ ${cosa}${tastiML ? ' — ' + trML('Invio') : ''}`; infoML.hidden = false;
