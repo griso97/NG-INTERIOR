@@ -13,8 +13,8 @@ import { SFONDI_LISTA } from './sfondi.js?v=20261111b';
 import { agganciaTema } from './tema.js?v=20261111b';
 import { renderPannello, configDefault } from './interfaccia.js?v=20261111b';
 import { renderDistinta } from './distinta.js?v=20261111b';
-import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261113e';
-import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261113e';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261113f';
+import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261113f';
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
 } from './storage.js?v=20261111b';

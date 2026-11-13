@@ -21,12 +21,12 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA,
-} from './modello.js?v=20261113e';
+} from './modello.js?v=20261113f';
 import { renderPianta } from './pianta.js?v=20261111x';
-import { calcolaDistintaCucina } from './distinta.js?v=20261113e';
+import { calcolaDistintaCucina } from './distinta.js?v=20261113f';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261113e';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113e';
+import { agganciaTema } from '../tema.js?v=20261113f';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113f';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1294,7 +1294,7 @@ function mostraDistinta() {
         <thead><tr><th>Accessorio</th><th class="n">Qtà</th></tr></thead>
         <tbody>${accessori.map((a) => `<tr><td>${escHtml(a.nome)}</td><td class="n">${a.quantita}</td></tr>`).join('')}</tbody>
       </table>
-      <div class="riga-3d" style="margin-top:6px">Piedini: 4 per modulo a terra, 6 se è più largo di 90 cm. Cerniere: 2 per porta da 70 a 92 cm; porte più alte 3 (fino a 150 cm), 4 (fino a 200 cm), 5 oltre.</div>
+      <div class="riga-3d" style="margin-top:6px">Cerniere: 2 per porta (110°), 165° sulle porte del pensile angolo 63×63, porta colonna frigo 4 se più alta di 1,10 m (se no 3). Maniglie: una per porta e frontale dove non c'è il finger-pull. Piedini: 4 per modulo a terra (6 oltre 90 cm), una grappa zoccolo per modulo, un angolo per ogni giro a 90° dello zoccolo. Un kit per appendere ogni pensile.</div>
     </div>` : '';
 
   corpo.innerHTML = sezModuli + sezPezzi + sezAcc + `
@@ -1362,7 +1362,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261113e');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261113f');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste

@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261113e';
+} from './modello.js?v=20261113f';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -189,6 +189,33 @@ function gruppoModulo(cat) {
   return null;
 }
 
+/**
+ * Angoli a 90° dello zoccolo: dove due file di moduli a terra con direzioni
+ * diverse (cucine a L / U) si toccano, lo zoccolo gira → 1 angolo.
+ * Ogni fila = moduli contigui con la stessa rotazione e sulla stessa linea.
+ */
+function angoliZoccolo(mobili) {
+  const aTerra = mobili.filter((m) => { const c = categoriaTipo(m.tipo); return c === 'base' || c === 'colonna' || c === 'lavastoviglie' || c === 'lavatrice'; });
+  const rotN = (r) => ((Math.round((r || 0) / 90) * 90) % 360 + 360) % 360;
+  // ingombro in pianta di ogni modulo (rettangolo allineato agli assi)
+  const box = (m) => { const d = dimMobile(m); const r = rotN(m.rot) % 180 === 0; const w = r ? d.w : d.d, h = r ? d.d : d.w;
+    return { x0: m.x - w / 2, x1: m.x + w / 2, y0: m.y - h / 2, y1: m.y + h / 2, rot: rotN(m.rot) }; };
+  // file: unisco i moduli con la stessa rotazione che si toccano
+  const file = [];
+  for (const b of aTerra.map(box)) {
+    const f = file.find((F) => F.rot === b.rot && F.items.some((q) => Math.max(q.x0, b.x0) - Math.min(q.x1, b.x1) < 60 && Math.max(q.y0, b.y0) - Math.min(q.y1, b.y1) < 60));
+    if (f) f.items.push(b); else file.push({ rot: b.rot, items: [b] });
+  }
+  let angoli = 0;
+  for (let i = 0; i < file.length; i++) for (let j = i + 1; j < file.length; j++) {
+    if ((file[i].rot - file[j].rot + 360) % 180 === 0) continue;       // stessa direzione: niente angolo
+    const tocca = file[i].items.some((a) => file[j].items.some((b) =>
+      Math.max(a.x0, b.x0) - Math.min(a.x1, b.x1) < 60 && Math.max(a.y0, b.y0) - Math.min(a.y1, b.y1) < 60));
+    if (tocca) angoli++;
+  }
+  return angoli;
+}
+
 export function calcolaDistintaCucina(progetto) {
   // Gli "oggetti" (sgabelli, decor) sono arredo, non moduli di cucina:
   // non entrano né nei moduli né nei pezzi della distinta.
@@ -220,22 +247,58 @@ export function calcolaDistintaCucina(progetto) {
   const pezzi = [...aggMap.values()].sort((a, b) =>
     (ORDINE_GRUPPI.indexOf(a.gruppo) - ORDINE_GRUPPI.indexOf(b.gruppo)) || (b.larghezza - a.larghezza));
 
-  // 3) ACCESSORI da ordinare (non si tagliano): piedini, griglie del forno.
+  // 3) ACCESSORI da ordinare (non si tagliano).
   const acc = new Map();
   const aggiungi = (nome, q) => { if (q > 0) acc.set(nome, (acc.get(nome) || 0) + q); };
-  for (const m of mobili) {
-    const cat = categoriaTipo(m.tipo), L = dimMobile(m).w;
-    if (cat === 'base' || cat === 'colonna') aggiungi('Piedini regolabili', piediniDi(L));
-    if (m.tipo === 'forno') aggiungi(`Griglia aerazione forno ${round(L - 3)} mm`, 1);
-  }
-  // CERNIERE: per ogni porta (non frontali cassetto né pannelli fissi):
-  // da 70 a 92 cm → 2; più alte (colonne) → 3 fino a 150 cm, 4 fino a 200, poi 5
-  const cerniereDi = (h) => (h <= 950 ? 2 : h <= 1500 ? 3 : h <= 2000 ? 4 : 5);
+  const perId = new Map(mobili.map((m) => [m.id, m]));
+  // finger-pull e maniglia scelti per gruppo (bassi / pensili / colonne)
+  const grp = (cat) => (cat === 'pensile' ? 'pensile' : cat === 'colonna' ? 'colonna' : 'base');
+  const fp = progetto.fingerPull;
+  const conFP = (cat) => fp === true || !!(fp && typeof fp === 'object' && fp[grp(cat)]);
+  const nomeManiglia = (cat) => {
+    const id = (progetto.maniglie || {})[grp(cat)];
+    const def = id && typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === id);
+    return def ? def.nome : 'standard';
+  };
+
+  // CERNIERE: porte da 70 a 92 → 2 (110°); pensile angolo 63×63 → 2 per porta
+  // a 165°; porta della colonna frigo → 4 se più alta di 1,10 m, se no 3.
   for (const p of raw) {
     if (!/^anta/i.test(p.nome)) continue;
-    aggiungi('Cerniere', cerniereDi(p.altezza) * p.quantita);
+    const m = perId.get(p.moduloId) || {};
+    if (m.tipo === 'pensile-angolo') { aggiungi('Cerniere 165° (pensile angolo)', 2 * p.quantita); continue; }
+    if (categoriaTipo(m.tipo) === 'colonna' && (m.variante || 'porta') === 'porta') {
+      aggiungi('Cerniere colonna frigo', (p.altezza > 1100 ? 4 : 3) * p.quantita); continue;
+    }
+    const n = p.altezza <= 950 ? 2 : p.altezza > 1100 ? 4 : 3;
+    aggiungi('Cerniere 110°', n * p.quantita);
   }
-  const accessori = [...acc.entries()].map(([nome, quantita]) => ({ nome, quantita }));
+  // CASSETTI (guide/scatola) profondità 50 cm: uno per frontale
+  for (const p of raw) {
+    if (p.nome !== 'Fronte cassetto') continue;
+    aggiungi(`Cassetti profondità 50 cm · ${p.altezza > 155 ? 'altezza grande' : 'altezza bassa'}`, p.quantita);
+  }
+  // MANIGLIE: una per porta e per frontale, dove non c'è il finger-pull
+  for (const p of raw) {
+    if (!/^anta|^fronte cassetto/i.test(p.nome)) continue;
+    const cat = categoriaTipo((perId.get(p.moduloId) || {}).tipo);
+    if (conFP(cat)) continue;
+    aggiungi(`Maniglie · ${nomeManiglia(cat)}`, p.quantita);
+  }
+  // A TERRA: piedini, grappe dello zoccolo; PENSILI: kit per appenderli
+  for (const m of mobili) {
+    const cat = categoriaTipo(m.tipo), L = dimMobile(m).w;
+    if (cat === 'base' || cat === 'colonna') {
+      aggiungi('Piedini regolabili', piediniDi(L));
+      aggiungi('Grappe zoccolo (fissaggio ai piedini)', 1);
+    }
+    if (cat === 'pensile') aggiungi('Kit per appendere i pensili', 1);
+    if (m.tipo === 'forno') aggiungi(`Griglia aerazione forno ${round(L - 3)} mm`, 1);
+  }
+  aggiungi('Angoli zoccolo 90°', angoliZoccolo(mobili));
+  const ORDINE_ACC = ['Cerniere', 'Cassetti', 'Maniglie', 'Kit', 'Piedini', 'Grappe', 'Angoli', 'Griglia'];
+  const pos = (n) => { const i = ORDINE_ACC.findIndex((k) => n.startsWith(k)); return i < 0 ? 99 : i; };
+  const accessori = [...acc.entries()].map(([nome, quantita]) => ({ nome, quantita })).sort((x, y) => pos(x.nome) - pos(y.nome));
 
   // 4) Riepilogo.
   let totalePezzi = 0, mqAnte = 0, mqZoccolo = 0, mqMelaminico = 0;
@@ -247,7 +310,7 @@ export function calcolaDistintaCucina(progetto) {
     else mqAnte += mq;
   }
   const piedini = acc.get('Piedini regolabili') || 0;
-  const cerniere = acc.get('Cerniere') || 0;
+  const cerniere = [...acc.entries()].filter(([k]) => k.startsWith('Cerniere')).reduce((t, [, v]) => t + v, 0);
 
   return {
     moduli,
