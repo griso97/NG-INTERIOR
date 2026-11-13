@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti,
-} from './modello.js?v=20261113u';
+} from './modello.js?v=20261113v';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -303,8 +303,11 @@ export function calcolaDistintaCucina(progetto) {
   for (const p of raw) {
     if (!/^anta/i.test(p.nome)) continue;
     const m = perId.get(p.moduloId) || {};
-    if (m.tipo === 'pensile-angolo') { aggiungi('Cerniere 165° (pensile angolo)', 2 * p.quantita); continue; }
-    if (categoriaTipo(m.tipo) === 'colonna' && (m.variante || 'porta') === 'porta') {
+    // pensile angolo 63×63 e Ciaflan: cerniere ad apertura grande (165°)
+    if (m.tipo === 'pensile-angolo' || m.tipo === 'pensile-angolo-45') { aggiungi('Cerniere 165° (pensile angolo e Ciaflan)', 2 * p.quantita); continue; }
+    // colonna frigo: la porta bassa (70 o 80) ha 2 cerniere come le altre;
+    // la porta del frigo (alta) 4 se supera 1,10 m, se no 3
+    if (categoriaTipo(m.tipo) === 'colonna' && (m.variante || 'porta') === 'porta' && p.altezza > 950) {
       aggiungi('Cerniere colonna frigo', (p.altezza > 1100 ? 4 : 3) * p.quantita); continue;
     }
     const n = p.altezza <= 950 ? 2 : p.altezza > 1100 ? 4 : 3;

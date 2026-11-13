@@ -1026,7 +1026,7 @@ window.NG_I18N_ES = {
  "Cerniere": "Bisagras",
  "Porte, frontali e parti dei cassetti, più i pezzi in legno aggiunti da noi (costadi, reglette, pannelli, zoccolo), ognuno nel suo gruppo.": "Puertas, frentes y piezas de los cajones, más las piezas de madera que añadimos nosotros (costados, regletas, paneles, zócalo), cada una en su grupo.",
  "Piedini: 4 per modulo a terra, 6 se è più largo di 90 cm. Cerniere: 2 per porta da 70 a 92 cm; porte più alte 3 (fino a 150 cm), 4 (fino a 200 cm), 5 oltre.": "Patas: 4 por módulo en el suelo, 6 si mide más de 90 cm de ancho. Bisagras: 2 por puerta de 70 a 92 cm; puertas más altas 3 (hasta 150 cm), 4 (hasta 200 cm), 5 más.",
- "Cerniere: 2 per porta (110°), 165° sulle porte del pensile angolo 63×63, porta colonna frigo 4 se più alta di 1,10 m (se no 3). Maniglie: una per porta e frontale dove non c'è il finger-pull. Piedini: 4 per modulo a terra (6 oltre 90 cm), una grappa zoccolo per modulo, un angolo per ogni giro a 90° dello zoccolo. Un kit per appendere ogni pensile.": "Bisagras: 2 por puerta (110°), 165° en las puertas del alto rincón 63×63, puerta de columna frigorífico 4 si mide más de 1,10 m (si no 3). Tiradores: uno por puerta y frente donde no hay gola. Patas: 4 por módulo en el suelo (6 si mide más de 90 cm), una grapa de zócalo por módulo, una esquina por cada giro a 90° del zócalo. Un kit para colgar cada alto.",
+ "Cerniere: 2 per porta (110°, anche la porta bassa delle colonne), 165° sulle porte del pensile angolo 63×63 e del Ciaflan, porta del frigo 4 se più alta di 1,10 m (se no 3). Maniglie: una per porta e frontale dove non c'è il finger-pull. Piedini: 4 per modulo a terra (6 oltre 90 cm), una grappa zoccolo per modulo, un angolo per ogni giro a 90° dello zoccolo. Un kit per appendere ogni pensile.": "Bisagras: 2 por puerta (110°, también la puerta baja de las columnas), 165° en las puertas del alto rincón 63×63 y del chaflán, puerta del frigorífico 4 si mide más de 1,10 m (si no 3). Tiradores: uno por puerta y frente donde no hay gola. Patas: 4 por módulo en el suelo (6 si mide más de 90 cm), una grapa de zócalo por módulo, una esquina por cada giro a 90° del zócalo. Un kit para colgar cada alto.",
  "Cerniere 110°": "Bisagras 110°",
  "Cerniere 165° (pensile angolo)": "Bisagras 165° (alto rincón)",
  "Cerniere colonna frigo": "Bisagras columna frigorífico",
@@ -1057,5 +1057,6 @@ window.NG_I18N_ES = {
  "Uno piccolo in alto, gli altri uguali": "Uno pequeño arriba, los demás iguales",
  "Altezza del frontale piccolo (mm):": "Altura del frente pequeño (mm):",
  "Frontali (dall'alto):": "Frentes (desde arriba):",
- "Fronte cassetto piccolo": "Frente de cajón pequeño"
+ "Fronte cassetto piccolo": "Frente de cajón pequeño",
+ "Cerniere 165° (pensile angolo e Ciaflan)": "Bisagras 165° (alto rincón y chaflán)"
 };
