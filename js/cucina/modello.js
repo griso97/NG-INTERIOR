@@ -84,11 +84,12 @@ export const CATALOGO_MOBILI = [
     larghezze: [600, 450], altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
   { id: 'forno',         nome: 'Modulo forno', categoria: 'base',
     larghezze: [600], altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
-  // Base ANGOLO a L (come il pensile angolo, sotto): lati 63 × 63, bracci
-  // profondi come gli altri bassi. Lati e profondità si cambiano dal pannello
+  // Base ANGOLO a L: lo STESSO mobile del pensile angolo (stesse ante), solo
+  // profondo come gli altri bassi → ogni lato cresce della profondità in più:
+  // 630 + (600 − 350) = 880. Lati e profondità si cambiano dal pannello
   // (latoB_mm, profBraccio_mm); le ante sono lato − profondità.
   { id: 'base-angolo',   nome: 'Base angolo', categoria: 'base',
-    larghezze: [630], altezze: ALTEZZE_BASE, profondita: 630 },
+    larghezze: [880], altezze: ALTEZZE_BASE, profondita: 880 },
   { id: 'pensile',       nome: 'Pensile', categoria: 'pensile',
     larghezze: LARGHEZZE_BASE, altezze: ALTEZZE_PENSILE, profondita: PROFONDITA_PENSILE },
   { id: 'pensile-angolo', nome: 'Pensile angolo', categoria: 'pensile',
@@ -233,7 +234,7 @@ export function dimMobile(m) {
     return { w: m.spessore_mm || 20, d: m.profondita_mm || 620 };
   }
   if (m.tipo === 'base-angolo') {
-    const w = m.larghezza_mm || 630;
+    const w = m.larghezza_mm || 880;
     return { w, d: m.latoB_mm || w };
   }
   return { w: m.larghezza_mm, d: profonditaTipo(m.tipo) };

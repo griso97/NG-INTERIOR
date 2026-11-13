@@ -1104,5 +1104,6 @@ window.NG_I18N_ES = {
  "Ante:": "Puertas:",
  "e": "y",
  "mm (lato − profondità).": "mm (lado − profundidad).",
- "⚠ Ante molto strette ({0} mm): controlla lati e profondità del tuo fornitore.": "⚠ Puertas muy estrechas ({0} mm): revisa lados y profundidad de tu proveedor."
+ "⚠ Ante molto strette ({0} mm): controlla lati e profondità del tuo fornitore.": "⚠ Puertas muy estrechas ({0} mm): revisa lados y profundidad de tu proveedor.",
+ "↺ Come il pensile angolo (ante uguali, lati 88)": "↺ Como el alto rincón (puertas iguales, lados 88)"
 };
