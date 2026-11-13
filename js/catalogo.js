@@ -20,6 +20,7 @@ export const SEZIONI = [
   { id: 'pannello',   nome: 'Pannello dietro il piano', desc: 'Materiali per il pannello tra piano di lavoro e pensili. Prende in automatico legni, colori ed encimere.' },
   { id: 'zoccolo',    nome: 'Zoccoli',                  desc: 'Colori e materiali dello zoccolo della cucina.' },
   { id: 'maniglie',   nome: 'Maniglie',                 desc: 'Maniglie applicate alle ante quando si sceglie la maniglia.' },
+  { id: 'oggetti',    nome: 'Oggetti ed elettrodomestici', desc: 'Friggitrici, microonde, macchine del caffè, vasi…: dalle foto (davanti, lato, sopra, dietro) il sito isola l\'oggetto e crea il suo 3D da mettere in cucina.' },
 ];
 
 const DB = 'ng-catalogo', STORE = 'kv', VERSIONE = 1;
@@ -72,7 +73,7 @@ export async function salvaCatalogo(stato) { await put('stato', stato); avvisaCa
 
 export async function leggiFoto(id, tipo = 'foto') { try { return await get(`${tipo}:${id}`); } catch { return null; } }
 export async function salvaFoto(id, blob, tipo = 'foto') { await put(`${tipo}:${id}`, blob); }
-export async function eliminaFoto(id) { for (const t of ['foto', 'thumb', 'gola', 'lato', 'sopra', 'orig']) await del(`${t}:${id}`); }
+export async function eliminaFoto(id) { for (const t of ['foto', 'thumb', 'gola', 'lato', 'sopra', 'orig', 'fronte', 'dietro']) await del(`${t}:${id}`); }
 export async function eliminaFotoTipo(id, tipo) { await del(`${tipo}:${id}`); }
 
 /** Nascosto in quella sezione? */

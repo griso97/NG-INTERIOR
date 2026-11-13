@@ -82,8 +82,9 @@ function componenti(m, w, h) {
  * della foto dove cercarla (es. corretta a mano). tol: 0.5..2 (più alto = toglie
  * più sfondo). Ritorna { canvas (PNG trasparente, raddrizzato), maschera,
  * w, h, angolo, zona (riquadro trovato nella foto), colore, rapporto } o null.
+ * opz.raddrizza = false: non ruota (oggetti ed elettrodomestici, foto già dritte).
  */
-export function segmentaManiglia(img, zona = null, tol = 1) {
+export function segmentaManiglia(img, zona = null, tol = 1, opz = {}) {
   const W0 = img.naturalWidth || img.width, H0 = img.naturalHeight || img.height;
   // regione di lavoro: la zona (allargata) o tutta la foto
   let R = zona ? { x: zona.x - zona.w * 0.08, y: zona.y - zona.h * 0.08, w: zona.w * 1.16, h: zona.h * 1.16 } : { x: 0, y: 0, w: W0, h: H0 };
@@ -180,7 +181,7 @@ export function segmentaManiglia(img, zona = null, tol = 1) {
   for (let i = 0; i < w * h; i++) if (m[i]) { const x = i % w - mx, y = ((i / w) | 0) - my; cxx += x * x; cyy += y * y; cxy += x * y; }
   let ang = 0.5 * Math.atan2(2 * cxy, cxx - cyy);                         // asse principale
   while (ang > Math.PI / 4) ang -= Math.PI / 2; while (ang < -Math.PI / 4) ang += Math.PI / 2;
-  if (Math.abs(ang) < 0.012) ang = 0;
+  if (Math.abs(ang) < 0.012 || opz.raddrizza === false) ang = 0;          // oggetti: la foto è già dritta
   const cs = Math.cos(-ang), sn = Math.sin(-ang);
   // estensione nel sistema raddrizzato
   let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;

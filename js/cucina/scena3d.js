@@ -13,13 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261115h';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115h';
+} from './modello.js?v=20261115j';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115j';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115h';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261115j';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115j';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115h';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115j';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1499,6 +1500,21 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   return g;
 }
 
+/** Altezza d'appoggio di un oggetto: sopra il piano se il suo centro sta su un mobile basso, se no 0 (a terra). */
+function quotaAppoggio(progetto, o, spTop) {
+  for (const b of (progetto.mobiliLiberi || [])) {
+    const cat = categoriaTipo(b.tipo);
+    if (!['base', 'lavastoviglie', 'lavatrice'].includes(cat)) continue;
+    const d = dimMobile(b), r = ((Math.round((b.rot || 0) / 90) * 90) % 180 + 180) % 180;
+    const hx = (r === 0 ? d.w : d.d) / 2, hy = (r === 0 ? d.d : d.w) / 2;
+    if (Math.abs(o.x - b.x) <= hx && Math.abs(o.y - b.y) <= hy) {
+      const h = b.altezza_mm || 700;
+      return zoccoloPerAltezza(h) + h + spTop;
+    }
+  }
+  return 0;
+}
+
 function collocaMobile(g, cx, yBottom, cz, h, rotGradi) {
   g.position.set(cx, yBottom + h / 2, cz);
   g.rotation.y = -(rotGradi || 0) * Math.PI / 180;
@@ -1672,7 +1688,16 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
     // colore proprio di QUESTO modulo (es. un armadio di stacco), altrimenti quello del gruppo
     const matMio = m.coloreFronte && cat !== 'costado' ? getMaterialeTHREE(m.coloreFronte, reRender) : null;
     let g3d = null;
-    if (cat === 'oggetto') {
+    if (cat === 'oggetto' && String(m.tipo).startsWith('ogg:')) {
+      // OGGETTO DEL CATALOGO (dalle foto): sul piano se sta sopra un mobile basso, se no a terra
+      const def = MATERIALI.find((x) => x.id === m.tipo.slice(4));
+      const r = def && oggettoDaFoto({ ...def, misure: { w: m.larghezza_mm || def.misure.w, d: m.profondita_mm || def.misure.d, h: m.altezza_mm || def.misure.h } }, reRender);
+      if (r) {
+        const og = new THREE.Group();
+        const mesh = new THREE.Mesh(r.geo, r.mat); mesh.castShadow = true; mesh.receiveShadow = true; og.add(mesh);
+        og.position.set(cx, quotaAppoggio(progetto, m, spTop), cz); og.rotation.y = -(m.rot || 0) * Math.PI / 180; g3d = og;
+      }
+    } else if (cat === 'oggetto') {
       // Oggetto 3D (sgabello, decor): posato a terra, nessuno zoccolo/piano.
       const og = costruisciOggetto(m.tipo);
       if (og) { og.position.set(cx, 0, cz); og.rotation.y = -(m.rot || 0) * Math.PI / 180; g3d = og; }

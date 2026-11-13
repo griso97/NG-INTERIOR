@@ -8,17 +8,18 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261115h';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261115h';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261115h';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini } from './analisi-foto.js?v=20261115h';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261115h';
-import { agganciaTema } from './tema.js?v=20261115h';
+} from './catalogo.js?v=20261115j';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261115j';
+import { anteprimaOggetto } from './oggetto3d.js?v=20261115j';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261115j';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini } from './analisi-foto.js?v=20261115j';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261115j';
+import { agganciaTema } from './tema.js?v=20261115j';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
 // Sezioni dove si possono già aggiungere prodotti da foto
-const CON_AGGIUNTA = ['legno', 'fingerpull', 'encimera', 'pannello', 'zoccolo', 'maniglie'];
+const CON_AGGIUNTA = ['legno', 'fingerpull', 'encimera', 'pannello', 'zoccolo', 'maniglie', 'oggetti'];
 
 let stato = await leggiCatalogo();
 let sezione = (location.hash || '').slice(1);
@@ -45,13 +46,15 @@ async function salvaERicarica() {
 function dettagli(m) {
   const info = m.info || {};
   const r = [];
+  if (m.misure) r.push(`${Math.round(m.misure.w / 10)}×${Math.round(m.misure.d / 10)}×${Math.round(m.misure.h / 10)} cm`);
   if (info.tipo) r.push(esc(info.tipo));
   const sp = info.spessore || m.spessore;
   if (sp) r.push(`${esc(sp)} mm`);
   if (info.colore) r.push(esc(info.colore));
   if (m.campione) r.push(`campione ${Math.round(m.campione.wMm / 10)}×${Math.round(m.campione.hMm / 10)} cm`);
   if (m.lunghezzaMm) r.push(`lunghezza ${Math.round(m.lunghezzaMm / 10)} cm`);
-  if (m.viste) r.push(`viste: ${['davanti', ...Object.keys(m.viste)].join(', ')}`);
+  if (m.viste && m.categoria === 'maniglia') r.push(`viste: ${['davanti', ...Object.keys(m.viste)].join(', ')}`);
+  if (m.viste && m.categoria === 'oggetto') r.push(`foto: ${['davanti', ...['lato', 'sopra', 'dietro'].filter((v) => m.viste[v])].join(', ')}`);
   if (m.ral) r.push(`RAL ${esc(m.ral)}`);
   if (m.proprio && m.lucido != null && m.categoria !== 'maniglia') r.push(m.lucido ? 'lucido' : 'opaco');
   if (m.gola) r.push('con gola');
@@ -130,6 +133,7 @@ function apriScheda(m) {
   const proprio = nuovo || m.proprio;
   const p = proprio && !nuovo ? stato.prodotti.find((x) => x.id === m.id) : null;
   const sez = nuovo ? sezione : (p ? p.sezione : sezione);
+  if (sez === 'oggetti') return apriSchedaOggetto(p);
   const tipo = sez === 'fingerpull' ? 'fp' : sez === 'maniglie' ? 'man' : 'base';
   const info = (p ? p.info : (m && m.info)) || {};
   const camp = p && p.campioneCm ? p.campioneCm : { w: '', h: '' };
@@ -852,3 +856,146 @@ window.addEventListener('hashchange', () => {
   if (h !== sezione && SEZIONI.some((x) => x.id === h)) { sezione = h; render(); }
 });
 render();
+
+// ---------------------------------------------------------------------------
+// SCHEDA OGGETTO / ELETTRODOMESTICO: foto davanti (+ lato, sopra, dietro),
+// ognuna isolata dallo sfondo in automatico; misure reali; anteprima 3D.
+// ---------------------------------------------------------------------------
+const VISTE_OGG = [
+  { id: 'fronte', nome: 'Foto davanti', obbl: true },
+  { id: 'lato', nome: 'Foto di lato' },
+  { id: 'sopra', nome: 'Foto da sopra' },
+  { id: 'dietro', nome: 'Foto da dietro' },
+];
+let _chiudiAntOgg = null, _tAntOgg = 0;
+function apriSchedaOggetto(p) {
+  const nuovo = !p;
+  const o = (p && p.oggetto) || { w: '', d: '', h: '', pianta: 'squadrata' };
+  const info = (p && p.info) || {};
+  const corpo = document.getElementById('imp-modale-corpo');
+  corpo.innerHTML = `
+    <div class="imp-form">
+      <div class="imp-aiuto">Foto dell'oggetto su sfondo uniforme: vanno benissimo le foto del sito del produttore (su bianco). Il sito <strong>isola l'oggetto</strong> in ogni foto e costruisce il <strong>3D con le misure vere</strong>. Foto dritte: davanti, di lato, da sopra; quella da dietro serve per i colori del retro.</div>
+      <div class="imp-viste3">
+        ${VISTE_OGG.map((v) => `
+        <div class="imp-vista3"><label>${v.nome}${v.obbl ? ' <span class="imp-obbl">*</span>' : ''}<input type="file" accept="image/*" data-vista="${v.id}"></label>
+          <div class="imp-vista3-img" data-img="${v.id}"></div>
+          <button type="button" class="btn-ghost btn-mini imp-togli" data-togli="${v.id}" hidden>✕ Togli questa foto</button></div>`).join('')}
+      </div>
+      <fieldset class="imp-misura">
+        <legend>Misure reali (cm) <span class="imp-obbl">*</span></legend>
+        <div class="imp-misure3">
+          <label>Larghezza<input type="number" min="1" step="0.1" id="o-w" value="${esc(o.w)}" placeholder="es. 32"></label>
+          <label>Profondità<input type="number" min="1" step="0.1" id="o-d" value="${esc(o.d)}" placeholder="es. 38"></label>
+          <label>Altezza<input type="number" min="1" step="0.1" id="o-h" value="${esc(o.h)}" placeholder="es. 30"></label>
+        </div>
+        <div class="imp-aiuto">Le trovi nella scheda del prodotto. Il 3D esce in scala vera.</div>
+      </fieldset>
+      <fieldset class="imp-misura" id="o-pianta-box">
+        <legend>Forma vista da sopra</legend>
+        <div class="opzioni-anta imp-pianta">
+          ${[['squadrata', 'Squadrata'], ['tonda', 'Tonda'], ['ovale', 'Ovale']].map(([id, n]) => `<button type="button" class="btn-ghost btn-mini ${o.pianta === id ? 'attivo' : ''}" data-pianta="${id}">${n}</button>`).join('')}
+        </div>
+        <div class="imp-aiuto">Serve solo senza la foto da sopra: per esempio una friggitrice tonda.</div>
+      </fieldset>
+      <div class="imp-sup-titolo">Anteprima 3D</div>
+      <div id="o-vista" class="imp-man3d-vista"><div class="imp-aiuto">Carica la foto davanti e scrivi le misure.</div></div>
+      <label>Nome <span class="imp-obbl">*</span><input type="text" id="f-nome" value="${esc(p ? p.nome : '')}" placeholder="Es. Friggitrice ad aria nera"></label>
+      <label>Note<input type="text" id="f-note" value="${esc(info.note || '')}" placeholder="Marca, modello, codice…"></label>
+      <div class="imp-errore" id="f-err" hidden></div>
+      <div class="imp-piede">
+        <button type="button" class="btn-ghost" id="f-annulla">Annulla</button>
+        <button type="button" class="btn-oro" id="f-salva">Salva</button>
+      </div>
+    </div>`;
+  modale.hidden = false;
+  const imgs = {}, nuove = {}, tolte = {};
+  let pianta = o.pianta || 'squadrata';
+  const errore = (t) => { const e = corpo.querySelector('#f-err'); e.textContent = t; e.hidden = false; e.scrollIntoView({ block: 'nearest' }); };
+  const num = (id) => Number(String(corpo.querySelector(id).value).replace(',', '.'));
+  const mostra = (v) => {
+    const box = corpo.querySelector(`[data-img="${v}"]`); box.innerHTML = '';
+    if (imgs[v]) { const c = document.createElement('canvas'); disegnaScacchi(c, imgs[v], 150, 110); box.appendChild(c); }
+    corpo.querySelector(`[data-togli="${v}"]`).hidden = !imgs[v];
+    corpo.querySelector('#o-pianta-box').hidden = !!imgs.sopra;
+  };
+  const anteprima = () => {
+    clearTimeout(_tAntOgg);
+    _tAntOgg = setTimeout(async () => {
+      const box = corpo.querySelector('#o-vista'); if (!box) return;
+      const W = num('#o-w') * 10, D = num('#o-d') * 10, H = num('#o-h') * 10;
+      if (_chiudiAntOgg) { _chiudiAntOgg(); _chiudiAntOgg = null; }
+      if (!imgs.fronte || !(W > 0 && D > 0 && H > 0)) { box.innerHTML = `<div class="imp-aiuto">${tr('Carica la foto davanti e scrivi le misure.')}</div>`; return; }
+      box.innerHTML = `<div class="imp-aiuto">${tr('Costruisco il 3D…')}</div>`;
+      _chiudiAntOgg = await anteprimaOggetto(box, imgs, W, D, H, pianta);
+    }, 200);
+  };
+  for (const v of VISTE_OGG.map((x) => x.id)) {
+    corpo.querySelector(`[data-vista="${v}"]`).addEventListener('change', async (e) => {
+      const f = e.target.files && e.target.files[0]; if (!f) return;
+      corpo.querySelector('#f-err').hidden = true;
+      const im = await caricaImmagine(f).catch(() => null);
+      if (!im) { errore(tr('Non riesco ad aprire questa foto. Prova con un JPG o PNG.')); return; }
+      const seg = segmentaManiglia(im, null, 1, { raddrizza: false });
+      if (!seg) { errore(tr('Non riesco a isolare l\'oggetto in questa foto: usa una foto con lo sfondo uniforme (es. bianco).')); return; }
+      imgs[v] = seg.canvas; nuove[v] = seg; delete tolte[v];
+      mostra(v); anteprima();
+    });
+    corpo.querySelector(`[data-togli="${v}"]`).addEventListener('click', () => {
+      delete imgs[v]; delete nuove[v]; tolte[v] = true;
+      corpo.querySelector(`[data-vista="${v}"]`).value = '';
+      mostra(v); anteprima();
+    });
+  }
+  corpo.querySelectorAll('[data-pianta]').forEach((b) => b.addEventListener('click', () => {
+    pianta = b.dataset.pianta;
+    corpo.querySelectorAll('[data-pianta]').forEach((x) => x.classList.toggle('attivo', x === b));
+    anteprima();
+  }));
+  corpo.querySelectorAll('#o-w, #o-d, #o-h').forEach((x) => x.addEventListener('change', anteprima));
+  // MODIFICA: le foto isolate già salvate
+  if (p) {
+    Promise.all(VISTE_OGG.map((v) => leggiFoto(p.id, v.id))).then(async (bl) => {
+      for (let i = 0; i < bl.length; i++) {
+        const v = VISTE_OGG[i].id;
+        if (bl[i] && !imgs[v] && !tolte[v]) { imgs[v] = await caricaImmagine(bl[i]).catch(() => null); mostra(v); }
+      }
+      anteprima();
+    });
+  }
+  corpo.querySelector('#f-annulla').addEventListener('click', () => { if (_chiudiAntOgg) { _chiudiAntOgg(); _chiudiAntOgg = null; } chiudi(); });
+  corpo.querySelector('#f-salva').addEventListener('click', async () => {
+    corpo.querySelector('#f-err').hidden = true;
+    const nome = corpo.querySelector('#f-nome').value.trim();
+    const w = num('#o-w'), d = num('#o-d'), h = num('#o-h');
+    if (!imgs.fronte) { errore(tr('Carica la foto davanti dell\'oggetto.')); return; }
+    if (!(w > 0 && d > 0 && h > 0)) { errore(tr('Scrivi le misure reali in cm (larghezza, profondità e altezza).')); return; }
+    if (w > 400 || d > 400 || h > 400) { errore(tr('Le misure vanno in centimetri: forse le hai scritte in millimetri?')); return; }
+    if (!nome) { errore(tr('Scrivi il nome del prodotto.')); return; }
+    const b = corpo.querySelector('#f-salva'); b.disabled = true; b.textContent = tr('Salvo…');
+    try {
+      const id = nuovo ? nuovoId() : p.id;
+      for (const v of VISTE_OGG.map((x) => x.id)) {
+        if (nuove[v]) await salvaFoto(id, await canvasPng(nuove[v].canvas), v);
+        else if (tolte[v]) await eliminaFotoTipo(id, v);
+      }
+      if (nuove.fronte) {                                    // la foto "principale" e la miniatura = la vista davanti
+        const png = await canvasPng(nuove.fronte.canvas);
+        await salvaFoto(id, png, 'foto'); await salvaFoto(id, png, 'thumb');
+      }
+      const viste = Object.fromEntries(['lato', 'sopra', 'dietro'].map((v) => [v, !!imgs[v]]));
+      const dati = { id, sezione: 'oggetti', nome, info: { note: corpo.querySelector('#f-note').value.trim() },
+        colore: nuove.fronte ? nuove.fronte.colore : (p && p.colore), aggiornato: Date.now(),
+        oggetto: { w, d, h, pianta, viste } };
+      if (nuovo) stato.prodotti.push({ ...dati, creato: Date.now() });
+      else stato.prodotti = stato.prodotti.map((x) => (x.id === id ? { ...x, ...dati } : x));
+      if (_chiudiAntOgg) { _chiudiAntOgg(); _chiudiAntOgg = null; }
+      await salvaERicarica();
+    } catch (err) {
+      console.error(err);
+      errore(tr('Salvataggio non riuscito: forse lo spazio del browser è pieno.'));
+      b.disabled = false; b.textContent = tr('Salva');
+    }
+  });
+}
+

@@ -22,13 +22,13 @@ import {
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
-  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo,
-} from './modello.js?v=20261115h';
-import { renderPianta } from './pianta.js?v=20261115h';
-import { calcolaDistintaCucina } from './distinta.js?v=20261115h';
+  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
+} from './modello.js?v=20261115j';
+import { renderPianta } from './pianta.js?v=20261115j';
+import { calcolaDistintaCucina } from './distinta.js?v=20261115j';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261115h';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115h';
+import { agganciaTema } from '../tema.js?v=20261115j';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115j';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1139,8 +1139,30 @@ function nomeFileData() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+/** Oggetto selezionato nel 3D (sgabello, friggitrice…): ruota, elimina. */
+function renderPannelloOggetto(m) {
+  const sulPiano = String(m.tipo).startsWith('ogg:');
+  pannello.innerHTML = `
+    <section class="step3-pannello">
+      <h3>Oggetto selezionato</h3>
+      <div class="mod-row"><span><span data-no-i18n>${escHtml(nomeTipo(m.tipo))}</span> · <strong>${Math.round(dimMobile(m).w / 10)}×${Math.round(dimMobile(m).d / 10)}${m.altezza_mm ? `×${Math.round(m.altezza_mm / 10)}` : ''} cm</strong></span></div>
+      <div class="riga-3d" style="margin:8px 0">Trascinalo dove vuoi.${sulPiano ? ' Se lo lasci sopra un mobile basso si appoggia sul piano di lavoro, altrimenti va a terra.' : ''}</div>
+      <div class="opzioni-anta">
+        <button type="button" class="btn-ghost" id="ogg-ruota">⟳ Ruota 90°</button>
+        <button type="button" class="btn-ghost" id="ogg-elimina">Elimina</button>
+      </div>
+    </section>
+    <section class="actions">
+      <button id="mob-deseleziona" class="btn-ghost" type="button" style="flex:1">Chiudi</button>
+    </section>`;
+  document.getElementById('ogg-ruota').addEventListener('click', () => { registraStoria(); ruotaMobileLibero(progetto, m.id); aggiorna(); });
+  document.getElementById('ogg-elimina').addEventListener('click', () => { registraStoria(); rimuoviMobileLibero(progetto, m.id); step2.mobSelId = null; aggiorna(); });
+  document.getElementById('mob-deseleziona').addEventListener('click', () => { step2.mobSelId = null; aggiorna(); });
+}
+
 function renderPannelloModificaMobile(m) {
   const cat = categoriaTipo(m.tipo);
+  if (cat === 'oggetto') return renderPannelloOggetto(m);
   const isBase = cat === 'base';
   const puoAgg = m.tipo === 'base-ante' || m.tipo === 'base-cassetti';
   // Configurazione ante (numero + lato apertura): vale per base con ante e pensili
@@ -1628,7 +1650,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115h');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115j');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1712,14 +1734,28 @@ function renderPalette() {
   const livello = livelloStep();
   // Il costado si può aggiungere sia nei bassi che negli alti
   const voci = CATALOGO_MOBILI.filter((t) => t.categoria === 'costado' || livelloMobile(t.categoria) === livello);
+  // OGGETTI del catalogo (creati dalle foto): si posano sul piano o a terra
+  const oggetti = livello === 'basso' && matMod ? matMod.materialiPer('oggetti') : [];
   palette.innerHTML = voci.map((t) => `
     <button type="button" class="palette-btn" data-tipo="${t.id}">
       ${iconaMobile(t.id)}<span>${t.nome}</span>
+    </button>`).join('') + oggetti.map((o) => `
+    <button type="button" class="palette-btn palette-ogg" data-ogg="${o.id}" title="${escHtml(o.nome)}">
+      <span class="palette-ogg-img" style="background-image:url('${o.thumb}')"></span><span data-no-i18n>${escHtml(o.nome)}</span>
     </button>`).join('');
-  palette.querySelectorAll('.palette-btn').forEach((b) => {
+  palette.querySelectorAll('.palette-btn[data-tipo]').forEach((b) => {
     b.addEventListener('click', () => apriScelta(b.dataset.tipo));
   });
+  palette.querySelectorAll('.palette-btn[data-ogg]').forEach((b) => b.addEventListener('click', () => {
+    const o = oggetti.find((x) => x.id === b.dataset.ogg); if (!o) return;
+    registraStoria();
+    step2.mobSelId = aggiungiMobileLibero(progetto, `ogg:${o.id}`, { larghezza_mm: o.misure.w, profondita_mm: o.misure.d, altezza_mm: o.misure.h });
+    aggiorna();
+  }));
 }
+// catalogo (oggetti creati dalle foto) per la tavolozza
+let matMod = null;
+import('../materiali.js?v=20261115j').then((m) => { matMod = m; if (progetto.stepCorrente === 2) renderPalette(); }).catch(() => {});
 
 function blocMobileSelezionato() {
   const m = trovaMobileLibero(progetto, step2.mobSelId);

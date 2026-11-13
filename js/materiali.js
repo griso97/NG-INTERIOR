@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261115h';
+import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261115j';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -141,7 +141,7 @@ export const MATERIALI = [
 // prodotti nascosti per sezione, modifiche ai predefiniti.
 // ---------------------------------------------------------------------------
 let statoCatalogo = { prodotti: [], nascosti: {}, modifiche: {} };
-const CAT_DA_SEZIONE = { legno: 'legno', fingerpull: 'legno', encimera: 'encimera', pannello: 'legno', zoccolo: 'zoccolo', maniglie: 'maniglia' };
+const CAT_DA_SEZIONE = { legno: 'legno', fingerpull: 'legno', encimera: 'encimera', pannello: 'legno', zoccolo: 'zoccolo', maniglie: 'maniglia', oggetti: 'oggetto' };
 async function applicaCatalogo() {
   statoCatalogo = await leggiCatalogo();
   // modifiche ai predefiniti (nome, tipo, spessore, colore…)
@@ -189,6 +189,14 @@ async function applicaCatalogo() {
         if (fs) def.vistaSopra = URL.createObjectURL(fs);
         if (fl) def.vistaLato = URL.createObjectURL(fl);
       }
+    }
+    // OGGETTO / ELETTRODOMESTICO da foto: misure reali e le viste isolate per il 3D
+    if (p.sezione === 'oggetti' && p.oggetto) {
+      const o = p.oggetto;
+      def.misure = { w: (Number(o.w) || 30) * 10, d: (Number(o.d) || 30) * 10, h: (Number(o.h) || 30) * 10 };
+      def.pianta = o.pianta || 'squadrata';
+      const [fl, fs, fd] = await Promise.all(['lato', 'sopra', 'dietro'].map((t) => (o.viste && o.viste[t] ? leggiFoto(p.id, t) : null)));
+      def.viste = { fronte: url, lato: fl ? URL.createObjectURL(fl) : null, sopra: fs ? URL.createObjectURL(fs) : null, dietro: fd ? URL.createObjectURL(fd) : null };
     }
     MATERIALI.push(def);
     // Finger-pull → lo STESSO materiale (stessa foto, stessa misura) senza la
@@ -266,6 +274,7 @@ export function materialiPer(sezione, { tutti = false } = {}) {
     case 'encimera': l = MATERIALI.filter((m) => m.categoria === 'encimera'); break;
     case 'pannello': l = [...legni, ...MATERIALI.filter((m) => m.categoria === 'encimera'), ...propri('pannello')]; break;
     case 'zoccolo': l = MATERIALI.filter((m) => m.categoria === 'zoccolo'); break;
+    case 'oggetti': l = propri('oggetti'); break;
     case 'maniglie': l = MATERIALI.filter((m) => m.categoria === 'maniglia'); break;
     default: l = [];
   }

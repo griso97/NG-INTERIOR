@@ -709,3 +709,7 @@
 /* lato delle ante (davanti) in pianta: colore diverso dalla struttura oro */
 .sv-mob-fronte { fill: #29c4f6; stroke: #0b6f93; stroke-width: 6; pointer-events: none; }
 .sv-mob-pensile ~ .sv-mob-fronte, .sv-mob-g .sv-mob-pensile + .sv-mob-fronte { fill: #ff8a3d; stroke: #a8501a; }
+
+/* Oggetti del catalogo nella tavolozza (miniatura della foto) */
+.palette-ogg-img { display: block; width: 48px; height: 48px; background: #f3f1ec center/contain no-repeat; border-radius: 6px; }
+@media (max-width: 700px) { .palette-ogg-img { width: 40px; height: 40px; } }

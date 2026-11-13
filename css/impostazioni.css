@@ -97,3 +97,8 @@
 .imp-misura { min-width: 0; }
 .imp-viste3 > * { min-width: 0; }
 .imp-form input[type="file"] { max-width: 100%; min-width: 0; }
+
+.imp-misure3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.imp-misure3 input { width: 100%; box-sizing: border-box; }
+.imp-pianta { display: flex; gap: 6px; flex-wrap: wrap; }
+.imp-pianta .attivo { border-color: var(--oro, #c9a94a); color: var(--oro-chiaro, #e8c25a); }

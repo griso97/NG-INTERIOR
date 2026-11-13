@@ -237,6 +237,7 @@ export function dimMobile(m) {
     const w = m.larghezza_mm || 880;
     return { w, d: m.latoB_mm || w };
   }
+  if (typeof m.tipo === 'string' && m.tipo.startsWith('ogg:')) return { w: m.larghezza_mm || 300, d: m.profondita_mm || profonditaTipo(m.tipo) };
   return { w: m.larghezza_mm, d: profonditaTipo(m.tipo) };
 }
 
@@ -253,6 +254,12 @@ export function livelloDiMobile(m) {
 }
 
 export function infoTipo(tipoId) {
+  // OGGETTI del catalogo (friggitrice, microonde… creati dalle foto): "ogg:<id>"
+  if (typeof tipoId === 'string' && tipoId.startsWith('ogg:')) {
+    const def = typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === tipoId.slice(4));
+    return { id: tipoId, nome: def ? def.nome : 'Oggetto', categoria: 'oggetto',
+      larghezze: [def && def.misure ? def.misure.w : 300], altezze: [def && def.misure ? def.misure.h : 300], profondita: def && def.misure ? def.misure.d : 300 };
+  }
   return CATALOGO_MOBILI.find((t) => t.id === tipoId)
     || TIPI_MODULO_BASE.find((t) => t.id === tipoId)
     || null;
