@@ -13,12 +13,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261113h';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113h';
+} from './modello.js?v=20261113i';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113i';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113h';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113i';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -716,10 +716,12 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
 }
 function cassetti(g, w, h, d, n, matAnta) {
   const z = d / 2;
-  const uw = w - FUGA_W, uh = h - FUGA_H;
-  const ph = (uh - (n - 1) * GAP_ANTE) / n;
+  // Fughe da 2 mm, una in più dei cassetti (sopra, sotto e tra i fronti):
+  // fronte = (h − (n + 1) × 2) ÷ n, come nella distinta
+  const uw = w - FUGA_W, FC = 2;
+  const ph = (h - (n + 1) * FC) / n;
   for (let i = 0; i < n; i++) {
-    const py = -uh / 2 + ph / 2 + i * (ph + GAP_ANTE);
+    const py = -h / 2 + FC + ph / 2 + i * (ph + FC);
     if (_fingerPull) {
       const CH = Math.min(26, ph * 0.35);
       pannello(g, 0, py - CH / 2, z, uw, Math.max(40, ph - CH), matAnta || COL.cassetto);

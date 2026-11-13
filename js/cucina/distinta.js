@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261113h';
+} from './modello.js?v=20261113i';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -117,7 +117,9 @@ function pezziDiModulo(progetto, m) {
     zoccolo(pz, mod, L, H);
     if (m.tipo === 'base-cassetti') {
       const nc = Math.max(1, m.cassetti || 3);
-      const hf = round((H - (nc - 1) * 3) / nc - 2);   // altezza del fronte cassetto
+      // FUGHE: una in più dei cassetti (1 cassetto → 2 fughe, 3 → 4…), da 2 mm:
+      // fronte = (altezza − (cassetti + 1) × 2) ÷ cassetti   (es. 700, 3 → 230,7)
+      const hf = Math.round(((H - (nc + 1) * 2) / nc) * 10) / 10;
       pz.push({ modulo: mod, nome: 'Fronte cassetto', larghezza: round(L - 3), altezza: hf, spessore: SP, materiale: 'anta', quantita: nc });
       // parti per fare i cassetti: fondo e trasera in melaminico bianco
       cassettoMelaminico(pz, mod, L, hf, nc);
