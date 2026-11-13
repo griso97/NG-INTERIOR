@@ -5,7 +5,7 @@
 // riepilogo in fondo. Niente logica di calcolo qui dentro.
 // =============================================================================
 
-import { trovaMateriale } from './materiali.js?v=20261115b';
+import { trovaMateriale } from './materiali.js?v=20261115c';
 
 /**
  * Risale dalla categoria + posizione del pezzo al materiale scelto
@@ -14,6 +14,7 @@ import { trovaMateriale } from './materiali.js?v=20261115b';
  */
 function nomeMaterialeDelPezzo(pezzo, config) {
   if (pezzo.materiale === 'melaminico') return 'Melaminico bianco';
+  if (pezzo.materiale === 'accessorio') return pezzo.finitura === 'nero' ? 'Nero (ferramenta)' : 'Alluminio satinato (ferramenta)';
   const mat = config?.materiali || {};
   let id;
   if (pezzo.parteMateriale) {

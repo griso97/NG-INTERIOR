@@ -195,6 +195,20 @@ export function pezziRipianiModulo(config, modulo, indiceModulo) {
   }];
 }
 
+/** PERCHERO del modulo: la barra con la sua misura + 2 ganci (ferramenta, non si taglia dal pannello). */
+export function pezziBarraModulo(config, modulo, indiceModulo) {
+  if (!modulo.barra) return [];
+  const fin = modulo.barra === 'nero' ? 'nero' : 'alluminio satinato';
+  return [
+    { modulo: `Modulo ${indiceModulo + 1}`, nome: `Perchero ${fin} (barra ovale 30×15)`,
+      larghezza: modulo.larghezza - 2 * config.spessoreCarcassa - 2, altezza: 30, spessore: 15,
+      materiale: 'accessorio', finitura: modulo.barra, quantita: 1 },
+    { modulo: `Modulo ${indiceModulo + 1}`, nome: `Gancio perchero ${fin}`,
+      larghezza: null, altezza: null, spessore: null,
+      materiale: 'accessorio', finitura: modulo.barra, quantita: 2 },
+  ];
+}
+
 /**
  * Calcola le ANTE A BATTENTE di un modulo.
  * Formula UNICA (i tamponamenti NON influenzano questa formula):
@@ -587,6 +601,7 @@ export function calcolaDistintaCompleta(config) {
     pezzi.push(...pezziCarcassaModulo(config, m, i, N));
     pezzi.push(...pezziSchienaModulo(config, m, i));
     pezzi.push(...pezziRipianiModulo(config, m, i));
+    pezzi.push(...pezziBarraModulo(config, m, i));
     if (battente) {
       pezzi.push(...pezziAnteModulo(config, m, i));
     } else {
@@ -601,9 +616,9 @@ export function calcolaDistintaCompleta(config) {
   // del reale" che potrebbero far sprecare materiale.
   const arrotondati = pezzi.map((p) => ({
     ...p,
-    larghezza: Math.floor(p.larghezza),
-    altezza: Math.floor(p.altezza),
-    spessore: Math.floor(p.spessore),
+    larghezza: p.larghezza == null ? null : Math.floor(p.larghezza),
+    altezza: p.altezza == null ? null : Math.floor(p.altezza),
+    spessore: p.spessore == null ? null : Math.floor(p.spessore),
   }));
   const raggruppati = raggruppaPezzi(arrotondati);
   return {
@@ -652,6 +667,7 @@ export function calcolaRiepilogo(pezzi) {
   const totali = { carcassa: 0, schiena: 0, ante: 0 };
   let totalePezzi = 0;
   pezzi.forEach((p) => {
+    if (p.materiale === 'accessorio') { totalePezzi += p.quantita; return; }   // ferramenta: niente m²
     const mq = (p.larghezza * p.altezza) / 1_000_000; // mm² → m²
     totali[p.materiale] = (totali[p.materiale] || 0) + mq * p.quantita;
     totalePezzi += p.quantita;

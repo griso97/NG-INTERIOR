@@ -36,11 +36,12 @@ function csvEscape(v) {
   return s;
 }
 
-import { trovaMateriale } from './materiali.js?v=20261115b';
+import { trovaMateriale } from './materiali.js?v=20261115c';
 const T = (s) => (typeof s === 'string' && window.NGI18N ? window.NGI18N.t(s) : s);   // lingua (i18n.js)
 
 export function nomeMaterialeCsv(pezzo, config) {
   if (pezzo.materiale === 'melaminico') return 'Melaminico bianco';
+  if (pezzo.materiale === 'accessorio') return pezzo.finitura === 'nero' ? 'Nero (ferramenta)' : 'Alluminio satinato (ferramenta)';
   if (!config) return pezzo.materiale || '—';
   const mat = config.materiali || {};
   let id;

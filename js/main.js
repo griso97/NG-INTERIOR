@@ -5,20 +5,20 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261115b';
+import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261115c';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo,
   iniziaSpostamentoRipiano, muoviSpostamentoRipiano, fineSpostamentoRipiano,
-} from './scena3d.js?v=20261115b';
-import { SFONDI_LISTA } from './sfondi.js?v=20261115b';
-import { agganciaTema } from './tema.js?v=20261115b';
-import { renderPannello, configDefault } from './interfaccia.js?v=20261115b';
-import { renderDistinta } from './distinta.js?v=20261115b';
-import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261115b';
-import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261115b';
+} from './scena3d.js?v=20261115c';
+import { SFONDI_LISTA } from './sfondi.js?v=20261115c';
+import { agganciaTema } from './tema.js?v=20261115c';
+import { renderPannello, configDefault } from './interfaccia.js?v=20261115c';
+import { renderDistinta } from './distinta.js?v=20261115c';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261115c';
+import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261115c';
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js?v=20261115b';
+} from './storage.js?v=20261115c';
 
 // Config iniziale: ultima salvata, oppure default
 let config = caricaLocale() || configDefault();
@@ -174,13 +174,13 @@ const hintRip = document.getElementById('ripiani-hint');
 const misuraRip = document.getElementById('ripiano-misura');
 function aggiornaHintRipiani() {
   if (!hintRip) return;
-  const conRipiani = (config.moduli || []).some((m) => m.ripiani > 0);
+  const conRipiani = (config.moduli || []).some((m) => m.ripiani > 0 || m.barra);
   hintRip.hidden = !(btnToggleAnte.checked && conRipiani);
 }
 btnToggleAnte.addEventListener('change', aggiornaHintRipiani);
 if (btnFabApri) btnFabApri.addEventListener('click', aggiornaHintRipiani);
 document.getElementById('ripiani-auto')?.addEventListener('click', () => {
-  (config.moduli || []).forEach((m) => { delete m.ripianiY; });
+  (config.moduli || []).forEach((m) => { delete m.ripianiY; delete m.barraY; });
   aggiorna();
   flash('Ripiani rimessi alla stessa distanza.');
 });
@@ -213,7 +213,8 @@ const fineRipiano = (e) => {
   if (misuraRip) misuraRip.hidden = true;
   const r = fineSpostamentoRipiano();
   if (!r || !config.moduli[r.modulo]) return;
-  config.moduli[r.modulo].ripianiY = r.ripianiY;
+  if (r.barraY != null) config.moduli[r.modulo].barraY = r.barraY;   // perchero spostato
+  else config.moduli[r.modulo].ripianiY = r.ripianiY;
   salvaLocale(config);           // niente ricostruzione: la vista resta dov'è
 };
 canvas.addEventListener('pointerup', fineRipiano, true);

@@ -6,7 +6,7 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer } from './materiali.js?v=20261115b';
+import { MATERIALI, PARTI, materialiDefault, materialiPer } from './materiali.js?v=20261115c';
 
 export function configDefault() {
   return {
@@ -146,6 +146,7 @@ export function renderPannello(contenitore, config, onChange) {
       <div id="moduli-larghezze"></div>
       <p class="hint" id="moduli-check"></p>
       <div id="moduli-list"></div>
+      <div id="barre-list"></div>
     </section>
 
     <section>
@@ -305,6 +306,7 @@ export function renderPannello(contenitore, config, onChange) {
  * tra loro: cambiando qui si aggiornano tutti insieme.
  */
 function renderModuli(config) {
+  renderBarre(config);
   const wrap = document.getElementById('moduli-list');
   if (!wrap) return;
   const scorrevole = config.tipoArmadio === 'scorrevole';
@@ -363,6 +365,34 @@ function renderModuli(config) {
   `;
 }
 
+/** Finiture della barra appendiabiti. */
+const FINITURE_BARRA = [
+  { id: 'alluminio', nome: 'Alluminio satinato' },
+  { id: 'nero', nome: 'Nero' },
+];
+/**
+ * BARRA APPENDIABITI: ogni modulo può avere la sua (alluminio satinato o
+ * nera) oppure nessuna. Vale in tutte e due le modalità (uguali / diversi).
+ */
+function renderBarre(config) {
+  const wrap = document.getElementById('barre-list');
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="modulo-card">
+      <header>Perchero (barra appendiabiti)</header>
+      <div class="grid-2">
+        ${config.moduli.map((m, i) => `
+        <label>Modulo ${i + 1}
+          <select class="m-barra" data-i="${i}">
+            <option value="">Nessuna</option>
+            ${FINITURE_BARRA.map((f) => `<option value="${f.id}"${m.barra === f.id ? ' selected' : ''}>${f.nome}</option>`).join('')}
+          </select>
+        </label>`).join('')}
+      </div>
+      <p class="hint">Ogni modulo può avere il suo perchero oppure no. Va 6 cm sotto il ripiano più alto (o sotto il cielo se non ci sono ripiani); a porte aperte lo puoi trascinare su e giù. In distinta: il perchero con la sua misura e 2 ganci.</p>
+    </div>`;
+}
+
 /**
  * Controllo "lato di apertura" per l'anta SINGOLA (solo battente).
  * `antaLato`: 'dx' (maniglia a destra, cardine a sinistra — default) oppure
@@ -399,6 +429,13 @@ function maxLarghezzaModulo(config, i) {
  * - "Tutti uguali": una sola card, scrive su TUTTI i moduli insieme.
  */
 function attaccaEventiModuli(contenitore, config, onChange) {
+  // Barra appendiabiti, modulo per modulo
+  contenitore.querySelectorAll('#barre-list .m-barra').forEach((sel) => sel.addEventListener('change', (e) => {
+    const mod = config.moduli[Number(sel.dataset.i)];
+    if (!mod) return;
+    if (e.target.value) mod.barra = e.target.value; else delete mod.barra;
+    onChange(config);
+  }));
   // --- MODALITÀ "DIMENSIONI PERSONALIZZATE": eventi PER-MODULO ---
   if (config.moduliPersonalizzati) {
     contenitore.querySelectorAll('#moduli-list .modulo-card').forEach((card) => {
@@ -691,6 +728,8 @@ function ripartisciModuli(config, n = config.moduli.length) {
         riduzioneRipiano: v?.riduzioneRipiano ?? t.riduzioneRipiano,
         cassettiere: (t.cassettiere || []).map((c) => ({ ...c })),
         ...(v?.ripianiY ? { ripianiY: v.ripianiY } : {}),   // ripiani spostati a mano nel 3D
+        ...(v?.barra ? { barra: v.barra } : {}),              // barra appendiabiti del modulo
+        ...(Number.isFinite(v?.barraY) ? { barraY: v.barraY } : {}),
       });
     }
   } else {
@@ -704,6 +743,8 @@ function ripartisciModuli(config, n = config.moduli.length) {
         riduzioneRipiano: t.riduzioneRipiano,
         cassettiere: (t.cassettiere || []).map((c) => ({ ...c })),
         ...(vecchi[i]?.ripianiY ? { ripianiY: vecchi[i].ripianiY } : {}),   // ripiani spostati a mano nel 3D
+        ...(vecchi[i]?.barra ? { barra: vecchi[i].barra } : {}),           // barra appendiabiti del modulo
+        ...(Number.isFinite(vecchi[i]?.barraY) ? { barraY: vecchi[i].barraY } : {}),
       });
     }
   }

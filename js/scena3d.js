@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261115b';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261115c';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261111b';
 import { sfondoDi } from './sfondi.js?v=20261111b';
 
@@ -284,7 +284,9 @@ function raggio(clientX, clientY) {
 export function iniziaSpostamentoRipiano(clientX, clientY) {
   if (!porteAperte || !gruppoArmadio || !camera) return false;
   const hit = raggio(clientX, clientY).intersectObjects(gruppoArmadio.children, true)[0];
-  if (!hit || hit.object.userData.tipo !== 'ripiano') return false;
+  if (!hit) return false;
+  if (hit.object.userData.tipo === 'barra') return iniziaSpostamentoPerchero(hit);
+  if (hit.object.userData.tipo !== 'ripiano') return false;
   // piano verticale rivolto alla camera, passante per il punto toccato
   const n = new THREE.Vector3(); camera.getWorldDirection(n); n.y = 0;
   if (n.lengthSq() < 1e-6) n.set(0, 0, -1);
@@ -293,12 +295,38 @@ export function iniziaSpostamentoRipiano(clientX, clientY) {
   // limiti: tra il ripiano sotto e quello sopra (non si scavalcano)
   const m = hit.object, u = m.userData, sC = m.geometry.parameters.height;
   const altri = gruppoArmadio.children.filter((o) => o !== m && o.userData.tipo === 'ripiano' && o.userData.modulo === u.modulo).map((o) => o.position.y);
-  const lo = Math.max(u.yMin, ...altri.filter((y) => y < m.position.y).map((y) => y + sC + 30));
-  const hi = Math.min(u.yMax, ...altri.filter((y) => y > m.position.y).map((y) => y - sC - 30));
+  // il perchero dello stesso modulo: il ripiano non ci passa sopra
+  const perch = gruppoArmadio.children.filter((o) => o.userData.tipo === 'perchero' && o.userData.modulo === u.modulo).map((o) => o.position.y);
+  const lo = Math.max(u.yMin, ...altri.filter((y) => y < m.position.y).map((y) => y + sC + 30), ...perch.filter((y) => y < m.position.y).map((y) => y + sC / 2 + 40));
+  const hi = Math.min(u.yMax, ...altri.filter((y) => y > m.position.y).map((y) => y - sC - 30), ...perch.filter((y) => y > m.position.y).map((y) => y - sC / 2 - 30));
   trascRip = { mesh: m, piano, dy: m.position.y - hit.point.y, lo, hi };
   controls.enabled = false;
   renderer.domElement.style.cursor = 'ns-resize';
   return true;
+}
+/** PERCHERO: si trascina su e giù come un ripiano, senza passare oltre i ripiani vicini. */
+function iniziaSpostamentoPerchero(hit) {
+  const g = hit.object.userData.gruppo, u = g.userData;
+  const n = new THREE.Vector3(); camera.getWorldDirection(n); n.y = 0;
+  if (n.lengthSq() < 1e-6) n.set(0, 0, -1);
+  n.normalize();
+  const piano = new THREE.Plane().setFromNormalAndCoplanarPoint(n, hit.point);
+  const rip = gruppoArmadio.children.filter((o) => o.userData.tipo === 'ripiano' && o.userData.modulo === u.modulo);
+  const sC = rip.length ? rip[0].geometry.parameters.height : 18;
+  const ys = rip.map((o) => o.position.y);
+  const lo = Math.max(u.yMin, ...ys.filter((y) => y < g.position.y).map((y) => y + sC / 2 + 40));
+  const hi = Math.min(u.yMax, ...ys.filter((y) => y > g.position.y).map((y) => y - sC / 2 - 30));
+  trascRip = { mesh: g, piano, dy: g.position.y - hit.point.y, lo, hi, perchero: true, sC };
+  controls.enabled = false;
+  renderer.domElement.style.cursor = 'ns-resize';
+  return true;
+}
+function misurePerchero(g, sC) {
+  const ys = gruppoArmadio.children.filter((o) => o.userData.tipo === 'ripiano' && o.userData.modulo === g.userData.modulo).map((o) => o.position.y);
+  const y = g.position.y;
+  const giu = Math.max(g.userData.yMin - 150, ...ys.filter((v) => v < y).map((v) => v + sC / 2));
+  const su = Math.min(g.userData.yMax + 40, ...ys.filter((v) => v > y).map((v) => v - sC / 2));
+  return { daTerra: Math.round(y), sotto: Math.round(y - 15 - giu), sopra: Math.round(su - (y + 15)) };
 }
 /** Sposta il ripiano; ritorna { daTerra, sotto, sopra } in mm per l'etichetta. */
 export function muoviSpostamentoRipiano(clientX, clientY) {
@@ -307,7 +335,7 @@ export function muoviSpostamentoRipiano(clientX, clientY) {
   if (!raggio(clientX, clientY).ray.intersectPlane(trascRip.piano, p)) return null;
   const m = trascRip.mesh;
   m.position.y = Math.round(Math.min(trascRip.hi, Math.max(trascRip.lo, p.y + trascRip.dy)));
-  return misureRipiano(m);
+  return trascRip.perchero ? misurePerchero(m, trascRip.sC) : misureRipiano(m);
 }
 function misureRipiano(m) {
   const u = m.userData, sC = m.geometry.parameters.height;
@@ -320,10 +348,11 @@ function misureRipiano(m) {
 /** Fine: ritorna { modulo, ripianiY: [...] } con le altezze di tutti i ripiani del modulo. */
 export function fineSpostamentoRipiano() {
   if (!trascRip) return null;
-  const u = trascRip.mesh.userData;
+  const u = trascRip.mesh.userData, per = trascRip.perchero, yP = Math.round(trascRip.mesh.position.y);
   trascRip = null;
   controls.enabled = true;
   renderer.domElement.style.cursor = '';
+  if (per) return { modulo: u.modulo, barraY: yP };
   const ys = gruppoArmadio.children.filter((o) => o.userData.tipo === 'ripiano' && o.userData.modulo === u.modulo)
     .sort((a, b) => a.userData.indice - b.userData.indice).map((o) => Math.round(o.position.y));
   return { modulo: u.modulo, ripianiY: ys };
@@ -399,6 +428,16 @@ function aggiungiBox(sx, sy, sz, cx, cy, cz, materiale, tipo, strategia) {
  * Costruisce un singolo modulo (carcassa + schiena + ripiani + ante +
  * eventuali cassettiere) con lo stesso schema delle formule.
  */
+const _geoBarra = new THREE.CylinderGeometry(1, 1, 1, 28);
+const _matBarra = {};
+/** Alluminio satinato o nero (metallo). */
+function materialeBarra(id) {
+  if (!_matBarra[id]) _matBarra[id] = id === 'nero'
+    ? new THREE.MeshStandardMaterial({ color: 0x1d1d1d, metalness: 0.45, roughness: 0.42 })
+    : new THREE.MeshStandardMaterial({ color: 0xc4c7cb, metalness: 0.85, roughness: 0.38 });
+  return _matBarra[id];
+}
+
 function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1) {
   const sC = config.spessoreCarcassa;
   const sS = config.spessoreSchiena;
@@ -505,6 +544,35 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
         matDi(config, "carcassa"), 'ripiano');
       Object.assign(m.userData, { modulo: indice, indice: r - 1, yMin, yMax });
     }
+  }
+
+  // BARRA APPENDIABITI (ovale 30×15) 6 cm sotto il ripiano più alto, o sotto il cielo
+  if (modulo.barra) {
+    const larInt = W - 2 * sC;
+    const ys = gruppoArmadio.children.filter((o) => o.userData.tipo === 'ripiano' && o.userData.modulo === indice).map((o) => o.position.y);
+    const ySotto = ys.length ? Math.max(...ys) - sC / 2 : H - sC;
+    // spostato a mano (trascinandolo a porte aperte) oppure 6 cm sotto il ripiano più alto
+    const yMinB = sC + 150, yMaxB = H - sC - 40;
+    const yBarra = Number.isFinite(modulo.barraY) ? Math.min(yMaxB, Math.max(yMinB, modulo.barraY)) : ySotto - 60;
+    const profUtile = scorrevole ? prof - (config.scorrevole?.binario ?? 75) : prof;
+    const zB = sS + profUtile / 2;
+    const matB = materialeBarra(modulo.barra);
+    const gB = new THREE.Group();
+    gB.position.set(xOffset + W / 2, yBarra, zB);
+    Object.assign(gB.userData, { tipo: 'perchero', modulo: indice, yMin: yMinB, yMax: yMaxB });
+    const tubo = new THREE.Mesh(_geoBarra, matB);
+    tubo.scale.set(15, larInt - 4, 7.5);
+    tubo.rotation.z = Math.PI / 2;
+    tubo.castShadow = true;
+    Object.assign(tubo.userData, { tipo: 'barra', gruppo: gB });
+    gB.add(tubo);
+    for (const lato of [-1, 1]) {                                   // i 2 ganci sui fianchi
+      const sup = new THREE.Mesh(new THREE.BoxGeometry(10, 44, 26), matB);
+      sup.position.set(lato * (larInt / 2 - 5), 4, 0);
+      Object.assign(sup.userData, { tipo: 'barra', gruppo: gB });
+      gB.add(sup);
+    }
+    gruppoArmadio.add(gB);
   }
 
   // Ante a battente (solo se tipo = battente)
