@@ -22,13 +22,13 @@ import {
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
-  correggiLatoInterno, latoInternoAutomatico,
-} from './modello.js?v=20261114g';
-import { renderPianta } from './pianta.js?v=20261114g';
-import { calcolaDistintaCucina } from './distinta.js?v=20261114g';
+  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL,
+} from './modello.js?v=20261114h';
+import { renderPianta } from './pianta.js?v=20261114h';
+import { calcolaDistintaCucina } from './distinta.js?v=20261114h';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261114g';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114g';
+import { agganciaTema } from '../tema.js?v=20261114h';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114h';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1492,7 +1492,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114g');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114h');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1558,6 +1558,7 @@ function iconaMobile(id) {
     lavatrice: '<rect x="8" y="6" width="48" height="52"/><line x1="8" y1="18" x2="56" y2="18"/><circle cx="32" cy="38" r="13"/><circle cx="32" cy="38" r="7"/><rect x="38" y="9" width="12" height="5" rx="1"/><circle cx="16" cy="12" r="1.8"/>',
     pensile: '<rect x="8" y="14" width="48" height="36"/><line x1="32" y1="14" x2="32" y2="50"/><line x1="26" y1="28" x2="26" y2="36"/><line x1="38" y1="28" x2="38" y2="36"/>',
     'pensile-angolo': '<path d="M8 8 H30 V30 H56 V56 H8 Z" fill="none"/><line x1="18" y1="16" x2="18" y2="24"/><line x1="44" y1="40" x2="44" y2="48"/>',
+    'base-angolo': '<path d="M8 8 H30 V30 H56 V56 H8 Z" fill="none"/><line x1="12" y1="44" x2="26" y2="44"/><line x1="36" y1="34" x2="50" y2="34"/>',
     'pensile-angolo-45': '<path d="M10 10 H54 V54 H10 Z" fill="none"/><line x1="10" y1="34" x2="34" y2="54"/><line x1="20" y1="40" x2="28" y2="48"/>',
     colonna: '<rect x="18" y="4" width="28" height="56"/><line x1="18" y1="40" x2="46" y2="40"/><line x1="40" y1="20" x2="40" y2="26"/><line x1="40" y1="48" x2="40" y2="54"/>',
     regletta: '<polyline points="16,8 16,48 56,48" fill="none" stroke-width="7"/><polyline points="16,8 26,8 26,38 56,38 56,48" fill="none"/>',
@@ -1963,7 +1964,13 @@ svg.addEventListener('pointermove', (e) => {
   // riorientamento automatico (micro-aggiustamenti precisi).
   const libera = !!(e.ctrlKey || e.metaKey);
   // Orienta le ante verso l'interno (solo i mobili con un fronte, non costadi/reglette)
-  const haFronte = !['costado', 'regletta'].includes(categoriaTipo(m.tipo));
+  // Mobili a L (base/pensile angolo): si agganciano all'angolo più vicino
+  const aL = !libera && /^(base|pensile)-angolo$/.test(m.tipo) ? agganciaAngoloL(progetto, m, rx, ry) : null;
+  if (aL) {
+    if (aL.x !== m.x || aL.y !== m.y || aL.rot !== m.rot) { m.x = aL.x; m.y = aL.y; m.rot = aL.rot; trascinamento.mosso = true; disegna(); }
+    return;
+  }
+  const haFronte = !['costado', 'regletta'].includes(categoriaTipo(m.tipo)) && !/^(base|pensile)-angolo$/.test(m.tipo);
   const rot = (!libera && haFronte) ? orientaVersoMuro(progetto, m, rx, ry) : null;
   const rotCambiata = rot !== null && rot !== m.rot;
   if (rotCambiata) m.rot = rot;

@@ -13,9 +13,10 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti,
-} from './modello.js?v=20261114g';
+} from './modello.js?v=20261114h';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
+const PROFONDITA_BASE_D = 600;   // profondità dei bassi (bracci della base angolo)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
 const round = (n) => Math.round(n);
@@ -112,7 +113,14 @@ function pezziDiModulo(progetto, m) {
     + (m.fuoriMisura ? ' ⚠ da tagliare' : '');
   const pz = [];
 
-  if (cat === 'base') {
+  if (cat === 'base' && m.tipo === 'base-angolo') {
+    // BASE ANGOLO a L: 2 ante larghe come quelle del pensile angolo
+    // (larghezza − profondità bassi = 280), alte come la base (−2 mm);
+    // zoccolo sulle due facce interne (arretrato 5 cm: +50 per lato)
+    const aw = round(L - PROFONDITA_BASE_D);
+    pz.push({ modulo: mod, nome: 'Anta (base angolo)', larghezza: Math.max(100, aw), altezza: round(H - 2), spessore: SP, materiale: 'anta', quantita: 2 });
+    pz.push({ modulo: mod, nome: 'Zoccolo (frontale)', larghezza: aw + 50, altezza: zoccoloH(H), spessore: SP, materiale: 'zoccolo', quantita: 2 });
+  } else if (cat === 'base') {
     // carcassa, ripiani e cassetti interni: già nel modulo (non si tagliano)
     zoccolo(pz, mod, L, H);
     if (m.tipo === 'base-cassetti') {
@@ -304,7 +312,7 @@ export function calcolaDistintaCucina(progetto) {
     if (!/^anta/i.test(p.nome)) continue;
     const m = perId.get(p.moduloId) || {};
     // pensile angolo 63×63 e Ciaflan: cerniere ad apertura grande (165°)
-    if (m.tipo === 'pensile-angolo' || m.tipo === 'pensile-angolo-45') { aggiungi('Cerniere 165° (pensile angolo e Ciaflan)', 2 * p.quantita); continue; }
+    if (m.tipo === 'pensile-angolo' || m.tipo === 'pensile-angolo-45' || m.tipo === 'base-angolo') { aggiungi('Cerniere 165° (angoli e Ciaflan)', 2 * p.quantita); continue; }
     // colonna frigo: la porta bassa (70 o 80) ha 2 cerniere come le altre;
     // la porta del frigo (alta) 4 se supera 1,10 m, se no 3
     if (categoriaTipo(m.tipo) === 'colonna' && (m.variante || 'porta') === 'porta' && p.altezza > 950) {
@@ -329,13 +337,15 @@ export function calcolaDistintaCucina(progetto) {
   for (const m of mobili) {
     const cat = categoriaTipo(m.tipo), L = dimMobile(m).w;
     if (cat === 'base' || cat === 'colonna') {
-      aggiungi('Piedini regolabili', piediniDi(L));
+      aggiungi('Piedini regolabili', m.tipo === 'base-angolo' ? 6 : piediniDi(L));
       aggiungi('Grappe zoccolo (fissaggio ai piedini)', 1);
     }
     if (cat === 'pensile') aggiungi('Kit per appendere i pensili', 1);
     if (m.tipo === 'forno') aggiungi(`Griglia aerazione forno ${round(L - 3)} mm`, 1);
   }
-  aggiungi('Angoli zoccolo 90°', angoliZoccolo(mobili));
+  // la base angolo ha il suo angolo di zoccolo (interno) e non fa da fila a parte
+  aggiungi('Angoli zoccolo 90°', angoliZoccolo(mobili.filter((m) => m.tipo !== 'base-angolo'))
+    + mobili.filter((m) => m.tipo === 'base-angolo').length);
   const ORDINE_ACC = ['Cerniere', 'Cassetti', 'Maniglie', 'Kit', 'Piedini', 'Grappe', 'Angoli', 'Griglia'];
   const pos = (n) => { const i = ORDINE_ACC.findIndex((k) => n.startsWith(k)); return i < 0 ? 99 : i; };
   const accessori = [...acc.entries()].map(([nome, quantita]) => ({ nome, quantita })).sort((x, y) => pos(x.nome) - pos(y.nome));

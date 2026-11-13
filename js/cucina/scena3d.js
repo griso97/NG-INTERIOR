@@ -13,13 +13,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261114g';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261114g';
+} from './modello.js?v=20261114h';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261114h';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { maniglia3D } from '../maniglia3d.js?v=20261114g';
+import { maniglia3D } from '../maniglia3d.js?v=20261114h';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261114g';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261114h';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1347,8 +1347,8 @@ function aggiungiLedPensile(g, w, h, d, colore, avanti = 0) {
  * sul fronte interno di ogni braccio. L'angolo pieno sta verso il retro-
  * sinistra (lato muri); l'utente ruota il modulo per l'angolo giusto.
  */
-function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta) {
-  const prof = PROFONDITA_PENSILE;                   // profondità di ogni braccio
+function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, prof = PROFONDITA_PENSILE, basso = false) {
+  // prof = profondità di ogni braccio (pensile 350, base 600); basso = base angolo
   const matCorpo = (coloreCorpo && coloreCorpo.isMaterial) ? coloreCorpo
     : new THREE.MeshStandardMaterial({ color: coloreCorpo, roughness: 0.7, metalness: 0.05 });
   const mkBox = (bw, bd, cx, cz) => {
@@ -1367,13 +1367,21 @@ function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta) {
   const antaAw = w - prof;
   const antaAcx = (-w / 2 + prof + w / 2) / 2;
   const zA = -d / 2 + prof;
-  pannello(g, antaAcx, 0, zA, antaAw - FUGA_W, h - FUGA_H, matAnta || COL.anta);
-  manigliaOrizzAnta(g, antaAcx, 0, antaAw - FUGA_W, h - FUGA_H, zA, -1, false);
+  const anta = (gg, cx, z, aw, verso) => {
+    if (basso && _fingerPull) {                      // base con gola: canale in alto, niente maniglia
+      const CH = 30;
+      pannello(gg, cx, -CH / 2, z, aw, Math.max(60, h - FUGA_H - CH), matAnta || COL.anta);
+      canaleFingerPull(gg, cx, (h - FUGA_H) / 2 - CH / 2, z, aw, CH, true, matAnta);
+    } else {
+      pannello(gg, cx, 0, z, aw, h - FUGA_H, matAnta || COL.anta);
+      manigliaOrizzAnta(gg, cx, 0, aw, h - FUGA_H, z, verso, basso);
+    }
+  };
+  anta(g, antaAcx, zA, antaAw - FUGA_W, -1);
   // Anta B: sul fronte del braccio B (+x), in un subgruppo ruotato +90°.
   const subB = new THREE.Group();
   const antaBw = d - prof;
-  pannello(subB, 0, 0, 0, antaBw - FUGA_W, h - FUGA_H, matAnta || COL.anta);
-  manigliaOrizzAnta(subB, 0, 0, antaBw - FUGA_W, h - FUGA_H, 0, 1, false);
+  anta(subB, 0, 0, antaBw - FUGA_W, 1);
   subB.rotation.y = Math.PI / 2;                     // fronte +z locale → +x mondo
   subB.position.set(-w / 2 + prof, 0, (-d / 2 + prof + d / 2) / 2);
   g.add(subB);
@@ -1412,6 +1420,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
     : cat === 'lavastoviglie' ? 0xbcbdc2 : COL.corpo;
   // Pensile angolo a L: corpo a L (due bracci), non il box quadrato.
   if (tipo === 'pensile-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta); return g; }
+  if (tipo === 'base-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, PROFONDITA_BASE, true); return g; }
   // Colonna con VANO APERTO: carcassa a fronte aperto (si vede dentro);
   // le altre colonne/mobili restano scatola piena.
   const colonnaVano = cat === 'colonna' && m && m.variante === 'vano';
@@ -1689,10 +1698,28 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
         const legOnMe = cieco.horizMe ? (rd.base + spess) : rd.base;
         ciecoOpt = { ...cieco, blindExtra: legOnMe + FUGA_W };
       }
+      if (m.tipo === 'base-angolo') {
+        // BASE ANGOLO a L: come il pensile angolo usa +rot (L asimmetrica);
+        // piano e zoccolo = due rettangoli, uno per braccio
+        const gL = costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d, matBase);
+        gL.position.set(cx, zocc + porta / 2, cz);
+        gL.rotation.y = (m.rot || 0) * Math.PI / 180;
+        g3d = gL;
+        const P = PROFONDITA_BASE, hw = dim.w / 2, hd = dim.d / 2;
+        const rr = (m.rot || 0) * Math.PI / 180, c = Math.cos(rr), s = Math.sin(rr);
+        const vp = (lx, ly) => ({ x: m.x + lx * c - ly * s, y: m.y + lx * s + ly * c });
+        const A = vp(0, hd - P / 2), B = vp(-hw + P / 2, -P / 2);
+        const bracci = [{ ...A, rot: -(m.rot || 0), w: dim.w, d: P }, { ...B, rot: -(m.rot || 0) - 90, w: dim.d - P, d: P }];
+        for (const br of bracci) {
+          basiTop.push({ x: br.x, y: br.y, rot: br.rot, w: br.w, d: br.d, zocc, topY: zocc + porta });
+          zoccoli.push({ x: br.x, y: br.y, rot: br.rot, w: br.w, d: br.d, zocc });
+        }
+      } else {
       g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d, matBase, { cieco: ciecoOpt }), cx, zocc, cz, porta, m.rot);
       if (cieco && progetto.autoRegletta !== false) renderRegolettaAngolo(cieco, m, porta, zocc, matBase, progetto.reglettaAngolo);
       basiTop.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc, topY: zocc + porta });
       zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
+      }
       // Placca / lavello (tipi forno/lavello oppure aggiunti a mano): sopra il top
       const hasPlacca = m.tipo === 'forno' || m.placca;
       const hasLavello = m.tipo === 'lavello' || m.lavello;

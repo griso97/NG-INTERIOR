@@ -11,7 +11,7 @@ import {
   moduliDiParete, nomeTipo, PROFONDITA_BASE, PROFONDITA_PENSILE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
   dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili, angoloInternoVertice,
-} from './modello.js?v=20261114g';
+} from './modello.js?v=20261114h';
 
 const NS = 'http://www.w3.org/2000/svg';
 const el = (tag, attrs = {}) => {
@@ -390,8 +390,9 @@ function renderMobileLibero(m, selezionato, interattivo, bloccato = false) {
   // Pensile angolo a L: contorno a 6 vertici (incavo fronte-destra), coerente
   // con la geometria 3D a L. Gli altri mobili: rettangolo a 4 vertici.
   let cornersLocali;
-  if (m.tipo === 'pensile-angolo') {
-    const prof = PROFONDITA_PENSILE;
+  const profL = m.tipo === 'pensile-angolo' ? PROFONDITA_PENSILE : m.tipo === 'base-angolo' ? PROFONDITA_BASE : 0;
+  if (profL) {
+    const prof = profL;
     const xi = -hw + prof, yi = hd - prof;
     cornersLocali = [[-hw, -hd], [xi, -hd], [xi, yi], [hw, yi], [hw, hd], [-hw, hd]];
   } else {
@@ -410,7 +411,14 @@ function renderMobileLibero(m, selezionato, interattivo, bloccato = false) {
   }));
   // LATO DELLE ANTE (davanti) in un altro colore: si vede subito da che
   // parte aprono, senza andare nel rendering
-  if (!['costado', 'regletta', 'pannello', 'oggetto'].includes(categoria) && m.tipo !== 'pensile-angolo') {
+  if (profL) {
+    // mobile a L: fascia delle ante sulle due facce interne (verso l'incavo)
+    const F = Math.min(90, Math.max(40, profL * 0.22));
+    const xi = -hw + profL, yi = hd - profL;
+    for (const q of [[[xi, yi], [hw, yi], [hw, yi + F], [xi, yi + F]], [[xi - F, -hd], [xi, -hd], [xi, yi], [xi - F, yi]]]) {
+      g.appendChild(el('polygon', { points: q.map(([x, y]) => versoSvg(x, y).join(',')).join(' '), class: 'sv-mob-fronte' }));
+    }
+  } else if (!['costado', 'regletta', 'pannello', 'oggetto'].includes(categoria)) {
     const F = Math.min(90, Math.max(40, hd * 0.22));
     // fronte come nel 3D: direzione (−sin r, −cos r) in pianta
     const fx = -s, fy = -c, px = -fy, py = fx;          // fronte e sua perpendicolare

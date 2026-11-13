@@ -1090,5 +1090,8 @@ window.NG_I18N_ES = {
  "Il browser ha bloccato la finestra di stampa: consenti i popup per questo sito.": "El navegador ha bloqueado la ventana de impresión: permite las ventanas emergentes para este sitio.",
  "🔥 Piano cottura": "🔥 Placa de cocción",
  "🚰 Lavello": "🚰 Fregadero",
- "✓ Automatico: i mobili vanno sempre verso l'interno della forma": "✓ Automático: los muebles van siempre hacia el interior de la forma"
+ "✓ Automatico: i mobili vanno sempre verso l'interno della forma": "✓ Automático: los muebles van siempre hacia el interior de la forma",
+ "Base angolo": "Bajo rincón",
+ "Anta (base angolo)": "Puerta (bajo rincón)",
+ "Cerniere 165° (angoli e Ciaflan)": "Bisagras 165° (rincones y chaflán)"
 };

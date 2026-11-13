@@ -84,6 +84,11 @@ export const CATALOGO_MOBILI = [
     larghezze: [600, 450], altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
   { id: 'forno',         nome: 'Modulo forno', categoria: 'base',
     larghezze: [600], altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
+  // Base ANGOLO a L (come il pensile angolo sotto): ante larghe come quelle del
+  // pensile angolo (630 − 350 = 280), bracci profondi come gli altri bassi →
+  // ingombro 600 + 280 = 880 × 880. Altezza 70 o 80 come gli altri bassi.
+  { id: 'base-angolo',   nome: 'Base angolo', categoria: 'base',
+    larghezze: [880], altezze: ALTEZZE_BASE, profondita: 880 },
   { id: 'pensile',       nome: 'Pensile', categoria: 'pensile',
     larghezze: LARGHEZZE_BASE, altezze: ALTEZZE_PENSILE, profondita: PROFONDITA_PENSILE },
   { id: 'pensile-angolo', nome: 'Pensile angolo', categoria: 'pensile',
@@ -594,7 +599,7 @@ export function riorientaMobili(progetto) {
     if (cat === 'costado' || cat === 'regletta') continue;
     // I pensili d'angolo (L / Ciaflan) hanno un orientamento dedicato: non
     // vanno ri-orientati "verso il muro" o perderebbero la forma d'angolo.
-    if (String(m.tipo).startsWith('pensile-angolo')) continue;
+    if (String(m.tipo).startsWith('pensile-angolo') || m.tipo === 'base-angolo') continue;
     const rot = orientaVersoMuro(progetto, m, m.x, m.y);
     if (rot !== null) m.rot = rot;
   }
@@ -1009,7 +1014,7 @@ export function problemiMobiliLiberi(progetto) {
       const ox = (A.hx + B.hx) - Math.abs(a.x - b.x);
       const oy = (A.hy + B.hy) - Math.abs(a.y - b.y);
       if (ox <= 0 || oy <= 0) continue;
-      const angolare = String(a.tipo).startsWith('pensile-angolo') || String(b.tipo).startsWith('pensile-angolo');
+      const angolare = /^(pensile|base)-angolo/.test(String(a.tipo)) || /^(pensile|base)-angolo/.test(String(b.tipo));
       const soglia = angolare ? 200 : 25;          // mm di compenetrazione
       if (ox > soglia && oy > soglia) {
         const key = a.id < b.id ? `${a.id}-${b.id}` : `${b.id}-${a.id}`;
@@ -1141,6 +1146,7 @@ function aabbMondo(m) {
  */
 export function infoAngoloCieco(progetto, m) {
   if (!m || categoriaTipo(m.tipo) !== 'base') return null;
+  if (m.tipo === 'base-angolo') return null;           // la base a L è già il modulo d'angolo
   if (m.angoloCieco === false) return null;            // forzato normale
   const A = aabbMondo(m);
   const TOL = 150;                                     // mm: due basi perpendicolari entro
@@ -1148,7 +1154,7 @@ export function infoAngoloCieco(progetto, m) {
   let best = null;
   for (const o of (progetto.mobiliLiberi || [])) {
     if (o.id === m.id) continue;
-    if (categoriaTipo(o.tipo) !== 'base') continue;
+    if (categoriaTipo(o.tipo) !== 'base' || o.tipo === 'base-angolo') continue;
     const B = aabbMondo(o);
     if (B.horiz === A.horiz) continue;                 // non perpendicolare
     // Separazione su ciascun asse: negativa = si sovrappongono, ~0 = si toccano,
@@ -1705,4 +1711,35 @@ export function latoInternoAutomatico(progetto) {
   let svolte = 0;
   for (let i = 1; i < pareti.length; i++) svolte += normA(pareti[i].angolo_gradi - pareti[i - 1].angolo_gradi);
   return pareti.length >= 2 && Math.abs(svolte) >= 1;
+}
+
+/** Mobili d'angolo a L (pensile angolo e base angolo): profondità dei bracci. */
+export function profBraccioL(tipo) {
+  return tipo === 'base-angolo' ? PROFONDITA_BASE : tipo === 'pensile-angolo' ? PROFONDITA_PENSILE : null;
+}
+/**
+ * Aggancio di un mobile a L all'ANGOLO INTERNO più vicino (entro ~1 m): lo
+ * mette con l'angolo pieno nel vertice e lo gira nel verso giusto.
+ * Ritorna { x, y, rot } oppure null se non c'è un angolo vicino.
+ */
+export function agganciaAngoloL(progetto, m, x, y) {
+  const prof = profBraccioL(m.tipo);
+  if (!prof) return null;
+  const full = progetto.piano.pareti || [];
+  const V = calcolaVertici(full);
+  const W = m.larghezza_mm || dimMobile(m).w, half = W / 2;
+  let best = null;
+  for (let i = 0; i < full.length - 1; i++) {
+    const a = full[i], b = full[i + 1];
+    if (a.assente || b.assente || !angoloInterno(a, b)) continue;
+    const v = V[i + 1], v2 = V[i + 2], v0 = V[i];
+    const u2 = { x: v2.x - v.x, y: v2.y - v.y }, l2 = Math.hypot(u2.x, u2.y) || 1;
+    const u1 = { x: v0.x - v.x, y: v0.y - v.y }, l1 = Math.hypot(u1.x, u1.y) || 1;
+    // centro: a mezza L da entrambi i muri, dal lato interno
+    const cx = v.x + (u1.x / l1) * half + (u2.x / l2) * half;
+    const cy = v.y + (u1.y / l1) * half + (u2.y / l2) * half;
+    const d = Math.hypot(x - cx, y - cy);
+    if (d < 1000 && (!best || d < best.d)) best = { d, x: cx, y: cy, rot: orientaLVersoAngolo(cx, cy, v, W, prof) };
+  }
+  return best ? { x: Math.round(best.x), y: Math.round(best.y), rot: best.rot } : null;
 }
