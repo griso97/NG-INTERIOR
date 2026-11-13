@@ -1236,6 +1236,98 @@ export function infoAngoloCieco(progetto, m) {
  * principale (più mobili attaccati) o è un pezzo isolato: nell'angolo cieco,
  * chi è in fila con altri resta fermo, chi è isolato si sposta.
  */
+const FILA_TERRA = ['base', 'colonna', 'lavastoviglie', 'lavatrice'];
+/** Pezzi che stanno nella fila a terra e si spostano con lei (anche costadi, reglette, pannelli). */
+const FILA_PEZZI = [...FILA_TERRA, 'costado', 'regletta', 'pannello'];
+
+/**
+ * Sposta lungo il suo muro il mobile `primo` di `shift` mm in direzione `dir`
+ * (+1/−1 sull'asse lungo del mobile). Se si allontana dall'angolo spinge con sé
+ * la FILA attaccata (es. base + colonne sullo stesso muro), così niente finisce
+ * dentro un altro mobile. Controlla muri e sovrapposizioni: se non c'è posto non
+ * sposta niente e ritorna false.
+ */
+function spostaFila(progetto, primo, dir, shift, escludi = []) {
+  if (Math.abs(shift) < 0.5) return true;
+  const P = aabbMondo(primo), asseX = P.horiz;
+  const pos = (B) => asseX ? [B.x0, B.x1] : [B.y0, B.y1];
+  const catena = [primo];
+  if (shift > 0) {
+    // stessi allineamento e orientamento di `primo`, dalla parte verso cui si sposta
+    const fila = (progetto.mobiliLiberi || []).filter((o) => {
+      if (o.id === primo.id || escludi.includes(o.id) || !FILA_PEZZI.includes(categoriaTipo(o.tipo))) return false;
+      const B = aabbMondo(o);
+      const prof = asseX ? [Math.abs(B.y0 - P.y0), Math.abs(B.y1 - P.y1)] : [Math.abs(B.x0 - P.x0), Math.abs(B.x1 - P.x1)];
+      if (Math.min(...prof) > 50) return false;
+      const c = asseX ? o.x : o.y, c0 = asseX ? primo.x : primo.y;
+      return (c - c0) * dir > 0;
+    }).sort((a, b) => ((asseX ? a.x - b.x : a.y - b.y) * dir));
+    let [p0, p1] = pos(P);
+    let fronte = dir > 0 ? p1 + shift : p0 - shift;                    // dove arriva la catena spostata
+    for (const o of fila) {
+      const [q0, q1] = pos(aabbMondo(o));
+      const tocca = dir > 0 ? q0 < fronte - 1 : q1 > fronte + 1;
+      if (!tocca) break;
+      catena.push(o);
+      fronte = dir > 0 ? Math.max(fronte, q1 + shift) : Math.min(fronte, q0 - shift);
+    }
+  }
+  const prima = catena.map((o) => ({ o, x: o.x, y: o.y }));
+  for (const o of catena) { if (asseX) o.x = Math.round(o.x + dir * shift); else o.y = Math.round(o.y + dir * shift); }
+  const ids = new Set([...catena.map((o) => o.id), ...escludi]);
+  let ok = true;
+  for (const o of catena) {
+    const v = vincolaAiMuri(progetto, o, o.x, o.y);
+    if (Math.abs(v.x - o.x) > 1 || Math.abs(v.y - o.y) > 1) { ok = false; break; }
+    const urto = sovrapposto(progetto, o, o.x, o.y);
+    if (urto && urto.some((u) => !ids.has(u.id) && FILA_PEZZI.includes(categoriaTipo(u.tipo)))) { ok = false; break; }
+  }
+  if (!ok) for (const r of prima) { r.o.x = r.x; r.o.y = r.y; }
+  return ok;
+}
+
+/**
+ * MOBILE D'ANGOLO TRASCINATO IN UN ANGOLO GIÀ OCCUPATO (es. muro sinistro già
+ * pieno di colonne e basi, poi la base da 1000 nell'angolo): la base va
+ * nell'angolo e la fila dell'altro muro scorre in avanti quanto serve per la
+ * regletta (3 cm). Così l'ordine in cui si mettono i mobili non conta e
+ * funziona uguale in tutti gli angoli. Ritorna true se l'ha fatto.
+ */
+export function inserisciInAngolo(progetto, m, tx, ty) {
+  if (progetto.autoRegletta === false || m.isola) return false;
+  if (categoriaTipo(m.tipo) !== 'base' || m.tipo === 'base-angolo') return false;
+  const base = (progetto.reglettaAngolo && progetto.reglettaAngolo.base) || 30;
+  const W = vincolaAiMuri(progetto, m, tx, ty);
+  const urti = sovrapposto(progetto, m, W.x, W.y);
+  if (!urti) return false;
+  const A = aabbMondo({ ...m, x: W.x, y: W.y });
+  // tutti gli urti: mobili a terra PERPENDICOLARI (la fila dell'altro muro), più stretti del nostro
+  for (const o of urti) {
+    if (!FILA_PEZZI.includes(categoriaTipo(o.tipo))) return false;
+    if (aabbMondo(o).horiz === A.horiz) return false;
+  }
+  const asseO = !aabbMondo(urti[0]).horiz ? 'y' : 'x';             // asse lungo della fila dell'altro muro
+  const cm = asseO === 'y' ? W.y : W.x;
+  const primo = urti.reduce((a, b) => (Math.abs((asseO === 'y' ? a.y : a.x) - cm) <= Math.abs((asseO === 'y' ? b.y : b.x) - cm) ? a : b));
+  if (dimMobile(primo).w >= A.w) return false;                    // il mobile d'angolo (cieco) è il più largo
+  const B = aabbMondo(primo);
+  const dir = ((asseO === 'y' ? primo.y : primo.x) - cm) >= 0 ? 1 : -1;   // via dall'angolo
+  const shift = asseO === 'y'
+    ? (dir > 0 ? A.y1 + base - B.y0 : B.y1 - (A.y0 - base))
+    : (dir > 0 ? A.x1 + base - B.x0 : B.x1 - (A.x0 - base));
+  if (!(shift > 0)) return false;
+  const vecchio = { x: m.x, y: m.y };
+  m.x = W.x; m.y = W.y;                                           // il mobile d'angolo al suo posto
+  if (!spostaFila(progetto, primo, dir, shift, [m.id])) { m.x = vecchio.x; m.y = vecchio.y; return false; }
+  // ancora qualcosa sotto il mobile d'angolo? allora rinuncio
+  const resto = sovrapposto(progetto, m, m.x, m.y);
+  if (resto && resto.some((u) => FILA_PEZZI.includes(categoriaTipo(u.tipo)))) {
+    spostaFila(progetto, primo, dir, -shift, [m.id]);
+    m.x = vecchio.x; m.y = vecchio.y; return false;
+  }
+  return true;
+}
+
 function contaInFila(progetto, m) {
   if (categoriaTipo(m.tipo) !== 'base') return 0;
   const A = aabbMondo(m);
@@ -1244,7 +1336,7 @@ function contaInFila(progetto, m) {
   let count = 0;
   for (const o of (progetto.mobiliLiberi || [])) {
     if (o.id === m.id) continue;
-    if (categoriaTipo(o.tipo) !== 'base') continue;
+    if (!FILA_TERRA.includes(categoriaTipo(o.tipo))) continue;     // anche colonne, lavastoviglie…
     const rotO = ((Math.round((o.rot || 0) / 90) * 90) % 360 + 360) % 360;
     if ((rotO % 180 === 0) !== horizM) continue;         // stesso orientamento
     const B = aabbMondo(o);
@@ -1282,11 +1374,15 @@ export function applicaRegletteAngolo(progetto) {
     // sempre (niente avviso "0 spazio" da risolvere a mano).
     // Decido chi resta fermo e chi si sposta in base ai VICINI:
     // più vicini in fila = fila principale = resta fermo.
-    const nc = contaInFila(progetto, c);
-    const no = contaInFila(progetto, o);
+    // Il mobile CIECO (il più largo, es. 1000) resta nell'angolo e si sposta
+    // l'altro con la sua fila; a pari larghezza resta fermo chi ha più vicini.
     let fisso, mobile;
-    if (no > nc) { fisso = o; mobile = c; }
-    else { fisso = c; mobile = o; }
+    const wc = dimMobile(c).w, wo = dimMobile(o).w;
+    if (wc !== wo || c.angoloCieco === true) { fisso = c; mobile = o; }
+    else {
+      const nc = contaInFila(progetto, c), no = contaInFila(progetto, o);
+      if (no > nc) { fisso = o; mobile = c; } else { fisso = c; mobile = o; }
+    }
     const F = aabbMondo(fisso), M = aabbMondo(mobile);
     // il mobile scorre lungo la sua parete (asse lungo del mobile)
     const axisX = M.horiz;
@@ -1296,8 +1392,13 @@ export function applicaRegletteAngolo(progetto) {
     const delta = overlap + base;                  // porta la luce a `base`
     if (Math.abs(delta) < 0.5) continue;           // già a posto → idempotente
     const dir = (axisX ? mobile.x : mobile.y) >= (axisX ? fisso.x : fisso.y) ? 1 : -1;
-    if (axisX) mobile.x = Math.round(mobile.x + dir * delta);
-    else mobile.y = Math.round(mobile.y + dir * delta);
+    // si sposta con la sua fila (mai dentro una colonna o un altro mobile);
+    // se su quel muro non c'è posto, provo a spostare l'altro
+    if (spostaFila(progetto, mobile, dir, delta, [fisso.id])) continue;
+    const ax2 = F.horiz;
+    const ov2 = ax2 ? Math.min(F.x1, M.x1) - Math.max(F.x0, M.x0) : Math.min(F.y1, M.y1) - Math.max(F.y0, M.y0);
+    const dir2 = (ax2 ? fisso.x : fisso.y) >= (ax2 ? mobile.x : mobile.y) ? 1 : -1;
+    spostaFila(progetto, fisso, dir2, ov2 + base, [mobile.id]);
   }
 }
 

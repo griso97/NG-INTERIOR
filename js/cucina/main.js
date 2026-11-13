@@ -17,18 +17,18 @@ import {
   spostaModulo, problemiIngombri, problemiMobiliLiberi,
   ruotaPianta, specchiaPianta, inverteAngolo,
   toggleParete, muroTolto, snap, liberoPareti, generaPensiliAuto, riorientaMobili,
-  spaziTraMobili, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo,
+  spaziTraMobili, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo, inserisciInAngolo,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo,
-} from './modello.js?v=20261114z';
-import { renderPianta } from './pianta.js?v=20261114z';
-import { calcolaDistintaCucina } from './distinta.js?v=20261114z';
+} from './modello.js?v=20261115a';
+import { renderPianta } from './pianta.js?v=20261115a';
+import { calcolaDistintaCucina } from './distinta.js?v=20261115a';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261114z';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114z';
+import { agganciaTema } from '../tema.js?v=20261115a';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115a';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1540,7 +1540,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114z');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115a');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -2105,6 +2105,7 @@ svg.addEventListener('pointermove', (e) => {
   const rotCambiata = rot !== null && rot !== m.rot;
   if (rotCambiata) m.rot = rot;
   const v = posizionaVincolata(progetto, m, rx, ry, libera);
+  trascinamento.ultimo = { x: rx, y: ry, libera };                  // dove l'ha voluto il dito (per l'angolo)
   if (v.x !== m.x || v.y !== m.y || rotCambiata) {
     m.x = v.x; m.y = v.y;
     trascinamento.mosso = true;
@@ -2117,6 +2118,7 @@ const fineTrascinamento = () => {
   const mosso = trascinamento.mosso;
   const prima = trascinamento.prima;
   const id = trascinamento.id;
+  const trascinamento_ultimo = trascinamento.ultimo;
   trascinamento = null;
   if (!mosso) {
     // Tap senza spostamento: annullo lo snapshot registrato al pointerdown
@@ -2126,6 +2128,9 @@ const fineTrascinamento = () => {
   }
   // Mosso: blocca la posizione e chiedi conferma (barra Conferma/Annulla).
   const m = trovaMobileLibero(progetto, id);
+  // mobile d'angolo lasciato in un angolo già occupato: va nell'angolo e la fila dell'altro muro scorre
+  const ult = trascinamento_ultimo;
+  if (m && ult && !ult.libera) inserisciInAngolo(progetto, m, ult.x, ult.y);
   if (m) { m.posManuale = true; step2.movePending = { id, prima }; }
   aggiorna();
 };
