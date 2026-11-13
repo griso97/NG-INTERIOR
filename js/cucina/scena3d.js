@@ -12,14 +12,14 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111x';
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
-  moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261115f';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115f';
+  moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
+} from './modello.js?v=20261115g';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115g';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115f';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115g';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115f';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115g';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -516,10 +516,6 @@ function carcassaColonna(w, h, d, coloreOMat, conTop = true) {
   return g;
 }
 
-/** Cierre a techo: pannello a filo delle ante, dalla cima del mobile in su (hC mm). */
-function cierreTecho(g, w, h, d, mat, hC) {
-  pannello(g, 0, h / 2 + hC / 2, d / 2, w, hC, mat || COL.anta);
-}
 function pannello(g, px, py, z, pw, ph, mat) {
   // Anta: uso direttamente il materiale (legno con texture o tinta piena),
   // così la venatura compare su tutte le facce dell'anta.
@@ -1614,6 +1610,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
 
   // CIERRE A TECHO: pannello sopra pensili e colonne fino al soffitto (altezza scelta)
   const cierre = progetto.cierreTecho && progetto.cierreTecho.attivo ? Math.max(20, Number(progetto.cierreTecho.altezza) || 300) : 0;
+  const cimeAlte = new Map();      // cima (mm da terra) di pensili e colonne, per la fascia del cierre
   // Mobili liberi
   for (const m of (progetto.mobiliLiberi || [])) {
     const cat = categoriaTipo(m.tipo);
@@ -1634,7 +1631,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       pensiliPlan.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, yBottom: base });
       const sporg = antaPensileSporge(progetto.antaPensile, h);
       const gPens = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matPensile, { sporg });
-      if (cierre && m.tipo === 'pensile') cierreTecho(gPens, dim.w, h, dim.d, matMio || matPensile, cierre);
+      cimeAlte.set(m.id, base + h);
       // LED sotto i pensili (opzionale, con scelta temperatura colore).
       // Il pensile-angolo (diagonale) non lo prende: ha una geometria dedicata.
       if (progetto.led && progetto.led.attivo && !String(m.tipo).startsWith('pensile-angolo')) {
@@ -1659,7 +1656,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
       fianchi.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, h: h + zocc, cat: 'colonna' });
       const gCol = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matColonna);
-      if (cierre) cierreTecho(gCol, dim.w, h, dim.d, matMio || matColonna, cierre);
+      cimeAlte.set(m.id, zocc + h);
       g3d = collocaMobile(gCol, cx, zocc, cz, h, m.rot);
     } else if (cat === 'regletta') {
       const h = m.altezza_mm || 700;
@@ -1744,6 +1741,22 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       }
     }
     if (g3d) { g3d.userData.mobId = m.id; if (m.id === selId) evidenzia(g3d); gruppo.add(g3d); }
+  }
+
+  // CIERRE A TECHO: una FASCIA UNICA per fila, tutta alla stessa profondità
+  // (faccia davanti = filo delle ante), sopra la cima più alta della fila;
+  // negli angoli una fascia passa e l'altra ci si appoggia.
+  if (cierre) {
+    for (const b of fasceCierreTecho(progetto, 20)) {
+      const yb = Math.max(...b.ids.map((id) => cimeAlte.get(id) || 0));
+      const L = b.a1 - b.a0, am = (b.a0 + b.a1) / 2;
+      const gx = am * b.ux + b.front * b.fx, gy = am * b.uy + b.front * b.fy;     // centro sulla faccia davanti
+      const gF = new THREE.Group();
+      gF.position.set(gx, yb + cierre / 2, -gy);
+      gF.rotation.y = -b.rot * Math.PI / 180;
+      pannello(gF, 0, 0, -20, L, cierre, (b.gruppo === 'pensile' ? matPensile : matColonna) || COL.anta);
+      gruppo.add(gF);
+    }
   }
 
   // Zoccolo continuo (un unico pezzo per fila: basi + colonne insieme) +

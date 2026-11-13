@@ -12,8 +12,8 @@
 // =============================================================================
 
 import {
-  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo,
-} from './modello.js?v=20261115f';
+  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho,
+} from './modello.js?v=20261115g';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -193,11 +193,6 @@ function pezziDiModulo(progetto, m) {
     // fallback generico
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(L), altezza: H, spessore: SP, materiale: 'carcassa', quantita: 1 });
   }
-  // CIERRE A TECHO sopra pensili e colonne (colore delle ante del modulo)
-  const ct = progetto.cierreTecho;
-  if (ct && ct.attivo && (m.tipo === 'pensile' || cat === 'colonna')) {
-    pz.push({ modulo: mod, nome: 'Cierre a techo', larghezza: round(L), altezza: Math.max(20, Math.round(Number(ct.altezza) || 300)), spessore: SP, materiale: 'anta', quantita: 1 });
-  }
   // NOME DEL MATERIALE di ogni pezzo (es. "Roble Sonoma"), come nel 3D:
   // ante del gruppo (bassi / pensili / colonne), costado alto = ante pensili,
   // zoccolo = colore zoccolo, cassetti = melaminico bianco.
@@ -231,7 +226,7 @@ function gruppoPezzo(p) {
   if (n.includes('cassetto')) return 'Cassetti (fondo e trasera)';
   if (n.includes('pannello cieco') || n.includes('anta') || n.includes('sotto forno')) return 'Porte';
   if (p.materiale === 'zoccolo' || n.includes('zoccolo')) return 'Zoccoli';
-  if (n.includes('pannello') || n.includes('regletta grande')) return 'Pannelli';
+  if (n.includes('pannello') || n.includes('cierre') || n.includes('regletta grande')) return 'Pannelli';
   return 'Varie';
 }
 
@@ -293,6 +288,16 @@ export function calcolaDistintaCucina(progetto) {
   // 2) LISTA PEZZI DA FARE: ante/frontali e pezzi in legno nostri, aggregati per tipo+misura.
   const raw = [];
   for (const m of mobili) raw.push(...pezziDiModulo(progetto, m));
+  // CIERRE A TECHO: una fascia unica per fila (negli angoli una passa + spessore, l'altra si appoggia)
+  const ct = progetto.cierreTecho;
+  if (ct && ct.attivo) {
+    const col = progetto.coloriFronti || {};
+    for (const f of fasceCierreTecho(progetto, SP)) {
+      raw.push({ nome: f.lunghezza > 2800 ? 'Cierre a techo (fascia unica, oltre 2800: da giuntare)' : 'Cierre a techo (fascia unica)',
+        larghezza: f.lunghezza, altezza: Math.max(20, Math.round(Number(ct.altezza) || 300)), spessore: SP, materiale: 'anta',
+        materialeNome: nomeMateriale(f.gruppo === 'pensile' ? col.pensile : col.colonna, 'Colore da scegliere'), quantita: 1 });
+    }
+  }
   const aggMap = new Map();
   for (const p of raw) {
     const gruppo = gruppoPezzo(p);

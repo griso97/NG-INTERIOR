@@ -1230,4 +1230,7 @@ window.NG_I18N_ES = {
   'Cierre a techo': 'Cierre a techo',
   'Pannello sopra pensili e colonne, a filo delle ante, che chiude lo spazio fino al soffitto. Esce in distinta col colore delle ante.': 'Panel encima de los altos y las columnas, a ras de las puertas, que cierra el espacio hasta el techo. Sale en el despiece con el color de las puertas.',
   'Altezza del cierre (mm) — scrivila o scegli una misura:': 'Altura del cierre (mm) — escríbela o elige una medida:',
+  "Fascia unica per ogni muro sopra pensili e colonne, tutta alla stessa profondità (a filo delle ante dei pensili), che chiude lo spazio fino al soffitto. Negli angoli una fascia passa (+ lo spessore del pannello) e l'altra ci si appoggia. In distinta: una fascia per muro, col colore delle ante.": "Franja única por cada pared encima de los altos y las columnas, toda a la misma profundidad (a ras de las puertas de los altos), que cierra el espacio hasta el techo. En las esquinas una franja pasa (+ el grosor del panel) y la otra se apoya en ella. En el despiece: una franja por pared, con el color de las puertas.",
+  'Cierre a techo (fascia unica)': 'Cierre a techo (franja única)',
+  'Cierre a techo (fascia unica, oltre 2800: da giuntare)': 'Cierre a techo (franja única, más de 2800: hay que empalmar)',
 };

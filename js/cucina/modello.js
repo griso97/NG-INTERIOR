@@ -1882,3 +1882,69 @@ export function agganciaAngoloL(progetto, m, x, y) {
   }
   return best ? { x: Math.round(best.x), y: Math.round(best.y), rot: best.rot } : null;
 }
+
+// =============================================================================
+// CIERRE A TECHO a FASCIA UNICA: una fascia continua per ogni fila di mobili
+// alti (pensili e colonne sullo stesso muro), tutta alla STESSA profondità
+// (a filo delle ante dei pensili, o delle colonne se la fila ha solo colonne).
+// Negli angoli una fascia passa (lunga fino all'incrocio + lo spessore del
+// pannello) e l'altra ci si appoggia (lunga fino all'incrocio).
+// Ritorna [{ rot, ux, uy, fx, fy, a0, a1, front, lunghezza, gruppo, ids }]
+// (piano: a = coordinata lungo la fila, front = faccia davanti delle ante).
+// =============================================================================
+export function fasceCierreTecho(progetto, spessore = 18) {
+  const ct = progetto.cierreTecho;
+  if (!ct || !ct.attivo) return [];
+  const SP_ANTA_3D = 20;                                        // anta: dalla cassa in avanti
+  const mob = (progetto.mobiliLiberi || []).filter((m) => m.tipo === 'pensile' || categoriaTipo(m.tipo) === 'colonna');
+  const file = [];
+  for (const m of mob) {
+    const d = dimMobile(m), r = ((Math.round((m.rot || 0) / 90) * 90) % 360 + 360) % 360, th = r * Math.PI / 180;
+    const ux = Math.round(Math.cos(th)), uy = -Math.round(Math.sin(th)), fx = -Math.round(Math.sin(th)), fy = -Math.round(Math.cos(th));
+    const a = m.x * ux + m.y * uy, c = m.x * fx + m.y * fy;
+    const dietro = c - d.d / 2, fronte = c + d.d / 2 + SP_ANTA_3D;
+    let f = file.find((q) => q.rot === r && Math.abs(q.dietro - dietro) < 60);
+    if (!f) { f = { rot: r, ux, uy, fx, fy, dietro, pezzi: [] }; file.push(f); }
+    f.pezzi.push({ id: m.id, a0: a - d.w / 2, a1: a + d.w / 2, fronte, pensile: m.tipo === 'pensile' });
+  }
+  // nella stessa fila: pezzi vicini (buchi fino a 1 m, es. la cappa) = una fascia sola
+  const fasce = [];
+  for (const f of file) {
+    f.pezzi.sort((p, q) => p.a0 - q.a0);
+    let cur = null;
+    for (const pz of f.pezzi) {
+      if (cur && pz.a0 - cur.a1 <= 1000) { cur.a1 = Math.max(cur.a1, pz.a1); cur.pz.push(pz); continue; }
+      cur = { rot: f.rot, ux: f.ux, uy: f.uy, fx: f.fx, fy: f.fy, a0: pz.a0, a1: pz.a1, pz: [pz] };
+      fasce.push(cur);
+    }
+  }
+  for (const b of fasce) {
+    const pens = b.pz.filter((p) => p.pensile);
+    b.gruppo = pens.length ? 'pensile' : 'colonna';
+    b.front = Math.max(...(pens.length ? pens : b.pz).map((p) => p.fronte));   // stessa profondità per tutta la fascia
+    b.ids = b.pz.map((p) => p.id);
+    delete b.pz;
+  }
+  // ANGOLI: due fasce perpendicolari che si incontrano → fino all'incrocio delle facce
+  const fatti = new Set();
+  for (let i = 0; i < fasce.length; i++) for (let j = i + 1; j < fasce.length; j++) {
+    const A = fasce[i], B = fasce[j];
+    if (A.ux * B.ux + A.uy * B.uy !== 0) continue;                // non perpendicolari
+    // incrocio X: X·F_A = front_A e X·F_B = front_B
+    const det = A.fx * B.fy - A.fy * B.fx; if (!det) continue;
+    const Xx = (A.front * B.fy - A.fy * B.front) / det, Xy = (A.fx * B.front - A.front * B.fx) / det;
+    const aA = Xx * A.ux + Xy * A.uy, aB = Xx * B.ux + Xy * B.uy;
+    const fineA = Math.abs(aA - A.a0) <= Math.abs(aA - A.a1) ? 'a0' : 'a1';
+    const fineB = Math.abs(aB - B.a0) <= Math.abs(aB - B.a1) ? 'a0' : 'a1';
+    if (Math.abs(aA - A[fineA]) > 900 || Math.abs(aB - B[fineB]) > 900) continue;   // non si toccano
+    if (fatti.has(`${i}${fineA}`) || fatti.has(`${j}${fineB}`)) continue;
+    fatti.add(`${i}${fineA}`); fatti.add(`${j}${fineB}`);
+    A[fineA] = aA; B[fineB] = aB;
+    // quella più lunga passa (+ spessore verso l'angolo), l'altra ci si appoggia
+    const piena = (A.a1 - A.a0) >= (B.a1 - B.a0) ? [A, fineA] : [B, fineB];
+    piena[0][piena[1]] += piena[1] === 'a0' ? -spessore : spessore;
+  }
+  for (const b of fasce) b.lunghezza = Math.round(b.a1 - b.a0);
+  return fasce;
+}
+
