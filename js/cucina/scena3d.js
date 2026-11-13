@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261115k';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115k';
+} from './modello.js?v=20261115l';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115l';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261115k';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115k';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261115l';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115l';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115k';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115l';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -670,7 +670,7 @@ function fpCat(fp, cat) {
 // nella realtà: il fronte è accorciato e in cima/di lato c'è il canale.
 // La faccia del fronte è a z+20; il fondo del canale è arretrato a z+6.
 const matCanaleOmbra = new THREE.MeshStandardMaterial({ color: 0x2b2b30, roughness: 1.0, metalness: 0 });
-function canaleFingerPull(g, cx, cy, z, length, thick, orizz, matAnta) {
+function canaleFingerPull(g, cx, cy, z, length, thick, orizz, matAnta, giu = false) {
   const L = Math.max(40, length);
   // Finger-pull da foto: la gola ha il suo materiale (es. nero), la porta il suo
   const mat = (matAnta && matAnta.userData && matAnta.userData.matGola) ? matAnta.userData.matGola
@@ -686,7 +686,8 @@ function canaleFingerPull(g, cx, cy, z, length, thick, orizz, matAnta) {
   const sLen = orizz ? L : 8;
   const sTh = orizz ? 8 : L;
   const shadow = new THREE.Mesh(new THREE.BoxGeometry(sLen, sTh, 6), matCanaleOmbra);
-  shadow.position.set(orizz ? cx : cx + thick / 2 - 4, orizz ? cy + thick / 2 - 4 : cy, z + 9);
+  // gola in basso (pensili): la parte profonda è sotto, dove entra il dito
+  shadow.position.set(orizz ? cx : cx + thick / 2 - 4, orizz ? (giu ? cy - thick / 2 + 4 : cy + thick / 2 - 4) : cy, z + 9);
   g.add(shadow);
 }
 
@@ -1035,9 +1036,10 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
         manigliaOrizzAnta(g, px, py, pw, ph, z, verso, !_anteInBasso);
       }
     } else if (!sporg && _fingerPull) {
-      const CH = 30;                                 // altezza del canale in alto
-      pannello(g, px, py - CH / 2, z, pw, Math.max(60, ph - CH), matAnta || COL.anta);
-      canaleFingerPull(g, px, py + ph / 2 - CH / 2, z, pw, CH, true, matAnta);
+      // canale in alto nei mobili bassi; nei PENSILI in basso, rivolto verso il basso
+      const CH = 30, giu = _anteInBasso;
+      pannello(g, px, py + (giu ? CH / 2 : -CH / 2), z, pw, Math.max(60, ph - CH), matAnta || COL.anta);
+      canaleFingerPull(g, px, giu ? py - ph / 2 + CH / 2 : py + ph / 2 - CH / 2, z, pw, CH, true, matAnta, giu);
     } else {
       pannello(g, px, py, z, pw, ph, matAnta || COL.anta);
       if (!sporg) {
