@@ -610,13 +610,18 @@ export function pulisciRiflessi(src) {
   //    Sui materiali quasi senza colore (bianco, grigio) non si può separare: lì
   //    si fa solo il passo 2.
   const colorato = perc(sat, 0.5) > 0.12;
+  const alfaRif = new Float32Array(N);                    // quanto riflesso c'era in ogni punto
   if (colorato) {
-    const rif = perc(minC, 0.35);                         // canale basso del materiale senza riflessi
+    // il riflesso è una zona di luce AMPIA e continua: lo cerco sul canale basso
+    // sfocato, così le venature chiare del legno non vengono scambiate per riflessi
+    const rB = Math.max(2, Math.round(Math.min(W, H) / 90));
+    const minB = boxBlur(minC, W, H, rB);
+    const rif = perc(minB, 0.35);                         // canale basso del materiale senza riflessi
     const den = Math.max(20, 255 - rif);
-    const alfa = new Float32Array(N);
+    const alfa = alfaRif;
     for (let i = 0; i < N; i++) {
-      let al = (minC[i] - rif) / den;
-      if (al <= 0.04) continue;
+      let al = (Math.max(minB[i], Math.min(minC[i], minB[i] + 40)) - rif) / den;
+      if (al <= 0.03) continue;
       al = Math.min(0.9, al); alfa[i] = al;
       for (let q = 0; q < 3; q++) d[i * 4 + q] = Math.max(0, Math.min(255, (d[i * 4 + q] - al * 255) / (1 - al)));
     }
@@ -655,6 +660,10 @@ export function pulisciRiflessi(src) {
       }
     }
   }
+  // 1b) RIFINITURA: nella zona del riflesso (allargata) il colore "lento" si
+  //     prende dalle parti pulite intorno; il dettaglio (venature) resta, e
+  //     dove la foto era bruciata le venature si copiano lungo il loro verso.
+  if (colorato) rifinisciRiflesso(d, W, H, alfaRif);
   // 2) LUCE NON UNIFORME: luminosità "lenta" (mediana a blocchi) spianata,
   //    venature e dettagli fini restano
   const lum = new Float32Array(N);
@@ -698,4 +707,109 @@ export function pulisciRiflessi(src) {
   g.putImageData(im, 0, 0);
   const colore = (Math.round(ch[0]) << 16) | (Math.round(ch[1]) << 8) | Math.round(ch[2]);
   return { canvas: c, uniforme, colore };
+}
+
+/** Media mobile (box) separabile, raggio r, su un canale Float32 W×H. */
+function boxBlur(a, W, H, r) {
+  const t = new Float32Array(W * H), o = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) {
+    let acc = 0; const row = y * W;
+    for (let x = -r; x <= r; x++) acc += a[row + Math.min(W - 1, Math.max(0, x))];
+    for (let x = 0; x < W; x++) {
+      t[row + x] = acc / (2 * r + 1);
+      acc += a[row + Math.min(W - 1, x + r + 1)] - a[row + Math.max(0, x - r)];
+    }
+  }
+  for (let x = 0; x < W; x++) {
+    let acc = 0;
+    for (let y = -r; y <= r; y++) acc += t[Math.min(H - 1, Math.max(0, y)) * W + x];
+    for (let y = 0; y < H; y++) {
+      o[y * W + x] = acc / (2 * r + 1);
+      acc += t[Math.min(H - 1, y + r + 1) * W + x] - t[Math.max(0, y - r) * W + x];
+    }
+  }
+  return o;
+}
+
+function rifinisciRiflesso(d, W, H, alfa) {
+  const N = W * H;
+  // maschera morbida della zona del riflesso (allargata di qualche pixel)
+  const raw = new Float32Array(N);
+  for (let i = 0; i < N; i++) raw[i] = alfa[i] > 0 ? 1 : 0;
+  const rD0 = Math.max(4, Math.round(Math.min(W, H) / 45));
+  const mask = boxBlur(raw, W, H, rD0 + 3);              // più larga della media locale: niente aloni
+  let quanti = 0; for (let i = 0; i < N; i++) { if (mask[i] > 0.02) quanti++; }
+  if (!quanti || quanti > N * 0.85) return;
+  const ch = [0, 1, 2].map((q) => { const a = new Float32Array(N); for (let i = 0; i < N; i++) a[i] = d[i * 4 + q]; return a; });
+  // dettaglio fine (venature) = pixel − media locale
+  const rD = Math.max(4, Math.round(Math.min(W, H) / 45));
+  const basso = ch.map((a) => boxBlur(a, W, H, rD));
+  // colore "lento" pulito: griglia a bassa risoluzione dalle sole zone pulite,
+  // poi i buchi (riflesso) si riempiono dai vicini
+  const S = Math.max(4, Math.round(Math.min(W, H) / 40));
+  const GW = Math.ceil(W / S), GH = Math.ceil(H / S);
+  const gr = [new Float32Array(GW * GH), new Float32Array(GW * GH), new Float32Array(GW * GH)], gn = new Float32Array(GW * GH);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x; if (mask[i] > 0.02) continue;
+    const k = Math.floor(y / S) * GW + Math.floor(x / S);
+    for (let q = 0; q < 3; q++) gr[q][k] += basso[q][i];
+    gn[k]++;
+  }
+  const ok = new Uint8Array(GW * GH);
+  for (let k = 0; k < GW * GH; k++) if (gn[k] > S * S * 0.25) { for (let q = 0; q < 3; q++) gr[q][k] /= gn[k]; ok[k] = 1; }
+  for (let pass = 0; pass < GW + GH; pass++) {
+    let manca = 0;
+    const nuovo = [];
+    for (let gy = 0; gy < GH; gy++) for (let gx = 0; gx < GW; gx++) {
+      const k = gy * GW + gx; if (ok[k]) continue;
+      let r = 0, g = 0, b = 0, n = 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+        const xx = gx + dx, yy = gy + dy; if (xx < 0 || yy < 0 || xx >= GW || yy >= GH) continue;
+        const j = yy * GW + xx; if (!ok[j]) continue;
+        r += gr[0][j]; g += gr[1][j]; b += gr[2][j]; n++;
+      }
+      if (n) nuovo.push([k, r / n, g / n, b / n]); else manca++;
+    }
+    for (const [k, r, g, b] of nuovo) { gr[0][k] = r; gr[1][k] = g; gr[2][k] = b; ok[k] = 1; }
+    if (!manca) break;
+  }
+  const lento = (q, x, y) => {
+    const fx = Math.min(GW - 1.001, Math.max(0, x / S - 0.5)), fy = Math.min(GH - 1.001, Math.max(0, y / S - 0.5));
+    const ix = Math.floor(fx), iy = Math.floor(fy), tx = fx - ix, ty = fy - iy;
+    const v = (a, b) => gr[q][Math.min(GH - 1, b) * GW + Math.min(GW - 1, a)];
+    return (v(ix, iy) * (1 - tx) + v(ix + 1, iy) * tx) * (1 - ty) + (v(ix, iy + 1) * (1 - tx) + v(ix + 1, iy + 1) * tx) * ty;
+  };
+  // verso delle venature (per copiare il dettaglio dove la foto era bruciata)
+  let gx = 0, gy = 0;
+  for (let y = 1; y < H - 1; y += 2) for (let x = 1; x < W - 1; x += 2) {
+    const i = y * W + x; if (mask[i] > 0.02) continue;
+    gx += Math.abs(ch[1][i + 1] - ch[1][i - 1]); gy += Math.abs(ch[1][i + W] - ch[1][i - W]);
+  }
+  const lungoY = gx > gy * 1.15, lungoX = gy > gx * 1.15;      // venatura verticale / orizzontale
+  // quanto "dettaglio" ha il materiale pulito: nella zona del riflesso il
+  // dettaglio non può superarlo (laccato liscio → niente righe; legno → venature)
+  const sig = [0, 0, 0]; let ns = 0;
+  for (let i = 0; i < N; i += 2) {
+    if (mask[i] > 0.02) continue;
+    for (let q = 0; q < 3; q++) { const e = ch[q][i] - basso[q][i]; sig[q] += e * e; }
+    ns++;
+  }
+  const lim = sig.map((v) => Math.max(1.5, 2.5 * Math.sqrt(v / Math.max(1, ns))));
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x, m = Math.min(1, mask[i] * 1.5);
+    if (m <= 0) continue;
+    let det = [ch[0][i] - basso[0][i], ch[1][i] - basso[1][i], ch[2][i] - basso[2][i]];
+    if (alfa[i] >= 0.8 && (lungoY || lungoX)) {
+      // dettaglio perso: lo prendo dal punto pulito più vicino lungo la venatura
+      for (let t = 1; t < 400; t++) {
+        const cand = lungoY ? [[x, y - t], [x, y + t]] : [[x - t, y], [x + t, y]];
+        const hit = cand.find(([xx, yy]) => xx >= 0 && yy >= 0 && xx < W && yy < H && alfa[yy * W + xx] < 0.3);
+        if (hit) { const j = hit[1] * W + hit[0]; det = [ch[0][j] - basso[0][j], ch[1][j] - basso[1][j], ch[2][j] - basso[2][j]]; break; }
+      }
+    } else if (alfa[i] >= 0.8) det = [0, 0, 0];
+    for (let q = 0; q < 3; q++) {
+      const pulito = lento(q, x, y) + Math.max(-lim[q], Math.min(lim[q], det[q]));
+      d[i * 4 + q] = Math.max(0, Math.min(255, d[i * 4 + q] * (1 - m) + pulito * m));
+    }
+  }
 }
