@@ -1123,4 +1123,6 @@ window.NG_I18N_ES = {
   'Tinta legno (usa la foto)': 'Color madera (usa la foto)',
   'Gola (sempre tinta unita)': 'Finger (siempre color liso)',
   'Colore della gola nella foto': 'Color del finger en la foto',
+  'Oppure un piano (encimera)': 'O una encimera',
+  'Come il piano di lavoro (nero standard)': 'Como la encimera (negro estándar)',
 };

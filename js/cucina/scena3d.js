@@ -13,13 +13,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261114s';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261114s';
+} from './modello.js?v=20261114t';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261114t';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { maniglia3D } from '../maniglia3d.js?v=20261114s';
+import { maniglia3D } from '../maniglia3d.js?v=20261114t';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261114s';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261114t';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1561,10 +1561,14 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   const matBase = col.base ? getMaterialeTHREE(col.base, reRender) : null;
   const matPensile = col.pensile ? getMaterialeTHREE(col.pensile, reRender) : null;
   const matColonna = col.colonna ? getMaterialeTHREE(col.colonna, reRender) : null;
-  const matCostado = col.costado ? getMaterialeTHREE(col.costado, reRender) : null;
   // Encimera (piano di lavoro): materiale e spessore dall'eventuale scelta
   // utente. Nessuna scelta -> colore COL.top e spessore SP_TOP come prima.
   const encId = progetto.encimera && progetto.encimera.materiale;
+  // Costado "come il piano di lavoro" ('@piano'): stesso materiale dell'encimera
+  const matDa = (id) => (id === '@piano'
+    ? (encId ? getMaterialeTHREE(encId, reRender) : new THREE.MeshStandardMaterial({ color: COL.top, roughness: 0.55, metalness: 0.1 }))
+    : getMaterialeTHREE(id, reRender));
+  const matCostado = col.costado ? matDa(col.costado) : null;
   const encDef = encId ? MATERIALI.find((m) => m.id === encId) : null;
   const matTop = encId ? getMaterialeTHREE(encId, reRender) : null;
   const spTop = (encDef && encDef.spessore != null) ? encDef.spessore : SP_TOP;
@@ -1683,7 +1687,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       fianchi.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, h, cat: 'costado' });
       // Colore: costadi DIVERSI → quello scelto per questo costado; UGUALI (o
       // non ancora scelto) → come sempre: alto = ante dei pensili, basso = colore costadi
-      const matProprio = progetto.costadiDiversi && m.colore ? getMaterialeTHREE(m.colore, reRender) : null;
+      const matProprio = progetto.costadiDiversi && m.colore ? matDa(m.colore) : null;
       // Senza un colore scelto per i costadi il costado prende le ANTE vicine
       // (mai il crema del corpo): alto → pensili, a tutta altezza → colonne,
       // basso → mobili bassi

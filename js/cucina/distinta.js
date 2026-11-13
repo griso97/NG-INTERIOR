@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo,
-} from './modello.js?v=20261114s';
+} from './modello.js?v=20261114t';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -198,14 +198,17 @@ function pezziDiModulo(progetto, m) {
   // zoccolo = colore zoccolo, cassetti = melaminico bianco.
   const col = progetto.coloriFronti || {};
   const alto = cat === 'costado' && (m.profondita_mm || 620) < 500;
-  const idAnte = cat === 'pensile' ? col.pensile : cat === 'colonna' ? col.colonna
+  let idAnte = cat === 'pensile' ? col.pensile : cat === 'colonna' ? col.colonna
     : cat === 'costado' ? ((progetto.costadiDiversi && m.colore) || (alto ? (col.pensile || col.costado)
       : (col.costado || ((m.altezza_mm || 0) >= 1500 ? (col.colonna || col.base) : col.base)))) : col.base;
+  // costado "come il piano di lavoro": materiale dell'encimera
+  if (idAnte === '@piano') idAnte = (progetto.encimera && progetto.encimera.materiale) || null;
+  const pianoStd = cat === 'costado' && idAnte === null && ((progetto.costadiDiversi && m.colore) === '@piano' || col.costado === '@piano');
   for (const p of pz) {
     p.moduloId = m.id;                                // chiave di raggruppamento univoca
     p.materialeNome = p.materiale === 'melaminico' ? 'Melaminico bianco'
       : p.materiale === 'zoccolo' ? nomeMateriale(progetto.zoccoloColore || 'nero-opaco', 'Zoccolo')
-      : nomeMateriale(idAnte, 'Colore da scegliere');
+      : pianoStd ? 'Come il piano di lavoro (nero standard)' : nomeMateriale(idAnte, 'Colore da scegliere');
   }
   return pz;
 }

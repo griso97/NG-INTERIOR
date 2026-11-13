@@ -23,12 +23,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo,
-} from './modello.js?v=20261114s';
-import { renderPianta } from './pianta.js?v=20261114s';
-import { calcolaDistintaCucina } from './distinta.js?v=20261114s';
+} from './modello.js?v=20261114t';
+import { renderPianta } from './pianta.js?v=20261114t';
+import { calcolaDistintaCucina } from './distinta.js?v=20261114t';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261114s';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114s';
+import { agganciaTema } from '../tema.js?v=20261114t';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261114t';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1217,10 +1217,23 @@ function renderPannelloModificaMobile(m) {
         ? 'Il colore vale solo per il costado selezionato: tocca gli altri costadi per scegliere il loro.'
         : 'Il colore vale per tutti i costadi (quelli dei pensili prendono il colore delle ante dei pensili).'}</div>` : `
       <div class="riga-3d" style="margin-bottom:6px">Si applica a tutti i ${nomeGruppo}.</div>`}
+      ${gruppoColore === 'costado' ? (() => {
+        const enc = materialiEncimera.find((mt) => mt.id === encAttuale);
+        return `
+      <button type="button" class="btn-ghost opt-piano ${colAttuale === '@piano' ? 'attivo' : ''}" data-mat="@piano" style="width:100%;margin-bottom:8px;display:flex;align-items:center;gap:8px;justify-content:center">
+        <span class="swatch" style="pointer-events:none;width:22px;height:22px;${enc ? `background-image:url('${enc.thumb}')` : 'background:#2a2a2a'}"></span>
+        ${colAttuale === '@piano' ? '✓ ' : ''}Uguale al piano di lavoro${enc ? ` (${enc.nome})` : ''}</button>`;
+      })() : ''}
       <div class="palette-colori">
         ${materiali.map((mt) => `<button type="button" class="swatch ${mt.id === colAttuale ? 'sel' : ''}"
           data-mat="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`).join('')}
       </div>
+      ${gruppoColore === 'costado' && materialiEncimera.length ? `
+      <div class="riga-3d" style="margin:10px 0 6px">Oppure un piano (encimera)</div>
+      <div class="palette-colori">
+        ${materialiEncimera.map((mt) => `<button type="button" class="swatch ${mt.id === colAttuale ? 'sel' : ''}"
+          data-mat="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`).join('')}
+      </div>` : ''}
     </section>` : ''}
     ${(() => {
       if (!(gruppoColore === 'base' || gruppoColore === 'pensile' || gruppoColore === 'colonna')) return '';
@@ -1277,7 +1290,7 @@ function renderPannelloModificaMobile(m) {
     <section class="actions">
       <button id="s3-indietro" class="btn-ghost" type="button" style="flex:1">← Moduli alti</button>
     </section>`;
-  pannello.querySelectorAll('.swatch[data-mat]').forEach((b) => b.addEventListener('click', () => {
+  pannello.querySelectorAll('.swatch[data-mat], .opt-piano[data-mat]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     if (costadoSingolo) { m.colore = b.dataset.mat; aggiorna(); return; }
     if (!progetto.coloriFronti) progetto.coloriFronti = {};
@@ -1527,7 +1540,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114s');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261114t');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
