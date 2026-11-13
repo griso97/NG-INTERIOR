@@ -13,12 +13,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261113w';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113w';
+} from './modello.js?v=20261113x';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113x';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113w';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113x';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -930,6 +930,19 @@ function pannelloElettro(g, py, z, pw, ph, tipo) {
 // Fughe reali delle ante: in LARGHEZZA si toglie 3 mm totali (1,5 per lato),
 // in ALTEZZA 2 mm (1 sopra, 1 sotto). GAP = fuga fra due ante/cassetti.
 const FUGA_W = 3, FUGA_H = 2, GAP_ANTE = 3;
+// Maniglia ORIZZONTALE su un'anta (bassi e pensili): vicino al bordo alto
+// sui bassi, vicino al bordo basso sui pensili, spostata verso il lato che
+// apre (anta singola) o verso il centro (due ante). Le colonne restano verticali.
+function lungManiglia(standard) {
+  return (_maniglia && _maniglia.texture && _maniglia.lunghezzaMm) ? _maniglia.lunghezzaMm : standard;
+}
+function manigliaOrizzAnta(g, px, py, pw, ph, z, verso, inAlto) {
+  const L = lungManiglia(Math.min(pw * 0.5, 320));
+  const off = Math.max(0, pw / 2 - L / 2 - 40);       // verso il lato che apre (0 = centrata)
+  const y = inAlto ? py + ph / 2 - 45 : py - ph / 2 + 45;
+  maniglia(g, px + verso * off, y, z, true, Math.min(pw * 0.5, 320));
+}
+let _anteInBasso = false;    // pensili: maniglia vicino al bordo basso
 function ante(g, w, h, d, n, matAnta, sporg, lato) {
   const z = d / 2;
   const uw = w - FUGA_W;
@@ -950,10 +963,9 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
     } else {
       pannello(g, px, py, z, pw, ph, matAnta || COL.anta);
       if (!sporg) {
-        const hx = n === 1
-          ? (sx ? px - pw / 2 + 35 : px + pw / 2 - 35)
-          : (i === 0 ? px + pw / 2 - 22 : px - pw / 2 + 22);
-        maniglia(g, hx, py, z, false, Math.min(260, ph * 0.5));
+        // verso: +1 = maniglia verso destra, −1 = verso sinistra
+        const verso = n === 1 ? (sx ? -1 : 1) : (i === 0 ? 1 : -1);
+        manigliaOrizzAnta(g, px, py, pw, ph, z, verso, !_anteInBasso);
       }
     }
   }
@@ -1174,8 +1186,7 @@ function anteCieche(g, w, h, d, matAnta, cieco) {
   for (let i = 0; i < nAnte; i++) {
     const px = doorCx - uw / 2 + pw / 2 + i * (pw + GAP_ANTE);
     pannello(g, px, 0, z, pw, h - FUGA_H, matAnta || COL.anta);
-    const hx = latoDx ? (px + pw / 2 - 30) : (px - pw / 2 + 30);
-    maniglia(g, hx, 0, z, false, Math.min(260, (h - FUGA_H) * 0.5));
+    manigliaOrizzAnta(g, px, 0, pw, h - FUGA_H, z, latoDx ? 1 : -1, true);
   }
   // Pannello cieco (fisso): stessa finitura, nessuna maniglia
   pannello(g, blindCx, 0, z, coveredW - FUGA_W, h - FUGA_H, matAnta || COL.anta);
@@ -1328,12 +1339,12 @@ function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta) {
   const antaAcx = (-w / 2 + prof + w / 2) / 2;
   const zA = -d / 2 + prof;
   pannello(g, antaAcx, 0, zA, antaAw - FUGA_W, h - FUGA_H, matAnta || COL.anta);
-  maniglia(g, antaAcx - antaAw / 2 + 30, 0, zA, false, Math.min(300, (h - FUGA_H) * 0.5));
+  manigliaOrizzAnta(g, antaAcx, 0, antaAw - FUGA_W, h - FUGA_H, zA, -1, false);
   // Anta B: sul fronte del braccio B (+x), in un subgruppo ruotato +90°.
   const subB = new THREE.Group();
   const antaBw = d - prof;
   pannello(subB, 0, 0, 0, antaBw - FUGA_W, h - FUGA_H, matAnta || COL.anta);
-  maniglia(subB, antaBw / 2 - 30, 0, 0, false, Math.min(300, (h - FUGA_H) * 0.5));
+  manigliaOrizzAnta(subB, 0, 0, antaBw - FUGA_W, h - FUGA_H, 0, 1, false);
   subB.rotation.y = Math.PI / 2;                     // fronte +z locale → +x mondo
   subB.position.set(-w / 2 + prof, 0, (-d / 2 + prof + d / 2) / 2);
   g.add(subB);
@@ -1392,7 +1403,9 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   if (cat === 'lavatrice') { lavatriceFronte(g, w, h, d); return g; }
   if (tipo === 'forno') { fronteForno(g, w, h, d, matAnta); return g; } // placca sopra il top
   // base con ante / pensile (il pensile può avere l'anta sporgente sotto)
+  _anteInBasso = cat === 'pensile';
   ante(g, w, h, d, anteDiMobile(m), matAnta, opt.sporg, m.antaLato);
+  _anteInBasso = false;
   return g;
 }
 
