@@ -13,12 +13,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261113l';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113l';
+} from './modello.js?v=20261113m';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113m';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113l';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113m';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -102,24 +102,20 @@ function aggiungiAccessorioTop(a, fin = {}) {
   g.rotation.y = -(a.rot || 0) * Math.PI / 180;
   if (a.id !== undefined) g.userData.mobId = a.id;
   if (a.placca) {
-    // Piano a induzione: vetro nero lucido + zone di cottura (cerchi)
+    // Piano a induzione in VETROCERAMICA: vetro nero lucido con le zone e i
+    // comandi disegnati sul vetro (come quelli veri), riflessi dell'ambiente
     const { pw, pd } = dimPlacca(a.w, a.d);
-    // vetro da 6 mm sopra il piano fino a 20 mm dentro il foro
+    const sopra = new THREE.MeshPhysicalMaterial({ map: texPiano(pw, pd, a.fuochi), color: 0xffffff, roughness: 0.12,
+      metalness: 0.0, clearcoat: 1.0, clearcoatRoughness: 0.03, envMapIntensity: 0.9 });
+    // vetro da 6 mm sopra il piano fino a 20 mm dentro il foro; sopra la texture
     const vetro = new THREE.Mesh(new THREE.BoxGeometry(pw, 26, pd),
-      new THREE.MeshStandardMaterial({ color: 0x08080a, roughness: 0.12, metalness: 0.35 }));
+      [matElVetro, matElVetro, sopra, matElVetro, matElVetro, matElVetro]);
     vetro.position.set(0, -7, 0); g.add(vetro);
-    const pos = a.fuochi === 2 ? [[0, -1], [0, 1]] : [[-1, -1], [1, -1], [-1, 1], [1, 1]];
-    const rz = Math.min(pw, pd) * (a.fuochi === 2 ? 0.26 : 0.2);
-    const matZona = new THREE.MeshStandardMaterial({ color: 0x3a3a42, metalness: 0.3, roughness: 0.5 });
-    for (const [sx, sz] of pos) {
-      const anello = new THREE.Mesh(new THREE.TorusGeometry(rz, 4, 8, 40), matZona);
-      anello.rotation.x = Math.PI / 2;
-      anello.position.set(sx * pw * 0.24, 7, sz * pd * 0.22); g.add(anello);
+    // bordo a filo in acciaio sottile ai lati (profilo del vetro)
+    for (const sz of [-1, 1]) {
+      const prof = new THREE.Mesh(new THREE.BoxGeometry(pw + 4, 7, 3), matElInox);
+      prof.position.set(0, 2.5, sz * (pd / 2 + 1.5)); g.add(prof);
     }
-    // Pannello comandi (striscia chiara davanti)
-    const comandi = new THREE.Mesh(new THREE.BoxGeometry(pw * 0.5, 2, 40),
-      new THREE.MeshStandardMaterial({ color: 0x202028, roughness: 0.4, metalness: 0.3 }));
-    comandi.position.set(0, 7, pd / 2 - 35); g.add(comandi);
   }
   if (a.lavello) {
     // Inox del bordo: chiaro e lucido. Interno della vasca: acciaio più scuro
@@ -221,19 +217,84 @@ const COL = {
 const matOro = new THREE.LineBasicMaterial({ color: 0x3b3833, transparent: true, opacity: 0.55 });
 const matManiglia = new THREE.MeshStandardMaterial({ color: 0xcfcfcf, roughness: 0.35, metalness: 0.6 });
 
-// Materiali per gli elettrodomestici (forno / microonde) in 3D reale.
-// envMapIntensity contenuto: l'ambiente è caldo (crema) e con metalness alto
-// l'acciaio diventava beige/dorato. Così resta acciaio neutro e il vetro NERO.
-const matElInox    = new THREE.MeshStandardMaterial({ color: 0xb6b7bc, roughness: 0.45, metalness: 0.5,  envMapIntensity: 0.45 });
-// Le parti SCURE (vetro porta, finestra, pannello, bottoni) sono UNLIT
-// (MeshBasic, toneMapped:false): così restano NERE da ogni angolo e con ogni
-// zoom — una porta a vetro scuro illuminata dalle luci calde veniva invece
-// mappata su un tono dorato in primo piano. Come lo zoccolo, niente shading.
-const matElVetro   = new THREE.MeshBasicMaterial({ color: 0x121318, toneMapped: false });
-const matElCorpo   = new THREE.MeshBasicMaterial({ color: 0x17181d, toneMapped: false });
-const matElCavita  = new THREE.MeshBasicMaterial({ color: 0x282a32, toneMapped: false });
-const matElDisplay = new THREE.MeshBasicMaterial({ color: 0x2aa6c4, toneMapped: false });
-const matElButton  = new THREE.MeshBasicMaterial({ color: 0x4c4d57, toneMapped: false });
+// Materiali per gli elettrodomestici (forno / microonde / piano cottura):
+// come quelli VERI. Acciaio SPAZZOLATO (righe sottili orizzontali, riflette
+// l'ambiente), vetro NERO lucido (riflessi dell'ambiente e delle luci, come
+// un vetro vero, non un nero piatto), display acceso, interno del forno che si
+// intravede dietro il vetro. Le texture si disegnano qui (niente file).
+function canvasTex(w, h, disegna, srgb = true) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  disegna(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+const texSpazzolato = canvasTex(512, 512, (g, w, h) => {
+  g.fillStyle = '#c9ccd1'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 2600; i++) {                 // righe della spazzolatura
+    const y = Math.random() * h, l = 40 + Math.random() * 260, x = Math.random() * w;
+    const v = 170 + Math.floor(Math.random() * 70);
+    g.strokeStyle = `rgba(${v},${v + 2},${v + 6},${0.18 + Math.random() * 0.25})`;
+    g.lineWidth = Math.random() < 0.8 ? 1 : 2;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + l, y + (Math.random() - 0.5)); g.stroke();
+  }
+});
+texSpazzolato.wrapS = texSpazzolato.wrapT = THREE.RepeatWrapping;
+const matElInox = new THREE.MeshStandardMaterial({ map: texSpazzolato, color: 0xffffff, roughness: 0.36, metalness: 0.78, envMapIntensity: 0.75 });
+// Vetro nero lucido: quasi niente colore proprio, solo riflessi (clearcoat)
+const matElVetro = new THREE.MeshPhysicalMaterial({ color: 0x060608, roughness: 0.18, metalness: 0.0,
+  clearcoat: 1.0, clearcoatRoughness: 0.04, envMapIntensity: 0.9 });
+const matElCorpo = new THREE.MeshPhysicalMaterial({ color: 0x0c0c0f, roughness: 0.3, metalness: 0.1,
+  clearcoat: 0.8, clearcoatRoughness: 0.1, envMapIntensity: 0.7 });
+// Interno del forno visto attraverso il vetro scuro: cavità, griglie, ventola
+const texCavita = canvasTex(512, 384, (g, w, h) => {
+  const gr = g.createRadialGradient(w / 2, h * 0.55, 10, w / 2, h / 2, w * 0.62);
+  gr.addColorStop(0, '#3a3430'); gr.addColorStop(0.55, '#1d1a19'); gr.addColorStop(1, '#070707');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  g.strokeStyle = 'rgba(160,150,140,0.35)'; g.lineWidth = 2;   // guide laterali + griglia
+  for (const y of [0.33, 0.55, 0.77]) { g.beginPath(); g.moveTo(w * 0.08, h * y); g.lineTo(w * 0.92, h * y); g.stroke(); }
+  g.lineWidth = 1; g.strokeStyle = 'rgba(160,150,140,0.18)';
+  for (let x = 0.12; x < 0.9; x += 0.04) { g.beginPath(); g.moveTo(w * x, h * 0.53); g.lineTo(w * x, h * 0.57); g.stroke(); }
+  g.strokeStyle = 'rgba(120,112,105,0.35)'; g.lineWidth = 3;   // ventola sul fondo
+  g.beginPath(); g.arc(w / 2, h * 0.45, h * 0.13, 0, Math.PI * 2); g.stroke();
+});
+const matElCavita = new THREE.MeshBasicMaterial({ map: texCavita, toneMapped: false });
+// Display acceso (ora + simboli), non un rettangolo azzurro
+const texDisplay = canvasTex(256, 64, (g, w, h) => {
+  g.fillStyle = '#050608'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#e8f6ff'; g.shadowColor = '#7fd4ff'; g.shadowBlur = 8;
+  g.font = 'bold 40px Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('12:00', w / 2, h / 2 + 2);
+  g.font = '18px Arial, sans-serif'; g.fillStyle = '#ff9a3c'; g.shadowColor = '#ff9a3c';
+  g.fillText('▲', 26, h / 2); g.fillText('▼', w - 26, h / 2);
+});
+const matElDisplay = new THREE.MeshBasicMaterial({ map: texDisplay, toneMapped: false });
+const matElButton = new THREE.MeshStandardMaterial({ map: texSpazzolato, color: 0xd8dade, roughness: 0.3, metalness: 0.85, envMapIntensity: 0.8 });
+// Vetro trasparente davanti alla finestra del forno (riflessi sopra la cavità)
+const matElVetroTrasp = new THREE.MeshPhysicalMaterial({ color: 0x000000, transparent: true, opacity: 0.28,
+  roughness: 0.05, clearcoat: 1.0, clearcoatRoughness: 0.03, envMapIntensity: 1.0, depthWrite: false });
+// Piano cottura in VETROCERAMICA: zone disegnate sul vetro + comandi touch
+function texPiano(pw, pd, fuochi) {
+  const k = 2;
+  return canvasTex(Math.round(pw * k), Math.round(pd * k), (g, w, h) => {
+    g.fillStyle = '#0a0a0c'; g.fillRect(0, 0, w, h);
+    const pos = fuochi === 2 ? [[0.5, 0.3], [0.5, 0.66]] : [[0.27, 0.3], [0.73, 0.3], [0.27, 0.68], [0.73, 0.68]];
+    const r = Math.min(w, h) * (fuochi === 2 ? 0.2 : 0.17);
+    pos.forEach(([x, y], i) => {
+      const rr = r * (i % 3 === 0 ? 1.08 : 0.9);
+      g.strokeStyle = 'rgba(205,205,210,0.55)'; g.lineWidth = 3;
+      g.beginPath(); g.arc(w * x, h * y, rr, 0, Math.PI * 2); g.stroke();
+      g.strokeStyle = 'rgba(205,205,210,0.22)'; g.lineWidth = 2;
+      g.beginPath(); g.arc(w * x, h * y, rr * 0.62, 0, Math.PI * 2); g.stroke();
+    });
+    // striscia comandi touch davanti (in basso nella texture = verso la stanza)
+    const yc = h * 0.91; g.fillStyle = 'rgba(205,205,210,0.6)';
+    g.font = `${Math.round(h * 0.045)}px Arial, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    ['−', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+'].forEach((t, i, a) => g.fillText(t, w * (0.22 + (0.56 * i) / (a.length - 1)), yc));
+    g.beginPath(); g.arc(w * 0.1, yc, h * 0.022, 0, Math.PI * 2); g.lineWidth = 2; g.strokeStyle = 'rgba(205,205,210,0.6)'; g.stroke();
+  });
+}
 
 // Ambiente IBL: gradiente (soffitto chiaro → pavimento scuro) per riflessi soft.
 function creaAmbiente(rnd) {
@@ -612,6 +673,7 @@ function pannelloElettro(g, py, z, pw, ph, tipo) {
     // Finestra interna (un filo più chiara) + cornice inox che la delimita.
     const winW = pw - 2 * fb - 80, winH = Math.max(30, doorH - 80);
     box(winW, winH, 4, 0, doorY, Z0 + 1.5, matElCavita);
+    box(winW, winH, 1, 0, doorY, Z0 + 2.6, matElVetroTrasp);   // vetro davanti: riflessi
     const wt = 6;
     for (const [bx, by, bw, bh] of [
       [0, doorY + winH / 2 + wt / 2, winW + 2 * wt, wt],
