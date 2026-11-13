@@ -13,12 +13,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261113v';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113v';
+} from './modello.js?v=20261113w';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113w';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113v';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113w';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -532,23 +532,57 @@ function manigliaCat(cat) {
   const id = _manByCat[g];
   return id ? MATERIALI.find((m) => m.id === id && m.categoria === 'maniglia') || null : null;
 }
+// MANIGLIA IN 3D VERA (anche quella da foto): barra con il suo spessore,
+// staccata dall'anta da due piedini → di lato ha volume, luce sotto e ombra,
+// non è un adesivo piatto. Davanti la foto vera (sagoma e colori), lati e
+// piedini nel colore della maniglia (metallo se è grigia/nera/acciaio).
+const _matLatiMan = new Map();
+function materialeLatiManiglia(def) {
+  if (_matLatiMan.has(def.id)) return _matLatiMan.get(def.id);
+  const c = new THREE.Color(def.colore ?? 0x9a9a9a);
+  const hsl = {}; c.getHSL(hsl);
+  const metallo = hsl.s < 0.18;                      // grigio, nero, acciaio, oro scuro…
+  const m = new THREE.MeshStandardMaterial({ color: c, roughness: metallo ? 0.32 : 0.5,
+    metalness: metallo ? 0.75 : 0.15, envMapIntensity: metallo ? 0.9 : 0.4 });
+  _matLatiMan.set(def.id, m);
+  return m;
+}
+const SPORGENZA_MAN = 28;                            // distanza barra–anta (mm)
+function barraManiglia(g, x, y, z, w, h, D, matFronte, matLati, ruota) {
+  // w×h = barra vista di fronte (come la foto); i piedini sul lato lungo
+  const grp = new THREE.Group();
+  const barra = new THREE.Mesh(new THREE.BoxGeometry(w, h, D),
+    [matLati, matLati, matLati, matLati, matFronte || matLati, matLati]);
+  barra.position.set(0, 0, SPORGENZA_MAN + D / 2);
+  barra.castShadow = true; barra.receiveShadow = true; grp.add(barra);
+  const lungo = Math.max(w, h), corto = Math.min(w, h);
+  const r = Math.max(3, Math.min(corto * 0.32, 6));
+  const d = Math.max(lungo / 2 - Math.max(corto * 0.9, 10), lungo * 0.25);
+  for (const s of [-d, d]) {
+    const pied = new THREE.Mesh(new THREE.CylinderGeometry(r, r, SPORGENZA_MAN, 16), matLati);
+    pied.rotation.x = Math.PI / 2;
+    pied.position.set(w >= h ? s : 0, w >= h ? 0 : s, SPORGENZA_MAN / 2);
+    pied.castShadow = true; grp.add(pied);
+  }
+  grp.position.set(x, y, z + 20);                    // 20 = faccia davanti dell'anta
+  if (ruota) grp.rotation.z = Math.PI / 2;
+  g.add(grp);
+}
 function maniglia(g, x, y, z, orizz, lung) {
   const def = _maniglia;
   if (def && def.texture && def.lunghezzaMm) {
-    // MANIGLIA DA FOTO: la sagoma ritagliata, alla sua misura reale
-    const L = def.lunghezzaMm, T = def.altezzaMm || 20;
-    const geoP = new THREE.PlaneGeometry(def.verticale ? T : L, def.verticale ? L : T);
-    const m = new THREE.Mesh(geoP, getMaterialeTHREE(def.id, _reRenderMan));
-    m.position.set(x, y, z + 22);
-    if (def.verticale === !!orizz) m.rotation.z = Math.PI / 2;   // giro la foto se serve
-    m.castShadow = true;
-    g.add(m);
+    // MANIGLIA DA FOTO: misura reale, costruita in 3D (non più una foto piatta).
+    // La barra segue il verso della foto; se sull'anta serve nell'altro verso
+    // si gira tutta la maniglia (foto compresa), come nella realtà.
+    const L = def.lunghezzaMm, T = Math.max(8, def.altezzaMm || 20);
+    const D = Math.max(8, Math.min(T * 0.9, 22));
+    const w = def.verticale ? T : L, h = def.verticale ? L : T;
+    const ruota = !!def.verticale === !!orizz;       // foto verticale ↔ serve orizzontale (o viceversa)
+    barraManiglia(g, x, y, z, w, h, D, getMaterialeTHREE(def.id, _reRenderMan), materialeLatiManiglia(def), ruota);
     return;
   }
-  const geo = orizz ? new THREE.BoxGeometry(lung, 16, 16) : new THREE.BoxGeometry(16, lung, 16);
-  const m = new THREE.Mesh(geo, matManiglia);
-  m.position.set(x, y, z + 24);
-  g.add(m);
+  // maniglia standard: barra in acciaio con i suoi piedini
+  barraManiglia(g, x, y, z, orizz ? lung : 12, orizz ? 12 : lung, 12, null, matManiglia, false);
 }
 
 // Finger-pull: quando attivo, invece della maniglia si disegna una GOLA scura
