@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261113x';
+import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261113y';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -170,6 +170,7 @@ async function applicaCatalogo() {
       def.lunghezzaMm = (Number(p.maniglia.lunghezzaCm) || 15) * 10;
       def.altezzaMm = Math.max(6, def.lunghezzaMm * (Number(p.maniglia.rapporto) || 0.08));
       def.verticale = !!p.maniglia.verticale;
+      if (p.maniglia.viste) def.viste = p.maniglia.viste;            // lato / sopra (facoltative)
     }
     MATERIALI.push(def);
     // Finger-pull → lo STESSO materiale (stessa foto, stessa misura) senza la

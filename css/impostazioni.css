@@ -66,3 +66,7 @@
 .imp-auto-msg { font-size: 13px; color: var(--oro-chiaro); }
 .imp-angolo { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 3px solid var(--oro); background: rgba(0,0,0,.35); cursor: grab; touch-action: none; z-index: 3; }
 .imp-vista { display: block; }
+
+.imp-viste { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.imp-viste figure { margin: 0; width: 96px; text-align: center; font-size: 11px; color: var(--testo-dim, #9a9384); }
+.imp-viste img { width: 96px; height: 72px; object-fit: contain; background: #fff; border-radius: 6px; border: 1px solid var(--bordo); }

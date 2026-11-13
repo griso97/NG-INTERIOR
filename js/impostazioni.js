@@ -8,10 +8,10 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, eliminaFoto, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261113x';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio } from './analisi-foto.js?v=20261113x';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261113x';
-import { agganciaTema } from './tema.js?v=20261113x';
+} from './catalogo.js?v=20261113y';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio } from './analisi-foto.js?v=20261113y';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261113y';
+import { agganciaTema } from './tema.js?v=20261113y';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -49,6 +49,7 @@ function dettagli(m) {
   if (info.colore) r.push(esc(info.colore));
   if (m.campione) r.push(`campione ${Math.round(m.campione.wMm / 10)}×${Math.round(m.campione.hMm / 10)} cm`);
   if (m.lunghezzaMm) r.push(`lunghezza ${Math.round(m.lunghezzaMm / 10)} cm`);
+  if (m.viste) r.push(`viste: ${['davanti', ...Object.keys(m.viste)].join(', ')}`);
   if (m.gola) r.push('con gola');
   return r.join(' · ');
 }
@@ -156,7 +157,15 @@ function apriScheda(m) {
         ${tipo === 'man' ? `
         <label class="imp-vis" style="margin-top:8px"><input type="checkbox" id="f-scont" checked> Togli lo sfondo</label>
         <label>Quanto sfondo togliere<input type="range" min="10" max="120" value="45" id="f-tol"></label>` : ''}
-      </div>` : ''}
+      </div>
+      ${tipo === 'man' ? `
+      <fieldset class="imp-misura">
+        <legend>Altre viste (facoltative)</legend>
+        <label>Foto di lato<input type="file" accept="image/*" id="f-lato"></label>
+        <label>Foto da sopra<input type="file" accept="image/*" id="f-sopra"></label>
+        <div class="imp-viste" id="f-viste"></div>
+        <div class="imp-aiuto">Per le maniglie con forme particolari (ad arco, a J, piedini sagomati): con più viste il 3D è più fedele. Foto dritte, alla stessa distanza, su sfondo chiaro. Nessuna è obbligatoria.</div>
+      </fieldset>` : ''}` : ''}
       ${proprio && tipo !== 'man' ? `
       <div class="grid-2">
         <label>${tipo === 'fp' ? 'Larghezza della porta (cm)' : 'Larghezza del campione (cm)'} <span class="imp-obbl">*</span><input type="number" min="1" step="0.1" id="f-w" placeholder="es. 59,8" value="${esc(p && p.oggettoCm ? p.oggettoCm.w : camp.w)}"></label>
@@ -191,6 +200,17 @@ function apriScheda(m) {
   }));
   let img = null, rit = null;
   if (proprio) {
+    // altre viste della maniglia: anteprima delle foto scelte
+    const viste = {};
+    for (const v of ['lato', 'sopra']) {
+      corpo.querySelector(`#f-${v}`)?.addEventListener('change', async (e) => {
+        const f = e.target.files && e.target.files[0];
+        viste[v] = f ? await caricaImmagine(f) : null;
+        corpo.querySelector('#f-viste').innerHTML = ['lato', 'sopra'].filter((k) => viste[k])
+          .map((k) => `<figure><img src="${viste[k].src}" alt=""><figcaption>${k === 'lato' ? tr('Lato') : tr('Sopra')}</figcaption></figure>`).join('');
+      });
+    }
+    corpo._viste = viste;
     corpo.querySelector('#f-foto').addEventListener('change', async (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
@@ -263,6 +283,20 @@ function apriScheda(m) {
           await salvaFoto(id, await thumbDaCanvas(cp.canvas, null, null), 'thumb');
           colore = coloreMedio(cp.canvas);
         }
+      }
+      // ALTRE VISTE della maniglia (lato, sopra): sfondo tolto e salvate
+      if (tipo === 'man') {
+        const viste = corpo._viste || {};
+        manN.viste = { ...((p && p.maniglia && p.maniglia.viste) || {}) };
+        for (const v of ['lato', 'sopra']) {
+          const im = viste[v];
+          if (!im) continue;
+          const scont = corpo.querySelector('#f-scont')?.checked === false ? 0 : Number(corpo.querySelector('#f-tol')?.value || 45);
+          const r = await ritaglioBlob(im, { x: 0, y: 0, w: im.naturalWidth || im.width, h: im.naturalHeight || im.height }, { png: true, scontorna: scont, max: 1024 });
+          await salvaFoto(id, r.blob, v);
+          manN.viste[v] = { w: r.w, h: r.h };
+        }
+        if (!Object.keys(manN.viste).length) delete manN.viste;
       }
       const dati = { id, sezione: sez, nome, info: infoN, colore, aggiornato: Date.now(),
         ...(tipo === 'man' ? { maniglia: manN } : { campioneCm: campioneZona, oggettoCm: { w, h } }),

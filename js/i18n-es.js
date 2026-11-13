@@ -1058,5 +1058,10 @@ window.NG_I18N_ES = {
  "Altezza del frontale piccolo (mm):": "Altura del frente pequeño (mm):",
  "Frontali (dall'alto):": "Frentes (desde arriba):",
  "Fronte cassetto piccolo": "Frente de cajón pequeño",
- "Cerniere 165° (pensile angolo e Ciaflan)": "Bisagras 165° (alto rincón y chaflán)"
+ "Cerniere 165° (pensile angolo e Ciaflan)": "Bisagras 165° (alto rincón y chaflán)",
+ "Altre viste (facoltative)": "Otras vistas (opcionales)",
+ "Foto di lato": "Foto lateral",
+ "Foto da sopra": "Foto desde arriba",
+ "Lato": "Lateral",
+ "Per le maniglie con forme particolari (ad arco, a J, piedini sagomati): con più viste il 3D è più fedele. Foto dritte, alla stessa distanza, su sfondo chiaro. Nessuna è obbligatoria.": "Para tiradores con formas especiales (en arco, en J, patas perfiladas): con más vistas el 3D es más fiel. Fotos rectas, a la misma distancia, sobre fondo claro. Ninguna es obligatoria."
 };

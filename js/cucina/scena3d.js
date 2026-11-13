@@ -13,12 +13,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261113x';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113x';
+} from './modello.js?v=20261113y';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113y';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113x';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113y';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -548,8 +548,10 @@ function materialeLatiManiglia(def) {
   return m;
 }
 const SPORGENZA_MAN = 28;                            // distanza barra–anta (mm)
-function barraManiglia(g, x, y, z, w, h, D, matFronte, matLati, ruota) {
-  // w×h = barra vista di fronte (come la foto); i piedini sul lato lungo
+function barraManiglia(g, x, y, z, w, h, D, matFronte, matLati, ruota, sporg = SPORGENZA_MAN) {
+  // w×h = barra vista di fronte (come la foto); i piedini sul lato lungo;
+  // sporg = distanza barra–anta (dalle viste di lato/sopra se ci sono)
+  const SPORGENZA_MAN = sporg;
   const grp = new THREE.Group();
   const barra = new THREE.Mesh(new THREE.BoxGeometry(w, h, D),
     [matLati, matLati, matLati, matLati, matFronte || matLati, matLati]);
@@ -575,10 +577,22 @@ function maniglia(g, x, y, z, orizz, lung) {
     // La barra segue il verso della foto; se sull'anta serve nell'altro verso
     // si gira tutta la maniglia (foto compresa), come nella realtà.
     const L = def.lunghezzaMm, T = Math.max(8, def.altezzaMm || 20);
-    const D = Math.max(8, Math.min(T * 0.9, 22));
+    let D = Math.max(8, Math.min(T * 0.9, 22)), sporg = SPORGENZA_MAN;
+    // Viste in più (facoltative): quanto sporge la maniglia dall'anta.
+    // Da sopra si vede lunghezza × sporgenza (il lato lungo è la lunghezza);
+    // di lato si vede altezza × sporgenza (foto con la maniglia come montata).
+    const v = def.viste || {};
+    let P = null;
+    if (v.sopra && v.sopra.w && v.sopra.h) P = L * Math.min(v.sopra.w, v.sopra.h) / Math.max(v.sopra.w, v.sopra.h);
+    else if (v.lato && v.lato.w && v.lato.h) P = T * Math.max(v.lato.w, v.lato.h) / Math.min(v.lato.w, v.lato.h);
+    if (P) {
+      P = Math.max(14, Math.min(90, P));             // sporgenza totale (mm)
+      D = Math.max(6, Math.min(D, P * 0.45));
+      sporg = Math.max(6, P - D);
+    }
     const w = def.verticale ? T : L, h = def.verticale ? L : T;
     const ruota = !!def.verticale === !!orizz;       // foto verticale ↔ serve orizzontale (o viceversa)
-    barraManiglia(g, x, y, z, w, h, D, getMaterialeTHREE(def.id, _reRenderMan), materialeLatiManiglia(def), ruota);
+    barraManiglia(g, x, y, z, w, h, D, getMaterialeTHREE(def.id, _reRenderMan), materialeLatiManiglia(def), ruota, sporg);
     return;
   }
   // maniglia standard: barra in acciaio con i suoi piedini
