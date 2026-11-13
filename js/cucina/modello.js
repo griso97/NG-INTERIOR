@@ -667,6 +667,18 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
     // Allineamento in fila: stessa orientazione, affiancati lungo la fila e GIÀ
     // VICINI alla linea (entro SNAP_ALLINEA) → snap gentile sulla stessa linea.
     const catO = categoriaTipo(o.tipo);
+    // COSTADO dell'isola accanto a un modulo: il suo davanti a filo con il davanti delle ANTE
+    // (se è più profondo, la parte in più va dietro, verso gli sgabelli)
+    if (inIsola && catM === 'costado' && !['costado', 'regletta', 'pannello', 'oggetto'].includes(catO)) {
+      const ro = ((o.rot || 0) * Math.PI) / 180, Fox = -Math.sin(ro), Foy = -Math.cos(ro), aox = Math.cos(ro), aoy = Math.sin(ro);
+      const du = (x - o.x) * aox + (y - o.y) * aoy;
+      const eUmO = A.hx * Math.abs(aox) + A.hy * Math.abs(aoy), eUoO = B.hx * Math.abs(aox) + B.hy * Math.abs(aoy);
+      const eFmO = A.hx * Math.abs(Fox) + A.hy * Math.abs(Foy), eFoO = B.hx * Math.abs(Fox) + B.hy * Math.abs(Foy);
+      const dF = ((o.x - x) * Fox + (o.y - y) * Foy) + (eFoO - eFmO);
+      if (Math.abs(du) <= eUmO + eUoO + soglia && Math.abs(dF) > 0.5 && Math.abs(dF) <= SNAP_ALLINEA) {
+        if (!align || Math.abs(dF) < align.adv) align = { adv: Math.abs(dF), dx: Fox * dF, dy: Foy * dF };
+      }
+    }
     if (puoAllineare && catO !== 'costado' && catO !== 'regletta' && catO !== 'pannello') {
       const ao = asseMobile(o);
       const dotO = sx * ao[0] + sy * ao[1];
