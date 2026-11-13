@@ -13,12 +13,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261113s';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113s';
+} from './modello.js?v=20261113t';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113t';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113s';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113t';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1251,20 +1251,20 @@ function aggiungiLedPensile(g, w, h, d, colore, avanti = 0) {
   const zStrip = -d / 2 + stripD / 2 + 4 + avanti;
   mesh.position.set(0, -h / 2 + stripH / 2, zStrip);
   g.add(mesh);
-  // SpotLight diffusa (penumbra 1 = bordi morbidi, nessun cono/rettangolo
-  // netto) puntata in basso sul piano di lavoro: la luce si posa sul top
-  // in modo naturale, con il colore scelto.
-  const spot = new THREE.SpotLight(hex, 3400, 3000, Math.PI / 2.1, 1.0, 1.0);
+  // Come un LED vero: illumina VERSO IL BASSO (piano di lavoro) e un po' la
+  // parete dietro, non di lato. Coni morbidi e limitati: niente "bruciato"
+  // sui costadi e sui fianchi delle colonne vicine.
+  const spot = new THREE.SpotLight(hex, 5000, 2600, Math.PI / 3.6, 1.0, 1.0);
   spot.position.set(0, -h / 2 - 6, zStrip + 10);
-  spot.target.position.set(0, -h / 2 - 1000, zStrip + 120);
+  spot.target.position.set(0, -h / 2 - 1000, zStrip + 160);
   g.add(spot);
   g.add(spot.target);
-  // PointLight morbida verso la parete di fondo: dà il bagliore del LED
-  // sul muro/alzata, come nella cucina reale, diffondendosi sulla
-  // superficie vera senza pannelli sovrapposti.
-  const point = new THREE.PointLight(hex, 2200, 2000, 1.0);
-  point.position.set(0, -h / 2 - 30, zStrip - 12);
-  g.add(point);
+  // bagliore sulla parete/pannello dietro: cono stretto rivolto al muro
+  const muro = new THREE.SpotLight(hex, 1900, 1500, Math.PI / 4, 1.0, 1.0);
+  muro.position.set(0, -h / 2 - 10, zStrip + 40);
+  muro.target.position.set(0, -h / 2 - 500, -d / 2 - 200);
+  g.add(muro);
+  g.add(muro.target);
 }
 
 /**
