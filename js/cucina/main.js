@@ -21,12 +21,12 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA,
-} from './modello.js?v=20261113g';
+} from './modello.js?v=20261113h';
 import { renderPianta } from './pianta.js?v=20261111x';
-import { calcolaDistintaCucina } from './distinta.js?v=20261113g';
+import { calcolaDistintaCucina } from './distinta.js?v=20261113h';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261113g';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113g';
+import { agganciaTema } from '../tema.js?v=20261113h';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113h';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -35,6 +35,22 @@ if (!progetto.stepCorrente) progetto.stepCorrente = 1;
 progetto = { ...progettoDefault(), ...progetto };
 
 const pannello = document.getElementById('cucina-pannello');
+// NOME SOTTO OGNI MATERIALE (come negli armadi): ogni quadratino delle
+// palette prende sotto il suo nome, così si sa sempre cosa si sta usando.
+function nomiSottoSwatch(root) {
+  root.querySelectorAll('.palette-colori > .swatch').forEach((b) => {
+    if (b.parentElement.classList.contains('swatch-voce')) return;
+    const voce = document.createElement('div');
+    voce.className = 'swatch-voce' + (b.classList.contains('sel') ? ' sel' : '');
+    b.replaceWith(voce);
+    voce.appendChild(b);
+    const n = document.createElement('span');
+    n.className = 'swatch-nome';
+    n.textContent = String(b.getAttribute('title') || '').replace(/\s*\(\d+\s*mm\)\s*$/, '');
+    voce.appendChild(n);
+  });
+}
+new MutationObserver(() => nomiSottoSwatch(pannello)).observe(pannello, { childList: true, subtree: true });
 const riepilogo = document.getElementById('cucina-riepilogo');
 const svg = document.getElementById('pianta-svg');
 const stepInfo = document.getElementById('step-info');
@@ -1281,7 +1297,7 @@ function mostraDistinta() {
           <td class="n">${p.larghezza}</td>
           <td class="n">${p.altezza}</td>
           <td class="n">${p.spessore}</td>
-          <td>${NOME_MATERIALE[p.materiale] || p.materiale}</td>
+          <td>${escHtml(p.materialeNome || NOME_MATERIALE[p.materiale] || p.materiale)}</td>
           <td class="n">${p.quantita}</td></tr>`).join('')}</tbody>
       </table>
     </div>`).join('')}`;
@@ -1321,7 +1337,7 @@ function esportaDistintaCSV() {
   righe.push([]);
   righe.push(['PEZZI DA FARE']);
   righe.push(['Gruppo', 'Pezzo', 'Larghezza_mm', 'Altezza_mm', 'Spessore_mm', 'Materiale', 'Quantita']);
-  for (const p of pezzi) righe.push([p.gruppo, p.nome, p.larghezza, p.altezza, p.spessore, p.materiale, p.quantita]);
+  for (const p of pezzi) righe.push([p.gruppo, p.nome, p.larghezza, p.altezza, p.spessore, p.materialeNome || p.materiale, p.quantita]);
   if (accessori.length) {
     righe.push([]);
     righe.push(['ACCESSORI DA ORDINARE']);
@@ -1342,7 +1358,7 @@ const NOMI_MAT_CUCINA = { carcassa: 'Carcassa', anta: 'Ante / frontali', schiena
 function pezziPerModello() {
   const { pezzi } = calcolaDistintaCucina(progetto);
   return pezzi.map((p) => ({ nome: p.nome, larghezza: p.larghezza, altezza: p.altezza, spessore: p.spessore,
-    quantita: p.quantita, materiale: NOMI_MAT_CUCINA[p.materiale] || p.materiale, modulo: '', gruppo: p.gruppo }));
+    quantita: p.quantita, materiale: p.materialeNome || NOMI_MAT_CUCINA[p.materiale] || p.materiale, modulo: '', gruppo: p.gruppo }));
 }
 function esportaDistintaExcel() {
   esportaExcel(pezziPerModello(), { nomeFile: `distinta-cucina-${nomeFileData()}`, progetto: progetto.nome || 'Cucina' });
@@ -1362,7 +1378,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261113g');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261113h');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste

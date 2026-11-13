@@ -620,7 +620,14 @@
 }
 
 /* ===== Palette colori ante (3D) ===== */
-.palette-colori { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
+.palette-colori { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px 6px; align-items: start; }
+.palette-colori .swatch-voce { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.palette-colori .swatch-voce .swatch { width: 100%; }
+.palette-colori .swatch-nome {
+  font-size: 10px; line-height: 1.25; text-align: center; color: var(--testo-dim, #9a9384);
+  overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.palette-colori .swatch-voce.sel .swatch-nome { color: var(--oro-chiaro); }
 .palette-colori .swatch {
   aspect-ratio: 1; border: 2px solid var(--bordo); border-radius: 4px;
   background-size: cover; background-position: center; cursor: pointer; padding: 0;

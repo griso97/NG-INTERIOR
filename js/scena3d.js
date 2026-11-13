@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261113g';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261113h';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261111b';
 import { sfondoDi } from './sfondi.js?v=20261111b';
 
@@ -265,6 +265,8 @@ export function impostaApertura(valore) {
     } else if (child.userData?.tipo === 'pivot-anta-scorrevole') {
       child.position.x = child.userData.xBase
         + (valore ? child.userData.xOffsetAperto : 0);
+    } else if (child.userData?.tipo === 'maniglia-cassetto') {
+      child.visible = valore;
     }
   });
 }
@@ -669,6 +671,10 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
         const man = new THREE.Mesh(new THREE.BoxGeometry(lman, hman, 20), MAT_METALLO);
         man.position.set(xCentro, cy + altFronte / 2 - Math.min(altFronte * 0.22, 55), zFronte + sC / 2 + 11);
         man.castShadow = true;
+        // cassettiera DENTRO l'armadio: la maniglia si vede solo a porte
+        // aperte (a porte chiuse sbucherebbe attraverso le ante)
+        man.userData.tipo = 'maniglia-cassetto';
+        man.visible = porteAperte;
         gruppoArmadio.add(man);
       }
       yCassBase += AltMax + 10;

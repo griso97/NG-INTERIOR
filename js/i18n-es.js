@@ -1041,5 +1041,6 @@ window.NG_I18N_ES = {
  "spazio sotto": "espacio abajo",
  "↕ Trascina un ripiano per spostarlo": "↕ Arrastra un estante para moverlo",
  "Ripiani automatici": "Estantes automáticos",
- "Ripiani rimessi alla stessa distanza.": "Estantes devueltos a la misma distancia."
+ "Ripiani rimessi alla stessa distanza.": "Estantes devueltos a la misma distancia.",
+ "Colore da scegliere": "Color por elegir"
 };

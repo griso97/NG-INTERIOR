@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261113g';
+} from './modello.js?v=20261113h';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -93,6 +93,13 @@ function reglettaAngolo(pz, mod, progetto, m, H) {
   }
 }
 
+/** Nome del materiale dal catalogo (quello caricato nella pagina). */
+function nomeMateriale(id, altrimenti) {
+  if (!id) return altrimenti;
+  const def = typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === id);
+  return def ? def.nome : altrimenti;
+}
+
 // --- un modulo → i suoi pezzi -------------------------------------------------
 
 function pezziDiModulo(progetto, m) {
@@ -159,7 +166,19 @@ function pezziDiModulo(progetto, m) {
     // fallback generico
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(L), altezza: H, spessore: SP, materiale: 'carcassa', quantita: 1 });
   }
-  for (const p of pz) p.moduloId = m.id;             // chiave di raggruppamento univoca
+  // NOME DEL MATERIALE di ogni pezzo (es. "Roble Sonoma"), come nel 3D:
+  // ante del gruppo (bassi / pensili / colonne), costado alto = ante pensili,
+  // zoccolo = colore zoccolo, cassetti = melaminico bianco.
+  const col = progetto.coloriFronti || {};
+  const alto = cat === 'costado' && (m.profondita_mm || 620) < 500;
+  const idAnte = cat === 'pensile' ? col.pensile : cat === 'colonna' ? col.colonna
+    : cat === 'costado' ? (alto ? (col.pensile || col.costado) : col.costado) : col.base;
+  for (const p of pz) {
+    p.moduloId = m.id;                                // chiave di raggruppamento univoca
+    p.materialeNome = p.materiale === 'melaminico' ? 'Melaminico bianco'
+      : p.materiale === 'zoccolo' ? nomeMateriale(progetto.zoccoloColore || 'nero-opaco', 'Zoccolo')
+      : nomeMateriale(idAnte, 'Colore da scegliere');
+  }
   return pz;
 }
 
@@ -240,8 +259,8 @@ export function calcolaDistintaCucina(progetto) {
   const aggMap = new Map();
   for (const p of raw) {
     const gruppo = gruppoPezzo(p);
-    const key = [gruppo, p.nome, p.larghezza, p.altezza, p.spessore, p.materiale].join('|');
-    if (!aggMap.has(key)) aggMap.set(key, { gruppo, nome: p.nome, larghezza: p.larghezza, altezza: p.altezza, spessore: p.spessore, materiale: p.materiale, quantita: 0 });
+    const key = [gruppo, p.nome, p.larghezza, p.altezza, p.spessore, p.materiale, p.materialeNome].join('|');
+    if (!aggMap.has(key)) aggMap.set(key, { gruppo, nome: p.nome, larghezza: p.larghezza, altezza: p.altezza, spessore: p.spessore, materiale: p.materiale, materialeNome: p.materialeNome, quantita: 0 });
     aggMap.get(key).quantita += p.quantita;
   }
   const pezzi = [...aggMap.values()].sort((a, b) =>
