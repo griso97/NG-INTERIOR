@@ -21,12 +21,12 @@ import {
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA,
-} from './modello.js?v=20261111x';
+} from './modello.js?v=20261113e';
 import { renderPianta } from './pianta.js?v=20261111x';
-import { calcolaDistintaCucina } from './distinta.js?v=20261113d';
+import { calcolaDistintaCucina } from './distinta.js?v=20261113e';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261113d';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113d';
+import { agganciaTema } from '../tema.js?v=20261113e';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261113e';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1240,7 +1240,7 @@ function renderRiepilogoStep3d() {
 // --------- DISTINTA DI TAGLIO (lista moduli + lista pezzi per tipo) ---------
 const NOME_MATERIALE = { carcassa: 'Carcassa', anta: 'Anta/Fronte', schiena: 'Schiena', zoccolo: 'Zoccolo', melaminico: 'Melaminico bianco' };
 function mostraDistinta() {
-  const { moduli, pezzi, accessori, gruppiOrdine, riepilogo } = calcolaDistintaCucina(progetto);
+  const { moduli, pezzi, accessori, gruppiOrdine, gruppiModuli, riepilogo } = calcolaDistintaCucina(progetto);
   const corpo = document.getElementById('distinta-corpo');
   if (!moduli.length) {
     corpo.innerHTML = '<div class="riga-3d">Nessun modulo in scena.</div>';
@@ -1248,26 +1248,29 @@ function mostraDistinta() {
     return;
   }
 
-  // SEZIONE 1 — lista moduli
+  // SEZIONE 1 — moduli da ordinare, per gruppo (colonne, alti, bassi…)
+  const gruppiMod = (gruppiModuli || []).map((g) => ({ g, righe: moduli.filter((m) => m.gruppo === g) })).filter((x) => x.righe.length);
   const sezModuli = `
+    <h4 class="distinta-sez">Moduli da ordinare</h4>
+    <div class="riga-3d" style="margin-bottom:6px">Arrivano già completi (fianchi, fondo, top, schiena e ripiani già tagliati): non sono nella lista dei pezzi.</div>
+    ${gruppiMod.map(({ g, righe }) => `
     <div class="distinta-modulo">
-      <h4>Moduli da ordinare</h4>
-      <div class="riga-3d" style="margin-bottom:6px">Arrivano già completi (fianchi, fondo, top, schiena e ripiani già tagliati): non sono nella lista dei pezzi.</div>
+      <h5 class="distinta-gruppo">${escHtml(g)}</h5>
       <table class="distinta-tab">
-        <thead><tr><th>Modulo</th><th>Tipo</th><th class="n">Qtà</th></tr></thead>
-        <tbody>${moduli.map((m) => `<tr>
+        <thead><tr><th>Modulo</th><th class="n">Misura</th><th class="n">Qtà</th></tr></thead>
+        <tbody>${righe.map((m) => `<tr>
           <td>${escHtml(m.nome)}${m.fuoriMisura ? ' <span class="dist-warn">⚠ da tagliare</span>' : ''}</td>
-          <td>${escHtml(m.tipo)}</td>
+          <td class="n">${escHtml(m.misura)}</td>
           <td class="n">${m.quantita}</td></tr>`).join('')}</tbody>
       </table>
-    </div>`;
+    </div>`).join('')}`;
 
   // SEZIONE 2 — lista pezzi, raggruppata per tipo (ante, reglette, costadi, ...)
   const perGruppo = (gruppiOrdine || []).map((g) => ({ g, righe: pezzi.filter((p) => p.gruppo === g) }))
     .filter((x) => x.righe.length);
   const sezPezzi = `
     <h4 class="distinta-sez">Pezzi da fare</h4>
-    <div class="riga-3d" style="margin-bottom:6px">Ante e frontali dei moduli e i pezzi in legno aggiunti da noi (costadi, reglette, pannelli, zoccolo).</div>
+    <div class="riga-3d" style="margin-bottom:6px">Porte, frontali e parti dei cassetti, più i pezzi in legno aggiunti da noi (costadi, reglette, pannelli, zoccolo), ognuno nel suo gruppo.</div>
     ${perGruppo.map(({ g, righe }) => `
     <div class="distinta-modulo">
       <h5 class="distinta-gruppo">${escHtml(g)}</h5>
@@ -1291,7 +1294,7 @@ function mostraDistinta() {
         <thead><tr><th>Accessorio</th><th class="n">Qtà</th></tr></thead>
         <tbody>${accessori.map((a) => `<tr><td>${escHtml(a.nome)}</td><td class="n">${a.quantita}</td></tr>`).join('')}</tbody>
       </table>
-      <div class="riga-3d" style="margin-top:6px">Piedini: 4 per modulo a terra, 6 se è più largo di 90 cm.</div>
+      <div class="riga-3d" style="margin-top:6px">Piedini: 4 per modulo a terra, 6 se è più largo di 90 cm. Cerniere: 2 per porta da 70 a 92 cm; porte più alte 3 (fino a 150 cm), 4 (fino a 200 cm), 5 oltre.</div>
     </div>` : '';
 
   corpo.innerHTML = sezModuli + sezPezzi + sezAcc + `
@@ -1300,7 +1303,9 @@ function mostraDistinta() {
       <div><span>Pezzi da fare</span><strong>${riepilogo.totalePezzi}</strong></div>
       <div><span>m² ante e frontali</span><strong>${riepilogo.mqAnte.toFixed(2)}</strong></div>
       <div><span>m² zoccolo</span><strong>${riepilogo.mqZoccolo.toFixed(2)}</strong></div>
+      ${riepilogo.mqMelaminico ? `<div><span>m² melaminico</span><strong>${riepilogo.mqMelaminico.toFixed(2)}</strong></div>` : ''}
       <div><span>Piedini</span><strong>${riepilogo.piedini}</strong></div>
+      <div><span>Cerniere</span><strong>${riepilogo.cerniere}</strong></div>
     </div>`;
   const ov = document.getElementById('distinta-overlay');
   if (ov) ov.hidden = false;
@@ -1311,8 +1316,8 @@ function esportaDistintaCSV() {
   const tr = (s) => (typeof s === 'string' && window.NGI18N ? window.NGI18N.t(s) : s);
   const qc = (s) => `"${String(tr(s)).replace(/"/g, '""')}"`;
   const righe = [['MODULI DA ORDINARE']];
-  righe.push(['Modulo', 'Tipo', 'Quantita']);
-  for (const m of moduli) righe.push([m.nome + (m.fuoriMisura ? ' (da tagliare)' : ''), m.tipo, m.quantita]);
+  righe.push(['Gruppo', 'Modulo', 'Misura', 'Quantita']);
+  for (const m of moduli) righe.push([m.gruppo, m.nome + (m.fuoriMisura ? ' (da tagliare)' : ''), m.misura, m.quantita]);
   righe.push([]);
   righe.push(['PEZZI DA FARE']);
   righe.push(['Gruppo', 'Pezzo', 'Larghezza_mm', 'Altezza_mm', 'Spessore_mm', 'Materiale', 'Quantita']);
@@ -1357,7 +1362,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261113d');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261113e');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste

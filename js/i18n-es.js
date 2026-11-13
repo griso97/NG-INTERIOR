@@ -1015,5 +1015,15 @@ window.NG_I18N_ES = {
  "MODULI DA ORDINARE": "MÓDULOS A PEDIR",
  "PEZZI DA FARE": "PIEZAS A FABRICAR",
  "ACCESSORI DA ORDINARE": "ACCESORIOS A PEDIR",
- "Moduli da ordinare, ante e pezzi da fare con le misure, accessori (piedini…).": "Módulos a pedir, puertas y piezas a fabricar con sus medidas, accesorios (patas…)."
+ "Moduli da ordinare, ante e pezzi da fare con le misure, accessori (piedini…).": "Módulos a pedir, puertas y piezas a fabricar con sus medidas, accesorios (patas…).",
+ "Modulo lavandino": "Módulo fregadero",
+ "Modulo forno": "Módulo horno",
+ "Colonne": "Columnas",
+ "Elettrodomestici": "Electrodomésticos",
+ "Porte": "Puertas",
+ "Frontali cassetto": "Frentes de cajón",
+ "Cassetti (fondo e trasera)": "Cajones (fondo y trasera)",
+ "Cerniere": "Bisagras",
+ "Porte, frontali e parti dei cassetti, più i pezzi in legno aggiunti da noi (costadi, reglette, pannelli, zoccolo), ognuno nel suo gruppo.": "Puertas, frentes y piezas de los cajones, más las piezas de madera que añadimos nosotros (costados, regletas, paneles, zócalo), cada una en su grupo.",
+ "Piedini: 4 per modulo a terra, 6 se è più largo di 90 cm. Cerniere: 2 per porta da 70 a 92 cm; porte più alte 3 (fino a 150 cm), 4 (fino a 200 cm), 5 oltre.": "Patas: 4 por módulo en el suelo, 6 si mide más de 90 cm de ancho. Bisagras: 2 por puerta de 70 a 92 cm; puertas más altas 3 (hasta 150 cm), 4 (hasta 200 cm), 5 más."
 };

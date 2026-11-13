@@ -13,12 +13,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261111x';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113d';
+} from './modello.js?v=20261113e';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261113e';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113d';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261113e';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1292,6 +1292,10 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   // riferimento (2350).
   const topLine = quotaAltaColonne(progetto);
   const QUOTA_RIF = topLine != null ? topLine : 2350;
+  // Cima di ogni pensile (stessa regola del pensile qui sotto): serve ai
+  // costadi alti, che vanno SEMPRE a filo sopra col pensile vicino.
+  const cimePensili = (progetto.mobiliLiberi || []).filter((x) => categoriaTipo(x.tipo) === 'pensile')
+    .map((x) => { const h = x.altezza_mm || 700; return { x: x.x, y: x.y, cima: (topLine != null ? topLine - h : MONTAGGIO_PENSILE) + h }; });
 
   // Mobili liberi
   for (const m of (progetto.mobiliLiberi || [])) {
@@ -1349,10 +1353,19 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const h = m.altezza_mm || 850;
       // Costado "alto" (profondità da pensile): sta in alto, appeso all'altezza
       // di montaggio dei pensili, non per terra.
+      // Il costado ALTO è a filo SOPRA col pensile più vicino (qualunque sia
+      // la porta: 70, 72, 90, 92) e ha il colore delle ante dei pensili.
       const alto = (m.profondita_mm || 620) < 500;
-      const base = alto ? MONTAGGIO_PENSILE : (h >= 1500 ? Math.max(0, QUOTA_RIF - h) : 0);
+      let base = alto ? MONTAGGIO_PENSILE : (h >= 1500 ? Math.max(0, QUOTA_RIF - h) : 0);
+      if (alto) {
+        let vicino = null, dMin = Infinity;
+        for (const pz of cimePensili) { const dd = Math.hypot(pz.x - m.x, pz.y - m.y); if (dd < dMin) { dMin = dd; vicino = pz; } }
+        if (vicino && dMin < 2500) base = vicino.cima - h;
+        else if (topLine != null) base = topLine - h;
+      }
       fianchi.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, h, cat: 'costado' });
-      g3d = collocaMobile(corpo(dim.w, h, dim.d, matCostado || COL.costado), cx, base, cz, h, m.rot);
+      const matC = alto ? (matPensile || matCostado || COL.costado) : (matCostado || COL.costado);
+      g3d = collocaMobile(corpo(dim.w, h, dim.d, matC), cx, base, cz, h, m.rot);
     } else {
       // base / lavello / forno: porta = altezza scelta, zoccolo 150/100.
       // Il piano di lavoro NON si disegna qui: è un pezzo unico continuo (dopo).

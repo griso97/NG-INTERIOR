@@ -59,10 +59,10 @@ export const ALTEZZE_COSTADO = [720, 850, 900, 920, 2200, 2300, 2350, 2450];
 export const TIPI_MODULO_BASE = [
   { id: 'base-ante',     nome: 'Base con ante',     larghezze: LARGHEZZE_BASE },
   { id: 'base-cassetti', nome: 'Base cassetti',     larghezze: LARGHEZZE_BASE },
-  { id: 'lavello',       nome: 'Lavello',           larghezze: LARGHEZZE_BASE },
+  { id: 'lavello',       nome: 'Modulo lavandino',  larghezze: LARGHEZZE_BASE },
   { id: 'lavastoviglie', nome: 'Lavastoviglie',     larghezze: [600, 450] },
   { id: 'lavatrice',     nome: 'Lavatrice',         larghezze: [600, 450] },
-  { id: 'forno',         nome: 'Forno + placca',    larghezze: [600] },
+  { id: 'forno',         nome: 'Modulo forno',      larghezze: [600] },
 ];
 
 /**
@@ -76,13 +76,13 @@ export const CATALOGO_MOBILI = [
     larghezze: LARGHEZZE_BASE, altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
   { id: 'base-cassetti', nome: 'Base cassetti', categoria: 'base',
     larghezze: LARGHEZZE_BASE, altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
-  { id: 'lavello',       nome: 'Lavello', categoria: 'base',
+  { id: 'lavello',       nome: 'Modulo lavandino', categoria: 'base',
     larghezze: LARGHEZZE_BASE, altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
   { id: 'lavastoviglie', nome: 'Lavastoviglie', categoria: 'lavastoviglie',
     larghezze: [600, 450], altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
   { id: 'lavatrice',     nome: 'Lavatrice', categoria: 'lavatrice',
     larghezze: [600, 450], altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
-  { id: 'forno',         nome: 'Forno + placca', categoria: 'base',
+  { id: 'forno',         nome: 'Modulo forno', categoria: 'base',
     larghezze: [600], altezze: ALTEZZE_BASE, profondita: PROFONDITA_BASE },
   { id: 'pensile',       nome: 'Pensile', categoria: 'pensile',
     larghezze: LARGHEZZE_BASE, altezze: ALTEZZE_PENSILE, profondita: PROFONDITA_PENSILE },

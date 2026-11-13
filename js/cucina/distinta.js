@@ -8,14 +8,15 @@
 // ACCESSORI: piedini, griglie del forno. Solo calcolo: la tabella sta in main.js.
 //
 // Ogni pezzo: { modulo, nome, larghezza, altezza, spessore, materiale, quantita }
-//   materiale: 'anta' | 'zoccolo'
+//   materiale: 'anta' | 'zoccolo' | 'melaminico'
 // =============================================================================
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco,
-} from './modello.js?v=20261111x';
+} from './modello.js?v=20261113e';
 
-const SP = 18;        // pannelli carcassa e ante/fronti (mm)
+const SP = 18;        // ante/fronti e pannelli (mm)
+const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
 const round = (n) => Math.round(n);
 const zoccoloH = (h) => (h >= 800 ? 100 : 150);
@@ -68,6 +69,16 @@ function restoAntaColonna(m, rem) {
   return rem; // porta unica
 }
 
+// Fondo + trasera del cassetto in MELAMINICO BIANCO (guide metalliche: niente
+// sponde di legno). Misure FISSE: fondo profondità 480; trasera alta 59 se il
+// cassetto è basso (≤155) o 155 se è alto (>155). La LUNGHEZZA varia col
+// modulo: fondo = L−53, trasera = L−72. `hCassetto` = altezza del fronte.
+function cassettoMelaminico(pz, mod, L, hCassetto, nc) {
+  const grande = hCassetto > 155;
+  pz.push({ modulo: mod, nome: 'Cassetto · fondo', larghezza: round(L - 53), altezza: 480, spessore: SP_MEL, materiale: 'melaminico', quantita: nc });
+  pz.push({ modulo: mod, nome: `Cassetto · trasera ${grande ? 'grande' : 'ridotta'}`, larghezza: round(L - 72), altezza: grande ? 155 : 59, spessore: SP_MEL, materiale: 'melaminico', quantita: nc });
+}
+
 // Regletta d'angolo (o pannello cieco) sul modulo "cieco" dell'angolo.
 function reglettaAngolo(pz, mod, progetto, m, H) {
   if (progetto.autoRegletta === false) return;
@@ -101,6 +112,8 @@ function pezziDiModulo(progetto, m) {
       const nc = Math.max(1, m.cassetti || 3);
       const hf = round((H - (nc - 1) * 3) / nc - 2);   // altezza del fronte cassetto
       pz.push({ modulo: mod, nome: 'Fronte cassetto', larghezza: round(L - 3), altezza: hf, spessore: SP, materiale: 'anta', quantita: nc });
+      // parti per fare i cassetti: fondo e trasera in melaminico bianco
+      cassettoMelaminico(pz, mod, L, hf, nc);
     } else if (m.tipo === 'forno') {
       // sotto il forno un pannello del colore delle ante (griglia sopra = accessorio)
       const hp = round(H - 2 - GRIGLIA_FORNO - 3 - H_FORNO_INCASSO - 3);
@@ -150,22 +163,30 @@ function pezziDiModulo(progetto, m) {
   return pz;
 }
 
-// Categoria del pezzo per la lista raggruppata (ante, reglette, costadi, ...).
-const ORDINE_GRUPPI = ['Ante / Fronti', 'Reglette', 'Costadi', 'Pannelli',
-  'Fianchi', 'Top / Fondi', 'Ripiani', 'Schiene', 'Zoccoli', 'Cassetti', 'Varie'];
+// Gruppi SEPARATI della lista pezzi: porte, frontali, parti dei cassetti,
+// costadi, reglette, pannelli, zoccoli.
+const ORDINE_GRUPPI = ['Porte', 'Frontali cassetto', 'Cassetti (fondo e trasera)', 'Costadi',
+  'Reglette', 'Pannelli', 'Zoccoli', 'Varie'];
 function gruppoPezzo(p) {
   const n = String(p.nome).toLowerCase();
   if (n.includes('regletta')) return 'Reglette';
   if (n.includes('costado')) return 'Costadi';
-  if (n.includes('pannello cieco') || n.includes('anta') || n.includes('fronte cassetto') || n.includes('sotto forno')) return 'Ante / Fronti';
-  if (n.includes('pannello di copertura')) return 'Pannelli';
-  if (n.includes('cassetto')) return 'Cassetti';
-  if (n.includes('fianco')) return 'Fianchi';
-  if (n.includes('ripiano')) return 'Ripiani';
-  if (n.includes('schiena')) return 'Schiene';
-  if (n.includes('zoccolo')) return 'Zoccoli';
-  if (n.includes('fondo') || n.includes('top') || n.includes('reggitop') || n.includes('cielo')) return 'Top / Fondi';
+  if (n.includes('fronte cassetto')) return 'Frontali cassetto';
+  if (n.includes('cassetto')) return 'Cassetti (fondo e trasera)';
+  if (n.includes('pannello cieco') || n.includes('anta') || n.includes('sotto forno')) return 'Porte';
+  if (p.materiale === 'zoccolo' || n.includes('zoccolo')) return 'Zoccoli';
+  if (n.includes('pannello') || n.includes('regletta grande')) return 'Pannelli';
   return 'Varie';
+}
+
+// Gruppi dei MODULI da ordinare (costadi, reglette e pannelli no: li facciamo noi).
+const ORDINE_MODULI = ['Colonne', 'Moduli alti', 'Moduli bassi', 'Elettrodomestici'];
+function gruppoModulo(cat) {
+  if (cat === 'colonna') return 'Colonne';
+  if (cat === 'pensile') return 'Moduli alti';
+  if (cat === 'base') return 'Moduli bassi';
+  if (cat === 'lavastoviglie' || cat === 'lavatrice') return 'Elettrodomestici';
+  return null;
 }
 
 export function calcolaDistintaCucina(progetto) {
@@ -173,16 +194,18 @@ export function calcolaDistintaCucina(progetto) {
   // non entrano né nei moduli né nei pezzi della distinta.
   const mobili = (progetto.mobiliLiberi || []).filter((m) => categoriaTipo(m.tipo) !== 'oggetto');
 
-  // 1) LISTA MODULI: aggrega i moduli uguali (stessa etichetta + tipo).
+  // 1) LISTA MODULI DA ORDINARE, per gruppo (colonne, alti, bassi, elettrodomestici).
   const modMap = new Map();
   for (const m of mobili) {
+    const gruppo = gruppoModulo(categoriaTipo(m.tipo));
+    if (!gruppo) continue;
     const L = dimMobile(m).w;
-    const nome = `Modulo da ${m.altezza_mm ? `${m.altezza_mm}×${L}` : L}`;
-    const key = `${nome}|${m.tipo}|${m.fuoriMisura ? 1 : 0}`;
-    if (!modMap.has(key)) modMap.set(key, { nome, tipo: nomeTipo(m.tipo), fuoriMisura: !!m.fuoriMisura, quantita: 0 });
+    const misura = m.altezza_mm ? `${m.altezza_mm}×${L}` : `${L}`;
+    const key = `${gruppo}|${m.tipo}|${misura}|${m.fuoriMisura ? 1 : 0}`;
+    if (!modMap.has(key)) modMap.set(key, { gruppo, nome: nomeTipo(m.tipo), misura, tipo: nomeTipo(m.tipo), fuoriMisura: !!m.fuoriMisura, quantita: 0 });
     modMap.get(key).quantita++;
   }
-  const moduli = [...modMap.values()];
+  const moduli = [...modMap.values()].sort((a, b) => ORDINE_MODULI.indexOf(a.gruppo) - ORDINE_MODULI.indexOf(b.gruppo));
 
   // 2) LISTA PEZZI DA FARE: ante/frontali e pezzi in legno nostri, aggregati per tipo+misura.
   const raw = [];
@@ -205,22 +228,33 @@ export function calcolaDistintaCucina(progetto) {
     if (cat === 'base' || cat === 'colonna') aggiungi('Piedini regolabili', piediniDi(L));
     if (m.tipo === 'forno') aggiungi(`Griglia aerazione forno ${round(L - 3)} mm`, 1);
   }
+  // CERNIERE: per ogni porta (non frontali cassetto né pannelli fissi):
+  // da 70 a 92 cm → 2; più alte (colonne) → 3 fino a 150 cm, 4 fino a 200, poi 5
+  const cerniereDi = (h) => (h <= 950 ? 2 : h <= 1500 ? 3 : h <= 2000 ? 4 : 5);
+  for (const p of raw) {
+    if (!/^anta/i.test(p.nome)) continue;
+    aggiungi('Cerniere', cerniereDi(p.altezza) * p.quantita);
+  }
   const accessori = [...acc.entries()].map(([nome, quantita]) => ({ nome, quantita }));
 
   // 4) Riepilogo.
-  let totalePezzi = 0, mqAnte = 0, mqZoccolo = 0;
+  let totalePezzi = 0, mqAnte = 0, mqZoccolo = 0, mqMelaminico = 0;
   for (const p of pezzi) {
     totalePezzi += p.quantita;
     const mq = (p.larghezza * p.altezza * p.quantita) / 1e6;
-    if (p.materiale === 'zoccolo') mqZoccolo += mq; else mqAnte += mq;
+    if (p.materiale === 'zoccolo') mqZoccolo += mq;
+    else if (p.materiale === 'melaminico') mqMelaminico += mq;
+    else mqAnte += mq;
   }
   const piedini = acc.get('Piedini regolabili') || 0;
+  const cerniere = acc.get('Cerniere') || 0;
 
   return {
     moduli,
     pezzi,
     accessori,
     gruppiOrdine: ORDINE_GRUPPI,
-    riepilogo: { moduli: mobili.length, totalePezzi, mqAnte, mqZoccolo, piedini },
+    gruppiModuli: ORDINE_MODULI,
+    riepilogo: { moduli: moduli.reduce((t, m) => t + m.quantita, 0), totalePezzi, mqAnte, mqZoccolo, mqMelaminico, piedini, cerniere },
   };
 }
