@@ -90,3 +90,10 @@
 .imp-vista3-img canvas { width: 100%; height: auto; border-radius: 6px; display: block; }
 .imp-man3d-vista { min-height: 120px; border: 1px solid var(--bordo); border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
 .imp-man3d-vista canvas { display: block; max-width: 100%; touch-action: none; }
+
+.imp-vista3 label { display: flex; flex-direction: column; gap: 4px; }
+.imp-togli { align-self: flex-start; color: #a33; border-color: #e2c4c4; }
+.imp-form [hidden] { display: none !important; }
+.imp-misura { min-width: 0; }
+.imp-viste3 > * { min-width: 0; }
+.imp-form input[type="file"] { max-width: 100%; min-width: 0; }

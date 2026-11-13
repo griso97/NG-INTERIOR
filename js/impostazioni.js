@@ -8,12 +8,12 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261114x';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, finituraVicina, formaDaRapporto, anteprimaManiglia } from './maniglia3d.js?v=20261114x';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261114x';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini } from './analisi-foto.js?v=20261114x';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261114x';
-import { agganciaTema } from './tema.js?v=20261114x';
+} from './catalogo.js?v=20261114y';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, finituraVicina, formaDaRapporto, anteprimaManiglia } from './maniglia3d.js?v=20261114y';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261114y';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini } from './analisi-foto.js?v=20261114y';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261114y';
+import { agganciaTema } from './tema.js?v=20261114y';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -146,6 +146,7 @@ function apriScheda(m) {
       ${proprio ? `
       <label>${nuovo ? 'Foto <span class="imp-obbl">*</span>' : 'Foto (lascia vuoto per tenere quella attuale)'}
         <input type="file" accept="image/*" id="f-foto"></label>
+      ${tipo === 'man' ? '<button type="button" class="btn-ghost btn-mini imp-togli" id="f-togli-foto" hidden>✕ Togli questa foto</button>' : ''}
       <div class="imp-aiuto">${aiutoFoto}</div>
       <div id="f-auto" class="imp-auto" hidden>
         <canvas id="f-vista" class="imp-vista"></canvas>
@@ -168,8 +169,8 @@ function apriScheda(m) {
         <legend>Altre foto per il 3D vero</legend>
         <div class="imp-aiuto">Con la foto <strong>da sopra</strong> (la più importante) e quella <strong>di lato</strong> il sito costruisce la maniglia in 3D reale: la isola da ogni foto e ne ricava la forma e i colori. Foto dritte, maniglia intera, sfondo uniforme (es. un foglio).</div>
         <div class="imp-viste3">
-          <label class="imp-vista3">Foto da sopra<input type="file" accept="image/*" id="f-sopra"><div class="imp-vista3-img" id="f-sopra-img"></div><button type="button" class="btn-ghost btn-mini" data-togli="sopra" hidden>Togli</button></label>
-          <label class="imp-vista3">Foto di lato<input type="file" accept="image/*" id="f-lato"><div class="imp-vista3-img" id="f-lato-img"></div><button type="button" class="btn-ghost btn-mini" data-togli="lato" hidden>Togli</button></label>
+          <div class="imp-vista3"><label>Foto da sopra<input type="file" accept="image/*" id="f-sopra"></label><div class="imp-vista3-img" id="f-sopra-img"></div><button type="button" class="btn-ghost btn-mini imp-togli" data-togli="sopra" hidden>✕ Togli questa foto</button></div>
+          <div class="imp-vista3"><label>Foto di lato<input type="file" accept="image/*" id="f-lato"></label><div class="imp-vista3-img" id="f-lato-img"></div><button type="button" class="btn-ghost btn-mini imp-togli" data-togli="lato" hidden>✕ Togli questa foto</button></div>
         </div>
         <div class="imp-sup-titolo">Anteprima 3D</div>
         <div id="f-man3d-vista" class="imp-man3d-vista"><div class="imp-aiuto">Carica la foto della maniglia.</div></div>
@@ -245,18 +246,29 @@ function apriScheda(m) {
       // MODIFICA: viste e foto già salvate
       if (p) {
         Promise.all(['foto', 'sopra', 'lato'].map((t) => leggiFoto(p.id, t))).then(async ([fo, so, la]) => {
-          if (fo && !corpo._fronte) corpo._fronte = await caricaImmagine(fo).catch(() => null);
+          if (fo && !corpo._fronte && !corpo._fronteTolta) corpo._fronte = await caricaImmagine(fo).catch(() => null);
+          if (corpo._fronte && !corpo._fronteTolta) corpo.querySelector('#f-togli-foto').hidden = false;
           if (so) { corpo._visteImg.sopra = await caricaImmagine(so).catch(() => null); mostraVista('sopra'); }
           if (la) { corpo._visteImg.lato = await caricaImmagine(la).catch(() => null); mostraVista('lato'); }
           aggiornaAnteprima3d(corpo);
         });
       }
     }
+    const togliF = corpo.querySelector('#f-togli-foto');
+    if (togliF) togliF.addEventListener('click', () => {
+      img = null; rit = null; corpo._file = null; corpo._fronte = null; corpo._segFronte = null; corpo._fronteTolta = true;
+      corpo.querySelector('#f-foto').value = '';
+      corpo.querySelector('#f-auto').hidden = true; corpo.querySelector('#f-ritaglio-box').hidden = true;
+      togliF.hidden = true;
+      if (_chiudiAnteprima) { _chiudiAnteprima(); _chiudiAnteprima = null; }
+      corpo.querySelector('#f-man3d-vista').innerHTML = `<div class="imp-aiuto">${tr('Carica la foto della maniglia.')}</div>`;
+    });
     corpo.querySelector('#f-foto').addEventListener('change', async (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
       img = await caricaImmagine(file).catch(() => null);
       if (!img) { errore(tr('Non riesco ad aprire questa foto. Prova con un JPG o PNG.')); return; }
+      corpo._fronteTolta = false; if (togliF) togliF.hidden = false;
       corpo._fotoId = Date.now();                 // foto nuova: si riparte dalla proposta del sito
       corpo._file = file;                         // la foto ORIGINALE si salva: si potrà sempre ricorreggere
       rit = await analisiAutomatica(img, corpo, tipo);
@@ -300,6 +312,7 @@ function apriScheda(m) {
         return;
       }
     }
+    if (tipo === 'man' && corpo._fronteTolta && !img) { errore(tr('Carica la foto davanti della maniglia.')); return; }
     if (nuovo && !img) { errore(tr('Carica la foto del campione.')); return; }
     const b = corpo.querySelector('#f-salva'); b.disabled = true; b.textContent = tr('Salvo…');
     try {

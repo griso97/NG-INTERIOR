@@ -1153,4 +1153,6 @@ window.NG_I18N_ES = {
   'Non riesco a isolare la maniglia in questa foto: usa uno sfondo uniforme e chiaro.': 'No consigo aislar el tirador en esta foto: usa un fondo uniforme y claro.',
   'È disponibile una nuova versione del sito.': 'Hay una nueva versión del sitio disponible.',
   'Aggiorna': 'Actualizar',
+  '✕ Togli questa foto': '✕ Quitar esta foto',
+  'Carica la foto davanti della maniglia.': 'Sube la foto frontal del tirador.',
 };

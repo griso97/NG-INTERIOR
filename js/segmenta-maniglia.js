@@ -151,7 +151,15 @@ export function segmentaManiglia(img, zona = null, tol = 1) {
   cc.aree.forEach((a, i) => {
     if (i === imax || a < cc.aree[imax] * 0.12) return;
     const b = cc.box[i], gap = Math.max(b.x0 - B0.x1, B0.x0 - b.x1, b.y0 - B0.y1, B0.y0 - b.y1);
-    if (gap < Math.max(w, h) * 0.06) tieni.add(i);
+    if (gap >= Math.max(w, h) * 0.06) return;
+    // un pezzo grande ACCANTO (non in fila sulla stessa barra) è un'altra maniglia: non la prendo
+    if (a > cc.aree[imax] * 0.4) {
+      const orizz = (B0.x1 - B0.x0) >= (B0.y1 - B0.y0);
+      const [p0, p1, q0, q1] = orizz ? [B0.y0, B0.y1, b.y0, b.y1] : [B0.x0, B0.x1, b.x0, b.x1];
+      const sov = Math.max(0, Math.min(p1, q1) - Math.max(p0, q0)) / Math.max(1, Math.min(p1 - p0, q1 - q0));
+      if (sov < 0.6) return;
+    }
+    tieni.add(i);
   });
   for (let i = 0; i < w * h; i++) m[i] = cc.lab[i] >= 0 && tieni.has(cc.lab[i]) ? 1 : 0;
   // buchini chiusi (riflessi interni), non i vuoti veri (tra barra e piedini)
