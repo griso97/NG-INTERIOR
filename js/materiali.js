@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261113t';
+import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261113u';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -32,8 +32,8 @@ export const MATERIALI = [
     thumb: 'materials/roble-azabache-thumb.jpg',
     texture: 'materials/roble-azabache.jpg', colore: 0x2a2a28 },
   { id: 'roble-denver', nome: 'Roble Denver', categoria: 'legno',
-    thumb: 'materials/roble-denver-thumb.jpg',
-    texture: 'materials/roble-denver.jpg', colore: 0xb89a74 },
+    thumb: 'materials/roble-denver-v2-thumb.jpg',
+    texture: 'materials/roble-denver-v2.jpg', colore: 0xb89a74 },   // ombra del telefono tolta
   { id: 'roble-hercules-19', nome: 'Roble Hercules 19', categoria: 'legno',
     thumb: 'materials/roble-hercules-19-thumb.jpg',
     texture: 'materials/roble-hercules-19.jpg', colore: 0xc0a07a },
