@@ -13,13 +13,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA,
-} from './modello.js?v=20261114r';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261114r';
+} from './modello.js?v=20261114s';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261114s';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { maniglia3D } from '../maniglia3d.js?v=20261114r';
+import { maniglia3D } from '../maniglia3d.js?v=20261114s';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261114r';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261114s';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -458,8 +458,15 @@ export function muoviSpostamento(clientX, clientY) {
   if (!spost) return;
   const p = puntoATerra(clientX, clientY);
   if (!p) return;
-  spost.g.position.x = p.x + spost.dx;
-  spost.g.position.z = p.z + spost.dz;
+  // vista radente (verso l'orizzonte): pochi pixel = metri → ignoro i punti troppo lontani
+  const dCam = camera.position.distanceTo(controls.target);
+  if (p.distanceTo(camera.position) > dCam * 2.5) return;
+  // movimento morbido: al massimo 15 cm per volta, così l'oggetto non "salta"
+  let nx = p.x + spost.dx - spost.g.position.x, nz = p.z + spost.dz - spost.g.position.z;
+  const L = Math.hypot(nx, nz), MAX = 150;
+  if (L > MAX) { nx *= MAX / L; nz *= MAX / L; }
+  spost.g.position.x += nx;
+  spost.g.position.z += nz;
 }
 /** Fine: ritorna { id, x, y, mosso } in coordinate della pianta (mm). */
 export function fineSpostamento() {
