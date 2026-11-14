@@ -23,12 +23,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261115q';
-import { renderPianta } from './pianta.js?v=20261115q';
-import { calcolaDistintaCucina } from './distinta.js?v=20261115q';
+} from './modello.js?v=20261115r';
+import { renderPianta } from './pianta.js?v=20261115r';
+import { calcolaDistintaCucina } from './distinta.js?v=20261115r';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261115q';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115q';
+import { agganciaTema } from '../tema.js?v=20261115r';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115r';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -999,6 +999,25 @@ function agganciaFiniture(root) {
   }));
 }
 
+/**
+ * Dove mettere un oggetto appena aggiunto nel 3D: gli elettrodomestici sul piano
+ * di un mobile basso libero (centro del mobile, girati come lui), gli sgabelli
+ * davanti al primo mobile basso; se non ci sono mobili, al centro della stanza.
+ */
+function postoPerOggetto(m) {
+  const basi = (progetto.mobiliLiberi || []).filter((b) => ['base'].includes(categoriaTipo(b.tipo)) && b.tipo !== 'base-angolo' && !b.lavello && b.tipo !== 'lavello');
+  const oggetti = (progetto.mobiliLiberi || []).filter((o) => o.id !== m.id && categoriaTipo(o.tipo) === 'oggetto');
+  const occupato = (x, y) => oggetti.some((o) => Math.hypot(o.x - x, o.y - y) < 250);
+  const sulPiano = String(m.tipo).startsWith('ogg:');
+  for (const b of basi) {
+    const r = ((b.rot || 0) * Math.PI) / 180, fx = -Math.sin(r), fy = -Math.cos(r);
+    const d = dimMobile(b).d;
+    const x = sulPiano ? b.x : b.x + fx * (d / 2 + 350), y = sulPiano ? b.y : b.y + fy * (d / 2 + 350);
+    if (!occupato(x, y)) return { x: Math.round(x), y: Math.round(y), rot: b.rot || 0 };
+  }
+  return {};
+}
+
 function renderPannelloStep3d() {
   const sel = trovaMobileLibero(progetto, step2.mobSelId);
   if (sel) return renderPannelloModificaMobile(sel);
@@ -1007,7 +1026,23 @@ function renderPannelloStep3d() {
   const materialiEnc = (scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer('encimera') : [];
   const encAttuale = (progetto.encimera || {}).materiale || null;
   const avvisi = problemiMobiliLiberi(progetto);
+  // OGGETTI da aggiungere nel 3D: i propri del catalogo (dalle foto) + quelli pronti (sgabello)
+  const oggCat = matMod ? matMod.materialiPer('oggetti') : [];
+  const oggPronti = CATALOGO_MOBILI.filter((t) => t.categoria === 'oggetto');
   pannello.innerHTML = `
+    <section class="step3-pannello">
+      <button type="button" class="tendina-ogg ${step2.oggettiAperti ? 'aperta' : ''}" id="ogg-tendina">
+        <span>🪑 Aggiungi oggetti</span><span class="tendina-freccia">${step2.oggettiAperti ? '▾' : '▸'}</span>
+      </button>
+      ${step2.oggettiAperti ? `
+      <div class="riga-3d" style="margin:8px 0 6px">Tocca un oggetto: compare in cucina (sul piano di lavoro se c'è, se no a terra). Poi trascinalo dove vuoi.</div>
+      <div class="griglia-ogg">
+        ${oggCat.map((o) => `<button type="button" class="ogg-voce" data-aggogg="${o.id}" title="${escHtml(o.nome)}">
+          <span class="palette-ogg-img" style="background-image:url('${o.thumb}')"></span><span data-no-i18n>${escHtml(o.nome)}</span></button>`).join('')}
+        ${oggPronti.map((t) => `<button type="button" class="ogg-voce" data-aggtipo="${t.id}">${iconaMobile(t.id)}<span>${t.nome}</span></button>`).join('')}
+      </div>
+      ${oggCat.length ? '' : '<div class="riga-3d" style="margin-top:6px">I tuoi oggetti (friggitrici, tostapane…) si creano dalle foto in ⚙ Impostazioni → Oggetti ed elettrodomestici.</div>'}` : ''}
+    </section>
     ${avvisi.length ? `
     <section class="step3-pannello">
       <h3>Da sistemare</h3>
@@ -1112,6 +1147,18 @@ function renderPannelloStep3d() {
     progetto.cierreTecho = { ...(progetto.cierreTecho || {}), attivo: true, altezza: Math.max(20, Math.min(1500, Math.round(Number(e.target.value) || 300))) };
     aggiorna();
   });
+  document.getElementById('ogg-tendina')?.addEventListener('click', () => { step2.oggettiAperti = !step2.oggettiAperti; renderPannello(); });
+  pannello.querySelectorAll('[data-aggogg], [data-aggtipo]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    let id;
+    if (b.dataset.aggogg) {
+      const o = oggCat.find((x) => x.id === b.dataset.aggogg); if (!o) return;
+      id = aggiungiMobileLibero(progetto, `ogg:${o.id}`, { larghezza_mm: o.misure.w, profondita_mm: o.misure.d, altezza_mm: o.misure.h });
+    } else id = aggiungiMobileLibero(progetto, b.dataset.aggtipo, {});
+    const m = trovaMobileLibero(progetto, id);
+    if (m) Object.assign(m, postoPerOggetto(m));
+    aggiorna();
+  }));
   pannello.querySelectorAll('.swatch-zocc[data-zocc]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     progetto.zoccoloColore = b.dataset.zocc;
@@ -1662,7 +1709,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115q');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115r');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1766,8 +1813,12 @@ function renderPalette() {
   }));
 }
 // catalogo (oggetti creati dalle foto) per la tavolozza
-let matMod = null;
-import('../materiali.js?v=20261115q').then((m) => { matMod = m; if (progetto.stepCorrente === 2) renderPalette(); }).catch(() => {});
+var matMod = null;      // (var: usabile anche prima di questa riga, mentre si carica)
+import('../materiali.js?v=20261115r').then((m) => {
+  matMod = m;
+  if (progetto.stepCorrente === 2) renderPalette();
+  if (progetto.stepCorrente === 4) renderPannello();
+}).catch(() => {});
 
 function blocMobileSelezionato() {
   const m = trovaMobileLibero(progetto, step2.mobSelId);

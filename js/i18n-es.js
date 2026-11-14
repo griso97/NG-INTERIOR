@@ -1319,4 +1319,7 @@ window.NG_I18N_ES = {
   "Acciaio spazzolato": "Acero cepillado",
   "Canna di fucile": "Gris grafito",
   "Oro spazzolato": "Oro cepillado",
+  "🪑 Aggiungi oggetti": "🪑 Añadir objetos",
+  "Tocca un oggetto: compare in cucina (sul piano di lavoro se c'è, se no a terra). Poi trascinalo dove vuoi.": "Toca un objeto: aparece en la cocina (sobre la encimera si la hay, si no en el suelo). Luego arrástralo donde quieras.",
+  "I tuoi oggetti (friggitrici, tostapane…) si creano dalle foto in ⚙ Impostazioni → Oggetti ed elettrodomestici.": "Tus objetos (freidoras, tostadoras…) se crean con las fotos en ⚙ Ajustes → Objetos y electrodomésticos.",
 };
