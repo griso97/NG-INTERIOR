@@ -12,6 +12,7 @@
 export function progettoDefault() {
   return {
     versione: 1,
+    versioneRot: 1,          // rotazione "girato a mano" (rotManuale) gestita
     stepCorrente: 1,
     piano: {
       tipologia: 'lineare',
@@ -650,6 +651,22 @@ function rotazionePenisola(progetto, m, x, y) {
     if (!best || gap < best.gap) best = { gap, rot: rotO };
   }
   return best ? best.rot : null;
+}
+
+/**
+ * Progetti salvati prima del "girato a mano": la rotazione scelta non veniva
+ * ricordata. I mobili messi a mano LONTANO dai muri (isola, pezzo di penisola
+ * girato al centro) tengono la rotazione che hanno: portati al muro non si
+ * rigirano più da soli. Una volta sola per progetto.
+ */
+export function migraRotazioni(progetto) {
+  if (!progetto || (progetto.versioneRot || 0) >= 1) return;
+  for (const m of (progetto.mobiliLiberi || [])) {
+    if (!m.posManuale || m.isola || m.rotManuale) continue;
+    if (!FILA_ROTAZIONE.includes(categoriaTipo(m.tipo)) || /angolo/.test(m.tipo)) continue;
+    if (orientaVersoMuro(progetto, m, m.x, m.y) === null) m.rotManuale = true;
+  }
+  progetto.versioneRot = 1;
 }
 
 /**
@@ -1465,8 +1482,9 @@ export function inserisciInAngolo(progetto, m, tx, ty) {
 /**
  * Sposta di `shift` mm (lungo X se asseX, altrimenti Y) il pezzo libero `primo`
  * con tutti i pezzi a terra attaccati a lui che NON sono a muro (la penisola o
- * l'isola intera, con costadi e pannelli). Se qualcosa esce dai muri o entra in
- * un altro mobile non sposta niente. Ritorna true se l'ha fatto.
+ * l'isola intera, con costadi e pannelli). Se dall'altra parte c'è una fila a
+ * muro, la fa scorrere lungo il suo muro per fare posto. Se qualcosa esce dai
+ * muri o non c'è posto non sposta niente. Ritorna true se l'ha fatto.
  */
 function spostaBlocco(progetto, primo, asseX, shift, escludi = []) {
   const tutti = (progetto.mobiliLiberi || []).filter((o) => FILA_PEZZI.includes(categoriaTipo(o.tipo)));
@@ -1484,18 +1502,32 @@ function spostaBlocco(progetto, primo, asseX, shift, escludi = []) {
       visti.add(o.id); blocco.push(o);
     }
   }
-  const prima = blocco.map((o) => ({ o, x: o.x, y: o.y }));
+  const salva = (progetto.mobiliLiberi || []).map((o) => [o, o.x, o.y]);
+  const ripristina = () => { for (const [o, x, y] of salva) { o.x = x; o.y = y; } };
   for (const o of blocco) { if (asseX) o.x = Math.round(o.x + shift); else o.y = Math.round(o.y + shift); }
   const ids = new Set(blocco.map((o) => o.id));
-  let ok = true;
-  for (const o of blocco) {
-    const v = vincolaAiMuri(progetto, o, o.x, o.y);
-    if (Math.abs(v.x - o.x) > 1 || Math.abs(v.y - o.y) > 1) { ok = false; break; }
-    const urto = sovrapposto(progetto, o, o.x, o.y);
-    if (urto && urto.some((u) => !ids.has(u.id) && FILA_PEZZI.includes(categoriaTipo(u.tipo)))) { ok = false; break; }
+  for (let giro = 0; giro < 2; giro++) {
+    const urtati = [];
+    for (const o of blocco) {
+      const v = vincolaAiMuri(progetto, o, o.x, o.y);
+      if (Math.abs(v.x - o.x) > 1 || Math.abs(v.y - o.y) > 1) { ripristina(); return false; }
+      for (const u of (sovrapposto(progetto, o, o.x, o.y) || [])) {
+        if (!ids.has(u.id) && FILA_PEZZI.includes(categoriaTipo(u.tipo))) urtati.push([o, u]);
+      }
+    }
+    if (!urtati.length) return true;
+    if (giro === 1) break;
+    // Dall'altra parte c'è la fila a muro (es. una base sopra la penisola):
+    // scorre lungo il suo muro quel tanto che serve, con i mobili attaccati.
+    for (const [o, u] of urtati) {
+      const U = aabbMondo(u), O = aabbMondo(o);
+      if (U.horiz !== asseX || !retroAMuro(progetto, u)) { ripristina(); return false; }
+      const serve = asseX ? (shift > 0 ? O.x1 - U.x0 : U.x1 - O.x0) : (shift > 0 ? O.y1 - U.y0 : U.y1 - O.y0);
+      if (serve > 0.5 && !spostaFila(progetto, u, shift > 0 ? 1 : -1, serve, [...ids, ...escludi])) { ripristina(); return false; }
+    }
   }
-  if (!ok) for (const r of prima) { r.o.x = r.x; r.o.y = r.y; }
-  return ok;
+  ripristina();
+  return false;
 }
 
 function contaInFila(progetto, m) {
