@@ -12,8 +12,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261115u';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261115u';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261115v';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261115v';
 import { sfondoDi } from './sfondi.js?v=20261111b';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
@@ -218,7 +218,7 @@ function animate() {
  */
 export async function fotoRealisticaArmadio(opz = {}) {
   if (!scene || !camera || !gruppoArmadio || !gruppoArmadio.children.length) return null;
-  const { fotoRealistica } = await import('./foto-realistica.js?v=20261115u');
+  const { fotoRealistica } = await import('./foto-realistica.js?v=20261115v');
   gruppoArmadio.updateMatrixWorld(true);
   const bb = new THREE.Box3().setFromObject(gruppoArmadio);
   if (bb.isEmpty()) return null;

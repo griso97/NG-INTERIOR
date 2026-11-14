@@ -23,12 +23,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261115u';
-import { renderPianta } from './pianta.js?v=20261115u';
-import { calcolaDistintaCucina } from './distinta.js?v=20261115u';
+} from './modello.js?v=20261115v';
+import { renderPianta } from './pianta.js?v=20261115v';
+import { calcolaDistintaCucina } from './distinta.js?v=20261115v';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261115u';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115u';
+import { agganciaTema } from '../tema.js?v=20261115v';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115v';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1187,7 +1187,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261115u');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261115v');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1716,7 +1716,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115u');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115v');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1821,7 +1821,7 @@ function renderPalette() {
 }
 // catalogo (oggetti creati dalle foto) per la tavolozza
 var matMod = null;      // (var: usabile anche prima di questa riga, mentre si carica)
-import('../materiali.js?v=20261115u').then((m) => {
+import('../materiali.js?v=20261115v').then((m) => {
   matMod = m;
   if (progetto.stepCorrente === 2) renderPalette();
   if (progetto.stepCorrente === 4) renderPannello();

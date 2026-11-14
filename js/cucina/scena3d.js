@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261115u';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115u';
+} from './modello.js?v=20261115v';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115v';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261115u';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115u';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115u';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261115v';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115v';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115v';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115u';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115v';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -462,7 +462,7 @@ export function forzaResize3d() {
  */
 export async function fotoRealistica3d(opz = {}) {
   if (!scene || !camera || !gruppo || !_lastProgetto) return null;
-  const { fotoRealistica } = await import('../foto-realistica.js?v=20261115u');
+  const { fotoRealistica } = await import('../foto-realistica.js?v=20261115v');
   // muri con il loro lato interno (coordinate 3D: x, z = −y della pianta)
   const full = _lastProgetto.piano.pareti || [], vertici = calcolaVertici(full);
   const muri = [];

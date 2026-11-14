@@ -9,8 +9,8 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261115u';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115u';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261115v';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115v';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -330,7 +330,7 @@ export function inquadra(tipo = 'tre4') {
  */
 export async function fotoRealisticaModulari(opz = {}) {
   if (!scene || !camera || !gruppo || !gruppo.children.length) return null;
-  const { fotoRealistica } = await import('../foto-realistica.js?v=20261115u');
+  const { fotoRealistica } = await import('../foto-realistica.js?v=20261115v');
   gruppo.updateMatrixWorld(true);
   const bb = new THREE.Box3().setFromObject(gruppo);
   if (bb.isEmpty()) return null;

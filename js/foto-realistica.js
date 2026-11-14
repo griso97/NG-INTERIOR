@@ -135,10 +135,30 @@ async function texParquet() {
 // e la LUCENTEZZA che cambia tra fibra e poro (roughness map): con la luce
 // radente il pannello si legge come legno, non come una foto stampata.
 // ---------------------------------------------------------------------------
-const _mappe = new Map();
+const _mappe = new Map(), _mappeTex = new Map();
 function mappeDaFoto(tex, forzaRilievo = 1) {
   const img = tex && tex.image;
   if (!img || !(img.width > 16) || !(img.height > 16)) return null;
+  const chiaveTex = tex.uuid + ':' + forzaRilievo;
+  if (_mappeTex.has(chiaveTex)) return _mappeTex.get(chiaveTex);
+  const tele = teleMappe(tex, forzaRilievo);
+  let out = null;
+  if (tele) {
+    const crea = (base) => {
+      const t = base.clone();                    // stessa tela (una sola copia in memoria)
+      t.colorSpace = THREE.NoColorSpace;
+      t.wrapS = tex.wrapS; t.wrapT = tex.wrapT; t.repeat.copy(tex.repeat); t.offset.copy(tex.offset);
+      t.rotation = tex.rotation; t.center.copy(tex.center); t.anisotropy = 4;
+      if (!tex.matrixAutoUpdate) { t.matrixAutoUpdate = false; t.matrix.copy(tex.matrix); } else t.matrixAutoUpdate = true;
+      return t;
+    };
+    out = { normale: crea(tele.normale), ruvido: crea(tele.ruvido) };
+  }
+  _mappeTex.set(chiaveTex, out);
+  return out;
+}
+function teleMappe(tex, forzaRilievo) {
+  const img = tex.image;
   const chiave = tex.source.uuid + ':' + forzaRilievo;
   if (_mappe.has(chiave)) return _mappe.get(chiave);
   const k = Math.min(1, 1024 / Math.max(img.width, img.height));
@@ -175,18 +195,150 @@ function mappeDaFoto(tex, forzaRilievo = 1) {
     rI.data[i * 4] = rI.data[i * 4 + 1] = rI.data[i * 4 + 2] = Math.round(r * 255); rI.data[i * 4 + 3] = 255;
   }
   nC.getContext('2d').putImageData(nI, 0, 0); rC.getContext('2d').putImageData(rI, 0, 0);
-  const crea = (cv) => {
-    const t = new THREE.CanvasTexture(cv);
-    t.colorSpace = THREE.NoColorSpace;
-    t.wrapS = tex.wrapS; t.wrapT = tex.wrapT; t.repeat.copy(tex.repeat); t.offset.copy(tex.offset);
-    t.rotation = tex.rotation; t.center.copy(tex.center); t.anisotropy = 4;
-    return t;
-  };
-  const out = { normale: crea(nC), ruvido: crea(rC) };
+  const out = { normale: new THREE.CanvasTexture(nC), ruvido: new THREE.CanvasTexture(rC) };
   _mappe.set(chiave, out);
   return out;
 }
 const ripetuta = (t) => t && (t.wrapS === THREE.RepeatWrapping || t.wrapS === THREE.MirroredRepeatWrapping);
+
+// ---------------------------------------------------------------------------
+// VENATURA SENZA RIPETIZIONI: le foto dei legni sono piccole (512 px) e il
+// disegno si ripete identico sull'anta e su quelle vicine. Per la foto il
+// legno viene RICOMPOSTO in un pannello 2×2 volte più grande fatto di "fogli"
+// di venatura presi da punti diversi della foto e uniti con giunte morbide,
+// come i pannelli veri. Solo per i legni (venatura con una direzione): pietre,
+// cementi e tinte restano come sono. Stessa scala, stessa risoluzione.
+// ---------------------------------------------------------------------------
+const _sintetiche = new Map();
+const LATO_SINTESI = 1024;
+function direzioneVenatura(img) {
+  const w = 128, h = 128;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  try { g.drawImage(img, 0, 0, w, h); } catch (_) { return null; }
+  const d = g.getImageData(0, 0, w, h).data;
+  const L = (x, y) => { const i = (((y + h) % h) * w + ((x + w) % w)) * 4; return d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114; };
+  let gx = 0, gy = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { gx += Math.abs(L(x + 1, y) - L(x - 1, y)); gy += Math.abs(L(x, y + 1) - L(x, y - 1)); }
+  if (gx > gy * 1.45) return 'verticale';        // le righe della venatura vanno su e giù
+  if (gy > gx * 1.45) return 'orizzontale';
+  return null;                                   // pietra, cemento, tinta: niente fogli
+}
+const _sintTex = new Map();
+function texturaSintetica(tex) {
+  const img = tex && tex.image;
+  if (!img || !(img.width >= 64) || !(img.height >= 64)) return null;
+  if (_sintTex.has(tex.uuid)) return _sintTex.get(tex.uuid);
+  const base = telaSintetica(tex);
+  let t = null;
+  if (base) {
+    // la stessa tela per tutte le texture di quella foto; la scala/rotazione è di ognuna
+    t = base.tex.clone();
+    t.colorSpace = tex.colorSpace; t.wrapS = tex.wrapS; t.wrapT = tex.wrapT;
+    if (tex.matrixAutoUpdate) tex.updateMatrix();
+    t.matrixAutoUpdate = false;
+    t.matrix.copy(tex.matrix).premultiply(new THREE.Matrix3().makeScale(1 / base.kx, 1 / base.ky));
+  }
+  _sintTex.set(tex.uuid, t);
+  return t;
+}
+function telaSintetica(tex) {
+  const img = tex.image;
+  const chiave = tex.source.uuid;
+  if (_sintetiche.has(chiave)) return _sintetiche.get(chiave);
+  let fatto = null;
+  // il pannello deve contenere un numero intero di foto (così si ripete senza giunte)
+  const kx = LATO_SINTESI / img.width, ky = LATO_SINTESI / img.height;
+  const intero = Number.isInteger(kx) && Number.isInteger(ky) && kx >= 2 && ky >= 2;
+  const dir = intero ? direzioneVenatura(img) : null;
+  if (dir) {
+    const S = LATO_SINTESI, ver = dir === 'verticale';
+    // lavoro sempre "a colonne": per la venatura orizzontale ruoto la foto
+    const src = document.createElement('canvas');
+    src.width = ver ? img.width : img.height; src.height = ver ? img.height : img.width;
+    const gs = src.getContext('2d');
+    if (ver) gs.drawImage(img, 0, 0); else { gs.translate(src.width, 0); gs.rotate(Math.PI / 2); gs.drawImage(img, 0, 0); }
+    const sw = src.width, sh0 = src.height, sov = Math.max(10, Math.round(sw * 0.035));   // giunta morbida
+    // 1) foto resa continua in verticale: le ultime righe sfumano nelle prime
+    //    (niente "gradino" di tono dove la foto ricomincia, niente specchi)
+    const ovS = Math.max(16, Math.round(sh0 * 0.12)), sh = sh0 - ovS;
+    const srcV = document.createElement('canvas'); srcV.width = sw; srcV.height = sh;
+    const gv = srcV.getContext('2d');
+    gv.drawImage(src, 0, 0, sw, sh, 0, 0, sw, sh);
+    const banda = document.createElement('canvas'); banda.width = sw; banda.height = ovS;
+    const gb = banda.getContext('2d');
+    gb.drawImage(src, 0, sh, sw, ovS, 0, 0, sw, ovS);
+    gb.globalCompositeOperation = 'destination-in';
+    const grb = gb.createLinearGradient(0, 0, 0, ovS);
+    grb.addColorStop(0, 'rgba(0,0,0,1)'); grb.addColorStop(1, 'rgba(0,0,0,0)');
+    gb.fillStyle = grb; gb.fillRect(0, 0, sw, ovS);
+    gv.drawImage(banda, 0, 0);
+    let seme = (chiave.charCodeAt(0) * 7919 + chiave.charCodeAt(5) * 104729) % 2147483647 || 1;
+    const rnd = () => { seme = (seme * 16807) % 2147483647; return seme / 2147483647; };
+    // 2) fogli verticali presi da punti diversi, su una tela un po' più grande
+    //    (a destra e in basso avanza un pezzo che poi sfuma sull'inizio)
+    const ovV = Math.max(16, Math.round(S * 0.04)), HT = S + ovV;
+    const comp = document.createElement('canvas'); comp.width = S + sov; comp.height = HT;
+    const gc = comp.getContext('2d');
+    const col = document.createElement('canvas'); col.height = HT;
+    let x = 0;
+    while (x < S) {
+      const cw = Math.round(sw * (0.18 + rnd() * 0.24));          // foglio largo 18–42% della foto
+      const w = Math.min(cw + sov, S + sov - x);
+      col.width = w;
+      const g = col.getContext('2d');
+      const sx = Math.floor(rnd() * sw), sy = Math.floor(rnd() * sh);
+      for (let yy = -sy; yy < HT; yy += sh) {
+        g.drawImage(srcV, sx, 0, Math.min(w, sw - sx), sh, 0, yy, Math.min(w, sw - sx), sh);
+        if (sw - sx < w) g.drawImage(srcV, 0, 0, w - (sw - sx), sh, sw - sx, yy, w - (sw - sx), sh);
+      }
+      // ogni foglio con un tono appena diverso (come i fogli veri)
+      const t = (rnd() - 0.5) * 0.06;
+      g.fillStyle = t < 0 ? `rgba(0,0,0,${-t})` : `rgba(255,255,255,${t})`;
+      g.fillRect(0, 0, w, HT);
+      // giunta morbida a sinistra (tranne il primo foglio): UNA sola maschera
+      // (destination-in cancella tutto ciò che sta fuori dal disegno)
+      if (x > 0) {
+        g.globalCompositeOperation = 'destination-in';
+        const gr = g.createLinearGradient(0, 0, w, 0);
+        gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(Math.min(1, sov / w), 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,1)');
+        g.fillStyle = gr; g.fillRect(0, 0, w, HT);
+      }
+      gc.drawImage(col, x === 0 ? 0 : x - sov, 0);
+      x += cw;
+    }
+    // 3) ripetibile: il pezzo in più a destra sfuma sull'inizio, poi quello in basso
+    const piega = (sorg, larg, alt, oriz) => {
+      const out = document.createElement('canvas');
+      out.width = oriz ? larg : sorg.width; out.height = oriz ? sorg.height : alt;
+      const go = out.getContext('2d');
+      go.drawImage(sorg, 0, 0);
+      const n = oriz ? sorg.width - larg : sorg.height - alt;
+      const coda = document.createElement('canvas'); coda.width = oriz ? n : out.width; coda.height = oriz ? out.height : n;
+      const gq = coda.getContext('2d');
+      if (oriz) gq.drawImage(sorg, larg, 0, n, out.height, 0, 0, n, out.height);
+      else gq.drawImage(sorg, 0, alt, out.width, n, 0, 0, out.width, n);
+      gq.globalCompositeOperation = 'destination-in';
+      const gr = oriz ? gq.createLinearGradient(0, 0, n, 0) : gq.createLinearGradient(0, 0, 0, n);
+      gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      gq.fillStyle = gr; gq.fillRect(0, 0, coda.width, coda.height);
+      go.drawImage(coda, 0, 0);
+      return out;
+    };
+    const fin = piega(piega(comp, S, HT, true), S, S, false);
+    // venatura orizzontale: rimetto il pannello nel verso giusto
+    let out = fin;
+    if (!ver) {
+      out = document.createElement('canvas'); out.width = S; out.height = S;
+      const go = out.getContext('2d'); go.translate(0, S); go.rotate(-Math.PI / 2); go.drawImage(fin, 0, 0);
+    }
+    const t = new THREE.CanvasTexture(out);
+    t.colorSpace = tex.colorSpace; t.wrapS = tex.wrapS; t.wrapT = tex.wrapT; t.anisotropy = 8;
+    fatto = { tex: t, kx, ky };                    // il pannello nuovo copre kx × ky foto
+  }
+  _sintetiche.set(chiave, fatto);
+  return fatto;
+}
 const luminanza = (c) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
 
 /** Il materiale da usare nella foto al posto di m (null = va bene com'è). */
@@ -224,9 +376,16 @@ function materialeFoto(m) {
   const copia = () => { if (!nuovo) { nuovo = m.clone(); nuovo.userData = { ...m.userData }; } return nuovo; };
   // niente bagliori (evidenziazione del mobile selezionato)
   if (m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > 0.001 && m.emissiveIntensity > 0) copia().emissive = new THREE.Color(0, 0, 0);
+  // METALLI (maniglie, acciaio, cromo, inox spazzolato): nella foto metallo pieno
+  if (m.metalness >= 0.55 && m.metalness < 1) copia().metalness = 1;
+  // TINTE OPACHE: anche l'opaco vero ha un velo di riflesso radente (non è gesso)
+  if (!m.map && !m.transparent && m.metalness < 0.3 && m.roughness >= 0.85) copia().roughness = 0.62;
   // LEGNI e pietre (texture ripetute): rilievo + lucentezza dalla foto
   if (ripetuta(m.map) && m.metalness <= 0.5 && !m.transparent) {
-    const mp = mappeDaFoto(m.map);
+    // legni senza misura del campione: venatura ricomposta senza ripetizioni
+    const sint = !ud.campioneMm ? texturaSintetica(m.map) : null;
+    if (sint) copia().map = sint;
+    const mp = mappeDaFoto(sint || m.map);
     if (mp) {
       const n = copia();
       const rilievo = ud.fotoTop ? 0.08 : 0.35;                     // la pietra levigata quasi non ha rilievo
@@ -238,6 +397,164 @@ function materialeFoto(m) {
     }
   }
   return nuovo;
+}
+
+// ---------------------------------------------------------------------------
+// SPIGOLI VERI: nella realtà nessun pannello ha lo spigolo "a coltello": il
+// bordo è raggiato (≈1,5 mm) e prende la luce, una linea chiara sottile che
+// fa capire subito che è un oggetto vero. Ogni scatola (BoxGeometry) della
+// scena diventa per la foto una scatola con gli spigoli arrotondati, con le
+// STESSE coordinate di texture su ogni faccia (venatura e foto al loro posto).
+// ---------------------------------------------------------------------------
+/** Per ogni faccia della scatola: come si passa dalla posizione alle UV (affine). */
+function mappeUVFacce(geo) {
+  const pos = geo.attributes.position, uv = geo.attributes.uv, nor = geo.attributes.normal, idx = geo.index;
+  if (!uv || !nor) return null;
+  const mappe = [];
+  for (const gr of geo.groups) {
+    const vs = new Set();
+    for (let k = gr.start; k < gr.start + gr.count; k++) vs.add(idx ? idx.getX(k) : k);
+    const lista = [...vs];
+    if (lista.length < 3) return null;
+    const v0 = lista[0];
+    const n = [Math.abs(nor.getX(v0)), Math.abs(nor.getY(v0)), Math.abs(nor.getZ(v0))];
+    const asse = n[0] >= n[1] && n[0] >= n[2] ? 0 : n[1] >= n[2] ? 1 : 2;
+    const i1 = asse === 0 ? 2 : 0, i2 = asse === 1 ? 2 : 1;
+    // minimi quadrati: [c1 c2 1] · coeff = u (e v)
+    let s11 = 0, s12 = 0, s1 = 0, s22 = 0, s2 = 0, sn = 0, su1 = 0, su2 = 0, su = 0, sv1 = 0, sv2 = 0, sv = 0;
+    for (const i of lista) {
+      const c = [pos.getX(i), pos.getY(i), pos.getZ(i)], a = c[i1], b = c[i2], U = uv.getX(i), V = uv.getY(i);
+      s11 += a * a; s12 += a * b; s1 += a; s22 += b * b; s2 += b; sn += 1;
+      su1 += a * U; su2 += b * U; su += U; sv1 += a * V; sv2 += b * V; sv += V;
+    }
+    const M = new THREE.Matrix3().set(s11, s12, s1, s12, s22, s2, s1, s2, sn);
+    if (Math.abs(M.determinant()) < 1e-9) return null;
+    M.invert();
+    const cu = new THREE.Vector3(su1, su2, su).applyMatrix3(M), cv = new THREE.Vector3(sv1, sv2, sv).applyMatrix3(M);
+    mappe[gr.materialIndex] = { i1, i2, cu, cv };
+  }
+  return mappe.length === 6 ? mappe : null;
+}
+/** Scatola w×h×d con spigoli di raggio r, gruppi (facce) e UV come l'originale. */
+function scatolaArrotondata(geo, r) {
+  const { width: w, height: h, depth: d } = geo.parameters;
+  const mappe = mappeUVFacce(geo);
+  if (!mappe) return null;
+  const s = 5;                                   // 2 segmenti per curva + la parte piana
+  const g = new THREE.BoxGeometry(1, 1, 1, s, s, s).toNonIndexed();
+  const pos = g.attributes.position, nor = g.attributes.normal, uv = g.attributes.uv;
+  const hx = w / 2 - r, hy = h / 2 - r, hz = d / 2 - r, hs = 0.5 / s;
+  const n = new THREE.Vector3();
+  for (const gr of g.groups) {
+    const m = mappe[gr.materialIndex];
+    for (let i = gr.start; i < gr.start + gr.count; i++) {
+      const px = pos.getX(i), py = pos.getY(i), pz = pos.getZ(i);
+      n.set(px - Math.sign(px) * hs, py - Math.sign(py) * hs, pz - Math.sign(pz) * hs).normalize();
+      const c = [hx * Math.sign(px) + n.x * r, hy * Math.sign(py) + n.y * r, hz * Math.sign(pz) + n.z * r];
+      pos.setXYZ(i, c[0], c[1], c[2]);
+      nor.setXYZ(i, n.x, n.y, n.z);
+      const a = c[m.i1], b = c[m.i2];
+      uv.setXY(i, m.cu.x * a + m.cu.y * b + m.cu.z, m.cv.x * a + m.cv.y * b + m.cv.z);
+    }
+  }
+  g.computeBoundingBox(); g.computeBoundingSphere();
+  return g;
+}
+/** Trasformazione affine (4×4) che porta i punti A nei punti B (minimi quadrati). */
+function affineDaPunti(A, B) {
+  const N = new THREE.Matrix4().set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  const e = N.elements;                            // colonna per colonna (simmetrica)
+  const bx = [0, 0, 0, 0], by = [0, 0, 0, 0], bz = [0, 0, 0, 0];
+  const passo = Math.max(1, Math.floor(A.count / 400));
+  for (let i = 0; i < A.count; i += passo) {
+    const a = [A.getX(i), A.getY(i), A.getZ(i), 1];
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) e[c * 4 + r] += a[r] * a[c];
+      bx[r] += a[r] * B.getX(i); by[r] += a[r] * B.getY(i); bz[r] += a[r] * B.getZ(i);
+    }
+  }
+  if (Math.abs(N.determinant()) < 1e-6) return null;
+  const inv = N.clone().invert(), ie = inv.elements;
+  const sol = (b) => [0, 1, 2, 3].map((r) => ie[0 * 4 + r] * b[0] + ie[1 * 4 + r] * b[1] + ie[2 * 4 + r] * b[2] + ie[3 * 4 + r] * b[3]);
+  const X = sol(bx), Y = sol(by), Z = sol(bz);
+  return new THREE.Matrix4().set(X[0], X[1], X[2], X[3], Y[0], Y[1], Y[2], Y[3], Z[0], Z[1], Z[2], Z[3], 0, 0, 0, 1);
+}
+/** UV della nuova geometria presi dalla faccia della vecchia più vicina e con la stessa direzione. */
+function trasferisciUV(vecchia, nuova) {
+  const P = vecchia.attributes.position, U = vecchia.attributes.uv, I = vecchia.index;
+  const nT = I ? I.count / 3 : P.count / 3;
+  const tris = [];
+  const v = (k) => (I ? I.getX(k) : k);
+  for (let t = 0; t < nT; t++) {
+    const i0 = v(t * 3), i1 = v(t * 3 + 1), i2 = v(t * 3 + 2);
+    const tri = new THREE.Triangle(new THREE.Vector3().fromBufferAttribute(P, i0), new THREE.Vector3().fromBufferAttribute(P, i1), new THREE.Vector3().fromBufferAttribute(P, i2));
+    if (tri.getArea() < 1e-6) continue;
+    tris.push({ tri, n: tri.getNormal(new THREE.Vector3()), uv: [new THREE.Vector2().fromBufferAttribute(U, i0), new THREE.Vector2().fromBufferAttribute(U, i1), new THREE.Vector2().fromBufferAttribute(U, i2)] });
+  }
+  const NP = nuova.attributes.position, NN = nuova.attributes.normal, NU = nuova.attributes.uv;
+  const p = new THREE.Vector3(), n = new THREE.Vector3(), c = new THREE.Vector3(), best = new THREE.Vector3(), out = new THREE.Vector2();
+  for (let i = 0; i < NP.count; i++) {
+    p.fromBufferAttribute(NP, i); n.fromBufferAttribute(NN, i);
+    let migliore = null, dMin = Infinity;
+    for (const t of tris) {
+      if (t.n.dot(n) < 0.3) continue;
+      t.tri.closestPointToPoint(p, c);
+      const d = c.distanceToSquared(p) - t.n.dot(n) * 1e-6;
+      if (d < dMin) { dMin = d; migliore = t; best.copy(c); }
+    }
+    if (!migliore) continue;
+    THREE.Triangle.getInterpolation(best, migliore.tri.a, migliore.tri.b, migliore.tri.c, migliore.uv[0], migliore.uv[1], migliore.uv[2], out);
+    NU.setXY(i, out.x, out.y);
+  }
+  NU.needsUpdate = true;
+}
+/** Lastra estrusa (piano con i fori del lavello, pezzi sagomati) con il bordo raggiato. */
+function estrusioneArrotondata(geo, r) {
+  const prm = geo.parameters || {}, opt = prm.options || {};
+  if (opt.bevelEnabled || !prm.shapes || !geo.attributes.uv) return null;
+  const depth = opt.depth !== undefined ? opt.depth : 1;
+  if (!(depth >= 3 * r)) return null;
+  // la stessa estrusione senza bordo, per capire come era stata girata e spostata
+  const pulita = new THREE.ExtrudeGeometry(prm.shapes, { ...opt, bevelEnabled: false });
+  const ok = pulita.attributes.position.count === geo.attributes.position.count;
+  const M = ok ? affineDaPunti(pulita.attributes.position, geo.attributes.position) : null;
+  pulita.dispose();
+  if (!M) return null;
+  const nuova = new THREE.ExtrudeGeometry(prm.shapes, { ...opt, depth: depth - 2 * r, bevelEnabled: true, bevelThickness: r, bevelSize: r, bevelOffset: -r, bevelSegments: 2 });
+  nuova.translate(0, 0, r);                        // stessa altezza di prima: da 0 a depth
+  nuova.applyMatrix4(M);
+  trasferisciUV(geo, nuova);
+  nuova.computeBoundingBox(); nuova.computeBoundingSphere();
+  return nuova;
+}
+function arrotondaSpigoli(radice, ripristina) {
+  const fatte = new Map();                       // la stessa geometria condivisa si arrotonda una volta
+  const nuove = [];
+  radice.updateMatrixWorld(true);
+  const scalaRadice = radice.getWorldScale(new THREE.Vector3());
+  radice.traverse((o) => {
+    if (!o.isMesh || !o.visible || (o.userData || {}).ledStriscia) return;
+    const geo = o.geometry;
+    const box = geo && geo.type === 'BoxGeometry' && geo.parameters;
+    const estr = geo && geo.type === 'ExtrudeGeometry' && geo.parameters;
+    if (!box && !estr) return;
+    // solo pezzi non deformati (scala 1 rispetto alla scena): il raggio è in mm veri
+    const sc = o.getWorldScale(new THREE.Vector3()).divide(scalaRadice);
+    if (Math.abs(Math.abs(sc.x) - 1) > 0.01 || Math.abs(Math.abs(sc.y) - 1) > 0.01 || Math.abs(Math.abs(sc.z) - 1) > 0.01) return;
+    const minimo = box ? Math.min(geo.parameters.width, geo.parameters.height, geo.parameters.depth)
+      : ((geo.parameters.options || {}).depth ?? 1);
+    if (!(minimo >= 3)) return;                  // pezzi troppo sottili (< 3 mm)
+    const r = Math.min(box ? 1.6 : 2, minimo * 0.3);
+    let g2 = fatte.get(geo);
+    if (g2 === undefined) {
+      try { g2 = box ? scatolaArrotondata(geo, r) : estrusioneArrotondata(geo, r); } catch (e) { g2 = null; }
+      fatte.set(geo, g2); if (g2) nuove.push(g2);
+    }
+    if (!g2) return;
+    o.geometry = g2;
+    ripristina.push(() => { o.geometry = geo; });
+  });
+  ripristina.push(() => { for (const g of nuove) g.dispose(); });
 }
 
 /**
@@ -291,7 +608,7 @@ function normaleInterna(m) {
  * rettangolo allineato al muro più lungo che contiene muri, mobili e
  * fotografo. Niente se la pianta ha muri storti o non ne ha.
  */
-function stanzaChiusa(muri, box, camPos, fH) {
+function stanzaChiusa(muri, box, camPos, fH, chiudiDietro = false) {
   let u, n, o;
   const isola = !muri.length;                        // nessun muro (isola): stanza attorno, 1,5 m di passaggio
   if (!isola) {
@@ -322,7 +639,7 @@ function stanzaChiusa(muri, box, camPos, fH) {
   const out = [];
   for (const l of lati) {
     // alle spalle del fotografo: resta aperto (luce del resto della casa)
-    if (l.inn.x * fH.x + l.inn.z * fH.z > 0.5) continue;
+    if (!chiudiDietro && l.inn.x * fH.x + l.inn.z * fH.z > 0.5) continue;
     // già coperto da un muro della pianta (stessa linea, quasi tutta la lunghezza)?
     const lu = { x: l.b.x - l.a.x, z: l.b.z - l.a.z }, LL = Math.hypot(lu.x, lu.z) || 1;
     let coperto = 0;
@@ -683,19 +1000,21 @@ function filtroGuidato(renderer, texColore, aux, W, H) {
       float lum(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
       void main() {
         vec3 c0 = texture2D(tIrr, vUv).rgb; vec3 n0 = texture2D(tNor, vUv).rgb * 2.0 - 1.0;
+        float ln0 = length(n0); n0 = ln0 > 0.01 ? n0 / ln0 : vec3(0.0);   // sugli spigoli la normale media è più corta
         float l0 = log(lum(c0) + 1e-3);
         vec3 somma = vec3(0.0); float pesi = 0.0;
         for (int y = -2; y <= 2; y++) for (int x = -2; x <= 2; x++) {
           vec2 uv = vUv + vec2(float(x), float(y)) * passo * px;
           vec3 c = texture2D(tIrr, uv).rgb; vec3 n = texture2D(tNor, uv).rgb * 2.0 - 1.0;
+          float ln = length(n); n = ln > 0.01 ? n / ln : vec3(0.0);
           float kx = x == 0 ? 0.375 : (abs(x) == 1 ? 0.25 : 0.0625), ky = y == 0 ? 0.375 : (abs(y) == 1 ? 0.25 : 0.0625);
           float d = log(lum(c) + 1e-3) - l0;
           // sfondo (normale nulla) solo con sfondo; superfici solo con superfici simili
-          float wn = dot(n0, n0) < 0.25 ? (dot(n, n) < 0.25 ? 1.0 : 0.0) : pow(max(0.0, dot(n, n0)), 32.0);
+          float wn = ln0 < 0.5 ? (ln < 0.5 ? 1.0 : 0.0) : (ln < 0.5 ? 0.0 : pow(max(0.0, dot(n, n0)), 32.0));
           float w = kx * ky * exp(-d * d / (2.0 * sigma * sigma)) * wn;
           somma += c * w; pesi += w;
         }
-        gl_FragColor = vec4(somma / max(pesi, 1e-6), 1.0);
+        gl_FragColor = vec4(pesi > 1e-5 ? somma / pesi : c0, 1.0);
       }` });
   const remod = new THREE.ShaderMaterial({ ...base, uniforms: { tIrr: { value: null }, tAlb: { value: tAlb } },
     fragmentShader: `uniform sampler2D tIrr, tAlb; varying vec2 vUv;
@@ -805,6 +1124,7 @@ export async function fotoRealistica(opz) {
   // Il path tracer (0.0.23) sbaglia i materiali delle mesh con PIÙ MATERIALI
   // (es. il vetro del piano cottura) e poi sfasa anche tutti gli altri: per la
   // foto ogni mesh così diventa una mesh per materiale (stessa forma, stessi dati).
+  arrotondaSpigoli(radice, ripristina);
   const multiple = [];
   radice.traverse((o) => { if (o.isMesh && Array.isArray(o.material)) multiple.push(o); });
   for (const o of multiple) dividiPerMateriale(o, ripristina);
@@ -857,7 +1177,7 @@ export async function fotoRealistica(opz) {
   // mostrerebbe il pavimento che finisce nel vuoto. Chiudo la stanza con muri
   // veri (rettangolo che contiene muri, mobili e fotografo), tranne quello alle
   // spalle del fotografo, da cui entra la luce del resto della casa.
-  for (const v of stanzaChiusa(muri, box, cam.position, fH)) aggiungiMuro(v, true);
+  for (const v of stanzaChiusa(muri, box, cam.position, fH, !!opz.chiudiDietro)) aggiungiMuro(v, true);
   const dentro = cam.position.y < hStanza - 0.05;
   const cx = (box.min.x + box.max.x) / 2, cz = (box.min.z + box.max.z) / 2;
   const lato = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) + 2 * Math.hypot(cam.position.x - cx, cam.position.z - cz) + 6;
@@ -882,8 +1202,8 @@ export async function fotoRealistica(opz) {
   // --- LUCE -------------------------------------------------------------------
   // cielo / ambiente: la luce morbida che arriva dal resto della casa
   const cielo = new GradientEquirectTexture();
-  cielo.topColor.set(0xfbfbff).multiplyScalar(opz.ambiente ?? 0.3);
-  cielo.bottomColor.set(0x8d877e).multiplyScalar((opz.ambiente ?? 0.3) * 0.45);
+  cielo.topColor.set(0xfbfbff).multiplyScalar(opz.ambiente ?? 0.22);
+  cielo.bottomColor.set(0x8d877e).multiplyScalar((opz.ambiente ?? 0.22) * 0.45);
   cielo.exponent = 1.4;
   cielo.update();
   scena.environment = cielo;
@@ -932,7 +1252,7 @@ export async function fotoRealistica(opz) {
     const p = cam.position.clone().addScaledVector(fH, -0.6); p.y = Math.min(hStanza - 0.2, cam.position.y + 0.6);
     finestra = { pos: p, n: C.clone().setY(1).sub(p).normalize(), w: 1.5, nelMuro: false };
   }
-  const luceFin = new THREE.RectAreaLight(0xfffdf9, opz.finestra ?? 26, finestra.w, finH);
+  const luceFin = new THREE.RectAreaLight(0xfffdf9, opz.finestra ?? 30, finestra.w, finH);
   luceFin.position.copy(finestra.pos);
   luceFin.lookAt(finestra.pos.clone().add(finestra.n));
   scena.add(luceFin);
