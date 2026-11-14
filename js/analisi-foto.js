@@ -558,7 +558,7 @@ export function analizzaPorta(img, tipo = 'fp') {
   if (fSx) x0 = fSx.a + 1; if (fDx) x1 = W - 1 - fDx.a;
   // margine minimo (solo per non prendere il filo del bordo): il materiale
   // deve coprire TUTTA la porta, non un riquadro al centro
-  const m = 0.012;
+  const m = 0.012, mx = fSx || fDx ? 0.012 : 0.025;
   const uv = (x, y) => [x / W, y / H];
   const zona = (ax, ay, bx, by) => { const f = daUnita(quad); return [f(...uv(ax, ay)), f(...uv(bx, ay)), f(...uv(bx, by)), f(...uv(ax, by))]; };
   const pw = x1 - x0, ph = y1 - y0;
@@ -569,7 +569,7 @@ export function analizzaPorta(img, tipo = 'fp') {
   const golaSx = gola && gola.lato === 'lato' && gola.sx, golaDx = gola && gola.lato === 'lato' && !gola.sx;
   const spX = (fSx && !golaSx ? x0 : 0) + (fDx && !golaDx ? W - x1 : 0);
   const spY = (fAlto && !golaSu ? y0 : 0) + (fBasso && !golaGiu ? H - y1 : 0);
-  const out = { oggetto: quad, porta: zona(x0 + pw * m, y0 + ph * m, x1 - pw * m, y1 - ph * m),
+  const out = { oggetto: quad, porta: zona(x0 + pw * mx, y0 + ph * m, x1 - pw * mx, y1 - ph * m),
     portaFrazione: { w: Math.min(1, pw / Math.max(1, W - spX)), h: Math.min(1, ph / Math.max(1, H - spY)) } };
   if (tipo !== 'fp') { out.main = out.porta; delete out.porta; out.messaggio = qs ? 'Campione trovato e raddrizzato.' : 'Campione trovato.'; return out; }
   // colore della gola: solo i pixel della fascia davvero diversi dalla porta
@@ -641,10 +641,22 @@ export function pulisciRiflessi(src, opz = {}) {
     // sfocato, così le venature chiare del legno non vengono scambiate per riflessi
     const rB = Math.max(2, Math.round(Math.min(W, H) / 90));
     const minB = boxBlur(minC, W, H, rB);
-    const rif = perc(minB, 0.35);                         // canale basso del materiale senza riflessi
-    const den = Math.max(20, 255 - rif);
+    // il materiale ha le sue zone chiare e scure (venature, doghe): è riflesso solo
+    // ciò che si stacca DAVVERO dal suo tono normale (mediana + 2,5 deviazioni),
+    // così una foto senza riflessi resta identica (colori veri, niente scurito)
+    const m50 = perc(minB, 0.5), dev = new Float32Array(N);
+    for (let i = 0; i < N; i++) dev[i] = Math.abs(minB[i] - m50);
+    const rif = m50 + Math.max(10, 2.5 * perc(dev, 0.5) * 1.4826);
+    const den = Math.max(20, 255 - m50);
+    // un riflesso AGGIUNGE luce: è anche più chiaro del materiale (canale alto);
+    // una fascia grigia più scura (gola di alluminio, bordo) non è un riflesso
+    const maxF = new Float32Array(N); for (let i = 0; i < N; i++) maxF[i] = maxOrig[i];
+    const maxB = boxBlur(maxF, W, H, rB), M50 = perc(maxB, 0.5);
+    for (let i = 0; i < N; i++) dev[i] = Math.abs(maxB[i] - M50);
+    const sogliaMax = M50 + Math.max(6, 1.5 * perc(dev, 0.5) * 1.4826);
     const alfa = alfaRif;
     for (let i = 0; i < N; i++) {
+      if (maxB[i] < sogliaMax) continue;
       let al = (Math.max(minB[i], Math.min(minC[i], minB[i] + 40)) - rif) / den;
       if (al <= 0.03) continue;
       al = Math.min(0.9, al); alfa[i] = al;
@@ -695,7 +707,10 @@ export function pulisciRiflessi(src, opz = {}) {
   if (opz.luce !== false) {
   const lum = new Float32Array(N);
   for (let i = 0; i < N; i++) lum[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
-  const BX = Math.max(4, Math.min(16, Math.round(W / 40))), BY = Math.max(4, Math.min(24, Math.round(H / 40)));
+  // solo la luce su GRANDE scala (la porta più chiara in alto che in basso…):
+  // le doghe più chiare o più scure sono il legno vero e restano
+  const BX = W >= H ? Math.max(3, Math.min(6, Math.round(3 * W / H))) : 3;
+  const BY = H > W ? Math.max(3, Math.min(6, Math.round(3 * H / W))) : 3;
   const blocchi = new Float32Array(BX * BY);
   for (let by = 0; by < BY; by++) for (let bx = 0; bx < BX; bx++) {
     const v = [];
@@ -713,7 +728,7 @@ export function pulisciRiflessi(src, opz = {}) {
     return (v(ix, iy) * (1 - tx) + v(ix + 1, iy) * tx) * (1 - ty) + (v(ix, iy + 1) * (1 - tx) + v(ix + 1, iy + 1) * tx) * ty;
   };
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const i = y * W + x, k = Math.min(2.5, Math.max(0.4, ref / Math.max(1, luce(x, y))));
+    const i = y * W + x, k = Math.min(1.6, Math.max(0.6, ref / Math.max(1, luce(x, y))));
     for (let q = 0; q < 3; q++) d[i * 4 + q] = Math.min(255, d[i * 4 + q] * k);
   }
   }
@@ -920,4 +935,51 @@ export function analizzaSuperficie(raddrizzata) {
   const grana = (gx + gy) / 2 / Math.max(1, n), aniso = Math.max(gx, gy) / Math.max(1e-6, Math.min(gx, gy));
   const tintaUnita = aniso < 1.18 || grana < 0.8;
   return { lucido, tintaUnita, colore: P.colore, ral: ralVicini(P.colore, 6), pulita: P.canvas };
+}
+
+// =============================================================================
+// AGGIORNAMENTO AUTOMATICO dei prodotti già salvati: quando il trattamento
+// della foto migliora (VERSIONE_FOTO), la texture si rifà da sola dalla foto
+// originale salvata, con la stessa zona scelta. Una volta sola per prodotto.
+// v2: colori veri (i riflessi tolti solo dove ci sono davvero, la luce spianata
+//     solo su grande scala) e i fianchi della porta fuori dal legno.
+// =============================================================================
+export const VERSIONE_FOTO = 2;
+function stringiLati(q, f) {
+  // quad [tl, tr, br, bl]: ogni lato orizzontale accorciato di f per parte
+  const L = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  return [L(q[0], q[1], f), L(q[0], q[1], 1 - f), L(q[3], q[2], 1 - f), L(q[3], q[2], f)];
+}
+/**
+ * p: prodotto del catalogo; leggi(id, tipo) → Blob; salva(id, blob, tipo).
+ * Ritorna true se la foto è stata rifatta (p viene aggiornato: colore, versioneFoto).
+ */
+export async function aggiornaFotoProdotto(p, leggi, salva) {
+  if ((p.versioneFoto || 1) >= VERSIONE_FOTO) return false;
+  const zona = p.analisi && (p.sezione === 'fingerpull' ? p.analisi.porta : p.analisi.main);
+  const cm = p.campioneCm;
+  if (!zona || zona.length !== 4 || !cm || !(cm.w > 0) || !(cm.h > 0) || (p.tinta && p.tinta.colore != null)) { p.versioneFoto = VERSIONE_FOTO; return false; }
+  const orig = await leggi(p.id, 'orig');
+  if (!orig) { p.versioneFoto = VERSIONE_FOTO; return false; }
+  const url = URL.createObjectURL(orig);
+  try {
+    const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
+    const asp = cm.w / cm.h;
+    const OW = asp >= 1 ? 1600 : Math.max(64, Math.round(1600 * asp));
+    const OH = asp >= 1 ? Math.max(64, Math.round(1600 / asp)) : 1600;
+    const c = pulisciRiflessi(raddrizza(img, stringiLati(zona, 0.013), OW, OH, 0)).canvas;
+    const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.92));
+    if (!blob) return false;
+    await salva(p.id, blob, 'foto');
+    // miniatura: il centro della porta (+ la gola in alto, nel suo colore)
+    const t = document.createElement('canvas'); t.width = t.height = 192;
+    const g = t.getContext('2d'), lato = Math.min(c.width, c.height);
+    g.drawImage(c, (c.width - lato) / 2, (c.height - lato) / 2, lato, lato, 0, 0, 192, 192);
+    if (p.sezione === 'fingerpull' && p.coloreGola != null && !p.uguale) { g.fillStyle = `#${p.coloreGola.toString(16).padStart(6, '0')}`; g.fillRect(0, 0, 192, 28); }
+    const th = await new Promise((ok) => t.toBlob(ok, 'image/jpeg', 0.9));
+    if (th) await salva(p.id, th, 'thumb');
+    p.colore = coloreMedio(c);
+    p.versioneFoto = VERSIONE_FOTO;
+    return true;
+  } finally { URL.revokeObjectURL(url); }
 }

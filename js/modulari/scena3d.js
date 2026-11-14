@@ -9,8 +9,9 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261116a';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116a';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261116b';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116b';
+import { creaResa, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116b';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -78,7 +79,7 @@ export function monta(canvas) {
   taraLuceCatalogo(renderer, scene, [[0, 0, 1]]); // ante di fronte · prodotti del catalogo: colori identici alla foto
 
   const pav = new THREE.Mesh(new THREE.PlaneGeometry(30000, 30000),
-    new THREE.MeshStandardMaterial({ color: 0xd2cbbf, roughness: 0.95 }));
+    pavimentoVero('chiaro', 0xd2cbbf, 30000, 30000, () => { if (resa) resa.cambiato(); }));
   pav.rotation.x = -Math.PI / 2; pav.position.y = -1; pav.receiveShadow = true;
   scene.add(pav);
 
@@ -89,11 +90,12 @@ export function monta(canvas) {
   gruppo = new THREE.Group();
   scene.add(gruppo);
   window.addEventListener('resize', ridimensiona);
+  resa = creaResa({ renderer, scene, camera, raggio: 260, intensita: 0.9 });
   ciclo();
-  preparaVistaReale();
 }
 
-let pausa3d = false;                // ferma la vista 3D (mentre si calcola la foto realistica)
+let pausa3d = false;
+let resa = null;
 function ciclo() {
   requestAnimationFrame(ciclo);
   if (!attiva || !renderer || pausa3d) return;
@@ -103,34 +105,9 @@ function ciclo() {
     const d = target - c.g.rotation.y;
     if (Math.abs(d) > 0.001) { c.g.rotation.y += d * 0.16; anteInMoto = true; } else c.g.rotation.y = target;
   }
-  if (anteInMoto && vistaReale) vistaReale.invalida();
   controls.update();
-  // vista ferma → la vista realistica si sviluppa da sola (e disegna lei)
-  if (vistaReale && vistaReale.tick(anteInMoto)) return;
-  renderer.render(scene, camera);
-}
-
-// VISTA REALISTICA dal vivo (foto-realistica.js): si carica dopo la vista 3D
-let vistaReale = null, vistaRealeInCarica = false;
-function preparaVistaReale() {
-  if (vistaReale || vistaRealeInCarica || !renderer) return;
-  vistaRealeInCarica = true;
-  import('../foto-realistica.js?v=20261116a').then((m) => {
-    if (!renderer || vistaReale) return;
-    vistaReale = m.creaVistaRealistica({ renderer, camera, controls, contenitore: canvasEl && canvasEl.parentElement, dati: datiFoto });
-  }).catch((e) => console.warn('Vista realistica non caricata:', e))
-    .finally(() => { vistaRealeInCarica = false; });
-}
-/** I dati per la foto/vista realistica: il vano con il suo muro di fondo. */
-function datiFoto() {
-  if (!scene || !camera || !gruppo || !gruppo.children.length) return null;
-  gruppo.updateMatrixWorld(true);
-  const bb = new THREE.Box3().setFromObject(gruppo);
-  if (bb.isEmpty()) return null;
-  // muro di fondo (z = 0) largo: la stanza attorno la chiude la foto
-  const x0 = bb.min.x - 1800, x1 = bb.max.x + 1800, zM = bb.min.z;   // dietro il fondo del vano
-  const muri = [{ a: { x: x0, z: zM }, b: { x: x1, z: zM }, interno: { x: (x0 + x1) / 2, z: zM + 600 } }];
-  return { radice: gruppo, camera, muri, hStanza: 2700 };
+  // disegna solo quando serve; mentre le ante si muovono disegna leggero
+  if (resa) resa.tick(anteInMoto); else renderer.render(scene, camera);
 }
 export function attivaRendering(si) { attiva = si; if (si) ridimensiona(); }
 
@@ -138,8 +115,8 @@ function ridimensiona() {
   if (!renderer || !canvasEl) return;
   const w = canvasEl.clientWidth, h = canvasEl.clientHeight;
   if (!w || !h) return;
-  renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.updateProjectionMatrix();
+  if (resa) { resa.dimensiona(); resa.cambiato(); } else renderer.setSize(w, h, false);
 }
 
 // ---------------------------------------------------------------------------
@@ -296,16 +273,17 @@ function vano(forma, P, conGradini) {
  */
 export function aggiorna(forma, elementi, opz) {
   if (!gruppo) return;
-  if (vistaReale) vistaReale.invalida();     // la scena cambia: la vista realistica si rifà alla prossima pausa
+  if (resa) resa.cambiato();
   while (gruppo.children.length) {
     const c = gruppo.children.pop();
     c.traverse((o) => o.geometry?.dispose());
   }
   cardini = [];
   // texture arrivata: la vista veloce si aggiorna, quella realistica si rifà
-  const ridisegna = () => { if (vistaReale) vistaReale.invalida(); if (renderer && attiva) renderer.render(scene, camera); };
-  // Texture a specchio (vale per questa pagina: la cache materiali è sua)
-  const specchia = (m) => { if (m && m.map && m.map.wrapS !== THREE.MirroredRepeatWrapping) {
+  const ridisegna = () => { if (resa) resa.cambiato(); };
+  // Texture a specchio (vale per questa pagina: la cache materiali è sua);
+  // il legno continuo dei prodotti del catalogo si ripete già senza giunte
+  const specchia = (m) => { if (m && m.map && !m.userData.continuo && m.map.wrapS !== THREE.MirroredRepeatWrapping) {
     m.map.wrapS = m.map.wrapT = THREE.MirroredRepeatWrapping; m.map.needsUpdate = true; } };
   // Materiali per id (ogni modulo può avere la sua finitura: e.mat = {struttura, ante})
   const usati = new Map();
@@ -325,6 +303,8 @@ export function aggiorna(forma, elementi, opz) {
     chiusura(opz.chiusura, opz.P, opz.spessori, mat(f.struttura), mat(f.ante));
   }
   uvInScala(gruppo);                 // foto del catalogo: centrata su ogni pannello, misura vera
+  ombreSuTutto(gruppo);              // tutto fa e riceve ombra
+  if (renderer) renderer.shadowMap.needsUpdate = true;
   const nuova = { W: forma.larghezza, H: forma.altezzaMax, P: opz.P };
   const cambiata = !ultimaVista || ['W', 'H', 'P'].some((k) => Math.abs(ultimaVista[k] - nuova[k]) > 1);
   ultimaVista = nuova;
@@ -355,22 +335,13 @@ export function inquadra(tipo = 'tre4') {
 }
 
 /**
- * FOTO REALISTICA (path tracing + pulizia IA, vedi foto-realistica.js): il
- * vano con i suoi muri è già nella scena.
+ * FOTO: la stessa resa realistica della vista 3D (luce, ombre, ombre di
+ * contatto, legno identico alla foto) a grande risoluzione, subito.
  */
-/** L'immagine della vista realistica di adesso, se è pronta (per salvarla subito). */
-export function fotoVistaRealistica() { return vistaReale ? vistaReale.immagine() : null; }
-
 export async function fotoRealisticaModulari(opz = {}) {
-  const dati = datiFoto();
-  if (!dati) return null;
-  pausa3d = true;
-  try {
-    // dallo stesso motore della vista realistica (scena già pronta): veloce
-    if (vistaReale) return await vistaReale.scatta(opz);
-    const { fotoRealistica } = await import('../foto-realistica.js?v=20261116a');
-    return await fotoRealistica({ ...opz, ...dati });
-  } finally { pausa3d = false; }
+  if (!renderer || !resa) return null;
+  const lato = Math.max(opz.larghezza || 0, opz.altezza || 0) || latoMaxExport();
+  return resa.foto(lato);
 }
 
 /** Salva l'immagine (alta risoluzione, con logo). */
@@ -378,16 +349,7 @@ export function salvaImmagine(nome = 'mobili-modulari.png') {
   if (!renderer) return false;
   const c = renderer.domElement;
   const cw = c.clientWidth || c.width, ch = c.clientHeight || c.height;
-  const pr0 = renderer.getPixelRatio();
-  const scala = Math.max(1, latoMaxExport() / Math.max(cw, ch));
-  renderer.setPixelRatio(1);
-  renderer.setSize(Math.round(cw * scala), Math.round(ch * scala), false);
-  camera.aspect = cw / ch; camera.updateProjectionMatrix();
-  renderer.render(scene, camera);
   let out = null;
-  try { out = componiConLogo(c); } catch { out = null; }
-  renderer.setPixelRatio(pr0);
-  renderer.setSize(cw, ch, false);
-  if (!(vistaReale && vistaReale.ridisegna())) renderer.render(scene, camera);
+  try { out = componiConLogo(resa ? resa.foto(latoMaxExport()) : c); } catch { out = null; }
   return out ? salvaImmagineCanvas(out, nome) : false;
 }

@@ -13,13 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261116a';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116a';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261116a';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116a';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116a';
+} from './modello.js?v=20261116b';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116b';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261116b';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116b';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116b';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116b';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116a';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116b';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -59,6 +60,7 @@ function quotaAltaColonne(progetto) {
   return Math.max(...cols.map((c) => (c.altezza_mm || 2200) + zoccoloColonna(progetto, c)));
 }
 const ALT_MURO = 2600;
+const MAT_MURO = new THREE.MeshStandardMaterial({ color: 0xece8e0, roughness: 0.95, metalness: 0, envMapIntensity: 0.35 });
 const H_FORNO = 600;
 const H_MICRO = 380;
 
@@ -405,24 +407,34 @@ export function montaScena3d(canvas, progetto) {
   // Illuminazione d'ambiente (image-based) per riflessi e materiali reali
   scene.environment = creaAmbiente(renderer);
 
-  const hemi = new THREE.HemisphereLight(0xfff4e0, 0x403828, 1.6);
-  const amb = new THREE.AmbientLight(0xffffff, 0.65);
-  const key = new THREE.DirectionalLight(0xfff0d8, 2.2);
+  // LUCE come in una stanza vera: una luce principale (finestra/soffitto) con
+  // ombre morbide, il cielo/soffitto che illumina dall'alto e un filo di luce
+  // riflessa dal lato opposto. Meno luce "piatta" uguale da tutte le parti:
+  // ogni faccia ha la sua luce, come in una foto.
+  const hemi = new THREE.HemisphereLight(0xfff4e0, 0x5a5040, 1.45);
+  const amb = new THREE.AmbientLight(0xffffff, 0.35);
+  const key = new THREE.DirectionalLight(0xfff0d8, 2.6);
   key.position.set(3000, 6000, 4000);
-  const fill = new THREE.DirectionalLight(0xdfe6ff, 0.9);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.bias = -0.0004; key.shadow.normalBias = 3;
+  luceOmbre = key;
+  const fill = new THREE.DirectionalLight(0xdfe6ff, 0.8);
   fill.position.set(-4000, 3000, -2000);
-  const rim = new THREE.DirectionalLight(0xffffff, 0.6);
+  luceRiempi = fill;
+  const rim = new THREE.DirectionalLight(0xffffff, 0.35);
   rim.position.set(0, 2000, -5000);
-  scene.add(hemi); scene.add(amb); scene.add(key); scene.add(fill); scene.add(rim);
+  scene.add(hemi); scene.add(amb); scene.add(key); scene.add(key.target); scene.add(fill); scene.add(rim);
+  preparaOmbre(renderer);
   taraLuceCatalogo(renderer, scene);   // prodotti del catalogo: colori identici alla foto
   // Memorizzo le intensita' base per poterle abbassare quando i LED sono
   // accesi, cosi' la differenza "LED off / LED on" si vede davvero.
   luciAmbiente = [
-    { l: hemi, base: 1.6 },
-    { l: amb,  base: 0.65 },
-    { l: key,  base: 2.2 },
-    { l: fill, base: 0.9 },
-    { l: rim,  base: 0.6 },
+    { l: hemi, base: 1.45 },
+    { l: amb,  base: 0.35 },
+    { l: key,  base: 2.6 },
+    { l: fill, base: 0.8 },
+    { l: rim,  base: 0.35 },
   ];
 
   controls = new OrbitControls(camera, renderer.domElement);
@@ -434,51 +446,29 @@ export function montaScena3d(canvas, progetto) {
   scene.add(gruppo);
   aggiornaScena3d(progetto, true);
 
+  resa = creaResa({ renderer, scene, camera, raggio: 320, intensita: 0.9, prima: muriVisibili });
   window.addEventListener('resize', forzaResize3d);
   animazioneAttiva = true;
   animate();
-  preparaVistaReale();
 }
 
 function animate() {
   if (!animazioneAttiva) return;
   requestAnimationFrame(animate);
   controls.update();
-  // vista ferma → la vista realistica si sviluppa da sola (e disegna lei);
-  // mentre si sposta un mobile o ce n'è uno selezionato resta la vista veloce
-  if (vistaReale && vistaReale.tick(false, selId != null || !!spost)) return;
-  renderer.render(scene, camera);
+  // disegna solo quando serve; mentre si sposta un oggetto disegna leggero
+  if (resa) resa.tick(!!spost); else renderer.render(scene, camera);
 }
-
-// VISTA REALISTICA dal vivo (foto-realistica.js): si carica dopo la vista 3D
-let vistaReale = null, vistaRealeInCarica = false;
-function preparaVistaReale() {
-  if (vistaReale || vistaRealeInCarica || !renderer) return;
-  vistaRealeInCarica = true;
-  import('../foto-realistica.js?v=20261116a').then((m) => {
-    if (!renderer || vistaReale) return;
-    vistaReale = m.creaVistaRealistica({ renderer, camera, controls, contenitore: canvasEl && canvasEl.parentElement, dati: datiFoto });
-  }).catch((e) => console.warn('Vista realistica non caricata:', e))
-    .finally(() => { vistaRealeInCarica = false; });
+let resa = null, luceOmbre = null, luceRiempi = null;
+/** Muri: si vedono quelli dietro i mobili, spariscono quelli tra te e la cucina. */
+function muriVisibili() {
+  if (!gruppo || !camera) return;
+  for (const o of gruppo.children) {
+    const n = o.userData.muroNormale;
+    if (!n) continue;
+    o.visible = (camera.position.x - o.position.x) * n.x + (camera.position.z - o.position.z) * n.z > -40;
+  }
 }
-/** I dati per la foto/vista realistica: scena, camera, muri con il lato interno. */
-function datiFoto() {
-  if (!gruppo || !camera || !_lastProgetto) return null;
-  // muri con il loro lato interno (coordinate 3D: x, z = −y della pianta)
-  const full = _lastProgetto.piano.pareti || [], vertici = calcolaVertici(full);
-  const muri = [];
-  full.forEach((p, i) => {
-    if (p.assente) return;
-    const a = vertici[i], b = vertici[i + 1], dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
-    const sgn = p.latoInterno === 'interno' ? 1 : -1;
-    const nx = -dy / L * sgn, ny = dx / L * sgn, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-    muri.push({ a: { x: a.x, z: -a.y }, b: { x: b.x, z: -b.y }, interno: { x: mx + nx * 500, z: -(my + ny * 500) } });
-  });
-  const cierre = _lastProgetto.cierreTecho && _lastProgetto.cierreTecho.attivo;
-  return { radice: gruppo, camera, muri, hStanza: 2700, soffittoAFilo: !!cierre };
-}
-
-/** Punta la vista 3D da un punto verso un altro (mm, coordinate della pianta: x, altezza, y). */
 export function guardaDa(px, py, pz, tx, ty, tz) {
   if (!camera || !controls) return;
   camera.position.set(px, py, -pz); controls.target.set(tx, ty, -tz); controls.update();
@@ -490,33 +480,18 @@ export function forzaResize3d() {
   if (!w || !h) return;
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(w, h, false);
+  if (resa) { resa.dimensiona(); resa.cambiato(); } else renderer.setSize(w, h, false);
 }
 
 /**
- * FOTO REALISTICA (path tracing + pulizia IA, vedi foto-realistica.js): la
- * scena com'è ora, vista dalla camera della vista 3D, calcolata come una foto
- * vera. opz: { larghezza, altezza, campioni, campioniIA, onProgress, annullato }.
- * Ritorna il canvas della foto.
+ * FOTO: la vista 3D com'è (stessa resa realistica: luce, ombre, ombre di
+ * contatto, legno identico alla foto) a grande risoluzione, in un istante.
+ * opz: { larghezza, altezza } (lato lungo). Ritorna il canvas della foto.
  */
-/** L'immagine della vista realistica di adesso, se è pronta (per salvarla subito). */
-export function fotoVistaRealistica() { return vistaReale ? vistaReale.immagine() : null; }
-
 export async function fotoRealistica3d(opz = {}) {
-  if (!scene || !camera || !gruppo || !_lastProgetto) return null;
-  const dati = datiFoto();
-  if (!dati) return null;
-  const eraAttiva = animazioneAttiva;
-  animazioneAttiva = false;                                // la vista 3D si ferma mentre si calcola la foto
-  try {
-    // dallo stesso motore della vista realistica (scena già pronta): veloce
-    if (vistaReale) return await vistaReale.scatta(opz);
-    const { fotoRealistica } = await import('../foto-realistica.js?v=20261116a');
-    return await fotoRealistica({ ...opz, ...dati });
-  } finally {
-    animazioneAttiva = eraAttiva;
-    if (eraAttiva) animate();
-  }
+  if (!renderer || !resa) return null;
+  const lato = Math.max(opz.larghezza || 0, opz.altezza || 0) || latoMaxExport();
+  return resa.foto(lato);
 }
 
 /** Salva l'immagine del rendering in ALTA QUALITÀ (PNG). */
@@ -527,16 +502,20 @@ export function esportaImmagine3d(nomeFile = 'cucina.png', latoMax = latoMaxExpo
   const pr0 = renderer.getPixelRatio();
   const scala = Math.max(1, latoMax / Math.max(cw, ch));
   const tw = Math.round(cw * scala), th = Math.round(ch * scala);
-  renderer.setPixelRatio(1);
-  renderer.setSize(tw, th, false);
-  camera.aspect = tw / th; camera.updateProjectionMatrix();
-  renderer.render(scene, camera);
   let canvas2d = null;
-  try { canvas2d = componiConLogo(canvasEl); } catch (e) { canvas2d = null; }
-  renderer.setPixelRatio(pr0);
-  renderer.setSize(cw, ch, false);
-  camera.aspect = cw / ch; camera.updateProjectionMatrix();
-  if (!(vistaReale && vistaReale.ridisegna())) renderer.render(scene, camera);
+  if (resa) {
+    try { canvas2d = componiConLogo(resa.foto(Math.max(tw, th))); } catch (e) { canvas2d = null; }
+  } else {
+    renderer.setPixelRatio(1);
+    renderer.setSize(tw, th, false);
+    camera.aspect = tw / th; camera.updateProjectionMatrix();
+    renderer.render(scene, camera);
+    try { canvas2d = componiConLogo(canvasEl); } catch (e) { canvas2d = null; }
+    renderer.setPixelRatio(pr0);
+    renderer.setSize(cw, ch, false);
+    camera.aspect = cw / ch; camera.updateProjectionMatrix();
+    renderer.render(scene, camera);
+  }
   if (!canvas2d) return false;
   return salvaImmagineCanvas(canvas2d, nomeFile);
 }
@@ -1739,7 +1718,6 @@ async function caricaModelloOgg(id) {
 }
 
 export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
-  if (vistaReale) vistaReale.invalida();     // la scena cambia: la vista realistica si rifà alla prossima pausa
   if (!scene) return;
   selId = selezionato;
   _lastProgetto = progetto;
@@ -1761,13 +1739,13 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   scene.background = new THREE.Color(sf.bg);
 
   // Pavimento + griglia
-  const padW = (bb.maxX - bb.minX) + 2000, padD = (bb.maxY - bb.minY) + 2000;
+  // pavimento ampio: il bordo non si vede (come in una foto, il pavimento continua)
+  const padW = (bb.maxX - bb.minX) + 24000, padD = (bb.maxY - bb.minY) + 24000;
   const cxF = (bb.minX + bb.maxX) / 2, czF = -(bb.minY + bb.maxY) / 2;
+  // PAVIMENTO VERO (parquet o gres, secondo lo sfondo), niente griglia da disegno tecnico
   const pav = new THREE.Mesh(new THREE.PlaneGeometry(padW, padD),
-    new THREE.MeshStandardMaterial({ color: sf.pav, roughness: 0.95 }));
+    pavimentoVero(progetto.sfondo || 'chiaro', sf.pav, padW, padD, () => { if (resa) resa.cambiato(); }));
   pav.rotation.x = -Math.PI / 2; pav.position.set(cxF, 0, czF); pav.userData.pavimento = true; gruppo.add(pav);
-  const grid = new THREE.GridHelper(Math.max(padW, padD), Math.round(Math.max(padW, padD) / 500), sf.g1, sf.g2);
-  grid.position.set(cxF, 1, czF); gruppo.add(grid);
 
   // Muri di riferimento
   full.forEach((p, i) => {
@@ -1775,11 +1753,15 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
     const a = vertici[i], b = vertici[i + 1];
     const dx = b.x - a.x, dy = b.y - a.y;
     const L = Math.hypot(dx, dy) || 1;
-    const muro = new THREE.Mesh(new THREE.BoxGeometry(L, ALT_MURO, 60),
-      new THREE.MeshStandardMaterial({ color: COL.muro, roughness: 0.9, transparent: true, opacity: 0.3 }));
-    muro.position.set((a.x + b.x) / 2, ALT_MURO / 2, -(a.y + b.y) / 2);
+    // MURO VERO (intonaco opaco): si vede dietro i mobili e sparisce quando sta
+    // tra te e la cucina (vedi muriVisibili)
+    const sgn = p.latoInterno === 'interno' ? 1 : -1;
+    const nx = -dy / L * sgn, ny = dx / L * sgn;
+    const muro = new THREE.Mesh(new THREE.BoxGeometry(L, ALT_MURO, 60), MAT_MURO);
+    muro.position.set((a.x + b.x) / 2 - nx * 30, ALT_MURO / 2, -((a.y + b.y) / 2 - ny * 30));
     muro.rotation.y = -Math.atan2(dy, dx);
-    muro.userData.muroRiferimento = true;                 // nella foto realistica diventa un muro vero
+    muro.userData.muroRiferimento = true;
+    muro.userData.muroNormale = { x: nx, z: -ny };
     gruppo.add(muro);
   });
 
@@ -2058,7 +2040,20 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
 
   uvInScala(gruppo);
   if (reframe) inquadra(bb, direzioneStanza(full, vertici));
-  if (renderer) renderer.render(scene, camera);
+  // OMBRE: tutto fa ombra (muri e pavimento la ricevono soltanto), inquadrate sulla cucina
+  ombreSuTutto(gruppo, (o) => !!(o.userData.muroNormale || o.userData.pavimento));
+  if (luceOmbre && renderer) {
+    const box = new THREE.Box3();
+    for (const o of gruppo.children) if (!o.userData.muroNormale && !o.userData.pavimento && !o.isGridHelper) box.expandByObject(o);
+    // la luce entra dal lato aperto della stanza (come da una finestra), alta e un
+    // po' di lato: i frontali sono illuminati, le ombre cadono corte verso i muri
+    const d = direzioneStanza(full, vertici) || { x: 0.6, z: 0.8 };
+    const ca = Math.cos(0.45), sa = Math.sin(0.45);
+    const dx = d.x * ca - d.z * sa, dz = d.x * sa + d.z * ca;
+    inquadraOmbre(renderer, luceOmbre, box, new THREE.Vector3(dx, 1.7, dz));
+    if (luceRiempi) luceRiempi.position.set(-dx * 4000 + d.x * 1500, 2500, -dz * 4000 + d.z * 1500);
+  }
+  if (resa) resa.cambiato(); else if (renderer) renderer.render(scene, camera);
 }
 
 
@@ -2495,6 +2490,6 @@ function inquadra(bb, dir = null) {
 
 export function smontaScena3d() {
   animazioneAttiva = false;
-  if (vistaReale) { vistaReale.dispose(); vistaReale = null; }
+  if (resa) { resa.dispose(); resa = null; }
   window.removeEventListener('resize', forzaResize3d);
 }

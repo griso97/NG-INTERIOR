@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto } from './catalogo.js?v=20261116a';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261116b';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -144,6 +144,16 @@ let statoCatalogo = { prodotti: [], nascosti: {}, modifiche: {} };
 const CAT_DA_SEZIONE = { legno: 'legno', fingerpull: 'legno', encimera: 'encimera', pannello: 'legno', zoccolo: 'zoccolo', maniglie: 'maniglia', oggetti: 'oggetto' };
 async function applicaCatalogo() {
   statoCatalogo = await leggiCatalogo();
+  // prodotti salvati con un trattamento della foto più vecchio: la texture si
+  // rifà da sola dalla foto originale (una volta sola), con i colori veri
+  const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
+  if (daRifare.length) {
+    try {
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261116b');
+      for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
+      await salvaCatalogo(statoCatalogo);
+    } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
+  }
   // modifiche ai predefiniti (nome, tipo, spessore, colore…)
   for (const m of MATERIALI) {
     const mod = statoCatalogo.modifiche[m.id];
@@ -408,6 +418,8 @@ export function taraLuceCatalogo(renderer, scene, direzioni = [[0, 0, 1], [0, 0,
  * Si chiama sul gruppo della scena dopo averla costruita.
  */
 export function uvInScala(radice) {
+  radice.updateMatrixWorld(true);
+  const pw = new THREE.Vector3();
   radice.traverse((o) => {
     if (!o.isMesh) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
@@ -419,13 +431,18 @@ export function uvInScala(radice) {
     if (!geo.boundingBox) geo.computeBoundingBox();
     const bb = geo.boundingBox, c = { x: (bb.min.x + bb.max.x) / 2, y: (bb.min.y + bb.max.y) / 2, z: (bb.min.z + bb.max.z) / 2 };
     const pos = geo.attributes.position, nor = geo.attributes.normal, uv = geo.attributes.uv;
+    // punto del legno di questo pannello: fisso per la sua posizione (non cambia
+    // a ogni ridisegno), diverso da un pannello all'altro
+    o.getWorldPosition(pw);
+    const caso = (sx, sy) => { const t = Math.sin(Math.round(pw.x / 10) * sx + Math.round(pw.y / 10) * 0.37 + Math.round(pw.z / 10) * sy) * 43758.5453; return t - Math.floor(t); };
+    const ox = mc.userData.continuo ? caso(12.9898, 78.233) * 4000 : 0, oy = mc.userData.continuo ? caso(39.346, 11.135) * 4000 : 0;
     for (let i = 0; i < pos.count; i++) {
       const ax = Math.abs(nor.getX(i)), ay = Math.abs(nor.getY(i)), az = Math.abs(nor.getZ(i));
       let u, v;
       if (ax >= ay && ax >= az) { u = pos.getZ(i) - c.z; v = pos.getY(i) - c.y; }
       else if (ay >= az) { u = pos.getX(i) - c.x; v = pos.getZ(i) - c.z; }
       else { u = pos.getX(i) - c.x; v = pos.getY(i) - c.y; }
-      uv.setXY(i, (u + wMm / 2) / unitaUV.u, (v + hMm / 2) / unitaUV.v);
+      uv.setXY(i, (u + wMm / 2 + ox) / unitaUV.u, (v + hMm / 2 + oy) / unitaUV.v);
     }
     uv.needsUpdate = true;
     geo.userData.uvMm = true;
@@ -460,6 +477,147 @@ const cacheMat = new Map();     // id → THREE.MeshStandardMaterial
 function matGolaDa(def) {
   if (def.gola.solido) return new THREE.MeshStandardMaterial({ color: def.gola.colore, roughness: def.lucido ? 0.15 : 0.75, metalness: 0, envMapIntensity: def.lucido ? 1.2 : 0.3 });
   return new THREE.MeshStandardMaterial({ color: def.gola.colore, roughness: 0.7, metalness: 0.05, envMapIntensity: 0.3 });
+}
+/**
+ * LEGNO CONTINUO dalla foto di un campione/porta: la foto diventa un legno che
+ * si ripete senza giunte e senza specchi (che si notano subito: disegni
+ * simmetrici, righe chiare), e alto come una colonna:
+ * 1) i bordi della foto si sfumano con il lato opposto → si ripete senza giunta;
+ * 2) due pezzi della stessa foto uno sopra l'altro, spostati dove le righe
+ *    combaciano, con passaggio morbido → la venatura prosegue lunga.
+ * Ritorna { canvas, fx, fy }: fx, fy = quante misure del campione copre un giro.
+ */
+function legnoContinuo(img) {
+  const W0 = img && (img.naturalWidth || img.width), H0 = img && (img.naturalHeight || img.height);
+  if (!(W0 > 32) || !(H0 > 32)) return null;
+  const k = Math.min(1, 1024 / W0, 1200 / H0);
+  const W = Math.round(W0 * k), H = Math.round(H0 * k);
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.imageSmoothingQuality = 'high';
+  let A;
+  try { g.drawImage(img, 0, 0, W, H); A = Float32Array.from(g.getImageData(0, 0, W, H).data); } catch (_) { return null; }
+  const liscio = (t) => t * t * (3 - 2 * t);
+  // 0) via la SFUMATURA DI LUCE della foto (più chiara da un lato): piano che
+  //    meglio segue la luminosità, poi ogni punto riportato alla media. Resta
+  //    il legno (venature, doghe), sparisce il cambio di tono alle cuciture.
+  {
+    let n = 0, sx = 0, sy = 0, sl = 0, sxx = 0, syy = 0, sxy = 0, sxl = 0, syl = 0;
+    for (let y = 0; y < H; y += 4) for (let x = 0; x < W; x += 4) {
+      const i = (y * W + x) * 4, l = 0.3 * A[i] + 0.59 * A[i + 1] + 0.11 * A[i + 2];
+      const u = x / W - 0.5, v = y / H - 0.5;
+      n++; sx += u; sy += v; sl += l; sxx += u * u; syy += v * v; sxy += u * v; sxl += u * l; syl += v * l;
+    }
+    const m = sl / n;
+    // minimi quadrati (u, v centrati: sx, sy ≈ 0)
+    const det = sxx * syy - sxy * sxy;
+    const bu = det ? (sxl * syy - syl * sxy) / det : 0, bv = det ? (syl * sxx - sxl * sxy) / det : 0;
+    if (m > 1) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const k = m / Math.max(8, m + bu * (x / W - 0.5) + bv * (y / H - 0.5)), i = (y * W + x) * 4;
+      for (let q = 0; q < 3; q++) A[i + q] = Math.min(255, A[i + q] * k);
+    }
+  }
+  // 0b) VENATURA DRITTA: nelle foto le righe sono spesso un filo inclinate, e
+  //     sopra/sotto non combacerebbero alla cucitura. Misuro di quanto si
+  //     spostano tra la parte alta e la bassa e raddrizzo (ogni riga scorre).
+  {
+    const fascia = (y0, y1) => { const p = new Float32Array(W); for (let y = y0; y < y1; y++) for (let x = 0; x < W; x++) { const i = (y * W + x) * 4; p[x] += 0.3 * A[i] + 0.59 * A[i + 1] + 0.11 * A[i + 2]; } return p; };
+    const su = fascia(0, Math.round(H * 0.25)), giu = fascia(Math.round(H * 0.75), H);
+    const max = Math.round(W * 0.06), x0 = Math.round(W * 0.12), x1 = Math.round(W * 0.88);
+    let best = 0, eb = Infinity;
+    for (let d = -max; d <= max; d++) {
+      let e = 0, ms = 0, mg = 0;
+      for (let x = x0; x < x1; x++) { ms += su[x]; mg += giu[x + d]; }
+      ms /= x1 - x0; mg /= x1 - x0;
+      for (let x = x0; x < x1; x++) e += Math.abs((su[x] - ms) - (giu[x + d] - mg));
+      if (e < eb) { eb = e; best = d; }
+    }
+    const k = best / (H * 0.75);
+    if (best) {
+      const R = new Float32Array(A.length);
+      for (let y = 0; y < H; y++) {
+        const sh = k * (y - H / 2);
+        for (let x = 0; x < W; x++) {
+          const sx = Math.min(W - 1, Math.max(0, x + sh)), xa = Math.floor(sx), xb = Math.min(W - 1, xa + 1), f = sx - xa;
+          const j = (y * W + x) * 4, ia = (y * W + xa) * 4, ib = (y * W + xb) * 4;
+          for (let q = 0; q < 4; q++) R[j + q] = A[ia + q] * (1 - f) + A[ib + q] * f;
+        }
+      }
+      A = R;
+    }
+  }
+  // colore medio: le miscele lo conservano, insieme al CONTRASTO (una media
+  // semplice di due venature diverse viene sbiadita e la cucitura si vede)
+  const med = [0, 0, 0];
+  for (let i = 0; i < W * H; i++) for (let q = 0; q < 3; q++) med[q] += A[i * 4 + q];
+  for (let q = 0; q < 3; q++) med[q] /= W * H;
+  // ρ = quanto si somigliano le due parti mescolate (righe allineate → molto):
+  // il contrasto si corregge solo per la parte davvero diversa
+  let rho = 0;
+  const mesc = (a, b, w, q) => { const k = 1 / Math.sqrt((1 - w) * (1 - w) + w * w + 2 * rho * w * (1 - w)); return med[q] + ((a - med[q]) * (1 - w) + (b - med[q]) * w) * k; };
+  const somiglia = (n, va, vb) => {                         // correlazione di due serie (luminosità)
+    let sa = 0, sb = 0, saa = 0, sbb = 0, sab = 0;
+    for (let i = 0; i < n; i++) { const p = va(i), r = vb(i); sa += p; sb += r; saa += p * p; sbb += r * r; sab += p * r; }
+    const cov = sab / n - (sa / n) * (sb / n), da = saa / n - (sa / n) ** 2, db = sbb / n - (sb / n) ** 2;
+    return da > 1e-6 && db > 1e-6 ? Math.max(0, Math.min(1, cov / Math.sqrt(da * db))) : 0;
+  };
+  const lumA = (i) => 0.3 * A[i] + 0.59 * A[i + 1] + 0.11 * A[i + 2];
+  // 1a) sinistra/destra: periodo Q, le prime a colonne sfumano dalla fine della foto
+  const a = Math.round(W * 0.12), Q = W - a;
+  const B = new Float32Array(Q * H * 3);
+  rho = somiglia(a * Math.floor(H / 3), (n) => { const y = 3 * Math.floor(n / a), x = n % a; return lumA((y * W + x + Q) * 4); }, (n) => { const y = 3 * Math.floor(n / a), x = n % a; return lumA((y * W + x) * 4); });
+  for (let y = 0; y < H; y++) for (let x = 0; x < Q; x++) {
+    const i = (y * W + x) * 4, j = (y * Q + x) * 3;
+    if (x < a) { const w = liscio(x / a), i2 = (y * W + x + Q) * 4; for (let q = 0; q < 3; q++) B[j + q] = mesc(A[i2 + q], A[i + q], w, q); }
+    else for (let q = 0; q < 3; q++) B[j + q] = A[i + q];
+  }
+  // 1b) sopra/sotto: periodo P
+  const b = Math.round(H * 0.15), P = H - b;
+  const C = new Float32Array(Q * P * 3);
+  const lumB = (i) => 0.3 * B[i] + 0.59 * B[i + 1] + 0.11 * B[i + 2];
+  rho = somiglia(b * Math.floor(Q / 3), (n) => { const y = Math.floor(n / Math.floor(Q / 3)), x = 3 * (n % Math.floor(Q / 3)); return lumB(((y + P) * Q + x) * 3); }, (n) => { const y = Math.floor(n / Math.floor(Q / 3)), x = 3 * (n % Math.floor(Q / 3)); return lumB((y * Q + x) * 3); });
+  for (let y = 0; y < P; y++) for (let x = 0; x < Q; x++) {
+    const j = (y * Q + x) * 3, i = (y * Q + x) * 3;
+    if (y < b) { const w = liscio(y / b), i2 = ((y + P) * Q + x) * 3; for (let q = 0; q < 3; q++) C[j + q] = mesc(B[i2 + q], B[i + q], w, q); }
+    else for (let q = 0; q < 3; q++) C[j + q] = B[i + q];
+  }
+  // 2) due pezzi uno sopra l'altro, il secondo spostato di lato proprio dove le
+  //    sue righe COMBACIANO con quelle del primo (cerco lo spostamento che
+  //    somiglia di più nella fascia della cucitura): la venatura prosegue senza
+  //    gradini e il legno è alto il doppio prima di ripetersi
+  const cuci = Math.round(P * 0.3);
+  const s4 = 4, q4 = Math.floor(Q / s4), c4 = Math.max(1, Math.floor(cuci / s4));
+  const lum = new Float32Array(q4 * c4);
+  for (let y = 0; y < c4; y++) for (let x = 0; x < q4; x++) { const i = (y * s4 * Q + x * s4) * 3; lum[y * q4 + x] = 0.3 * C[i] + 0.59 * C[i + 1] + 0.11 * C[i + 2]; }
+  let dxBest = Math.round(Q / 2), costo = Infinity;
+  for (let d = Math.round(q4 * 0.2); d <= Math.round(q4 * 0.8); d++) {
+    let e = 0;
+    for (let y = 0; y < c4; y++) for (let x = 0; x < q4; x++) e += Math.abs(lum[y * q4 + x] - lum[y * q4 + (x + d) % q4]);
+    if (e < costo) { costo = e; dxBest = d * s4; }
+  }
+  // righe molto dritte (noce, nogal…): ripetute non si notano, e una cucitura
+  // tra due pezzi sì → un pezzo solo; legni con nodi e fiammature → due pezzi
+  const bw = Math.floor(W / 4), bh = Math.floor(H / 4), blk = new Float32Array(bw * bh);
+  for (let y = 0; y < bh * 4; y++) for (let x = 0; x < bw * 4; x++) blk[Math.floor(y / 4) * bw + Math.floor(x / 4)] += lumA((y * W + x) * 4) / 16;
+  let gx = 0, gy = 0;
+  for (let y = 1; y < bh; y++) for (let x = 1; x < bw; x++) { gx += Math.abs(blk[y * bw + x] - blk[y * bw + x - 1]); gy += Math.abs(blk[y * bw + x] - blk[(y - 1) * bw + x]); }
+  const pezzi = gx > gy * 2.7 ? [0] : [0, dxBest], n = pezzi.length, HT = n * P;
+  rho = somiglia(c4 * q4, (i) => lum[i], (i) => lum[Math.floor(i / q4) * q4 + ((i % q4) + dxBest / s4) % q4]);
+  const out = document.createElement('canvas'); out.width = Q; out.height = HT;
+  const go = out.getContext('2d'); const im = go.createImageData(Q, HT), o = im.data;
+  const px = (dx, x, y) => ((y * Q + (x + dx) % Q) * 3);
+  for (let y = 0; y < HT; y++) {
+    const kk = Math.floor(y / P), t = y - kk * P, dx = pezzi[kk], prima = pezzi[(kk + n - 1) % n];
+    const w = t < cuci ? liscio(t / cuci) : 1;
+    for (let x = 0; x < Q; x++) {
+      const j = (y * Q + x) * 4, i1 = px(dx, x, t);
+      if (w < 1) { const i0 = px(prima, x, t); for (let q = 0; q < 3; q++) o[j + q] = mesc(C[i0 + q], C[i1 + q], w, q); }
+      else for (let q = 0; q < 3; q++) o[j + q] = C[i1 + q];
+      o[j + 3] = 255;
+    }
+  }
+  go.putImageData(im, 0, 0);
+  return { canvas: out, fx: Q / W, fy: HT / H };
 }
 export function getMaterialeTHREE(id, onPronto) {
   if (cacheMat.has(id)) return cacheMat.get(id);
@@ -513,7 +671,12 @@ export function getMaterialeTHREE(id, onPronto) {
   const mat = new THREE.MeshStandardMaterial(def.proprio
     ? { color: def.colore, ...PARAM_FOTO, ...(def.lucido ? { roughness: 0.2, envMapIntensity: 0.9 } : {}) }
     : { color: def.colore, roughness: 0.6, metalness: 0.05 });
-  if (def.campione) mat.userData.campioneMm = def.campione;
+  // misura reale del legno: quella del campione fotografato, o ~60 cm per i legni
+  // già nel sito (foto ravvicinate di campioni): mai stirato, mai a piastrelle
+  const campione = def.campione || (def.categoria === 'legno' && def.texture ? { wMm: 600, hMm: 600 } : null);
+  // legno continuo solo per i LEGNI (ante, pannelli); i piani di lavoro hanno la loro lastra
+  const continuo = !!campione && def.categoria === 'legno';
+  if (campione) { mat.userData.campioneMm = campione; if (continuo) mat.userData.continuo = true; }
   if (def.proprio && def.lucido) mat.userData.ngSpec = 1;   // foto lucida: riflessi veri nel 3D
   // Finger-pull da foto: materiale della GOLA (la parte sopra, es. nera)
   if (def.gola) {
@@ -527,15 +690,26 @@ export function getMaterialeTHREE(id, onPronto) {
   }
   cacheMat.set(id, mat);
   if (!cacheTex.has(id)) {
-    loader.load(def.texture, (tex) => {
+    loader.load(def.texture, (tex0) => {
+      let tex = tex0;
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.wrapS = THREE.RepeatWrapping;
       tex.wrapT = THREE.RepeatWrapping;
-      tex.anisotropy = 4;
-      if (def.campione) {
-        // una ripetizione della foto = la misura reale del campione
-        tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping;
-        tex.repeat.set(unitaUV.u / def.campione.wMm, unitaUV.v / def.campione.hMm);
+      tex.anisotropy = 16;                     // nitida anche di sbieco (il massimo della scheda)
+      if (campione) {
+        // LEGNO CONTINUO: dalla foto un legno che prosegue senza specchi né
+        // giunte, alla misura reale del campione
+        const lc = continuo ? legnoContinuo(tex.image) : null;
+        if (lc) {
+          const t2 = new THREE.CanvasTexture(lc.canvas);
+          t2.colorSpace = THREE.SRGBColorSpace; t2.anisotropy = 16;
+          t2.wrapS = t2.wrapT = THREE.RepeatWrapping;
+          t2.repeat.set(unitaUV.u / (campione.wMm * lc.fx), unitaUV.v / (campione.hMm * lc.fy));
+          tex.dispose(); tex = t2;
+        } else {
+          tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping;
+          tex.repeat.set(unitaUV.u / campione.wMm, unitaUV.v / campione.hMm);
+        }
       }
       cacheTex.set(id, tex);
       mat.map = tex;

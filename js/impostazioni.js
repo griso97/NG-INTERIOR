@@ -8,13 +8,13 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261116a';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261116a';
-import { anteprimaOggetto, riconosciViste } from './oggetto3d.js?v=20261116a';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261116a';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini } from './analisi-foto.js?v=20261116a';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261116a';
-import { agganciaTema } from './tema.js?v=20261116a';
+} from './catalogo.js?v=20261116b';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261116b';
+import { anteprimaOggetto, riconosciViste } from './oggetto3d.js?v=20261116b';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261116b';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261116b';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261116b';
+import { agganciaTema } from './tema.js?v=20261116b';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -404,7 +404,7 @@ function apriScheda(m) {
         ? (scS.tinta ? { tinta: { ral: scS.ral.codice, colore: scS.ral.hex, lucido: !!scS.lucido } } : { tinta: null, lucido: !!scS.lucido })
         : {};
       if (sup.tinta) colore = sup.tinta.colore;
-      const dati = { id, sezione: sez, nome, info: infoN, colore, aggiornato: Date.now(), ...sup,
+      const dati = { id, sezione: sez, nome, info: infoN, colore, aggiornato: Date.now(), versioneFoto: VERSIONE_FOTO, ...sup,
         ...(tipo === 'man' ? { maniglia: manN } : { campioneCm: campioneZona, oggettoCm: { w, h } }),
         ...(tipo === 'fp' ? { coloreGola, uguale: !!(scS && scS.uguale),
           golaTinta: scS && !scS.uguale && scS.golaRal ? { ral: scS.golaRal.codice, colore: scS.golaRal.hex } : null } : {}),

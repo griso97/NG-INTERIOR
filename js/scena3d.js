@@ -12,9 +12,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261116a';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261116a';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261116b';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261116b';
 import { sfondoDi } from './sfondi.js?v=20261111b';
+import { creaResa, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261116b';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -84,7 +85,7 @@ function matDi(config, parte) {
     ?? ({ ante: 'roble-denver', carcassa: 'roble-hera',
           schiena: 'roble-hera', tamponamenti: 'roble-denver' }[parte]);
   // texture arrivata: la vista veloce si aggiorna, quella realistica si rifà (senza c'era la foto vecchia)
-  return getMaterialeTHREE(id, () => { if (vistaReale) vistaReale.invalida(); renderer?.render(scene, camera); });
+  return getMaterialeTHREE(id, () => { if (resa) resa.cambiato(); else renderer?.render(scene, camera); });
 }
 
 /**
@@ -128,11 +129,10 @@ export function impostaSfondo(id) {
   sfondoAttuale = id;
   const sf = sfondoDi(id);
   scene.background = new THREE.Color(sf.bg);
-  if (floorMesh) floorMesh.material.color.setHex(sf.pav);
-  if (gridMesh) scene.remove(gridMesh);
-  gridMesh = new THREE.GridHelper(8000, 16, sf.g1, sf.g2);
-  gridMesh.position.y = 0.1;
-  scene.add(gridMesh);
+  // pavimento vero (parquet / gres), niente griglia da disegno tecnico
+  if (floorMesh) { floorMesh.material.dispose(); floorMesh.material = pavimentoVero(id, sf.pav, 30000, 30000, () => { if (resa) resa.cambiato(); }); }
+  if (gridMesh) { scene.remove(gridMesh); gridMesh = null; }
+  if (resa) resa.cambiato();
 }
 
 export function inizializzaScena(canvas) {
@@ -166,7 +166,11 @@ export function inizializzaScena(canvas) {
   const key = new THREE.DirectionalLight(0xfff2e0, 1.8);
   key.position.set(2500, 4000, 3000);
   key.castShadow = true;
-  scene.add(key);
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.bias = -0.0004; key.shadow.normalBias = 3;
+  luceOmbre = key;
+  scene.add(key); scene.add(key.target);
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const fill = new THREE.DirectionalLight(0xdfe6ff, 0.7);
   fill.position.set(-2500, 2000, -1500);
   scene.add(fill);
@@ -177,12 +181,18 @@ export function inizializzaScena(canvas) {
 
   // Pavimento (colore impostato da impostaSfondo)
   floorMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(10000, 10000),
+    new THREE.PlaneGeometry(30000, 30000),
     new THREE.MeshStandardMaterial({ color: 0xd7d0c4, roughness: 0.95 }),
   );
   floorMesh.rotation.x = -Math.PI / 2;
   floorMesh.receiveShadow = true;
   scene.add(floorMesh);
+  // MURO dietro l'armadio (intonaco): l'armadio appoggiato al suo muro, come
+  // nella realtà; da dietro non si vede (una faccia sola)
+  muroDietro = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshStandardMaterial({ color: 0xece8e0, roughness: 0.95, metalness: 0, envMapIntensity: 0.35 }));
+  muroDietro.receiveShadow = true; muroDietro.visible = false;
+  scene.add(muroDietro);
 
   // Sfondo iniziale
   impostaSfondo('chiaro');
@@ -202,69 +212,36 @@ export function inizializzaScena(canvas) {
   // Resize
   window.addEventListener('resize', () => ridimensiona(canvas));
 
+  resa = creaResa({ renderer, scene, camera, raggio: 260, intensita: 0.9 });
   animate();
-  preparaVistaReale();
 }
 
-let pausa3d = false;           // ferma la vista 3D (mentre si calcola la foto realistica)
+let pausa3d = false;
+let resa = null, luceOmbre = null, muroDietro = null;
 function animate() {
   requestAnimationFrame(animate);
   if (pausa3d) return;
   controls.update();
-  // vista ferma → la vista realistica si sviluppa da sola (e disegna lei);
-  // mentre si trascina un ripiano o ce n'è uno selezionato resta la vista veloce
-  if (vistaReale && vistaReale.tick(false, !!trascRip || !!_selRip)) return;
-  renderer.render(scene, camera);
-}
-
-// VISTA REALISTICA dal vivo (foto-realistica.js): si carica dopo la vista 3D
-let vistaReale = null, vistaRealeInCarica = false;
-function preparaVistaReale() {
-  if (vistaReale || vistaRealeInCarica || !renderer) return;
-  vistaRealeInCarica = true;
-  import('./foto-realistica.js?v=20261116a').then((m) => {
-    if (!renderer || vistaReale) return;
-    vistaReale = m.creaVistaRealistica({ renderer, camera, controls, contenitore: renderer.domElement.parentElement, dati: datiFoto });
-  }).catch((e) => console.warn('Vista realistica non caricata:', e))
-    .finally(() => { vistaRealeInCarica = false; });
-}
-/** I dati per la foto/vista realistica: l'armadio contro il suo muro. */
-function datiFoto() {
-  if (!scene || !camera || !gruppoArmadio || !gruppoArmadio.children.length) return null;
-  gruppoArmadio.updateMatrixWorld(true);
-  const bb = new THREE.Box3().setFromObject(gruppoArmadio);
-  if (bb.isEmpty()) return null;
-  // muro dietro l'armadio (lo schienale sta a z minima); la stanza la chiude la foto
-  const zM = bb.min.z - 2, x0 = bb.min.x - 1800, x1 = bb.max.x + 1800;
-  const muri = [{ a: { x: x0, z: zM }, b: { x: x1, z: zM }, interno: { x: (x0 + x1) / 2, z: zM + 600 } }];
-  return { radice: gruppoArmadio, camera, muri, hStanza: 2700 };
+  // disegna solo quando serve (vista ferma = nessun lavoro); mentre si trascina un ripiano disegna leggero
+  if (resa) resa.tick(!!trascRip); else renderer.render(scene, camera);
 }
 
 /**
- * FOTO REALISTICA dell'armadio (path tracing + pulizia IA, vedi
- * foto-realistica.js): l'armadio contro il suo muro, in una stanza vera.
+ * FOTO dell'armadio: la stessa resa realistica della vista 3D (luce, ombre,
+ * ombre di contatto, legno identico alla foto) a grande risoluzione, subito.
  */
-/** L'immagine della vista realistica di adesso, se è pronta (per salvarla subito). */
-export function fotoVistaRealistica() { return vistaReale ? vistaReale.immagine() : null; }
-
 export async function fotoRealisticaArmadio(opz = {}) {
-  const dati = datiFoto();
-  if (!dati) return null;
-  pausa3d = true;
-  try {
-    // dallo stesso motore della vista realistica (scena già pronta): veloce
-    if (vistaReale) return await vistaReale.scatta(opz);
-    const { fotoRealistica } = await import('./foto-realistica.js?v=20261116a');
-    return await fotoRealistica({ ...opz, ...dati });
-  } finally { pausa3d = false; }
+  if (!renderer || !resa) return null;
+  const lato = Math.max(opz.larghezza || 0, opz.altezza || 0) || latoMaxExport();
+  return resa.foto(lato);
 }
 
 function ridimensiona(canvas) {
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
-  renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+  if (resa) { resa.dimensiona(); resa.cambiato(); } else renderer.setSize(w, h, false);
 }
 
 export function forzaResize(canvas) { ridimensiona(canvas); }
@@ -283,17 +260,20 @@ export function esportaImmagine(nomeFile = 'render.png', latoMax = latoMaxExport
   // Dimensione alta mantenendo le proporzioni a video
   const scala = Math.max(1, latoMax / Math.max(cw, ch));
   const tw = Math.round(cw * scala), th = Math.round(ch * scala);
-  renderer.setPixelRatio(1);
-  renderer.setSize(tw, th, false);
-  camera.aspect = tw / th; camera.updateProjectionMatrix();
-  renderer.render(scene, camera);
   let canvas2d = null;
-  try { canvas2d = componiConLogo(canvas); } catch (e) { canvas2d = null; }
-  // Ripristina
-  renderer.setPixelRatio(pr0);
-  renderer.setSize(cw, ch, false);
-  camera.aspect = cw / ch; camera.updateProjectionMatrix();
-  if (!(vistaReale && vistaReale.ridisegna())) renderer.render(scene, camera);
+  if (resa) {
+    try { canvas2d = componiConLogo(resa.foto(Math.max(tw, th))); } catch (e) { canvas2d = null; }
+  } else {
+    renderer.setPixelRatio(1);
+    renderer.setSize(tw, th, false);
+    camera.aspect = tw / th; camera.updateProjectionMatrix();
+    renderer.render(scene, camera);
+    try { canvas2d = componiConLogo(canvas); } catch (e) { canvas2d = null; }
+    renderer.setPixelRatio(pr0);
+    renderer.setSize(cw, ch, false);
+    camera.aspect = cw / ch; camera.updateProjectionMatrix();
+    renderer.render(scene, camera);
+  }
   if (!canvas2d) return false;
   return salvaImmagineCanvas(canvas2d, nomeFile);
 }
@@ -307,7 +287,8 @@ export function esportaImmagine(nomeFile = 'render.png', latoMax = latoMaxExport
  */
 export function impostaApertura(valore) {
   porteAperte = valore;
-  if (vistaReale) vistaReale.invalida();
+  if (resa) resa.cambiato();
+  if (renderer) renderer.shadowMap.needsUpdate = true;
   if (!gruppoArmadio) return;
   gruppoArmadio.children.forEach((child) => {
     if (child.userData?.tipo === 'pivot-anta-battente') {
@@ -469,7 +450,7 @@ export function toggleAnte(valore) { impostaApertura(valore); }
  */
 export function aggiornaScena(config) {
   if (!gruppoArmadio) return;
-  if (vistaReale) vistaReale.invalida();     // la scena cambia: la vista realistica si rifà alla prossima pausa
+  if (resa) resa.cambiato();
   _zoneModuli = []; _selRip = null;
   impostaSfondo(config.sfondo || 'chiaro');
   // Pulisce i figli precedenti
@@ -499,6 +480,17 @@ export function aggiornaScena(config) {
   gruppoArmadio.position.y = yOffset;
 
   uvInScala(gruppoArmadio);       // prodotti del catalogo: foto in scala vera
+  // OMBRE: tutto l'armadio fa e riceve ombra; muro dietro e luce inquadrati sull'armadio
+  ombreSuTutto(gruppoArmadio);
+  gruppoArmadio.updateMatrixWorld(true);
+  const bbA = new THREE.Box3().setFromObject(gruppoArmadio);
+  if (!bbA.isEmpty() && muroDietro) {
+    const larg = bbA.max.x - bbA.min.x + 3600, alt = Math.max(2700, bbA.max.y + 400);
+    muroDietro.scale.set(larg, alt, 1);
+    muroDietro.position.set((bbA.min.x + bbA.max.x) / 2, alt / 2, bbA.min.z - 2);
+    muroDietro.visible = true;
+  }
+  if (luceOmbre && !bbA.isEmpty()) inquadraOmbre(renderer, luceOmbre, bbA, new THREE.Vector3(0.55, 1.3, 1));
 
   // Inquadratura 3/4 fissa, adatta alle dimensioni del mobile
   const W = config.larghezzaTotale;
