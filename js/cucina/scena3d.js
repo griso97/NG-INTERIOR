@@ -13,13 +13,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261115y';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115y';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261115y';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115y';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115y';
+} from './modello.js?v=20261115z';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115z';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261115z';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115z';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115z';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115y';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115z';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -455,7 +455,7 @@ let vistaReale = null, vistaRealeInCarica = false;
 function preparaVistaReale() {
   if (vistaReale || vistaRealeInCarica || !renderer) return;
   vistaRealeInCarica = true;
-  import('../foto-realistica.js?v=20261115y').then((m) => {
+  import('../foto-realistica.js?v=20261115z').then((m) => {
     if (!renderer || vistaReale) return;
     vistaReale = m.creaVistaRealistica({ renderer, camera, controls, contenitore: canvasEl && canvasEl.parentElement, dati: datiFoto });
   }).catch((e) => console.warn('Vista realistica non caricata:', e))
@@ -511,7 +511,7 @@ export async function fotoRealistica3d(opz = {}) {
   try {
     // dallo stesso motore della vista realistica (scena già pronta): veloce
     if (vistaReale) return await vistaReale.scatta(opz);
-    const { fotoRealistica } = await import('../foto-realistica.js?v=20261115y');
+    const { fotoRealistica } = await import('../foto-realistica.js?v=20261115z');
     return await fotoRealistica({ ...opz, ...dati });
   } finally {
     animazioneAttiva = eraAttiva;
@@ -577,29 +577,48 @@ export function iniziaSpostamento(clientX, clientY, puoSpostare) {
   const id = pickMobile(clientX, clientY);
   if (id == null || !puoSpostare(id)) return false;
   const g = gruppo.children.find((o) => o.userData.mobId === id);
-  // piano orizzontale all'altezza del punto toccato: l'oggetto segue il dito
-  const hit = g && rayPick.intersectObject(g, true)[0];
-  pianoTerra.constant = hit ? -hit.point.y : 0;
+  if (!g) return false;
+  const appoggio = !!g.userData.appoggiabile;
+  // OGGETTI DEL CATALOGO (friggitrice…): si trascinano SULLE SUPERFICI. Il dito
+  // indica il punto: se è sul piano l'oggetto ci sale, se è sul pavimento scende.
+  // Gli sgabelli: piano orizzontale all'altezza del punto toccato (segue il dito).
+  const hit = rayPick.intersectObject(g, true)[0];
+  pianoTerra.constant = appoggio ? -g.position.y : (hit ? -hit.point.y : 0);
   const p = puntoATerra(clientX, clientY);
-  if (!g || !p) return false;
-  spost = { g, id, dx: g.position.x - p.x, dz: g.position.z - p.z, x0: g.position.x, z0: g.position.z };
+  if (!p) return false;
+  spost = { g, id, dx: g.position.x - p.x, dz: g.position.z - p.z, x0: g.position.x, z0: g.position.z, appoggio, sup: appoggio ? superficiAppoggio() : null };
   controls.enabled = false;
   canvasEl.style.cursor = 'grabbing';
   return true;
 }
+/** Punto indicato dal dito sulle superfici d'appoggio o, se non ce ne sono, sul pavimento. */
+function puntoSuSuperfici(clientX, clientY, sup) {
+  const rect = canvasEl.getBoundingClientRect();
+  rayPick.setFromCamera(new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1,
+    -((clientY - rect.top) / rect.height) * 2 + 1), camera);
+  const hit = sup.length ? rayPick.intersectObjects(sup, false)[0] : null;
+  if (hit) return hit.point;
+  const pav = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p = new THREE.Vector3();
+  return rayPick.ray.intersectPlane(pav, p) ? p : null;
+}
 export function muoviSpostamento(clientX, clientY) {
   if (!spost) return;
-  const p = puntoATerra(clientX, clientY);
+  const p = spost.appoggio ? puntoSuSuperfici(clientX, clientY, spost.sup) : puntoATerra(clientX, clientY);
   if (!p) return;
   // vista radente (verso l'orizzonte): pochi pixel = metri → ignoro i punti troppo lontani
   const dCam = camera.position.distanceTo(controls.target);
   if (p.distanceTo(camera.position) > dCam * 2.5) return;
   // movimento morbido: al massimo 15 cm per volta, così l'oggetto non "salta"
   let nx = p.x + spost.dx - spost.g.position.x, nz = p.z + spost.dz - spost.g.position.z;
-  const L = Math.hypot(nx, nz), MAX = 150;
+  const L = Math.hypot(nx, nz), MAX = spost.appoggio ? 400 : 150;
   if (L > MAX) { nx *= MAX / L; nz *= MAX / L; }
   spost.g.position.x += nx;
   spost.g.position.z += nz;
+  if (spost.appoggio) {
+    // sale sul piano se ci sta sopra, se no a terra (come quando lo lasci)
+    const g = spost.g, m = { x: g.position.x, y: -g.position.z };
+    g.position.y = Math.max(quotaPiani(g.position.x, g.position.z, spost.sup), _lastProgetto ? quotaAppoggio(_lastProgetto, m, _spTop) : 0);
+  }
 }
 /** Fine: ritorna { id, x, y, mosso } in coordinate della pianta (mm). */
 export function fineSpostamento() {
@@ -1640,6 +1659,21 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   return g;
 }
 
+let _spTop = SP_TOP;
+const rayGiu = new THREE.Raycaster();
+/** Superfici d'appoggio (piani di lavoro) della scena. */
+function superficiAppoggio() {
+  const out = [];
+  if (gruppo) gruppo.traverse((o) => { if (o.isMesh && o.userData.appoggio) out.push(o); });
+  return out;
+}
+/** Quota (mm) del piano più alto sotto il punto (x, z) della scena 3D; 0 se non c'è (pavimento). */
+function quotaPiani(x, z, sup = superficiAppoggio()) {
+  if (!sup.length) return 0;
+  rayGiu.set(new THREE.Vector3(x, 4000, z), new THREE.Vector3(0, -1, 0));
+  const hit = rayGiu.intersectObjects(sup, false)[0];
+  return hit ? hit.point.y : 0;
+}
 /** Altezza d'appoggio di un oggetto: sopra il piano se il suo centro sta su un mobile basso, se no 0 (a terra). */
 function quotaAppoggio(progetto, o, spTop) {
   for (const b of (progetto.mobiliLiberi || [])) {
@@ -1822,6 +1856,8 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   // CIERRE A TECHO: pannello sopra pensili e colonne fino al soffitto (altezza scelta)
   const cierre = progetto.cierreTecho && progetto.cierreTecho.attivo ? Math.max(20, Number(progetto.cierreTecho.altezza) || 300) : 0;
   const cimeAlte = new Map();      // cima (mm da terra) di pensili e colonne, per la fascia del cierre
+  const daPosare = [];             // oggetti del catalogo: quota dal piano vero (dopo i piani)
+  _spTop = spTop;
   // Mobili liberi
   for (const m of (progetto.mobiliLiberi || [])) {
     const cat = categoriaTipo(m.tipo);
@@ -1838,6 +1874,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
         const og = new THREE.Group();
         const mesh = new THREE.Mesh(r.geo, r.mat); mesh.castShadow = true; mesh.receiveShadow = true; og.add(mesh);
         og.position.set(cx, quotaAppoggio(progetto, m, spTop), cz); og.rotation.y = -(m.rot || 0) * Math.PI / 180; g3d = og;
+        og.userData.appoggiabile = true; daPosare.push(og);
       }
     } else if (cat === 'oggetto') {
       // Oggetto 3D (sgabello, decor): posato a terra, nessuno zoccolo/piano.
@@ -2010,6 +2047,12 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   }
   const muriPiano = full.map((p, i) => (p.assente ? null : { a: vertici[i], b: vertici[i + 1] })).filter(Boolean);
   renderTopContinui(basiTop, fianchi, spTop, matTop, accessori.filter((a) => a.lavello || a.placca), schienale, muriPiano);
+  // Oggetti: sul piano che c'è DAVVERO sotto (anche la parte di piano che sporge
+  // oltre i mobili, es. l'isola dal lato sgabelli, o il piano allungato nell'angolo)
+  if (daPosare.length) {
+    gruppo.updateMatrixWorld(true);
+    for (const og of daPosare) og.position.y = Math.max(og.position.y, quotaPiani(og.position.x, og.position.z));
+  }
   // Lavello, piano cottura e rubinetto SOPRA il top
   for (const a of accessori) aggiungiAccessorioTop(a, progetto.finiture || {});
 
@@ -2319,6 +2362,7 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
       const slab = fori.length
         ? slabConFori(len, thickness, depth, matTop || COL.top, fori)
         : corpo(len, thickness, depth, matTop || COL.top);
+      slab.children[0].userData.appoggio = true;          // ci si appoggiano gli oggetti (friggitrice…)
       // PANNELLO DIETRO IL PIANO (aplacado): ovunque il piano tocca un muro —
       // dietro la fila e anche sui fianchi del piano che finiscono contro un muro
       // (es. negli angoli della cucina a L / U)

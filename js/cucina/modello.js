@@ -1906,22 +1906,43 @@ export function fasceCierreTecho(progetto, spessore = 18) {
   const ct = progetto.cierreTecho;
   if (!ct || !ct.attivo) return [];
   const SP_ANTA_3D = 20;                                        // anta: dalla cassa in avanti
-  const mob = (progetto.mobiliLiberi || []).filter((m) => m.tipo === 'pensile' || categoriaTipo(m.tipo) === 'colonna');
+  const assi = (r) => { const th = r * Math.PI / 180; return { ux: Math.round(Math.cos(th)), uy: -Math.round(Math.sin(th)), fx: -Math.round(Math.sin(th)), fy: -Math.round(Math.cos(th)) }; };
   const file = [];
-  for (const m of mob) {
-    const d = dimMobile(m), r = ((Math.round((m.rot || 0) / 90) * 90) % 360 + 360) % 360, th = r * Math.PI / 180;
-    const ux = Math.round(Math.cos(th)), uy = -Math.round(Math.sin(th)), fx = -Math.round(Math.sin(th)), fy = -Math.round(Math.cos(th));
-    const a = m.x * ux + m.y * uy, c = m.x * fx + m.y * fy;
-    const dietro = c - d.d / 2, fronte = c + d.d / 2 + SP_ANTA_3D;
+  const aggiungi = (r, a0, a1, dietro, fronte, pz) => {
     let f = file.find((q) => q.rot === r && Math.abs(q.dietro - dietro) < 60);
-    if (!f) { f = { rot: r, ux, uy, fx, fy, dietro, pezzi: [] }; file.push(f); }
-    f.pezzi.push({ id: m.id, a0: a - d.w / 2, a1: a + d.w / 2, fronte, gruppo: m.tipo === 'pensile' ? 'pensile' : 'colonna' });
+    if (!f) { f = { rot: r, ...assi(r), dietro, pezzi: [], fine: [] }; file.push(f); }
+    (pz.fine ? f.fine : f.pezzi).push({ ...pz, a0, a1, fronte });
+  };
+  for (const m of (progetto.mobiliLiberi || [])) {
+    const cat = categoriaTipo(m.tipo);
+    // pannelli alti a fine fila (costado, regletta grande): la fascia ci passa sopra
+    const fine = (cat === 'costado' && ((m.altezza_mm || 850) >= 1500 || (m.profondita_mm || 620) < 500))
+      || (m.tipo === 'regletta-grande' && (m.altezza_mm || 0) >= 1500);
+    if (cat !== 'pensile' && cat !== 'colonna' && !fine) continue;
+    const d = dimMobile(m), r = ((Math.round((m.rot || 0) / 90) * 90) % 360 + 360) % 360, A = assi(r);
+    const a = m.x * A.ux + m.y * A.uy, c = m.x * A.fx + m.y * A.fy;
+    if (m.tipo === 'pensile-angolo') {
+      // PENSILE D'ANGOLO a L: due bracci profondi come i pensili, uno per muro;
+      // ciascun braccio entra nella fila del suo muro. (Nel 3D la L gira di +rot:
+      // braccio A lungo x locale con il fronte verso +z, braccio B lungo z con
+      // il fronte verso +x, angolo pieno in (-x, -z).)
+      const P = PROFONDITA_PENSILE, rA = (360 - r) % 360, rB = (630 - r) % 360;
+      const QA = assi(rA), QB = assi(rB);
+      const aA = m.x * QA.ux + m.y * QA.uy, cA = m.x * QA.fx + m.y * QA.fy;
+      const aB = m.x * QB.ux + m.y * QB.uy, cB = m.x * QB.fx + m.y * QB.fy;
+      aggiungi(rA, aA - d.w / 2, aA + d.w / 2, cA - d.d / 2, cA - d.d / 2 + P + SP_ANTA_3D, { id: m.id, gruppo: 'pensile' });
+      aggiungi(rB, aB - d.d / 2, aB + d.d / 2, cB - d.w / 2, cB - d.w / 2 + P + SP_ANTA_3D, { id: m.id, gruppo: 'pensile' });
+      continue;
+    }
+    if (fine) { aggiungi(r, a - d.w / 2, a + d.w / 2, c - d.d / 2, c + d.d / 2, { id: m.id, fine: true }); continue; }
+    aggiungi(r, a - d.w / 2, a + d.w / 2, c - d.d / 2, c + d.d / 2 + SP_ANTA_3D, { id: m.id, gruppo: cat === 'pensile' ? 'pensile' : 'colonna' });
   }
   // TRATTI: mobili consecutivi con lo stesso fronte; i buchi (es. cappa, fino a 1 m) si chiudono
   const fasce = [];
   for (const f of file) {
     f.pezzi.sort((p, q) => p.a0 - q.a0);
     let fascia = null;
+    const n0 = fasce.length;
     for (const pz of f.pezzi) {
       if (!fascia || pz.a0 - fascia.tratti[fascia.tratti.length - 1].a1 > 1000) {
         fascia = { rot: f.rot, ux: f.ux, uy: f.uy, fx: f.fx, fy: f.fy, tratti: [] };
@@ -1934,6 +1955,14 @@ export function fasceCierreTecho(progetto, spessore = 18) {
       // buco tra due tratti: lo copre il tratto MENO profondo (la fascia resta continua)
       if (ult && pz.a0 > ult.a1) { if (pz.fronte < ult.front) pz.a0 = ult.a1; else ult.a1 = pz.a0; }
       fascia.tratti.push({ a0: pz.a0, a1: pz.a1, front: pz.fronte, gruppo: pz.gruppo, ids: [pz.id] });
+    }
+    // fine fila: la fascia copre anche il costado (o la regletta) a filo del suo fronte
+    for (const fascia of fasce.slice(n0)) {
+      for (let giro = 0; giro < 2; giro++) for (const e of f.fine) {
+        const t0 = fascia.tratti[0], t1 = fascia.tratti[fascia.tratti.length - 1];
+        if (Math.abs(e.a1 - t0.a0) < 30 && Math.abs(e.fronte - t0.front) < 30) t0.a0 = Math.min(t0.a0, e.a0);
+        else if (Math.abs(e.a0 - t1.a1) < 30 && Math.abs(e.fronte - t1.front) < 30) t1.a1 = Math.max(t1.a1, e.a1);
+      }
     }
   }
   // ANGOLI: le due fasce perpendicolari arrivano all'incrocio dei loro fronti
