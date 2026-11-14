@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261115n';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115n';
+} from './modello.js?v=20261115o';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115o';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261115n';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115n';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261115o';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115o';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115n';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115o';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1869,7 +1869,8 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       muri: full.map((p, i) => (p.assente ? null : { a: vertici[i], b: vertici[i + 1] })).filter(Boolean),
     };
   }
-  renderTopContinui(basiTop, fianchi, spTop, matTop, accessori.filter((a) => a.lavello || a.placca), schienale);
+  const muriPiano = full.map((p, i) => (p.assente ? null : { a: vertici[i], b: vertici[i + 1] })).filter(Boolean);
+  renderTopContinui(basiTop, fianchi, spTop, matTop, accessori.filter((a) => a.lavello || a.placca), schienale, muriPiano);
   // Lavello, piano cottura e rubinetto SOPRA il top
   for (const a of accessori) aggiungiAccessorioTop(a, progetto.finiture || {});
 
@@ -2026,7 +2027,7 @@ function distSegmento(p, a, b) {
 const SP_SCHIENALE = 12;          // spessore del pannello dietro il piano
 const H_SCHIENALE = 600;          // altezza se sopra non ci sono pensili
 
-function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, lavelli = [], schienale = null) {
+function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, lavelli = [], schienale = null, muriPiano = []) {
   let matTop = materialePerTop(mat);
   // Il piano deve SEMPRE vincere lo z-fighting contro costadi/colonne che gli
   // arrivano a filo (stessa quota): con polygonOffset la lastra viene disegnata
@@ -2047,6 +2048,8 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
     const key = `${rotN}|${perp}|${Math.round(b.topY)}`;
     (gruppi[key] ||= { rotN, c, s, topY: b.topY, d: b.d || PROFONDITA_BASE, items: [] }).items.push(b);
   }
+  // 1) TRATTI di piano (uno per fila continua di mobili)
+  const tratti1 = [];
   for (const key in gruppi) {
     const G = gruppi[key];
     const { c, s, rotN, topY } = G;
@@ -2054,19 +2057,20 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
     // (x locale = k·lungo, z locale = −k·perp; il retro dei moduli è a perp + k·d/2)
     const k = rotN % 180 === 0 ? 1 : -1;
     for (const run of tratti(G.items, c, s)) {
-      let lo = run.lo, hi = run.hi;
+      const lo = run.lo, hi = run.hi;
       let perpSum = 0; for (const b of run.items) perpSum += b.x * (-s) + b.y * c;
       const perp = perpSum / run.items.length;
       let endLo = lo - 20, endHi = hi + 20;   // estremità libere: piccola sporgenza
+      let fermoLo = false, fermoHi = false;   // fermati da una colonna / un costado
       for (const f of fianchi) {
         const pf = proiettaFianco(f, c, s);
         if (Math.abs(pf.perp - perp) > 350) continue;   // non sulla stessa linea
         const tall = (f.h || 0) >= 1500;
         if (pf.along >= hi - 1 && pf.near <= hi + 90) {          // estremità destra
-          endHi = (f.cat === 'costado' && !tall) ? pf.far : hi;
+          endHi = (f.cat === 'costado' && !tall) ? pf.far : hi; fermoHi = true;
         }
         if (pf.along <= lo + 1 && pf.far >= lo - 90) {           // estremità sinistra
-          endLo = (f.cat === 'costado' && !tall) ? pf.near : lo;
+          endLo = (f.cat === 'costado' && !tall) ? pf.near : lo; fermoLo = true;
         }
       }
       // Profondità del piano: normalmente = profondità dei moduli; ma se sulla
@@ -2084,6 +2088,69 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
         if (fMax < perp - G.d / 2 - 20 || fMin > perp + G.d / 2 + 20) continue; // non condivide il fronte
         pMin = Math.min(pMin, fMin); pMax = Math.max(pMax, fMax);
       }
+      tratti1.push({ G, c, s, rotN, topY, k, lo, hi, perp, pMin, pMax, endLo, endHi, fermoLo, fermoHi });
+    }
+  }
+  // 2) ANGOLI E MURI: un'estremità che non arriva al muro (es. il mobile d'angolo
+  //    da 1000 lontano dal muro) si allunga FINO AL MURO, così il piano chiude
+  //    l'angolo in un pezzo unico; se invece lì c'è il piano dell'altra fila, ci
+  //    si appoggia esattamente (niente buchi, niente lastre sovrapposte).
+  const MAX_ALLUNGO = 700;
+  const inCoord = (T, x, y) => ({ a: x * T.c + y * T.s, p: -x * T.s + y * T.c });
+  const angoliPiano = (T) => {                           // i 4 angoli della lastra (pianta)
+    const P = (a, p) => ({ x: T.c * a - T.s * p, y: T.s * a + T.c * p });
+    return [P(T.endLo, T.pMin - 20), P(T.endHi, T.pMin - 20), P(T.endLo, T.pMax + 20), P(T.endHi, T.pMax + 20)];
+  };
+  const nuoviFini = tratti1.map((T) => {
+    const out = { endLo: T.endLo, endHi: T.endHi };
+    for (const [lato, dir] of [['endLo', -1], ['endHi', 1]]) {
+      if (lato === 'endLo' ? T.fermoLo : T.fermoHi) continue;
+      const e = lato === 'endLo' ? T.lo : T.hi;              // filo dei mobili
+      const banda = T.pMax - T.pMin, pC = (T.pMin + T.pMax) / 2;
+      let meglio = null;                                     // { dist, fine }
+      // lastre delle altre file (perpendicolari o in linea) che stanno davanti a questa estremità
+      for (const Q of tratti1) {
+        if (Q === T || Math.abs(Q.topY - T.topY) > 5) continue;
+        if (Q.rotN % 180 === T.rotN % 180) continue;          // solo l'altra fila dell'ANGOLO (in linea: lo spazio resta)
+        const pts = angoliPiano(Q).map((q) => inCoord(T, q.x, q.y));
+        const qa0 = Math.min(...pts.map((q) => q.a)), qa1 = Math.max(...pts.map((q) => q.a));
+        const qp0 = Math.min(...pts.map((q) => q.p)), qp1 = Math.max(...pts.map((q) => q.p));
+        const sovP = Math.min(T.pMax, qp1) - Math.max(T.pMin, qp0);
+        if (sovP < banda * 0.5) continue;
+        const bordo = dir > 0 ? qa0 : qa1, dist = (bordo - e) * dir;
+        if (dist < -80 || dist > MAX_ALLUNGO) continue;
+        if (!meglio || dist < meglio.dist) meglio = { dist, fine: bordo };
+      }
+      // muri perpendicolari che chiudono questa estremità
+      for (const w of muriPiano) {
+        const A = inCoord(T, w.a.x, w.a.y), B = inCoord(T, w.b.x, w.b.y);
+        if (Math.abs(A.a - B.a) > 5) continue;                // non perpendicolare alla fila
+        if (pC < Math.min(A.p, B.p) - 5 || pC > Math.max(A.p, B.p) + 5) continue;
+        const dist = (A.a - e) * dir;
+        if (dist < -30 || dist > MAX_ALLUNGO) continue;
+        // oltre 15 cm si chiude solo negli ANGOLI (lì c'è l'altra fila contro questo muro):
+        // uno spazio voluto (es. frigo libero) in fondo a una fila resta aperto
+        if (dist > 150) {
+          const a0 = Math.min(e, A.a), a1 = Math.max(e, A.a);
+          const angolo = tratti1.some((Q) => {
+            if (Q === T || Q.rotN % 180 === T.rotN % 180) return false;
+            const pts = angoliPiano(Q).map((q) => inCoord(T, q.x, q.y));
+            const qa0 = Math.min(...pts.map((q) => q.a)), qa1 = Math.max(...pts.map((q) => q.a));
+            return qa1 > a0 + 10 && qa0 < a1 - 10;
+          });
+          if (!angolo) continue;
+        }
+        if (!meglio || dist < meglio.dist) meglio = { dist, fine: A.a };
+      }
+      if (meglio) out[lato] = meglio.fine;
+    }
+    return out;
+  });
+  tratti1.forEach((T, i) => Object.assign(T, nuoviFini[i]));
+  // 3) LASTRE (con i fori di lavello / piano cottura) e pannello dietro
+  for (const T of tratti1) {
+    const { G, c, s, rotN, topY, k, lo, hi, perp, pMin, pMax, endLo, endHi } = T;
+    {
       const depth = (pMax - pMin) + 40;
       const perpTop = (pMin + pMax) / 2;
       const len = endHi - endLo;
@@ -2147,7 +2214,7 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
           const pts = [Pp(e, perpMuro - k * 100), Pp(e, perpMuro - k * (G.d / 2)), Pp(e, perpMuro - k * (G.d - 100))];
           if (!suMuro(pts)) continue;
           const xE = k * (e - centerAlong), dentro = -Math.sign(xE) || 1;
-          const prof = Math.abs(zFronte - zMuro) - SP_SCHIENALE;
+          const prof = Math.abs(zFronte - zMuro) + 20 - SP_SCHIENALE;   // fino al bordo davanti del piano: combacia col pannello dell'altro lato
           const fianco = corpo(SP_SCHIENALE, H, prof, matP);
           fianco.position.set(xE + dentro * SP_SCHIENALE / 2, thickness / 2 + H / 2, zMuro + dz * (SP_SCHIENALE + prof / 2));
           fianco.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });

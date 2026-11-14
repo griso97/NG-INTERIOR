@@ -23,12 +23,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261115n';
-import { renderPianta } from './pianta.js?v=20261115n';
-import { calcolaDistintaCucina } from './distinta.js?v=20261115n';
+} from './modello.js?v=20261115o';
+import { renderPianta } from './pianta.js?v=20261115o';
+import { calcolaDistintaCucina } from './distinta.js?v=20261115o';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261115n';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115n';
+import { agganciaTema } from '../tema.js?v=20261115o';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115o';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1650,7 +1650,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115n');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115o');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1755,7 +1755,7 @@ function renderPalette() {
 }
 // catalogo (oggetti creati dalle foto) per la tavolozza
 let matMod = null;
-import('../materiali.js?v=20261115n').then((m) => { matMod = m; if (progetto.stepCorrente === 2) renderPalette(); }).catch(() => {});
+import('../materiali.js?v=20261115o').then((m) => { matMod = m; if (progetto.stepCorrente === 2) renderPalette(); }).catch(() => {});
 
 function blocMobileSelezionato() {
   const m = trovaMobileLibero(progetto, step2.mobSelId);
