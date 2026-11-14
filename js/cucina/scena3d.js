@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261115r';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115r';
+} from './modello.js?v=20261115s';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115s';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261115r';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115r';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261115s';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115s';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115r';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115s';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1897,18 +1897,26 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
     if (g3d) { g3d.userData.mobId = m.id; if (m.id === selId) evidenzia(g3d); gruppo.add(g3d); }
   }
 
-  // CIERRE A TECHO: una FASCIA UNICA per fila, tutta alla stessa profondità
-  // (faccia davanti = filo delle ante), sopra la cima più alta della fila;
-  // negli angoli una fascia passa e l'altra ci si appoggia.
+  // CIERRE A TECHO: segue il fronte dei mobili (colonne a filo colonne, pensili a
+  // filo pensili) con i pezzi che rientrano dove cambia la profondità
   if (cierre) {
     for (const b of fasceCierreTecho(progetto, 20)) {
       const yb = Math.max(...b.ids.map((id) => cimeAlte.get(id) || 0));
-      const L = b.a1 - b.a0, am = (b.a0 + b.a1) / 2;
-      const gx = am * b.ux + b.front * b.fx, gy = am * b.uy + b.front * b.fy;     // centro sulla faccia davanti
+      const mat = (b.gruppo === 'pensile' ? matPensile : matColonna) || COL.anta;
+      const am = (b.a0 + b.a1) / 2;
       const gF = new THREE.Group();
-      gF.position.set(gx, yb + cierre / 2, -gy);
       gF.rotation.y = -b.rot * Math.PI / 180;
-      pannello(gF, 0, 0, -20, L, cierre, (b.gruppo === 'pensile' ? matPensile : matColonna) || COL.anta);
+      if (b.tipo === 'rientro') {
+        const fm = (b.f0 + b.f1) / 2;
+        gF.position.set(am * b.ux + fm * b.fx, yb + cierre / 2, -(am * b.uy + fm * b.fy));
+        const geo = new THREE.BoxGeometry(b.a1 - b.a0, cierre, b.f1 - b.f0);
+        const ms = new THREE.Mesh(geo, (mat && mat.isMaterial) ? mat : new THREE.MeshStandardMaterial({ color: mat, roughness: 0.6, metalness: 0.08 }));
+        ms.castShadow = true; gF.add(ms);
+        gF.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), matOro));
+      } else {
+        gF.position.set(am * b.ux + b.front * b.fx, yb + cierre / 2, -(am * b.uy + b.front * b.fy));   // centro sulla faccia davanti
+        pannello(gF, 0, 0, -20, b.a1 - b.a0, cierre, mat);
+      }
       gruppo.add(gF);
     }
   }

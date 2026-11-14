@@ -1322,4 +1322,8 @@ window.NG_I18N_ES = {
   "🪑 Aggiungi oggetti": "🪑 Añadir objetos",
   "Tocca un oggetto: compare in cucina (sul piano di lavoro se c'è, se no a terra). Poi trascinalo dove vuoi.": "Toca un objeto: aparece en la cocina (sobre la encimera si la hay, si no en el suelo). Luego arrástralo donde quieras.",
   "I tuoi oggetti (friggitrici, tostapane…) si creano dalle foto in ⚙ Impostazioni → Oggetti ed elettrodomestici.": "Tus objetos (freidoras, tostadoras…) se crean con las fotos en ⚙ Ajustes → Objetos y electrodomésticos.",
+  "Fascia continua sopra pensili e colonne che segue il fronte dei mobili: a filo delle colonne (colore colonne) e a filo dei pensili (colore pensili), con il pezzo che rientra dove cambia la profondità. Chiude lo spazio fino al soffitto. Negli angoli una fascia passa (+ lo spessore) e l'altra ci si appoggia.": "Franja continua encima de los altos y las columnas que sigue el frente de los muebles: a ras de las columnas (color columnas) y a ras de los altos (color altos), con la pieza que entra donde cambia la profundidad. Cierra el espacio hasta el techo. En las esquinas una franja pasa (+ el grosor) y la otra se apoya.",
+  "Cierre a techo (fascia)": "Cierre a techo (franja)",
+  "Cierre a techo (pezzo che rientra)": "Cierre a techo (pieza que entra)",
+  "Cierre a techo (fascia, oltre 2800: da giuntare)": "Cierre a techo (franja, más de 2800: hay que empalmar)",
 };

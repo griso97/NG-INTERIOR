@@ -23,12 +23,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261115r';
-import { renderPianta } from './pianta.js?v=20261115r';
-import { calcolaDistintaCucina } from './distinta.js?v=20261115r';
+} from './modello.js?v=20261115s';
+import { renderPianta } from './pianta.js?v=20261115s';
+import { calcolaDistintaCucina } from './distinta.js?v=20261115s';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261115r';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115r';
+import { agganciaTema } from '../tema.js?v=20261115s';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115s';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1111,7 +1111,7 @@ function renderPannelloStep3d() {
       return `
     <section class="step3-pannello">
       <h3>Cierre a techo</h3>
-      <div class="riga-3d" style="margin-bottom:6px">Fascia unica per ogni muro sopra pensili e colonne, tutta alla stessa profondità (a filo delle ante dei pensili), che chiude lo spazio fino al soffitto. Negli angoli una fascia passa (+ lo spessore del pannello) e l'altra ci si appoggia. In distinta: una fascia per muro, col colore delle ante.</div>
+      <div class="riga-3d" style="margin-bottom:6px">Fascia continua sopra pensili e colonne che segue il fronte dei mobili: a filo delle colonne (colore colonne) e a filo dei pensili (colore pensili), con il pezzo che rientra dove cambia la profondità. Chiude lo spazio fino al soffitto. Negli angoli una fascia passa (+ lo spessore) e l'altra ci si appoggia.</div>
       <div class="opzioni-anta">
         <button type="button" class="btn-ghost opt-cierre ${!ct.attivo ? 'attivo' : ''}" data-cierre="no">${!ct.attivo ? '✓ ' : ''}No</button>
         <button type="button" class="btn-ghost opt-cierre ${ct.attivo ? 'attivo' : ''}" data-cierre="si">${ct.attivo ? '✓ ' : ''}Sì</button>
@@ -1709,7 +1709,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115r');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115s');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1814,7 +1814,7 @@ function renderPalette() {
 }
 // catalogo (oggetti creati dalle foto) per la tavolozza
 var matMod = null;      // (var: usabile anche prima di questa riga, mentre si carica)
-import('../materiali.js?v=20261115r').then((m) => {
+import('../materiali.js?v=20261115s').then((m) => {
   matMod = m;
   if (progetto.stepCorrente === 2) renderPalette();
   if (progetto.stepCorrente === 4) renderPannello();

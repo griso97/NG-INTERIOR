@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho,
-} from './modello.js?v=20261115r';
+} from './modello.js?v=20261115s';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -303,12 +303,13 @@ export function calcolaDistintaCucina(progetto) {
   // 2) LISTA PEZZI DA FARE: ante/frontali e pezzi in legno nostri, aggregati per tipo+misura.
   const raw = [];
   for (const m of mobili) raw.push(...pezziDiModulo(progetto, m));
-  // CIERRE A TECHO: una fascia unica per fila (negli angoli una passa + spessore, l'altra si appoggia)
+  // CIERRE A TECHO: fasce a filo del fronte dei mobili + pezzi che rientrano (negli angoli una passa + spessore)
   const ct = progetto.cierreTecho;
   if (ct && ct.attivo) {
     const col = progetto.coloriFronti || {};
     for (const f of fasceCierreTecho(progetto, SP)) {
-      raw.push({ nome: f.lunghezza > 2800 ? 'Cierre a techo (fascia unica, oltre 2800: da giuntare)' : 'Cierre a techo (fascia unica)',
+      raw.push({ nome: f.tipo === 'rientro' ? 'Cierre a techo (pezzo che rientra)'
+        : f.lunghezza > 2800 ? 'Cierre a techo (fascia, oltre 2800: da giuntare)' : 'Cierre a techo (fascia)',
         larghezza: f.lunghezza, altezza: Math.max(20, Math.round(Number(ct.altezza) || 300)), spessore: SP, materiale: 'anta',
         materialeNome: nomeMateriale(f.gruppo === 'pensile' ? col.pensile : col.colonna, 'Colore da scegliere'), quantita: 1 });
     }

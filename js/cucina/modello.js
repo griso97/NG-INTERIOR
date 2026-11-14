@@ -1891,13 +1891,16 @@ export function agganciaAngoloL(progetto, m, x, y) {
 }
 
 // =============================================================================
-// CIERRE A TECHO a FASCIA UNICA: una fascia continua per ogni fila di mobili
-// alti (pensili e colonne sullo stesso muro), tutta alla STESSA profondità
-// (a filo delle ante dei pensili, o delle colonne se la fila ha solo colonne).
-// Negli angoli una fascia passa (lunga fino all'incrocio + lo spessore del
-// pannello) e l'altra ci si appoggia (lunga fino all'incrocio).
-// Ritorna [{ rot, ux, uy, fx, fy, a0, a1, front, lunghezza, gruppo, ids }]
-// (piano: a = coordinata lungo la fila, front = faccia davanti delle ante).
+// CIERRE A TECHO che SEGUE IL FRONTE DEI MOBILI: per ogni fila di mobili alti
+// (pensili e colonne sullo stesso muro) una fascia continua che sta a filo del
+// fronte di ogni mobile: sopra le colonne a filo colonne (colore colonne), sopra
+// i pensili a filo pensili (colore pensili); dove la profondità cambia c'è il
+// pezzettino che RIENTRA (colore del mobile più profondo, es. colonne).
+// Negli angoli una fascia passa (fino all'incrocio + lo spessore) e l'altra ci
+// si appoggia. Ritorna i PEZZI:
+//  { tipo: 'fronte', a0, a1, front } · { tipo: 'rientro', a0, a1, f0, f1 }
+//  con rot, ux, uy, fx, fy (assi della fila), gruppo ('pensile'|'colonna'),
+//  ids (mobili sotto), lunghezza (mm del pezzo da tagliare).
 // =============================================================================
 export function fasceCierreTecho(progetto, spessore = 18) {
   const ct = progetto.cierreTecho;
@@ -1912,46 +1915,65 @@ export function fasceCierreTecho(progetto, spessore = 18) {
     const dietro = c - d.d / 2, fronte = c + d.d / 2 + SP_ANTA_3D;
     let f = file.find((q) => q.rot === r && Math.abs(q.dietro - dietro) < 60);
     if (!f) { f = { rot: r, ux, uy, fx, fy, dietro, pezzi: [] }; file.push(f); }
-    f.pezzi.push({ id: m.id, a0: a - d.w / 2, a1: a + d.w / 2, fronte, pensile: m.tipo === 'pensile' });
+    f.pezzi.push({ id: m.id, a0: a - d.w / 2, a1: a + d.w / 2, fronte, gruppo: m.tipo === 'pensile' ? 'pensile' : 'colonna' });
   }
-  // nella stessa fila: pezzi vicini (buchi fino a 1 m, es. la cappa) = una fascia sola
+  // TRATTI: mobili consecutivi con lo stesso fronte; i buchi (es. cappa, fino a 1 m) si chiudono
   const fasce = [];
   for (const f of file) {
     f.pezzi.sort((p, q) => p.a0 - q.a0);
-    let cur = null;
+    let fascia = null;
     for (const pz of f.pezzi) {
-      if (cur && pz.a0 - cur.a1 <= 1000) { cur.a1 = Math.max(cur.a1, pz.a1); cur.pz.push(pz); continue; }
-      cur = { rot: f.rot, ux: f.ux, uy: f.uy, fx: f.fx, fy: f.fy, a0: pz.a0, a1: pz.a1, pz: [pz] };
-      fasce.push(cur);
+      if (!fascia || pz.a0 - fascia.tratti[fascia.tratti.length - 1].a1 > 1000) {
+        fascia = { rot: f.rot, ux: f.ux, uy: f.uy, fx: f.fx, fy: f.fy, tratti: [] };
+        fasce.push(fascia);
+      }
+      const ult = fascia.tratti[fascia.tratti.length - 1];
+      if (ult && Math.abs(ult.front - pz.fronte) < 15 && ult.gruppo === pz.gruppo) {
+        ult.a1 = Math.max(ult.a1, pz.a1); ult.ids.push(pz.id); continue;
+      }
+      // buco tra due tratti: lo copre il tratto MENO profondo (la fascia resta continua)
+      if (ult && pz.a0 > ult.a1) { if (pz.fronte < ult.front) pz.a0 = ult.a1; else ult.a1 = pz.a0; }
+      fascia.tratti.push({ a0: pz.a0, a1: pz.a1, front: pz.fronte, gruppo: pz.gruppo, ids: [pz.id] });
     }
   }
-  for (const b of fasce) {
-    const pens = b.pz.filter((p) => p.pensile);
-    b.gruppo = pens.length ? 'pensile' : 'colonna';
-    b.front = Math.max(...(pens.length ? pens : b.pz).map((p) => p.fronte));   // stessa profondità per tutta la fascia
-    b.ids = b.pz.map((p) => p.id);
-    delete b.pz;
-  }
-  // ANGOLI: due fasce perpendicolari che si incontrano → fino all'incrocio delle facce
+  // ANGOLI: le due fasce perpendicolari arrivano all'incrocio dei loro fronti
   const fatti = new Set();
   for (let i = 0; i < fasce.length; i++) for (let j = i + 1; j < fasce.length; j++) {
     const A = fasce[i], B = fasce[j];
-    if (A.ux * B.ux + A.uy * B.uy !== 0) continue;                // non perpendicolari
-    // incrocio X: X·F_A = front_A e X·F_B = front_B
+    if (A.ux * B.ux + A.uy * B.uy !== 0) continue;
     const det = A.fx * B.fy - A.fy * B.fx; if (!det) continue;
-    const Xx = (A.front * B.fy - A.fy * B.front) / det, Xy = (A.fx * B.front - A.front * B.fx) / det;
-    const aA = Xx * A.ux + Xy * A.uy, aB = Xx * B.ux + Xy * B.uy;
-    const fineA = Math.abs(aA - A.a0) <= Math.abs(aA - A.a1) ? 'a0' : 'a1';
-    const fineB = Math.abs(aB - B.a0) <= Math.abs(aB - B.a1) ? 'a0' : 'a1';
-    if (Math.abs(aA - A[fineA]) > 900 || Math.abs(aB - B[fineB]) > 900) continue;   // non si toccano
-    if (fatti.has(`${i}${fineA}`) || fatti.has(`${j}${fineB}`)) continue;
-    fatti.add(`${i}${fineA}`); fatti.add(`${j}${fineB}`);
-    A[fineA] = aA; B[fineB] = aB;
-    // quella più lunga passa (+ spessore verso l'angolo), l'altra ci si appoggia
-    const piena = (A.a1 - A.a0) >= (B.a1 - B.a0) ? [A, fineA] : [B, fineB];
-    piena[0][piena[1]] += piena[1] === 'a0' ? -spessore : spessore;
+    const capo = (F, fine) => (fine === 'a0' ? F.tratti[0] : F.tratti[F.tratti.length - 1]);
+    for (const fineA of ['a0', 'a1']) for (const fineB of ['a0', 'a1']) {
+      if (fatti.has(`${i}${fineA}`) || fatti.has(`${j}${fineB}`)) continue;
+      const tA = capo(A, fineA), tB = capo(B, fineB);
+      const Xx = (tA.front * B.fy - A.fy * tB.front) / det, Xy = (A.fx * tB.front - tA.front * B.fx) / det;
+      const aA = Xx * A.ux + Xy * A.uy, aB = Xx * B.ux + Xy * B.uy;
+      if (Math.abs(aA - tA[fineA]) > 900 || Math.abs(aB - tB[fineB]) > 900) continue;
+      // l'incrocio deve stare dalla parte di quell'estremità
+      if ((fineA === 'a0' ? aA > tA.a1 : aA < tA.a0) || (fineB === 'a0' ? aB > tB.a1 : aB < tB.a0)) continue;
+      fatti.add(`${i}${fineA}`); fatti.add(`${j}${fineB}`);
+      tA[fineA] = aA; tB[fineB] = aB;
+      const lunga = (A.tratti.at(-1).a1 - A.tratti[0].a0) >= (B.tratti.at(-1).a1 - B.tratti[0].a0);
+      const [t, fine] = lunga ? [tA, fineA] : [tB, fineB];
+      t[fine] += fine === 'a0' ? -spessore : spessore;
+    }
   }
-  for (const b of fasce) b.lunghezza = Math.round(b.a1 - b.a0);
-  return fasce;
+  // PEZZI: fronte di ogni tratto + rientri dove cambia la profondità
+  const pezzi = [];
+  for (const F of fasce) {
+    const base = { rot: F.rot, ux: F.ux, uy: F.uy, fx: F.fx, fy: F.fy };
+    F.tratti.forEach((t, k) => {
+      pezzi.push({ ...base, tipo: 'fronte', a0: t.a0, a1: t.a1, front: t.front, gruppo: t.gruppo, ids: t.ids, lunghezza: Math.round(t.a1 - t.a0) });
+      const nx = F.tratti[k + 1];
+      if (!nx || Math.abs(nx.front - t.front) < 15) return;
+      // rientro sul fianco del mobile più profondo, dal fronte dell'altro al suo
+      const prof = t.front > nx.front ? t : nx, basso = prof === t ? nx : t;
+      const bordo = prof === t ? t.a1 : nx.a0, dentro = prof === t ? -1 : 1;
+      const a0 = Math.min(bordo, bordo + dentro * spessore), a1 = Math.max(bordo, bordo + dentro * spessore);
+      const f0 = basso.front - spessore, f1 = prof.front - spessore;
+      pezzi.push({ ...base, tipo: 'rientro', a0, a1, f0, f1, gruppo: prof.gruppo, ids: [...t.ids, ...nx.ids], lunghezza: Math.round(f1 - f0) });
+    });
+  }
+  return pezzi;
 }
 
