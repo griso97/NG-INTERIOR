@@ -114,54 +114,73 @@ export function riconosciViste(foto) {
   return Object.keys(cambi).length ? { mappa: nuovo, cambi } : null;
 }
 
-/** Il davanti nella foto di lato: dalla parte dove c'è la sporgenza (maniglia, cestello). */
-function orientaLato(S) {
-  const sx = [], dx = [];
-  for (let v = 0.04; v <= 0.96; v += 0.02) {
-    let l = -1, r = -1;
-    for (let u = 0; u <= 1; u += 0.005) if (S.alfa(u, v) > 0.5) { if (l < 0) l = u; r = u; }
-    if (l >= 0) { sx.push(l); dx.push(1 - r); }
+/**
+ * PROFILO di una sagoma riga per riga: per ogni riga v (0 = in alto) il bordo
+ * sinistro e destro (u 0..1, con la frazione di pixel), ripulito: filtro mediano
+ * e, dove il bordo è quasi dritto, raddrizzato del tutto (facce piatte, niente gradini).
+ */
+function profilo(V) {
+  const { w, A, x0, y0, bw, bh } = V;
+  const n = bh, L = new Float32Array(n).fill(NaN), R = new Float32Array(n).fill(NaN);
+  for (let r = 0; r < n; r++) {
+    const y = y0 + r, base = y * w;
+    let l = -1, rr = -1;
+    for (let x = x0; x < x0 + bw; x++) if (A[base + x] > 0.5) { if (l < 0) l = x; rr = x; }
+    if (l < 0) continue;
+    // bordo al pixel con la frazione (dove l'alfa passa 0.5)
+    const al = l > 0 ? A[base + l - 1] : 0, ar = rr < w - 1 ? A[base + rr + 1] : 0;
+    const fl = l - Math.max(0, Math.min(1, (A[base + l] - 0.5) / Math.max(0.01, A[base + l] - al))) + 0.5;
+    const fr = rr + Math.max(0, Math.min(1, (A[base + rr] - 0.5) / Math.max(0.01, A[base + rr] - ar))) - 0.5;
+    L[r] = (fl - x0) / Math.max(1, bw - 1); R[r] = (fr - x0) / Math.max(1, bw - 1);
   }
-  const med = (a) => [...a].sort((p, q) => p - q)[a.length >> 1] || 0;
-  const mS = med(sx), mD = med(dx);
-  const spS = sx.filter((x) => x < mS - 0.03).length, spD = dx.filter((x) => x < mD - 0.03).length;
-  S.flipU = spD > spS;                                     // sporgenza a destra → il davanti è a destra
-  // fascia della sporgenza davanti (righe dove il davanti esce oltre il corpo)
-  const fronte = S.flipU ? dx : sx, mF = S.flipU ? mD : mS;
-  const righe = [];
-  let i = 0; for (let v = 0.04; v <= 0.96; v += 0.02) { if (i < fronte.length && fronte[i] < mF - 0.03) righe.push(v); i++; }
-  return { corpo: mF, righe };                             // corpo: dove inizia il corpo (0 = punta davanti)
+  const mediana = (arr) => { const t = [...arr].filter((x) => !Number.isNaN(x)).sort((p, q) => p - q); return t.length ? t[t.length >> 1] : NaN; };
+  const filtra = (arr) => {
+    const out = new Float32Array(n);
+    for (let r = 0; r < n; r++) {
+      if (Number.isNaN(arr[r])) { out[r] = NaN; continue; }
+      const fin = []; for (let q = Math.max(0, r - 3); q <= Math.min(n - 1, r + 3); q++) if (!Number.isNaN(arr[q])) fin.push(arr[q]);
+      fin.sort((p, q) => p - q); out[r] = fin[fin.length >> 1];
+    }
+    const m = mediana(out);
+    for (let r = 0; r < n; r++) if (!Number.isNaN(out[r]) && Math.abs(out[r] - m) < 0.018) out[r] = m;   // quasi dritto → dritto
+    return { v: out, m };
+  };
+  const fl = filtra(L), fr = filtra(R);
+  const at = (arr, v) => {                                 // valore alla riga v (0..1), interpolato
+    const x = Math.min(n - 1, Math.max(0, v * (n - 1))), i = Math.floor(x), t = x - i;
+    const a0 = arr[i], a1 = arr[Math.min(n - 1, i + 1)];
+    if (Number.isNaN(a0)) return a1; if (Number.isNaN(a1)) return a0;
+    return a0 * (1 - t) + a1 * t;
+  };
+  return { sx: (v) => at(fl.v, v), dx: (v) => at(fr.v, v), mSx: fl.m, mDx: fr.m, righe: n };
 }
 
-/** Larghezza della sporgenza davanti (es. maniglia) letta nella foto davanti, alle sue altezze. */
-function larghezzaSporgenza(F, righe) {
-  if (!righe.length) return null;
-  const v0 = Math.min(...righe), v1 = Math.max(...righe);
-  // colore del corpo: righe appena sopra la sporgenza
+/** Maniglia (sporgenza davanti) nella foto davanti: le colonne diverse dal cassetto AI SUOI LATI. */
+function trovaManiglia(F, v0, v1) {
   const ref = [];
-  for (let v = Math.max(0, v0 - 0.12); v < v0 - 0.02; v += 0.01) for (let u = 0.1; u <= 0.9; u += 0.02) { const c = F.col(u, v); if (c) ref.push(c); }
-  if (!ref.length) return null;
+  for (let v = v0; v <= v1; v += (v1 - v0) / 20 || 0.01) for (const u of [0.08, 0.12, 0.16, 0.84, 0.88, 0.92]) { const c = F.col(u, v); if (c) ref.push(c); }
+  if (ref.length < 6) return null;
   const mc = [0, 1, 2].map((q) => ref.map((c) => c[q]).sort((a, b) => a - b)[ref.length >> 1]);
-  const N = 100, diff = new Array(N).fill(0);
+  const N = 200, fr = new Array(N).fill(0);
   for (let i = 0; i < N; i++) {
-    const u = (i + 0.5) / N; let s = 0, n = 0;
-    for (let v = v0; v <= v1; v += 0.01) { const c = F.col(u, v); if (!c) continue; s += Math.hypot(c[0] - mc[0], c[1] - mc[1], c[2] - mc[2]); n++; }
-    diff[i] = n ? s / n : 0;
+    const u = (i + 0.5) / N; let si = 0, n = 0;
+    for (let k = 0; k <= 24; k++) {
+      const v = v0 + (v1 - v0) * (0.1 + 0.8 * k / 24), c = F.col(u, v); if (!c) continue;
+      n++; if (Math.hypot(c[0] - mc[0], c[1] - mc[1], c[2] - mc[2]) > 20) si++;
+    }
+    fr[i] = n ? si / n : 0;
   }
-  // colonne "diverse dal corpo" (bordi della maniglia + sua faccia) → tratto attorno al centro
-  const soglia = Math.max(12, [...diff].sort((a, b) => a - b)[Math.floor(N * 0.3)] * 1.8);
-  const on = diff.map((x) => x > soglia);
+  const on = fr.map((x) => x > 0.45);
   let best = null;
   for (let i = 0; i < N;) {
     if (!on[i]) { i++; continue; }
-    let j = i; while (j + 1 < N && (on[j + 1] || (j + 2 < N && on[j + 2]))) j++;
-    const cen = (i + j) / 2 / N, larg = (j - i + 1) / N;
-    const punti = larg - Math.abs(cen - 0.5);
-    if (!best || punti > best.punti) best = { a: i / N, b: (j + 1) / N, punti, larg };
+    let j = i; while (j + 1 < N && (on[j + 1] || (j + 3 < N && (on[j + 2] || on[j + 3])))) j++;
+    const a = i / N, b = (j + 1) / N, cen = (a + b) / 2;
+    if (cen > 0.2 && cen < 0.8 && (!best || Math.abs(cen - 0.5) < Math.abs((best.a + best.b) / 2 - 0.5))) best = { a, b };
     i = j + 1;
   }
-  if (!best || best.larg < 0.08 || best.larg > 0.85) return { a: 0.3, b: 0.7 };   // non chiara: centrata, 40%
-  return { a: best.a, b: best.b };
+  if (!best || best.b - best.a < 0.04 || best.b - best.a > 0.8) return null;
+  return best;
 }
 
 /** Texture ad alta risoluzione della foto isolata, col colore che "trabocca" oltre il bordo (niente aloni). */
@@ -208,37 +227,76 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'squadrata') {
   const F = vista(foto.fronte); if (!F) return null;
   const S = vista(foto.lato), T = vista(foto.sopra), B = foto.dietro ? true : false;
   W = Math.max(10, W); D = Math.max(10, D); H = Math.max(10, H);
-  // lato: dov'è il davanti, dove sporge; davanti: quanto è larga la sporgenza
-  let corpoZ = 0, sporg = null;
-  if (S) {
-    const o = orientaLato(S);
-    corpoZ = o.righe.length ? o.corpo : 0;                 // 0..1 dalla punta: profondità della sporgenza
-    if (!T && o.righe.length) sporg = larghezzaSporgenza(F, o.righe);
+  // PROFILI riga per riga (davanti, lato, sopra) → volume con facce piatte
+  const pF = profilo(F);
+  const pS = S ? profilo(S) : null, pT = T ? profilo(T) : null;
+  // lato: il davanti è dove sporge qualcosa (maniglia); fascia e profondità della sporgenza
+  let davantiSx = true, corpoF = 0, banda = null, man = null;
+  if (pS) {
+    const sporgeSx = [], sporgeDx = [];
+    for (let k = 0; k <= 100; k++) { const v = k / 100; sporgeSx.push(pS.mSx - pS.sx(v)); sporgeDx.push(pS.dx(v) - pS.mDx); }
+    const nSx = sporgeSx.filter((x) => x > 0.025).length, nDx = sporgeDx.filter((x) => x > 0.025).length;
+    davantiSx = nSx >= nDx;
+    const sp = davantiSx ? sporgeSx : sporgeDx;
+    const righe = sp.map((x, k) => (x > 0.025 ? k / 100 : null)).filter((x) => x !== null);
+    corpoF = davantiSx ? pS.mSx : 1 - pS.mDx;                 // dalla punta davanti all'inizio del corpo (0..1 di D)
+    if (righe.length >= 3) {
+      banda = [Math.min(...righe), Math.max(...righe)];
+      if (!T) man = trovaManiglia(F, banda[0], banda[1]) || { a: 0.4, b: 0.6 };
+    } else corpoF = 0;
   }
-  const passo = Math.max(W, D, H) / 112;
+  const passo = Math.max(W, D, H) / 120;
   const NX = Math.max(16, Math.round(W / passo)), NY = Math.max(16, Math.round(H / passo)), NZ = Math.max(16, Math.round(D / passo));
   const GX = NX + 2, GY = NY + 2, GZ = NZ + 2;
   const id = (i, j, k) => (k * GY + j) * GX + i;
-  const occ = new Float32Array(GX * GY * GZ);
+  const f = new Float32Array(GX * GY * GZ);
   const tonda = !T && (pianta === 'tonda' || pianta === 'ovale');
-  const zCorpo = 1 - corpoZ;                               // wz oltre cui c'è solo la sporgenza
-  for (let k = 1; k <= NZ; k++) for (let j = 1; j <= NY; j++) for (let i = 1; i <= NX; i++) {
-    const u = (i - 0.5) / NX, vy = 1 - (j - 0.5) / NY, wz = (k - 0.5) / NZ;          // wz: 0 = dietro, 1 = davanti
-    let o = F.alfa(u, vy);
-    if (o > 0 && S) o = Math.min(o, S.alfa(1 - wz, vy));                           // lato: u = 0 il davanti
-    if (o > 0 && T) o = Math.min(o, T.alfa(u, wz));                                // sopra: in basso il davanti
-    if (o > 0 && !T && wz > zCorpo + 0.5 / NZ && sporg) o = (u >= sporg.a && u <= sporg.b) ? o : 0;   // la sporgenza solo dov'è davvero
-    if (o > 0 && tonda && wz <= zCorpo) {
-      const ex = (u - 0.5) * 2, ez = (wz / Math.max(0.05, zCorpo) - 0.5) * 2, r = Math.sqrt(ex * ex + ez * ez);
-      o = Math.min(o, Math.max(0, Math.min(1, 0.5 + (1 - r) * Math.min(NX, NZ) / 2)));
+  const rr = Math.min(W, D) * 0.045;                       // spigoli verticali arrotondati (come i veri)
+  const zCorpo = D / 2 - corpoF * D;                       // faccia davanti del corpo (oltre: solo la maniglia)
+  const dentro = (dd) => Math.max(0, Math.min(1, 0.5 + dd / passo));
+  for (let j = 1; j <= NY; j++) {
+    const y = (j - 0.5) / NY * H, vy = 1 - y / H;
+    const xl = pF.sx(vy) * W - W / 2, xr = pF.dx(vy) * W - W / 2;
+    if (Number.isNaN(xl) || Number.isNaN(xr)) continue;
+    let zf = D / 2, zb = -D / 2;
+    if (pS) {
+      const a = pS.sx(vy), b = pS.dx(vy);
+      if (Number.isNaN(a) || Number.isNaN(b)) continue;
+      if (davantiSx) { zf = D / 2 - a * D; zb = D / 2 - b * D; } else { zf = D / 2 - (1 - b) * D; zb = D / 2 - (1 - a) * D; }
     }
-    occ[id(i, j, k)] = o;
+    const sporgeQui = banda && vy >= banda[0] - 0.01 && vy <= banda[1] + 0.01;
+    for (let k = 1; k <= NZ; k++) {
+      const z = (k - 0.5) / NZ * D - D / 2, wz = (z + D / 2) / D;
+      let txl = -Infinity, txr = Infinity;
+      if (pT) { const a = pT.sx(wz), b = pT.dx(wz); if (Number.isNaN(a)) continue; txl = a * W - W / 2; txr = b * W - W / 2; }
+      for (let i = 1; i <= NX; i++) {
+        const x = (i - 0.5) / NX * W - W / 2;
+        // corpo: dentro al profilo davanti (x) e di lato (z), spigoli verticali arrotondati
+        const zfc = Math.min(zf, zCorpo + (sporgeQui ? 0 : 0));
+        const hx = (xr - xl) / 2, hz = (zfc - zb) / 2, cx = (xl + xr) / 2, cz = (zfc + zb) / 2;
+        let dd;
+        if (tonda) {
+          const ex = (x - cx) / Math.max(1, hx), ez = (z - cz) / Math.max(1, hz);
+          dd = (1 - Math.sqrt(ex * ex + ez * ez)) * Math.min(hx, hz);
+        } else {
+          const qx = Math.abs(x - cx) - (hx - rr), qz = Math.abs(z - cz) - (hz - rr);
+          dd = -(Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0) - rr);
+        }
+        if (pT) dd = Math.min(dd, x - txl, txr - x);
+        let o = dentro(dd);
+        // MANIGLIA: davanti al corpo, solo dove è nella foto davanti
+        if (sporgeQui && z > zCorpo - passo && zf > zCorpo + passo) {
+          const mx0 = man ? man.a * W - W / 2 : -Infinity, mx1 = man ? man.b * W - W / 2 : Infinity;
+          const dm = Math.min(x - mx0, mx1 - x, zf - z, z - (zCorpo - 2 * passo), x - xl, xr - x);
+          o = Math.max(o, dentro(dm));
+        }
+        f[id(i, j, k)] = o;
+      }
+    }
   }
-  const f = new Float32Array(occ.length);                  // ammorbidisco appena (spigoli puliti)
-  for (let k = 1; k < GZ - 1; k++) for (let j = 1; j < GY - 1; j++) for (let i = 1; i < GX - 1; i++) {
-    let s = occ[id(i, j, k)] * 8, n = 8;
-    for (const [a, b, c] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) { s += occ[id(i + a, j + b, k + c)]; n++; }
-    f[id(i, j, k)] = s / n;
+  // sopra e sotto: chiusura morbida (prima e ultima fila)
+  for (let k = 1; k <= NZ; k++) for (let i = 1; i <= NX; i++) {
+    f[id(i, 1, k)] = Math.min(f[id(i, 1, k)], 0.75); f[id(i, NY, k)] = Math.min(f[id(i, NY, k)], 0.75);
   }
   const pos = (i, j, k) => [(i - 0.5) / NX * W - W / 2, (j - 0.5) / NY * H, (k - 0.5) / NZ * D - D / 2];
   // MARCHING CUBES
@@ -280,7 +338,7 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'squadrata') {
       }
       for (let i = 0; i < vert.length; i++) vert[i] = nuovo[i];
     };
-    for (let it = 0; it < 4; it++) { passoT(0.5); passoT(-0.53); }
+    for (let it = 0; it < 2; it++) { passoT(0.5); passoT(-0.53); }
   }
   const gi = new THREE.BufferGeometry();
   gi.setAttribute('position', new THREE.Float32BufferAttribute(vert, 3));
@@ -321,7 +379,7 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'squadrata') {
       let uv;
       if (m === 0) uv = uvDa(tF, u, vy);
       else if (m === 1) uv = uvDa(tB, 1 - u, vy);                              // dietro: vista da dietro (specchiata)
-      else if (m === 2) uv = uvDa(tS, S && S.flipU ? wz : 1 - wz, vy);          // i due lati: la stessa foto, specchiata
+      else if (m === 2) uv = uvDa(tS, davantiSx ? 1 - wz : wz, vy);          // i due lati: la stessa foto, specchiata
       else if (m === 3) uv = uvDa(tT, u, wz);
       else uv = [0, 0];
       uvA.push(uv[0], uv[1]);
