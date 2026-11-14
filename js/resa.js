@@ -29,14 +29,17 @@ export function creaResa(opz) {
   const tel = eTelefono();
   const DPR = window.devicePixelRatio || 1;
   const DPR_MOTO = Math.min(DPR, tel ? 1.25 : 1.5);          // mentre si gira: fluido
-  const DPR_FERMO = Math.min(DPR, tel ? 2 : 2);                // fermo: nitido come una foto
+  const DPR_FERMO = Math.min(DPR, tel ? 3 : 2);                // fermo: nitido come una foto (tutti i pixel del telefono)
   let ao = null, quad = null, guasto = false;
   try {
     const s = renderer.getDrawingBufferSize(new THREE.Vector2());
     ao = new GTAOPass(scene, camera, Math.max(2, s.x), Math.max(2, s.y));
     ao.output = GTAOPass.OUTPUT.Off;                          // calcola soltanto: la fusione la faccio io
-    ao.updateGtaoMaterial({ radius: opz.raggio || 320, distanceExponent: 1.6, thickness: 700, distanceFallOff: 1, scale: 1, samples: tel ? 12 : 16 });
-    ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: tel ? 12 : 16 });
+    // ombre SOLO dove le cose si toccano davvero (angoli, sotto i pensili, tra le
+    // ante): spessore piccolo → un oggetto davanti (sgabello) non sporca più
+    // quello che sta dietro con un alone; pulizia più ampia → niente puntini
+    ao.updateGtaoMaterial({ radius: opz.raggio || 260, distanceExponent: 1.5, thickness: 140, distanceFallOff: 1, scale: 1, samples: 16 });
+    ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 3, normalPhi: 4, radius: 9, rings: 3, samples: 16 });
     ao.blendIntensity = opz.intensita ?? 0.9;
     quad = new FullScreenQuad(ao.blendMaterial);
   } catch (e) { console.warn('Ombre di contatto non disponibili', e); ao = null; }

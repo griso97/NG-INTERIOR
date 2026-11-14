@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261116b';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116b';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261116b';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116b';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116b';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116b';
+} from './modello.js?v=20261116c';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116c';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261116c';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116c';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116c';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116c';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116b';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116c';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -276,7 +276,9 @@ const COL = {
   oro:     0xc9a94a,
 };
 // Linee di contorno discrete (niente oro): un filo scuro che fa da fuga/ombra.
-const matOro = new THREE.LineBasicMaterial({ color: 0x3b3833, transparent: true, opacity: 0.55 });
+// contorni da disegno tecnico: in una foto vera non ci sono (le fughe tra le ante
+// e le ombre di contatto bastano); restano solo sul mobile selezionato (bianchi)
+const matOro = new THREE.LineBasicMaterial({ color: 0x3b3833, transparent: true, opacity: 0.55, visible: false });
 const matManiglia = new THREE.MeshStandardMaterial({ color: 0xcfcfcf, roughness: 0.35, metalness: 0.6 });
 
 // Materiali per gli elettrodomestici (forno / microonde / piano cottura):
@@ -446,7 +448,7 @@ export function montaScena3d(canvas, progetto) {
   scene.add(gruppo);
   aggiornaScena3d(progetto, true);
 
-  resa = creaResa({ renderer, scene, camera, raggio: 320, intensita: 0.9, prima: muriVisibili });
+  resa = creaResa({ renderer, scene, camera, raggio: 280, intensita: 0.9, prima: muriVisibili });
   window.addEventListener('resize', forzaResize3d);
   animazioneAttiva = true;
   animate();
