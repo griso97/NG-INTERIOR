@@ -1911,7 +1911,7 @@ export function fasceCierreTecho(progetto, spessore = 18) {
   const aggiungi = (r, a0, a1, dietro, fronte, pz) => {
     let f = file.find((q) => q.rot === r && Math.abs(q.dietro - dietro) < 60);
     if (!f) { f = { rot: r, ...assi(r), dietro, pezzi: [], fine: [] }; file.push(f); }
-    (pz.fine ? f.fine : f.pezzi).push({ ...pz, a0, a1, fronte });
+    (pz.fine ? f.fine : f.pezzi).push({ ...pz, a0, a1, fronte, dietro });
   };
   for (const m of (progetto.mobiliLiberi || [])) {
     const cat = categoriaTipo(m.tipo);
@@ -1945,9 +1945,10 @@ export function fasceCierreTecho(progetto, spessore = 18) {
     const n0 = fasce.length;
     for (const pz of f.pezzi) {
       if (!fascia || pz.a0 - fascia.tratti[fascia.tratti.length - 1].a1 > 1000) {
-        fascia = { rot: f.rot, ux: f.ux, uy: f.uy, fx: f.fx, fy: f.fy, tratti: [] };
+        fascia = { rot: f.rot, ux: f.ux, uy: f.uy, fx: f.fx, fy: f.fy, dietro: pz.dietro, tratti: [] };
         fasce.push(fascia);
       }
+      fascia.dietro = Math.min(fascia.dietro, pz.dietro);
       const ult = fascia.tratti[fascia.tratti.length - 1];
       if (ult && Math.abs(ult.front - pz.fronte) < 15 && ult.gruppo === pz.gruppo) {
         ult.a1 = Math.max(ult.a1, pz.a1); ult.ids.push(pz.id); continue;
@@ -1980,6 +1981,10 @@ export function fasceCierreTecho(progetto, spessore = 18) {
       if (Math.abs(aA - tA[fineA]) > 900 || Math.abs(aB - tB[fineB]) > 900) continue;
       // l'incrocio deve stare dalla parte di quell'estremità
       if ((fineA === 'a0' ? aA > tA.a1 : aA < tA.a0) || (fineB === 'a0' ? aB > tB.a1 : aB < tB.a0)) continue;
+      // un vero angolo: ogni fascia si allunga (o si accorcia) al massimo di quanto
+      // è profonda l'altra fila lì (passa sopra i suoi mobili, mai nel vuoto)
+      const varA = Math.abs(aA - tA[fineA]), varB = Math.abs(aB - tB[fineB]);
+      if (varA > Math.abs(tB.front - B.dietro) + 30 || varB > Math.abs(tA.front - A.dietro) + 30) continue;
       fatti.add(`${i}${fineA}`); fatti.add(`${j}${fineB}`);
       tA[fineA] = aA; tB[fineB] = aB;
       const lunga = (A.tratti.at(-1).a1 - A.tratti[0].a0) >= (B.tratti.at(-1).a1 - B.tratti[0].a0);
@@ -1987,10 +1992,30 @@ export function fasceCierreTecho(progetto, spessore = 18) {
       t[fine] += fine === 'a0' ? -spessore : spessore;
     }
   }
+  // Muri della stanza: una fascia che finisce contro un muro è già chiusa di lato
+  const pareti = (progetto.piano && progetto.piano.pareti) || [];
+  const V = calcolaVertici(pareti);
+  const muri = pareti.map((p, i) => (p.assente ? null : [V[i], V[i + 1]])).filter(Boolean);
+  const controMuro = (x, y) => muri.some(([p, q]) => {
+    const dx = q.x - p.x, dy = q.y - p.y, L2 = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((x - p.x) * dx + (y - p.y) * dy) / L2));
+    return Math.hypot(x - (p.x + t * dx), y - (p.y + t * dy)) < 40;
+  });
   // PEZZI: fronte di ogni tratto + rientri dove cambia la profondità
+  // + TESTATE dove la fascia finisce nel vuoto (fianco dal muro al pannello davanti)
   const pezzi = [];
-  for (const F of fasce) {
+  fasce.forEach((F, iF) => {
     const base = { rot: F.rot, ux: F.ux, uy: F.uy, fx: F.fx, fy: F.fy };
+    for (const fine of ['a0', 'a1']) {
+      if (fatti.has(`${iF}${fine}`)) continue;                  // angolo: ci si appoggia l'altra fascia
+      const t = fine === 'a0' ? F.tratti[0] : F.tratti[F.tratti.length - 1];
+      const aE = t[fine], fM = (F.dietro + t.front) / 2;
+      if (controMuro(aE * F.ux + fM * F.fx, aE * F.uy + fM * F.fy)) continue;
+      const f0 = F.dietro, f1 = t.front - spessore;
+      if (f1 - f0 < 30) continue;
+      pezzi.push({ ...base, tipo: 'testata', a0: fine === 'a0' ? aE : aE - spessore, a1: fine === 'a0' ? aE + spessore : aE,
+        f0, f1, gruppo: t.gruppo, ids: t.ids, lunghezza: Math.round(f1 - f0) });
+    }
     F.tratti.forEach((t, k) => {
       pezzi.push({ ...base, tipo: 'fronte', a0: t.a0, a1: t.a1, front: t.front, gruppo: t.gruppo, ids: t.ids, lunghezza: Math.round(t.a1 - t.a0) });
       const nx = F.tratti[k + 1];
@@ -2002,7 +2027,7 @@ export function fasceCierreTecho(progetto, spessore = 18) {
       const f0 = basso.front - spessore, f1 = prof.front - spessore;
       pezzi.push({ ...base, tipo: 'rientro', a0, a1, f0, f1, gruppo: prof.gruppo, ids: [...t.ids, ...nx.ids], lunghezza: Math.round(f1 - f0) });
     });
-  }
+  });
   return pezzi;
 }
 

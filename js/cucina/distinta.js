@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho,
-} from './modello.js?v=20261115z';
+} from './modello.js?v=20261116a';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -308,7 +308,7 @@ export function calcolaDistintaCucina(progetto) {
   if (ct && ct.attivo) {
     const col = progetto.coloriFronti || {};
     for (const f of fasceCierreTecho(progetto, SP)) {
-      raw.push({ nome: f.tipo === 'rientro' ? 'Cierre a techo (pezzo che rientra)'
+      raw.push({ nome: f.tipo === 'rientro' ? 'Cierre a techo (pezzo che rientra)' : f.tipo === 'testata' ? 'Cierre a techo (fianco di chiusura)'
         : f.lunghezza > 2800 ? 'Cierre a techo (fascia, oltre 2800: da giuntare)' : 'Cierre a techo (fascia)',
         larghezza: f.lunghezza, altezza: Math.max(20, Math.round(Number(ct.altezza) || 300)), spessore: SP, materiale: 'anta',
         materialeNome: nomeMateriale(f.gruppo === 'pensile' ? col.pensile : col.colonna, 'Colore da scegliere'), quantita: 1 });

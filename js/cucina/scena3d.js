@@ -13,13 +13,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261115z';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115z';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261115z';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115z';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115z';
+} from './modello.js?v=20261116a';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116a';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261116a';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116a';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116a';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115z';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116a';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -455,7 +455,7 @@ let vistaReale = null, vistaRealeInCarica = false;
 function preparaVistaReale() {
   if (vistaReale || vistaRealeInCarica || !renderer) return;
   vistaRealeInCarica = true;
-  import('../foto-realistica.js?v=20261115z').then((m) => {
+  import('../foto-realistica.js?v=20261116a').then((m) => {
     if (!renderer || vistaReale) return;
     vistaReale = m.creaVistaRealistica({ renderer, camera, controls, contenitore: canvasEl && canvasEl.parentElement, dati: datiFoto });
   }).catch((e) => console.warn('Vista realistica non caricata:', e))
@@ -511,7 +511,7 @@ export async function fotoRealistica3d(opz = {}) {
   try {
     // dallo stesso motore della vista realistica (scena già pronta): veloce
     if (vistaReale) return await vistaReale.scatta(opz);
-    const { fotoRealistica } = await import('../foto-realistica.js?v=20261115z');
+    const { fotoRealistica } = await import('../foto-realistica.js?v=20261116a');
     return await fotoRealistica({ ...opz, ...dati });
   } finally {
     animazioneAttiva = eraAttiva;
@@ -2015,7 +2015,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const am = (b.a0 + b.a1) / 2;
       const gF = new THREE.Group();
       gF.rotation.y = -b.rot * Math.PI / 180;
-      if (b.tipo === 'rientro') {
+      if (b.tipo === 'rientro' || b.tipo === 'testata') {
         const fm = (b.f0 + b.f1) / 2;
         gF.position.set(am * b.ux + fm * b.fx, yb + cierre / 2, -(am * b.uy + fm * b.fy));
         const geo = new THREE.BoxGeometry(b.a1 - b.a0, cierre, b.f1 - b.f0);

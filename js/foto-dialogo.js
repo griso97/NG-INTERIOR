@@ -5,7 +5,7 @@
 // logo. Il calcolo vero è in foto-realistica.js: ogni pagina passa la sua
 // funzione `calcola` (quella della sua scena 3D).
 // =============================================================================
-import { componiConLogo, salvaImmagineCanvas } from './logo.js?v=20261115z';
+import { componiConLogo, salvaImmagineCanvas } from './logo.js?v=20261116a';
 
 // La foto ha un TEMPO MASSIMO (non un numero fisso di passaggi): su ogni dispositivo
 // finisce quando promesso; la risoluzione del calcolo si adatta alla sua velocità.

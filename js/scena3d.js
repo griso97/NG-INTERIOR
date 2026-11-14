@@ -12,8 +12,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261115z';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261115z';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261116a';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261116a';
 import { sfondoDi } from './sfondi.js?v=20261111b';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
@@ -222,7 +222,7 @@ let vistaReale = null, vistaRealeInCarica = false;
 function preparaVistaReale() {
   if (vistaReale || vistaRealeInCarica || !renderer) return;
   vistaRealeInCarica = true;
-  import('./foto-realistica.js?v=20261115z').then((m) => {
+  import('./foto-realistica.js?v=20261116a').then((m) => {
     if (!renderer || vistaReale) return;
     vistaReale = m.creaVistaRealistica({ renderer, camera, controls, contenitore: renderer.domElement.parentElement, dati: datiFoto });
   }).catch((e) => console.warn('Vista realistica non caricata:', e))
@@ -254,7 +254,7 @@ export async function fotoRealisticaArmadio(opz = {}) {
   try {
     // dallo stesso motore della vista realistica (scena già pronta): veloce
     if (vistaReale) return await vistaReale.scatta(opz);
-    const { fotoRealistica } = await import('./foto-realistica.js?v=20261115z');
+    const { fotoRealistica } = await import('./foto-realistica.js?v=20261116a');
     return await fotoRealistica({ ...opz, ...dati });
   } finally { pausa3d = false; }
 }

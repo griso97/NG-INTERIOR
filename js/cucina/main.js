@@ -23,12 +23,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261115z';
-import { renderPianta } from './pianta.js?v=20261115z';
-import { calcolaDistintaCucina } from './distinta.js?v=20261115z';
+} from './modello.js?v=20261116a';
+import { renderPianta } from './pianta.js?v=20261116a';
+import { calcolaDistintaCucina } from './distinta.js?v=20261116a';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261115z';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115z';
+import { agganciaTema } from '../tema.js?v=20261116a';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116a';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1111,7 +1111,7 @@ function renderPannelloStep3d() {
       return `
     <section class="step3-pannello">
       <h3>Cierre a techo</h3>
-      <div class="riga-3d" style="margin-bottom:6px">Fascia continua sopra pensili e colonne che segue il fronte dei mobili: a filo delle colonne (colore colonne) e a filo dei pensili (colore pensili), con il pezzo che rientra dove cambia la profondità. Chiude lo spazio fino al soffitto. Negli angoli una fascia passa (+ lo spessore) e l'altra ci si appoggia.</div>
+      <div class="riga-3d" style="margin-bottom:6px">Fascia continua sopra pensili e colonne che segue il fronte dei mobili: a filo delle colonne (colore colonne) e a filo dei pensili (colore pensili), con il pezzo che rientra dove cambia la profondità. Chiude lo spazio fino al soffitto. Negli angoli una fascia passa (+ lo spessore) e l'altra ci si appoggia; dove finisce nel vuoto un fianco la chiude fino al muro.</div>
       <div class="opzioni-anta">
         <button type="button" class="btn-ghost opt-cierre ${!ct.attivo ? 'attivo' : ''}" data-cierre="no">${!ct.attivo ? '✓ ' : ''}No</button>
         <button type="button" class="btn-ghost opt-cierre ${ct.attivo ? 'attivo' : ''}" data-cierre="si">${ct.attivo ? '✓ ' : ''}Sì</button>
@@ -1187,7 +1187,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261115z');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116a');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), subito: () => scena3dMod.fotoVistaRealistica(), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1838,13 +1838,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261115z');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116a');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261115z'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116a'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
