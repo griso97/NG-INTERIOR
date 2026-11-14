@@ -664,6 +664,7 @@ table.distinta td.qta {
 .foto-reale-q { display: flex; gap: 8px; align-items: flex-start; border: 1px solid #3a3226; border-radius: 10px; padding: 10px; cursor: pointer; }
 .foto-reale-q:has(input:checked) { border-color: #c9a94a; }
 .foto-reale-q small { color: #b8ad97; }
+.foto-reale-q.spenta { opacity: .55; cursor: default; }
 .foto-reale-azioni { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 10px; }
 .foto-reale-anteprima { position: relative; background: #000; border-radius: 8px; overflow: hidden; min-height: 180px; display: flex; align-items: center; justify-content: center; }
 .foto-reale-anteprima img { display: block; width: 100%; height: auto; max-height: min(60vh, 640px); object-fit: contain; }

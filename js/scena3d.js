@@ -12,8 +12,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261115x';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261115x';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261115y';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261115y';
 import { sfondoDi } from './sfondi.js?v=20261111b';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
@@ -222,7 +222,7 @@ let vistaReale = null, vistaRealeInCarica = false;
 function preparaVistaReale() {
   if (vistaReale || vistaRealeInCarica || !renderer) return;
   vistaRealeInCarica = true;
-  import('./foto-realistica.js?v=20261115x').then((m) => {
+  import('./foto-realistica.js?v=20261115y').then((m) => {
     if (!renderer || vistaReale) return;
     vistaReale = m.creaVistaRealistica({ renderer, camera, controls, contenitore: renderer.domElement.parentElement, dati: datiFoto });
   }).catch((e) => console.warn('Vista realistica non caricata:', e))
@@ -244,13 +244,17 @@ function datiFoto() {
  * FOTO REALISTICA dell'armadio (path tracing + pulizia IA, vedi
  * foto-realistica.js): l'armadio contro il suo muro, in una stanza vera.
  */
+/** L'immagine della vista realistica di adesso, se è pronta (per salvarla subito). */
+export function fotoVistaRealistica() { return vistaReale ? vistaReale.immagine() : null; }
+
 export async function fotoRealisticaArmadio(opz = {}) {
   const dati = datiFoto();
   if (!dati) return null;
-  const { fotoRealistica } = await import('./foto-realistica.js?v=20261115x');
-  if (vistaReale) vistaReale.libera();                     // memoria al calcolo della foto
   pausa3d = true;
   try {
+    // dallo stesso motore della vista realistica (scena già pronta): veloce
+    if (vistaReale) return await vistaReale.scatta(opz);
+    const { fotoRealistica } = await import('./foto-realistica.js?v=20261115y');
     return await fotoRealistica({ ...opz, ...dati });
   } finally { pausa3d = false; }
 }

@@ -999,24 +999,47 @@ function renderAusiliari(renderer, scena, cam, W, H, sfondo) {
  */
 function togliPunti(c, W, H) {
   const N = W * H, L = new Float32Array(N);
-  for (let j = 0, i = 0; j < N; j++, i += 4) L[j] = 0.2126 * c[i] + 0.7152 * c[i + 1] + 0.0722 * c[i + 2];
   const vic = [-W - 1, -W, -W + 1, -1, 1, W - 1, W, W + 1];
   let tolti = 0;
-  for (let y = 1; y < H - 1; y++) {
-    for (let x = 1, j = y * W + 1; x < W - 1; x++, j++) {
-      const v = L[j];
-      let mn = Infinity, mx = 0;
-      for (let k = 0; k < 8; k++) { const w = L[j + vic[k]]; if (w < mn) mn = w; if (w > mx) mx = w; }
-      if (!(v < mn * 0.25) && !(v > mx * 4 + 1e-6)) continue;
-      let r = 0, g = 0, b = 0;
-      for (let k = 0; k < 8; k++) { const i = (j + vic[k]) * 4; r += c[i]; g += c[i + 1]; b += c[i + 2]; }
-      const i = j * 4; c[i] = r / 8; c[i + 1] = g / 8; c[i + 2] = b / 8;
-      tolti++;
+  for (let giro = 0; giro < 2; giro++) {           // due giri: anche le coppie di puntini vicini
+    for (let j = 0, i = 0; j < N; j++, i += 4) L[j] = 0.2126 * c[i] + 0.7152 * c[i + 1] + 0.0722 * c[i + 2];
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1, j = y * W + 1; x < W - 1; x++, j++) {
+        const v = L[j];
+        // quanti vicini sono MOLTO più chiari / più scuri di lui: un puntino isolato li ha
+        // (quasi) tutti; una riga sottile vera (fuga, bordo) ne ha al massimo 6
+        let piuChiari = 0, piuScuri = 0;
+        for (let k = 0; k < 8; k++) { const w = L[j + vic[k]]; if (w > v * 4 + 1e-6) piuChiari++; else if (w * 4 < v) piuScuri++; }
+        const buco = v <= 0 && piuChiari >= 1;     // nessuna luce arrivata: dato mancante
+        if (!buco && piuChiari < 7 && piuScuri < 7) continue;
+        // media dei vicini "normali" (non a loro volta puntini)
+        let r = 0, g = 0, b = 0, n = 0;
+        for (let k = 0; k < 8; k++) {
+          const q = j + vic[k], w = L[q];
+          if (piuChiari >= piuScuri ? w > v * 4 + 1e-6 : w * 4 < v) { const i = q * 4; r += c[i]; g += c[i + 1]; b += c[i + 2]; n++; }
+        }
+        if (!n) continue;
+        const i = j * 4; c[i] = r / n; c[i + 1] = g / n; c[i + 2] = b / n;
+        tolti++;
+      }
     }
+  }
+  // i bordi dell'immagine (lì mancano metà dei vicini): un pixel spento o fuori misura
+  // rispetto a quello appena dentro prende il suo valore
+  if (W > 2 && H > 2) {
+    const lum = (j) => 0.2126 * c[j * 4] + 0.7152 * c[j * 4 + 1] + 0.0722 * c[j * 4 + 2];
+    const ripara = (j, q) => {
+      const v = lum(j), w = lum(q);
+      if ((v <= 0 && w > 0) || v > w * 4 + 1e-6 || v * 4 < w) { const a = j * 4, b2 = q * 4; c[a] = c[b2]; c[a + 1] = c[b2 + 1]; c[a + 2] = c[b2 + 2]; tolti++; }
+    };
+    for (let x = 0; x < W; x++) { ripara(x, W + x); ripara((H - 1) * W + x, (H - 2) * W + x); }
+    for (let y = 0; y < H; y++) { ripara(y * W, y * W + 1); ripara(y * W + W - 1, y * W + W - 2); }
   }
   return tolti;
 }
-function filtroGuidato(renderer, texColore, aux, W, H) {
+function filtroGuidato(renderer, texColore, aux, W, H, campioni = 64) {
+  // con pochi campioni il rumore è forte: il filtro deve fidarsi meno delle differenze di luce
+  const sigma0 = 1.3 * Math.max(1, Math.sqrt(32 / Math.max(1, campioni)));
   const dt = (u8) => { const t = new THREE.DataTexture(u8, W, H, THREE.RGBAFormat, THREE.UnsignedByteType); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; };
   const tAlb = dt(aux.albedo), tNor = dt(aux.normale);
   const rt = () => new THREE.WebGLRenderTarget(W, H, { type: THREE.FloatType, depthBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
@@ -1056,7 +1079,7 @@ function filtroGuidato(renderer, texColore, aux, W, H) {
   let da = A, a = B;
   for (let i = 0; i < 5; i++) {
     q.material = atrous;
-    atrous.uniforms.tIrr.value = da.texture; atrous.uniforms.passo.value = 1 << i; atrous.uniforms.sigma.value = 1.3 * Math.pow(0.62, i);
+    atrous.uniforms.tIrr.value = da.texture; atrous.uniforms.passo.value = 1 << i; atrous.uniforms.sigma.value = sigma0 * Math.pow(0.62, i);
     renderer.setRenderTarget(a); q.render(renderer);
     const t = da; da = a; a = t;
   }
@@ -1423,12 +1446,15 @@ export async function fotoRealistica(opz) {
     } else {
       pt.setScene(scena, cam);
       let ultimoDisegno = 0;
+      const t0 = performance.now(), tempo = opz.tempoMax || Infinity;   // tempo massimo (s): la foto non può durare ore
       while (pt.samples < campioni) {
         if (opz.annullato && opz.annullato()) break;
+        const el = (performance.now() - t0) / 1000;
+        if (pt.samples >= 1 && el >= tempo) break;
         pt.renderSample();
         if (performance.now() - ultimoDisegno > 700 && pt.samples >= 1) {
           anteprima(); ultimoDisegno = performance.now();
-          avvisa(Math.min(1, pt.samples / campioni) * 0.9, tela, { fase: 'luce', campioni: Math.floor(pt.samples), totale: campioni });
+          avvisa(Math.min(1, Math.max(pt.samples / campioni, el / tempo)) * 0.9, tela, { fase: 'luce', campioni: Math.floor(pt.samples), totale: campioni });
         }
         await new Promise((r) => requestAnimationFrame(r));
       }
@@ -1439,6 +1465,7 @@ export async function fotoRealistica(opz) {
         const colore = new Float32Array(W * H * 4);
         renderer.readRenderTargetPixels(pt.target, 0, 0, W, H, colore);
         togliPunti(colore, W, H);
+        const campioniFatti = pt.samples;
         // il path tracer non serve più: libero subito la sua memoria (telefoni)
         try { pt.dispose(); } catch (_) { /* già liberato */ }
         ptLiberato = true;
@@ -1454,7 +1481,7 @@ export async function fotoRealistica(opz) {
           } catch (e) { console.warn('Pulizia IA non riuscita, uso il filtro di riserva:', e); pulita = null; }
         }
         if (!pulita && aux) {
-          try { pulita = filtroGuidato(renderer, texColore, aux, W, H); } catch (e) { console.warn('Filtro guidato non riuscito:', e); pulita = null; }
+          try { pulita = filtroGuidato(renderer, texColore, aux, W, H, campioniFatti); } catch (e) { console.warn('Filtro guidato non riuscito:', e); pulita = null; }
         }
         if (!pulita) {
           // ultima riserva: filtro bilaterale semplice sulla luce lineare
@@ -1524,28 +1551,132 @@ const materialeFinale = () => new THREE.ShaderMaterial({
   vertexShader: VERTICE_QUAD,
   fragmentShader: 'uniform sampler2D map; varying vec2 vUv; void main() { gl_FragColor = vec4(texture2D(map, vUv).rgb, 1.0); }',
 });
+/** Telefono o tablet (scheda grafica più lenta: meno pixel e meno rimbalzi della luce). */
+export function eTelefono() {
+  return /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+}
+// --- VELOCITÀ del calcolo su QUESTO dispositivo (pixel × campioni al secondo) ----
+// Si misura mentre lavora (vista realistica o foto) e si ricorda: serve a scegliere
+// risoluzione e passaggi della foto in modo che finisca nel tempo promesso.
+const CHIAVE_VEL = 'ng-velocita-luce';
+let _vel = 0;
+export function velocitaCalcolo() {
+  if (_vel > 0) return _vel;
+  try { const v = Number(localStorage.getItem(CHIAVE_VEL)); if (v > 0) { _vel = v; return v; } } catch (_) { /* niente */ }
+  return eTelefono() ? 6e5 : 4e6;                 // stima prudente finché non si misura
+}
+function misuraVelocita(v) {
+  if (!(v > 0) || !Number.isFinite(v)) return;
+  _vel = _vel > 0 ? _vel * 0.5 + v * 0.5 : v;
+  try { localStorage.setItem(CHIAVE_VEL, String(Math.round(_vel))); } catch (_) { /* niente */ }
+}
+/** Tasselli per lato: ogni pezzo ~25 ms di lavoro, così la pagina risponde subito ai tocchi. */
+function tasselli(px) {
+  const perPezzo = Math.max(25000, velocitaCalcolo() * 0.025);
+  return Math.max(1, Math.min(8, Math.ceil(Math.sqrt(px / perPezzo))));
+}
+/**
+ * Il calcolo a LOTTI: un lotto di pezzi alla volta, e il successivo solo quando la
+ * scheda grafica ha FINITO il precedente (un "recinto" WebGL2 lo dice). Senza, il
+ * lavoro mandato si accumula: il conto dei passaggi corre avanti ma la scheda resta
+ * indietro, e alla lettura dell'immagine tutto si blocca finché non ha smaltito
+ * l'arretrato. Il lotto cresce finché la scheda finisce entro ~1–2 fotogrammi: lavora
+ * al pieno e la pagina resta fluida. Misura anche la velocità vera del dispositivo.
+ *   pronto() → true se si può mandare altro (e aggiorna i campioni finiti davvero)
+ *   manda()  → manda il prossimo lotto
+ */
+function creaPasso(pt, px, renderer) {
+  const gl = renderer.getContext();
+  const recinti = typeof gl.fenceSync === 'function';
+  let k = 1, recinto = null, tLotto = 0, s0 = -1, t0 = 0, sFatti = 0, tFatti = 0;
+  const segna = (ora) => { sFatti = pt.samples; tFatti = ora; if (s0 < 0 && sFatti >= 1) { s0 = sFatti; t0 = ora; } };
+  return {
+    pronto() {
+      if (!recinto) return true;
+      if (gl.getSyncParameter(recinto, gl.SYNC_STATUS) !== gl.SIGNALED) return false;
+      gl.deleteSync(recinto); recinto = null;
+      const ora = performance.now(), durata = ora - tLotto;
+      if (pt.isCompiling || pt.samples < 1) k = 1;                 // il programma si sta ancora preparando
+      else if (durata < 24) k = Math.min(k * 2, 64);
+      else if (durata > 48) k = Math.max(1, Math.floor(k * 0.6));
+      segna(ora);
+      return true;
+    },
+    manda() {
+      for (let i = 0; i < k; i++) pt.renderSample();
+      if (recinti) { recinto = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush(); } else segna(performance.now());
+      tLotto = performance.now();
+    },
+    /** campioni finiti davvero sulla scheda grafica */
+    fatti() { return sFatti; },
+    /** pixel × campioni al secondo (0 finché non è misurabile) */
+    velocita() { const dt = (tFatti - t0) / 1000; return s0 >= 0 && dt > 1 && sFatti > s0 ? (px * (sFatti - s0)) / dt : 0; },
+    libera() { if (recinto) { try { gl.deleteSync(recinto); } catch (_) { /* niente */ } recinto = null; } },
+  };
+}
+/** Ridimensiona una tela con il filtro migliore del browser. */
+function scalaTela(tela, W, H) {
+  if (tela.width === W && tela.height === H) return tela;
+  const out = document.createElement('canvas'); out.width = W; out.height = H;
+  const g = out.getContext('2d');
+  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  g.drawImage(tela, 0, 0, W, H);
+  return out;
+}
+/** Un filo di nitidezza (dopo un ingrandimento): maschera di contrasto leggera. */
+function nitidezza(tela, quanto = 0.3) {
+  const W = tela.width, H = tela.height, g = tela.getContext('2d');
+  const im = g.getImageData(0, 0, W, H), d = im.data, o = new Uint8ClampedArray(d), r = W * 4;
+  for (let y = 1; y < H - 1; y++) {
+    for (let x = 1, i = (y * W + 1) * 4; x < W - 1; x++, i += 4) {
+      for (let c = 0; c < 3; c++) {
+        const m = (o[i - 4 + c] + o[i + 4 + c] + o[i - r + c] + o[i + r + c]) * 0.25;
+        d[i + c] = o[i + c] + (o[i + c] - m) * quanto;
+      }
+    }
+  }
+  g.putImageData(im, 0, 0);
+}
+/** Pixel non validi del calcolo azzerati; ritorna { somma, nonValidi } per il controllo. */
+function pulisciValori(colore) {
+  let somma = 0, nonValidi = 0;
+  for (let i = 0; i < colore.length; i += 4) {
+    const v = colore[i] + colore[i + 1] + colore[i + 2];
+    if (v < 1e30) somma += v;
+    else { nonValidi++; colore[i] = colore[i + 1] = colore[i + 2] = 0; }
+  }
+  return { somma, nonValidi };
+}
+
 /**
  * opz: {
  *   renderer, camera, controls (quelli della vista 3D), contenitore (dove mettere il bollino),
  *   dati(): { radice, camera, muri, hStanza, soffittoAFilo } come per la foto
  * }
  * Ritorna { tick(altroMoto, bloccata) → true se il canvas lo tiene lei (non ridisegnare),
- *           invalida(), ridisegna(), libera(), dispose() }.
+ *           scatta(parametri) → la FOTO (stesso motore, già pronto), invalida(), ridisegna(),
+ *           libera(), dispose() }.
  * La telecamera la sorveglia da sola: si sviluppa solo quando l'inquadratura è ferma davvero.
  */
 export function creaVistaRealistica(opz) {
   const renderer = opz.renderer, canvas = renderer.domElement;
-  const telefono = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+  const telefono = eTelefono();
   const ATTESA_PRIMA = 900;                        // ms di vista ferma prima di preparare la scena
   const ATTESA = 450;                              // … se è già pronta (cambia solo il punto di vista)
   const PIXEL_MAX = telefono ? 300000 : 900000;    // risoluzione del calcolo (poi ingrandita)
   const FERMA_PX = 0.03;                           // movimento per fotogramma sotto cui la vista è ferma
   const DERIVA_PX = 0.6;                           // deriva massima dall'inquadratura che si sta sviluppando
+  // tappe dello sviluppo: a ogni tappa l'immagine si pulisce e si mostra. Si passa alla
+  // tappa quando ci sono abbastanza campioni O quando è passato il suo tempo (con un
+  // minimo di campioni): su un dispositivo lento l'immagine arriva lo stesso presto
+  const TAPPE_IA = [{ s: 16, t: 4, min: 4 }, { s: 64, t: 20, min: 8 }];
+  const TAPPE_FILTRO = [{ s: 32, t: 5, min: 8 }, { s: 128, t: 24, min: 16 }];
   let accesa = vistaRealisticaAccesa();
   let stato = 'fermo', tMosso = performance.now(), gen = 0, inCorso = null, inCorsoDa = 0;
-  let prep = null, scenaValida = false, pt = null, tappe = [32, 128];
+  let prep = null, scenaValida = false, pt = null, tappe = TAPPE_FILTRO, passo = null, tInizio = 0;
   let dimensione = '', abortIA = null, tappa = 0, conIA = null, aux = null;
-  let texFinale = null, bloccata = false, guasto = false, premuto = false;
+  let texFinale = null, bloccata = false, guasto = false, premuto = false, fotografa = false;
+  let ultimaTela = null;                           // l'ultima immagine finita (per salvarla subito)
   const quadFinale = new FullScreenQuad(materialeFinale());
   const v2 = new THREE.Vector2();
   // --- la telecamera: di quanti pixel si è spostata l'immagine sullo schermo ----
@@ -1569,6 +1700,7 @@ export function creaVistaRealistica(opz) {
     opz.contenitore.appendChild(bollino);
     bollino.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (fotografa) return;
       // dopo un guasto, toccarla la riprova (accesa); altrimenti accende/spegne
       if (guasto) { guasto = false; accesa = true; } else accesa = !accesa;
       try { localStorage.setItem(CHIAVE_VIVO, accesa ? '1' : '0'); } catch (_) { /* niente */ }
@@ -1607,9 +1739,10 @@ export function creaVistaRealistica(opz) {
 
   function interrompi() {
     gen++;
+    if (passo) { passo.libera(); passo = null; }
     if (abortIA) { try { abortIA(); } catch (_) { /* niente */ } abortIA = null; }
     if (texFinale) { texFinale.dispose(); texFinale = null; }
-    stato = 'fermo'; tappa = 0; aux = null;
+    stato = 'fermo'; tappa = 0; aux = null; ultimaTela = null;
     aggiornaBollino();
   }
   function liberaTutto() {
@@ -1625,6 +1758,45 @@ export function creaVistaRealistica(opz) {
     cam.updateProjectionMatrix(); cam.updateMatrixWorld();
     camSvil.p.copy(camera.position); camSvil.q.copy(camera.quaternion);
   }
+  /** Scena e path tracer pronti per i dati di adesso (si ricostruisce solo se serve). g: generazione (null = non interrompibile). */
+  async function preparaMotore(d, w, h, g) {
+    const firma = prep && scenaValida ? prep.firmaPer(d.camera) : null;
+    if (!prep || !scenaValida || firma !== prep.firma) {
+      // texture ancora in arrivo: si aspetta un poco (al massimo ~5 s)
+      for (let i = 0; i < 12 && !texturePronte(d.radice); i++) {
+        await new Promise((r) => setTimeout(r, 400));
+        if (g != null && g !== gen) return false;
+      }
+      if (prep) { prep.libera(); prep = null; }
+      scenaValida = false;
+      const p = await preparaScenaFoto({ ...d, larghezza: w, altezza: h, vivo: true, segmentiSpigoli: telefono ? 3 : 5 });
+      if (g != null && g !== gen) { p.libera(); return false; }   // nel frattempo si è mosso qualcosa
+      prep = p; scenaValida = true;
+      if (!pt) {
+        pt = new WebGLPathTracer(renderer);
+        pt.bounces = telefono ? 4 : 6; pt.transmissiveBounces = 4;
+        pt.filterGlossyFactor = 0.35;
+        pt.renderDelay = 0; pt.fadeDuration = 0; pt.minSamples = 1;
+        pt.rasterizeScene = false; pt.renderToCanvas = false; pt.dynamicLowRes = false;
+        pt.textureSize.set(1024, 1024);
+      }
+      camDaVista(prep.cam, d.camera, w, h);
+      pt.setScene(prep.scena, prep.cam);
+    } else {
+      camDaVista(prep.cam, d.camera, w, h);
+      pt.setCamera(prep.cam);
+    }
+    return true;
+  }
+  /** Dimensione del calcolo (scala rispetto al canvas) subito, senza aspettare il prossimo passo. */
+  function dimensionaPT(scala) {
+    renderer.getDrawingBufferSize(v2);
+    pt.renderScale = scala;
+    const W = Math.max(1, Math.floor(v2.x * scala)), H = Math.max(1, Math.floor(v2.y * scala));
+    pt._pathTracer.setSize(W, H);
+    pt._lowResPathTracer.setSize(Math.max(1, Math.floor(W * pt.lowResScale)), Math.max(1, Math.floor(H * pt.lowResScale)));
+    return { W, H };
+  }
   async function avvia() {
     stato = 'preparo'; aggiornaBollino(0);
     const g = gen;
@@ -1632,44 +1804,18 @@ export function creaVistaRealistica(opz) {
       const d = opz.dati && opz.dati();
       if (!d || !d.radice || !d.camera) { stato = 'fermo'; tMosso = performance.now(); aggiornaBollino(); return; }
       if (conIA === null) conIA = await puliziaIADisponibile();
-      // campioni → sviluppo a ogni tappa (la prima arriva presto, l'ultima è la qualità piena)
-      tappe = conIA ? (telefono ? [16, 64] : [32, 160]) : (telefono ? [32, 128] : [64, 256]);
+      tappe = conIA ? TAPPE_IA : TAPPE_FILTRO;
       if (conIA) caricaUNet();                     // i pesi si scaricano intanto
       if (g !== gen) return;
       renderer.getDrawingBufferSize(v2);
       const w = Math.max(1, v2.x), h = Math.max(1, v2.y);
-      const firma = prep && scenaValida ? prep.firmaPer(d.camera) : null;
-      if (!prep || !scenaValida || firma !== prep.firma) {
-        // texture ancora in arrivo: si aspetta un poco (al massimo ~5 s), restando in "preparo"
-        for (let i = 0; i < 12 && !texturePronte(d.radice); i++) {
-          await new Promise((r) => setTimeout(r, 400));
-          if (g !== gen) return;
-        }
-        if (prep) { prep.libera(); prep = null; }
-        scenaValida = false;
-        const p = await preparaScenaFoto({ ...d, larghezza: w, altezza: h, vivo: true, segmentiSpigoli: telefono ? 3 : 5 });
-        if (g !== gen) { p.libera(); return; }    // nel frattempo si è mosso qualcosa
-        prep = p; scenaValida = true;
-        if (!pt) {
-          pt = new WebGLPathTracer(renderer);
-          pt.bounces = telefono ? 5 : 7; pt.transmissiveBounces = 4;
-          pt.filterGlossyFactor = 0.35;
-          pt.renderDelay = 0; pt.fadeDuration = 0; pt.minSamples = 1;
-          pt.rasterizeScene = false; pt.renderToCanvas = false; pt.dynamicLowRes = false;
-          pt.textureSize.set(1024, 1024);
-        }
-        camDaVista(prep.cam, d.camera, w, h);
-        pt.setScene(prep.scena, prep.cam);
-      } else {
-        camDaVista(prep.cam, d.camera, w, h);
-        pt.setCamera(prep.cam);
-      }
-      // risoluzione del calcolo; a tasselli: ogni fotogramma resta breve e la vista
-      // risponde subito appena la si tocca
-      pt.renderScale = Math.min(1, Math.sqrt(PIXEL_MAX / (w * h)));
-      pt.tiles.set(2, 2);
+      if (!(await preparaMotore(d, w, h, g)) || g !== gen) return;
+      // risoluzione del calcolo; a tasselli: ogni pezzo è breve e la vista risponde
+      // subito appena la si tocca
+      const { W, H } = dimensionaPT(Math.min(1, Math.sqrt(PIXEL_MAX / (w * h))));
+      const n = tasselli(W * H); pt.tiles.set(n, n);
       pt.reset();
-      if (g !== gen) return;
+      passo = creaPasso(pt, W * H, renderer); tInizio = performance.now();
       tappa = 0; aux = null;
       stato = 'campiono'; aggiornaBollino(0);
     } catch (e) {
@@ -1683,79 +1829,192 @@ export function creaVistaRealistica(opz) {
     renderer.setRenderTarget(null);
     quadFinale.render(renderer);
   }
+  function mostra(tela) {
+    if (texFinale) texFinale.dispose();
+    texFinale = new THREE.CanvasTexture(tela);
+    texFinale.minFilter = THREE.LinearFilter; texFinale.magFilter = THREE.LinearFilter; texFinale.generateMipmaps = false;
+    disegnaFinale();
+  }
+  /** Luce calcolata → controllo → albedo/normali → pulizia (IA o filtro). Ritorna { pulita, a, W, H }. */
+  async function pulisci(g, avanzamento) {
+    const sz = new THREE.Vector2(); pt._pathTracer.getSize(sz);
+    const W = sz.x, H = sz.y;
+    const colore = new Float32Array(W * H * 4);
+    renderer.readRenderTargetPixels(pt.target, 0, 0, W, H, colore);
+    // un'immagine tutta nera o piena di valori non validi vuol dire che il calcolo
+    // non funziona su questo dispositivo; i rari pixel non validi o isolati si sistemano
+    const { somma, nonValidi } = pulisciValori(colore);
+    if (!(somma > 0) || nonValidi > (W * H) * 0.05) throw new Error('immagine vuota dal calcolo');
+    togliPunti(colore, W, H);
+    // albedo e normali: una volta per inquadratura e misura (servono alla pulizia e al bianco)
+    if (!aux || aux.W !== W || aux.H !== H) aux = { W, H, ...renderAusiliari(renderer, prep.scena, prep.cam, W, H, prep.sfondo) };
+    const a = aux;
+    let pulita = null;
+    const unet = conIA ? await caricaUNet() : null;
+    if (g != null && g !== gen) return null;
+    if (unet) {
+      pulita = await new Promise((ok, ko) => {
+        try {
+          const ferma = unet.tileExecute({
+            color: { data: colore, width: W, height: H },
+            albedo: { data: a.albedo, width: W, height: H },
+            normal: { data: a.normale, width: W, height: H },
+            done: (out) => ok(out.data), error: (e) => ko(e),
+            progress: (_o, _t, _tile, i, n) => { if (avanzamento) avanzamento((i + 1) / Math.max(1, n)); },
+          });
+          // interrotta (la vista si è mossa): la pulizia non chiama più né done né error,
+          // quindi si chiude qui l'attesa (se no resterebbe appesa con la sua memoria)
+          abortIA = () => { try { ferma(); } catch (_) { /* niente */ } ok(null); };
+        } catch (e) { ko(e); }
+      }).catch((e) => { console.warn('Pulizia IA:', e); return null; });
+      abortIA = null;
+    }
+    if (g != null && g !== gen) return null;
+    if (!pulita) {
+      const tex = new THREE.DataTexture(colore, W, H, THREE.RGBAFormat, THREE.FloatType); tex.needsUpdate = true;
+      try { pulita = filtroGuidato(renderer, tex, a, W, H, pt.samples); } finally { tex.dispose(); }
+    }
+    if (!pulita) throw new Error('immagine non sviluppata');
+    return { pulita, a, W, H };
+  }
   async function sviluppaOra(ultima) {
     stato = 'pulisco';
     const g = gen;
     try {
-      const sz = new THREE.Vector2(); pt._pathTracer.getSize(sz);
-      const W = sz.x, H = sz.y;
-      const colore = new Float32Array(W * H * 4);
-      renderer.readRenderTargetPixels(pt.target, 0, 0, W, H, colore);
-      // controllo: un'immagine tutta nera o piena di valori non validi vuol dire che il
-      // calcolo non funziona su questo dispositivo → meglio la vista normale.
-      // I rari pixel non validi si azzerano (la pulizia li spargerebbe intorno).
-      let somma = 0, nonValidi = 0;
-      for (let i = 0; i < colore.length; i += 4) {
-        const v = colore[i] + colore[i + 1] + colore[i + 2];
-        if (v < 1e30) somma += v;
-        else { nonValidi++; colore[i] = colore[i + 1] = colore[i + 2] = 0; }
-      }
-      if (!(somma > 0) || nonValidi > (colore.length / 4) * 0.05) throw new Error('immagine vuota dal calcolo');
-      togliPunti(colore, W, H);
-      // albedo e normali: una volta per inquadratura (servono alla pulizia e al bianco)
-      if (!aux || aux.W !== W || aux.H !== H) aux = { W, H, ...renderAusiliari(renderer, prep.scena, prep.cam, W, H, prep.sfondo) };
-      const a = aux;
-      let pulita = null;
-      const unet = conIA ? await caricaUNet() : null;
+      const r = await pulisci(g);
+      if (!r || g !== gen) return;
+      const tela = sviluppa(r.pulita, r.W, r.H, { albedo: r.a.albedo, vignetta: 0.06 }).canvas;
       if (g !== gen) return;
-      if (unet) {
-        pulita = await new Promise((ok, ko) => {
-          try {
-            const ferma = unet.tileExecute({
-              color: { data: colore, width: W, height: H },
-              albedo: { data: a.albedo, width: W, height: H },
-              normal: { data: a.normale, width: W, height: H },
-              done: (out) => ok(out.data), error: (e) => ko(e),
-            });
-            // interrotta (la vista si è mossa): la pulizia non chiama più né done né error,
-            // quindi si chiude qui l'attesa (se no resterebbe appesa con la sua memoria)
-            abortIA = () => { try { ferma(); } catch (_) { /* niente */ } ok(null); };
-          } catch (e) { ko(e); }
-        }).catch((e) => { console.warn('Pulizia IA (vista):', e); return null; });
-        abortIA = null;
-      }
-      if (g !== gen) return;
-      if (!pulita) {
-        const tex = new THREE.DataTexture(colore, W, H, THREE.RGBAFormat, THREE.FloatType); tex.needsUpdate = true;
-        try { pulita = filtroGuidato(renderer, tex, a, W, H); } finally { tex.dispose(); }
-      }
-      if (g !== gen) return;
-      if (!pulita) throw new Error('immagine non sviluppata');
-      const tela = sviluppa(pulita, W, H, { albedo: a.albedo, vignetta: 0.06 }).canvas;
-      if (g !== gen) return;
-      if (texFinale) texFinale.dispose();
-      texFinale = new THREE.CanvasTexture(tela);
-      texFinale.minFilter = THREE.LinearFilter; texFinale.magFilter = THREE.LinearFilter; texFinale.generateMipmaps = false;
-      disegnaFinale();
+      mostra(tela);
+      if (ultima) ultimaTela = tela;
       stato = ultima ? 'finito' : 'campiono';
-      aggiornaBollino(ultima ? 1 : pt.samples / tappe[tappe.length - 1]);
+      aggiornaBollino(ultima ? 1 : pt.samples / tappe[tappe.length - 1].s);
     } catch (e) {
       // un errore qui si ripeterebbe a ogni pausa: meglio spegnerla (e dirlo) che consumare batteria
       console.warn('Vista realistica (sviluppo):', e);
       if (g === gen) { guasto = true; interrompi(); liberaTutto(); aggiornaBollino(); }
     }
   }
-  /** Un passo di calcolo. Il canvas tiene la vista veloce finché non c'è la prima immagine sviluppata. */
+  /** Un fotogramma di calcolo. Il canvas tiene la vista veloce finché non c'è la prima immagine sviluppata. */
   function campiona() {
-    pt.renderSample();
-    if (tappa < tappe.length && pt.samples >= tappe[tappa]) {
-      const ultima = tappa === tappe.length - 1;
-      tappa++;
-      sviluppaOra(ultima);
-    } else aggiornaBollino(Math.min(0.99, pt.samples / tappe[tappe.length - 1]));
+    if (!passo || !passo.pronto()) return;         // la scheda grafica sta ancora lavorando
+    const s = passo.fatti(), el = (performance.now() - tInizio) / 1000;
+    const ult = tappe[tappe.length - 1];
+    if (tappa < tappe.length) {
+      const T = tappe[tappa];
+      if (s >= T.s || (el >= T.t && s >= T.min)) {
+        const ultima = tappa === tappe.length - 1;
+        tappa++;
+        misuraVelocita(passo.velocita());
+        sviluppaOra(ultima);                       // niente in sospeso: la lettura è immediata
+        return;
+      }
+    }
+    passo.manda();
+    aggiornaBollino(Math.min(0.99, Math.max(s / ult.s, el / ult.t)));
+  }
+  /**
+   * LA FOTO, dallo stesso motore della vista realistica (scena già pronta, stessa
+   * inquadratura e stessa luce di quello che si vede): in un tempo massimo, con la
+   * risoluzione che questo dispositivo riesce a fare in quel tempo (poi ingrandita).
+   * f: { larghezza, altezza, tempoMax (s), campioniIA, campioni, annullato(), onProgress(f, tela, info) }
+   */
+  async function scatta(f = {}) {
+    const avvisa = (x, tela, info) => { if (f.onProgress) { try { f.onProgress(x, tela, info || {}); } catch (_) { /* UI */ } } };
+    fotografa = true;
+    interrompi();
+    let tela = null;
+    try {
+      const d = opz.dati && opz.dati();
+      if (!d || !d.radice || !d.camera) return null;
+      avvisa(0.01, null, { fase: 'preparo' });
+      if (conIA === null) conIA = await puliziaIADisponibile();
+      if (conIA) caricaUNet();
+      renderer.getDrawingBufferSize(v2);
+      const w = Math.max(1, v2.x), h = Math.max(1, v2.y);
+      await preparaMotore(d, w, h, null);
+      // quanti pixel si possono calcolare bene nel tempo dato su questo dispositivo
+      const W0 = Math.max(16, Math.round(f.larghezza || w)), H0 = Math.max(16, Math.round(f.altezza || h));
+      const tempo = Math.max(4, f.tempoMax || 30);
+      const voluti = Math.max(1, conIA ? (f.campioniIA || 96) : (f.campioni || 320));
+      // sotto questi campioni per pixel resta grana: meglio meno pixel (poi ingranditi);
+      // senza la pulizia IA ne servono di più
+      const minimi = conIA ? 16 : 64;
+      let px = Math.min(W0 * H0, (velocitaCalcolo() * tempo * 0.85) / minimi);
+      px = Math.max(px, Math.min(W0 * H0, conIA ? 600000 : 250000));
+      const { W, H } = dimensionaPT((W0 * Math.sqrt(px / (W0 * H0))) / w);
+      const n = tasselli(W * H); pt.tiles.set(n, n);
+      pt.reset();
+      const ps = creaPasso(pt, W * H, renderer);
+      const t0 = performance.now();
+      let ultimo = 0, tLuce = 0;                   // il tempo della luce parte dal primo campione
+      try {                                        // (prima, la prima volta, si prepara il programma)
+        for (;;) {
+          if (ps.pronto()) {
+            const ora = performance.now(), s = ps.fatti();
+            if (s >= 1 && !tLuce) tLuce = ora;
+            const el = tLuce ? (ora - tLuce) / 1000 : 0;
+            // a tempo scaduto ci si ferma, ma non sotto un minimo di passaggi (se no resta
+            // grana che nessuna pulizia toglie): al massimo si arriva al doppio del tempo
+            const abbastanza = s >= (conIA ? 8 : 24) || el >= tempo * 2;
+            if (s >= voluti || (s >= 1 && ((el >= tempo && abbastanza) || (f.annullato && f.annullato())))) break;
+            if (s < 1 && (ora - t0) / 1000 > tempo + 90) throw new Error('il calcolo non parte');
+            ps.manda();
+            if (ora - ultimo > 250) {
+              ultimo = ora;
+              if (s < 1) avvisa(0.02, null, { fase: 'preparo' });
+              else avvisa(0.02 + 0.86 * Math.min(1, Math.max(el / tempo, s / voluti)), null, { fase: 'luce' });
+            }
+          }
+          await new Promise((r) => requestAnimationFrame(r));
+        }
+      } finally { ps.libera(); }
+      misuraVelocita(ps.velocita());
+      avvisa(0.9, null, { fase: 'pulizia' });
+      aux = null;
+      const r = await pulisci(null, (x) => avvisa(0.9 + x * 0.07, null, { fase: 'pulizia' }));
+      avvisa(0.98, null, { fase: 'sviluppo' });
+      tela = sviluppa(r.pulita, r.W, r.H, { albedo: r.a.albedo, vignetta: 0.09 }).canvas;
+      aux = null;
+      if (r.W < W0 - 1 || r.H < H0 - 1) {
+        const k = W0 / r.W;
+        tela = scalaTela(tela, W0, H0);
+        if (k > 1.15) nitidezza(tela, Math.min(0.45, 0.2 + (k - 1) * 0.25));
+      }
+      // la vista realistica mostra subito la foto appena fatta (stessa inquadratura)
+      if (accesa && !guasto) {
+        mostra(scalaTela(tela, w, h));
+        stato = 'finito'; camSvil.p.copy(d.camera.position); camSvil.q.copy(d.camera.quaternion);
+        ultimaTela = tela;
+      }
+      return tela;
+    } finally {
+      fotografa = false;
+      // memoria: il calcolo torna alla misura della vista (la foto ne usava di più)
+      try { if (pt) dimensionaPT(Math.min(1, Math.sqrt(PIXEL_MAX / (Math.max(1, v2.x) * Math.max(1, v2.y))))); } catch (_) { /* niente */ }
+      if (!accesa) liberaTutto();
+      if (stato !== 'finito') { stato = 'fermo'; tMosso = performance.now(); }
+      aggiornaBollino(stato === 'finito' ? 1 : undefined);
+      avvisa(1, null, { fase: 'fine' });
+    }
   }
   return {
+    scatta,
+    /**
+     * L'immagine realistica che si vede adesso, se è finita (per salvarla SUBITO):
+     * almeno grande quanto la si vede sullo schermo. null se non è pronta.
+     */
+    immagine() {
+      if (!accesa || guasto || stato !== 'finito' || !ultimaTela) return null;
+      const r = canvas.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1);
+      const k = Math.max(1, Math.min(2.5, (Math.max(r.width, r.height) * dpr) / Math.max(ultimaTela.width, ultimaTela.height)));
+      if (k <= 1.05) return ultimaTela;
+      const t = scalaTela(ultimaTela, Math.round(ultimaTela.width * k), Math.round(ultimaTela.height * k));
+      nitidezza(t, Math.min(0.4, 0.15 + (k - 1) * 0.2));
+      return t;
+    },
     tick(altroMoto = false, bloccataOra = false) {
+      if (fotografa) return true;                  // la foto usa il motore: il canvas resta com'è
       if (!accesa || guasto) return false;
       const ora = performance.now();
       renderer.getDrawingBufferSize(v2);
@@ -1789,15 +2048,18 @@ export function creaVistaRealistica(opz) {
       return true;                                 // il canvas tiene l'ultima immagine: niente da ridisegnare
     },
     /** La scena è cambiata (mobili, colori…): si ricostruisce alla prossima pausa. */
-    invalida() { scenaValida = false; tMosso = performance.now(); if (stato !== 'fermo') interrompi(); },
+    invalida() {
+      scenaValida = false; tMosso = performance.now();
+      if (!fotografa && stato !== 'fermo') interrompi();
+    },
     /** Ridisegna l'immagine realistica, se c'è (es. dopo un salvataggio che ha usato il canvas). */
     ridisegna() {
       if (!accesa || guasto || !texFinale) return false;
       disegnaFinale();
       return true;
     },
-    /** Libera la memoria (es. prima di calcolare una foto). */
-    libera() { interrompi(); liberaTutto(); tMosso = performance.now(); },
+    /** Libera la memoria. */
+    libera() { if (fotografa) return; interrompi(); liberaTutto(); tMosso = performance.now(); },
     dispose() {
       interrompi(); liberaTutto();
       canvas.removeEventListener('pointerdown', giu);

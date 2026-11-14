@@ -6,7 +6,7 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer } from './materiali.js?v=20261115x';
+import { MATERIALI, PARTI, materialiDefault, materialiPer } from './materiali.js?v=20261115y';
 
 export function configDefault() {
   return {

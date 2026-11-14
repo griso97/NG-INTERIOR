@@ -1,10 +1,10 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
-import { materialiPer } from '../materiali.js?v=20261115x';
-import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261115x';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari } from './scena3d.js?v=20261115x';
-import { apriDistinta } from './passo2.js?v=20261115x';
+import { materialiPer } from '../materiali.js?v=20261115y';
+import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261115y';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, fotoVistaRealistica } from './scena3d.js?v=20261115y';
+import { apriDistinta } from './passo2.js?v=20261115y';
 
 let FINITURE = materialiPer('legno');          // dal catalogo (si rilegge a ogni pannello)
 export { MATERIALI_DEFAULT };
@@ -140,8 +140,8 @@ function renderPannello() {
     ev.currentTarget.classList.toggle('attivo', anteSonoAperte());
   });
   P.querySelector('#p3-foto-reale').addEventListener('click', async () => {
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261115x');
-    apriFotoRealistica({ calcola: (p) => fotoRealisticaModulari(p), tela3d: ctx.canvas, nome: 'mobile' });
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261115y');
+    apriFotoRealistica({ calcola: (p) => fotoRealisticaModulari(p), subito: () => fotoVistaRealistica(), tela3d: ctx.canvas, nome: 'mobile' });
   });
   P.querySelector('#p3-foto').addEventListener('click', () => {
     if (!salvaImmagine('mobili-modulari.png')) alert('Non sono riuscito a salvare l\'immagine.');
