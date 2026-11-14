@@ -9,8 +9,8 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261115w';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115w';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261115x';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115x';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -90,19 +90,47 @@ export function monta(canvas) {
   scene.add(gruppo);
   window.addEventListener('resize', ridimensiona);
   ciclo();
+  preparaVistaReale();
 }
 
 let pausa3d = false;                // ferma la vista 3D (mentre si calcola la foto realistica)
 function ciclo() {
   requestAnimationFrame(ciclo);
   if (!attiva || !renderer || pausa3d) return;
+  let anteInMoto = false;
   for (const c of cardini) {
     const target = anteAperte ? c.verso * ANGOLO_APERTA : 0;
     const d = target - c.g.rotation.y;
-    if (Math.abs(d) > 0.001) c.g.rotation.y += d * 0.16; else c.g.rotation.y = target;
+    if (Math.abs(d) > 0.001) { c.g.rotation.y += d * 0.16; anteInMoto = true; } else c.g.rotation.y = target;
   }
+  if (anteInMoto && vistaReale) vistaReale.invalida();
   controls.update();
+  // vista ferma → la vista realistica si sviluppa da sola (e disegna lei)
+  if (vistaReale && vistaReale.tick(anteInMoto)) return;
   renderer.render(scene, camera);
+}
+
+// VISTA REALISTICA dal vivo (foto-realistica.js): si carica dopo la vista 3D
+let vistaReale = null, vistaRealeInCarica = false;
+function preparaVistaReale() {
+  if (vistaReale || vistaRealeInCarica || !renderer) return;
+  vistaRealeInCarica = true;
+  import('../foto-realistica.js?v=20261115x').then((m) => {
+    if (!renderer || vistaReale) return;
+    vistaReale = m.creaVistaRealistica({ renderer, camera, controls, contenitore: canvasEl && canvasEl.parentElement, dati: datiFoto });
+  }).catch((e) => console.warn('Vista realistica non caricata:', e))
+    .finally(() => { vistaRealeInCarica = false; });
+}
+/** I dati per la foto/vista realistica: il vano con il suo muro di fondo. */
+function datiFoto() {
+  if (!scene || !camera || !gruppo || !gruppo.children.length) return null;
+  gruppo.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(gruppo);
+  if (bb.isEmpty()) return null;
+  // muro di fondo (z = 0) largo: la stanza attorno la chiude la foto
+  const x0 = bb.min.x - 1800, x1 = bb.max.x + 1800, zM = bb.min.z;   // dietro il fondo del vano
+  const muri = [{ a: { x: x0, z: zM }, b: { x: x1, z: zM }, interno: { x: (x0 + x1) / 2, z: zM + 600 } }];
+  return { radice: gruppo, camera, muri, hStanza: 2700 };
 }
 export function attivaRendering(si) { attiva = si; if (si) ridimensiona(); }
 
@@ -268,12 +296,14 @@ function vano(forma, P, conGradini) {
  */
 export function aggiorna(forma, elementi, opz) {
   if (!gruppo) return;
+  if (vistaReale) vistaReale.invalida();     // la scena cambia: la vista realistica si rifà alla prossima pausa
   while (gruppo.children.length) {
     const c = gruppo.children.pop();
     c.traverse((o) => o.geometry?.dispose());
   }
   cardini = [];
-  const ridisegna = () => { if (renderer && attiva) renderer.render(scene, camera); };
+  // texture arrivata: la vista veloce si aggiorna, quella realistica si rifà
+  const ridisegna = () => { if (vistaReale) vistaReale.invalida(); if (renderer && attiva) renderer.render(scene, camera); };
   // Texture a specchio (vale per questa pagina: la cache materiali è sua)
   const specchia = (m) => { if (m && m.map && m.map.wrapS !== THREE.MirroredRepeatWrapping) {
     m.map.wrapS = m.map.wrapT = THREE.MirroredRepeatWrapping; m.map.needsUpdate = true; } };
@@ -329,17 +359,13 @@ export function inquadra(tipo = 'tre4') {
  * vano con i suoi muri è già nella scena.
  */
 export async function fotoRealisticaModulari(opz = {}) {
-  if (!scene || !camera || !gruppo || !gruppo.children.length) return null;
-  const { fotoRealistica } = await import('../foto-realistica.js?v=20261115w');
-  gruppo.updateMatrixWorld(true);
-  const bb = new THREE.Box3().setFromObject(gruppo);
-  if (bb.isEmpty()) return null;
-  // muro di fondo (z = 0) largo: la stanza attorno la chiude la foto
-  const x0 = bb.min.x - 1800, x1 = bb.max.x + 1800, zM = bb.min.z;   // dietro il fondo del vano
-  const muri = [{ a: { x: x0, z: zM }, b: { x: x1, z: zM }, interno: { x: (x0 + x1) / 2, z: zM + 600 } }];
+  const dati = datiFoto();
+  if (!dati) return null;
+  const { fotoRealistica } = await import('../foto-realistica.js?v=20261115x');
+  if (vistaReale) vistaReale.libera();                     // memoria al calcolo della foto
   pausa3d = true;
   try {
-    return await fotoRealistica({ ...opz, radice: gruppo, camera, muri, hStanza: 2700 });
+    return await fotoRealistica({ ...opz, ...dati });
   } finally { pausa3d = false; }
 }
 
@@ -358,6 +384,6 @@ export function salvaImmagine(nome = 'mobili-modulari.png') {
   try { out = componiConLogo(c); } catch { out = null; }
   renderer.setPixelRatio(pr0);
   renderer.setSize(cw, ch, false);
-  renderer.render(scene, camera);
+  if (!(vistaReale && vistaReale.ridisegna())) renderer.render(scene, camera);
   return out ? salvaImmagineCanvas(out, nome) : false;
 }

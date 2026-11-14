@@ -436,11 +436,11 @@ function mappeUVFacce(geo) {
   return mappe.length === 6 ? mappe : null;
 }
 /** Scatola w×h×d con spigoli di raggio r, gruppi (facce) e UV come l'originale. */
-function scatolaArrotondata(geo, r) {
+function scatolaArrotondata(geo, r, segmenti = 5) {
   const { width: w, height: h, depth: d } = geo.parameters;
   const mappe = mappeUVFacce(geo);
   if (!mappe) return null;
-  const s = 5;                                   // 2 segmenti per curva + la parte piana
+  const s = segmenti;                            // 5 = 2 segmenti per curva + la parte piana
   const g = new THREE.BoxGeometry(1, 1, 1, s, s, s).toNonIndexed();
   const pos = g.attributes.position, nor = g.attributes.normal, uv = g.attributes.uv;
   const hx = w / 2 - r, hy = h / 2 - r, hz = d / 2 - r, hs = 0.5 / s;
@@ -527,7 +527,7 @@ function estrusioneArrotondata(geo, r) {
   nuova.computeBoundingBox(); nuova.computeBoundingSphere();
   return nuova;
 }
-function arrotondaSpigoli(radice, ripristina) {
+function arrotondaSpigoli(radice, ripristina, segmenti = 5) {
   const fatte = new Map();                       // la stessa geometria condivisa si arrotonda una volta
   const nuove = [];
   radice.updateMatrixWorld(true);
@@ -547,7 +547,7 @@ function arrotondaSpigoli(radice, ripristina) {
     const r = Math.min(box ? 1.6 : 2, minimo * 0.3);
     let g2 = fatte.get(geo);
     if (g2 === undefined) {
-      try { g2 = box ? scatolaArrotondata(geo, r) : estrusioneArrotondata(geo, r); } catch (e) { g2 = null; }
+      try { g2 = box ? scatolaArrotondata(geo, r, segmenti) : estrusioneArrotondata(geo, r); } catch (e) { g2 = null; }
       fatte.set(geo, g2); if (g2) nuove.push(g2);
     }
     if (!g2) return;
@@ -625,9 +625,13 @@ function stanzaChiusa(muri, box, camPos, fH, chiudiDietro = false) {
   let u0 = Math.min(...punti.map(U), ...pMobili.map((p) => U(p) - marg)), u1 = Math.max(...punti.map(U), ...pMobili.map((p) => U(p) + marg));
   let v1 = Math.max(...punti.map(V), ...pMobili.map((p) => V(p) + (isola ? marg : 0.9)));
   let v0 = Math.min(isola ? Infinity : 0, ...punti.map(V), ...(isola ? pMobili.map((p) => V(p) - marg) : []));
-  const cu = U(camPos), cv = V(camPos);
-  if (isola) v0 = Math.min(v0, cv - 0.6);
-  u0 = Math.min(u0, cu - 0.6); u1 = Math.max(u1, cu + 0.6); v1 = Math.max(v1, cv + 0.6);
+  if (camPos) {                                    // foto: la stanza contiene anche il fotografo
+    const cu = U(camPos), cv = V(camPos);
+    if (isola) v0 = Math.min(v0, cv - 0.6);
+    u0 = Math.min(u0, cu - 0.6); u1 = Math.max(u1, cu + 0.6); v1 = Math.max(v1, cv + 0.6);
+  } else {
+    v1 = Math.max(v1, ...pMobili.map((p) => V(p) + 2.4));   // vivo: un po' di stanza davanti alla cucina
+  }
   const P = (uu, vv) => ({ x: o.x + u.x * uu + n.x * vv, z: o.z + u.z * uu + n.z * vv });
   const centro = P((u0 + u1) / 2, (v0 + v1) / 2);
   const lati = [
@@ -918,6 +922,7 @@ function renderAusiliari(renderer, scena, cam, W, H, sfondo) {
   });
   const quadCopia = new FullScreenQuad(materialeCopia());
   const autoClearPrima = renderer.autoClear;
+  const clearPrima = renderer.getClearColor(new THREE.Color()), alphaPrima = renderer.getClearAlpha();
   renderer.autoClear = false;                      // la somma non va cancellata a ogni passata
   const originali = new Map();
   const creati = [];
@@ -974,6 +979,7 @@ function renderAusiliari(renderer, scena, cam, W, H, sfondo) {
   scena.background = prima.bg; scena.environment = prima.env;
   if (base.x || base.y) cam.setViewOffset(W, H, base.x, base.y, W, H); else cam.clearViewOffset();
   renderer.autoClear = autoClearPrima;
+  renderer.setClearColor(clearPrima, alphaPrima);
   renderer.setRenderTarget(null);
   frame.dispose(); acc.dispose(); accF.dispose();
   quad.dispose(); quad.material.dispose(); quadCopia.dispose(); quadCopia.material.dispose();
@@ -985,6 +991,31 @@ function renderAusiliari(renderer, scena, cam, W, H, sfondo) {
 // materiali (così venature e disegni restano nitidi), filtrata a più scale
 // rispettando spigoli e superfici (filtro "à-trous"), poi rimoltiplicata.
 // ---------------------------------------------------------------------------
+/**
+ * Pixel isolati senza luce (o con troppa luce) rispetto a TUTTI i vicini: con pochi
+ * campioni il calcolo ne lascia qualcuno (puntini neri o bianchi), che i filtri
+ * rispettano come se fossero dettagli. Si prende la media degli 8 vicini.
+ * I dettagli veri (fughe, bordi, righe sottili) hanno vicini simili e restano.
+ */
+function togliPunti(c, W, H) {
+  const N = W * H, L = new Float32Array(N);
+  for (let j = 0, i = 0; j < N; j++, i += 4) L[j] = 0.2126 * c[i] + 0.7152 * c[i + 1] + 0.0722 * c[i + 2];
+  const vic = [-W - 1, -W, -W + 1, -1, 1, W - 1, W, W + 1];
+  let tolti = 0;
+  for (let y = 1; y < H - 1; y++) {
+    for (let x = 1, j = y * W + 1; x < W - 1; x++, j++) {
+      const v = L[j];
+      let mn = Infinity, mx = 0;
+      for (let k = 0; k < 8; k++) { const w = L[j + vic[k]]; if (w < mn) mn = w; if (w > mx) mx = w; }
+      if (!(v < mn * 0.25) && !(v > mx * 4 + 1e-6)) continue;
+      let r = 0, g = 0, b = 0;
+      for (let k = 0; k < 8; k++) { const i = (j + vic[k]) * 4; r += c[i]; g += c[i + 1]; b += c[i + 2]; }
+      const i = j * 4; c[i] = r / 8; c[i + 1] = g / 8; c[i + 2] = b / 8;
+      tolti++;
+    }
+  }
+  return tolti;
+}
 function filtroGuidato(renderer, texColore, aux, W, H) {
   const dt = (u8) => { const t = new THREE.DataTexture(u8, W, H, THREE.RGBAFormat, THREE.UnsignedByteType); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; };
   const tAlb = dt(aux.albedo), tNor = dt(aux.normale);
@@ -1040,33 +1071,30 @@ function filtroGuidato(renderer, texColore, aux, W, H) {
 }
 
 /**
- * Calcola la FOTO REALISTICA della scena.
+ * Prepara la SCENA FOTOGRAFICA da una copia della scena 3D (la vista 3D non
+ * viene toccata): materiali veri, spigoli raggiati, stanza, finestra, LED.
  * opz: {
  *   radice: Object3D con la scena (in mm), camera: PerspectiveCamera (in mm),
- *   larghezza, altezza (pixel), campioni (senza pulizia IA), campioniIA (con),
+ *   larghezza, altezza (pixel: servono le proporzioni),
  *   muri: [{ a:{x,z}, b:{x,z}, interno:{x,z} }] in mm (coordinate 3D), hStanza (mm),
- *   onProgress(frazione, canvasAnteprima, info), annullato(): bool,
- *   pulizia: true (default) = pulizia IA se il dispositivo la supporta
+ *   soffittoAFilo, raddrizza (verticali dritte, default sì), vivo (vista dal
+ *   vivo: stanza e finestra che non dipendono da dove guarda la camera)
  * }
- * Ritorna il canvas con la foto (o null se annullata prima del primo campione).
+ * Ritorna { scena, cam, sfondo, firma, firmaPer(camera), libera() }.
  */
-export async function fotoRealistica(opz) {
-  const { radice, camera, larghezza: W, altezza: H } = opz;
+export async function preparaScenaFoto(opz) {
+  const { camera, larghezza: W, altezza: H } = opz;
   let hStanza = (opz.hStanza || 2700) * MM;
-  const avvisa = (f, tela, info) => { if (opz.onProgress) { try { opz.onProgress(f, tela, info || {}); } catch (_) { /* UI */ } } };
-  // con la pulizia IA (WebGPU) bastano meno passaggi; si prepara (scarica i
-  // pesi) mentre si calcola la luce
-  const conIA = opz.pulizia !== false && !opz.soloControllo && await puliziaIADisponibile();
-  const unetP = conIA ? caricaUNet() : Promise.resolve(null);
-  const campioni = Math.max(1, conIA ? (opz.campioniIA || opz.campioni || 160) : (opz.campioni || 400));
-  // --- scena della foto -----------------------------------------------------
+  // copia della scena (stesse forme e materiali, che qui vengono sostituiti
+  // solo sulla copia): la vista 3D resta com'è
+  let radice;
+  try { radice = opz.radice.clone(true); } catch (e) { console.warn('Copia della scena non riuscita:', e); throw e; }
   const scena = new THREE.Scene();
   const involucro = new THREE.Group(); involucro.scale.setScalar(MM);
-  const padre = radice.parent, indice = padre ? padre.children.indexOf(radice) : -1;
   scena.add(involucro); involucro.add(radice);
   scena.updateMatrixWorld(true);
-  const ripristina = [];                         // cosa rimettere com'era
-  const nascondi = (o) => { if (o.visible) { o.visible = false; ripristina.push(() => { o.visible = true; }); } };
+  const daLiberareFn = [];                       // cosa liberare alla fine
+  const nascondi = (o) => { o.visible = false; };
   const box = new THREE.Box3();
   const scatoleMobili = [];
   const ledLuci = [];
@@ -1089,10 +1117,9 @@ export async function fotoRealistica(opz) {
   hStanza = opz.soffittoAFilo ? box.max.y + 0.001 : Math.max(hStanza, box.max.y + 0.002);
   // MATERIALI della foto (vetri, legni, display…)
   const nuoviMat = new Map();                    // uuid originale → materiale foto (o null)
-  const daLiberare = [];
   const perFoto = (m) => {
     if (!m) return m;
-    if (!nuoviMat.has(m.uuid)) { const n = materialeFoto(m); nuoviMat.set(m.uuid, n); if (n) daLiberare.push(n); }
+    if (!nuoviMat.has(m.uuid)) { const n = materialeFoto(m); nuoviMat.set(m.uuid, n); if (n) daLiberareFn.push(() => n.dispose()); }
     return nuoviMat.get(m.uuid) || m;
   };
   let seme = 12345; const rnd = () => { seme = (seme * 16807) % 2147483647; return seme / 2147483647; };
@@ -1100,42 +1127,38 @@ export async function fotoRealistica(opz) {
     if (!o.isMesh || !o.visible || (o.userData || {}).ledStriscia) return;
     const vecchio = o.material;
     const nuovo = Array.isArray(vecchio) ? vecchio.map(perFoto) : perFoto(vecchio);
-    const cambiato = Array.isArray(vecchio) ? nuovo.some((x, i) => x !== vecchio[i]) : nuovo !== vecchio;
     // venatura: ogni pezzo tagliato da un punto diverso del pannello (non per i
     // prodotti del catalogo con la misura del campione: lì la foto è centrata
     // sull'anta apposta, un'anta grande come la foto deve essere uguale alla foto)
     const mats = Array.isArray(nuovo) ? nuovo : [nuovo];
     const legno = mats.some((m) => m && m.normalMap && ripetuta(m.map))
       && !mats.some((m) => m && m.userData && m.userData.campioneMm);
-    let geoPrima = null;
     if (legno && o.geometry.attributes.uv) {
-      geoPrima = o.geometry;
-      const geo = geoPrima.clone(); const uv = geo.attributes.uv;
+      const geo = o.geometry.clone(); const uv = geo.attributes.uv;
       // spostata e a volte specchiata: due ante vicine non hanno mai lo stesso disegno
       const du = rnd(), dv = rnd(), su = rnd() < 0.5 ? -1 : 1, sv = rnd() < 0.5 ? -1 : 1;
       for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * su + du, uv.getY(i) * sv + dv);
       uv.needsUpdate = true;
       o.geometry = geo;
+      daLiberareFn.push(() => geo.dispose());
     }
-    if (cambiato) o.material = nuovo;
-    if (cambiato || geoPrima) ripristina.push(() => { if (geoPrima) { o.geometry.dispose(); o.geometry = geoPrima; } o.material = vecchio; });
+    o.material = nuovo;
   });
-  ripristina.push(() => { for (const m of daLiberare) m.dispose(); });
+  arrotondaSpigoli(radice, daLiberareFn, opz.segmentiSpigoli || 5);
   // Il path tracer (0.0.23) sbaglia i materiali delle mesh con PIÙ MATERIALI
   // (es. il vetro del piano cottura) e poi sfasa anche tutti gli altri: per la
   // foto ogni mesh così diventa una mesh per materiale (stessa forma, stessi dati).
-  arrotondaSpigoli(radice, ripristina);
   const multiple = [];
   radice.traverse((o) => { if (o.isMesh && Array.isArray(o.material)) multiple.push(o); });
-  for (const o of multiple) dividiPerMateriale(o, ripristina);
-  // --- la camera in metri, con le VERTICALI DRITTE ---------------------------
+  for (const o of multiple) dividiPerMateriale(o, daLiberareFn);
+  // --- la camera in metri (foto: con le VERTICALI DRITTE) --------------------
   const cam = camera.clone();
   cam.position.multiplyScalar(MM);
   cam.near = 0.03; cam.far = 300; cam.aspect = W / H; cam.clearViewOffset();
   cam.updateMatrixWorld();
   const dir = new THREE.Vector3(); cam.getWorldDirection(dir);
   const beccheggio = Math.asin(Math.max(-1, Math.min(1, dir.y)));
-  if (opz.raddrizza !== false && Math.abs(beccheggio) < THREE.MathUtils.degToRad(22) && Math.hypot(dir.x, dir.z) > 0.2) {
+  if (!opz.vivo && opz.raddrizza !== false && Math.abs(beccheggio) < THREE.MathUtils.degToRad(22) && Math.hypot(dir.x, dir.z) > 0.2) {
     // come un obiettivo decentrabile: camera orizzontale, inquadratura spostata
     cam.up.set(0, 1, 0);
     cam.lookAt(cam.position.clone().add(new THREE.Vector3(dir.x, 0, dir.z)));
@@ -1150,16 +1173,27 @@ export async function fotoRealistica(opz) {
   const matTelaio = new THREE.MeshStandardMaterial({ color: 0x3a3c40, roughness: 0.45, metalness: 0.15 });
   const matDavanzale = new THREE.MeshStandardMaterial({ color: 0xe9e6e0, roughness: 0.3 });
   const matBattiscopa = new THREE.MeshStandardMaterial({ color: 0xf4f2ee, roughness: 0.42 });
-  const muri = [];
-  const fH = new THREE.Vector3(dir.x, 0, dir.z);              // avanti della camera, in orizzontale
+  const muriPianta = (opz.muri || []).map((m0) => ({ a: { x: m0.a.x * MM, z: m0.a.z * MM }, b: { x: m0.b.x * MM, z: m0.b.z * MM }, interno: { x: m0.interno.x * MM, z: m0.interno.z * MM } }));
+  // da che parte "guarda" la stanza: foto → la camera; vivo → verso il muro
+  // principale (così stanza e finestra non cambiano girando la vista)
+  const fH = new THREE.Vector3(dir.x, 0, dir.z);
+  if (opz.vivo && muriPianta.length) {
+    const princ = muriPianta.map((m) => ({ m, n: normaleInterna(m) })).reduce((a, b) => (b.n.L > a.n.L ? b : a));
+    fH.set(-princ.n.nx, 0, -princ.n.nz);
+  }
   if (fH.lengthSq() < 1e-6) fH.set(0, 0, -1);
   fH.normalize();
-  const aggiungiMuro = (m, virtuale) => {
-    const n = normaleInterna(m);
-    // la camera deve stare dalla parte interna del muro, se no il muro la coprirebbe
-    const presente = (cam.position.x - n.mx) * n.nx + (cam.position.z - n.mz) * n.nz > 0.05;
-    muri.push({ ...m, n, presente, virtuale });
-    if (!presente) return;
+  const camInterno = (n, p) => (p.x - n.mx) * n.nx + (p.z - n.mz) * n.nz > 0.05;
+  // tutti i muri (della pianta + quelli che chiudono la stanza), poi quelli da costruire
+  const tutti = muriPianta.map((m) => ({ ...m, virtuale: false }));
+  {
+    const provvisori = tutti.map((m) => ({ ...m, n: normaleInterna(m) }));
+    for (const v of stanzaChiusa(provvisori, box, opz.vivo ? null : cam.position, fH, !!opz.chiudiDietro)) tutti.push({ ...v, virtuale: true });
+  }
+  const muri = tutti.map((m) => { const n = normaleInterna(m); return { ...m, n, presente: camInterno(n, cam.position) }; });
+  for (const m of muri) {
+    if (!m.presente) continue;
+    const n = m.n;
     const muro = new THREE.Mesh(new THREE.BoxGeometry(n.L + 0.2, hStanza, 0.1), matMuro);
     muro.position.set(n.mx - n.nx * 0.05, hStanza / 2, n.mz - n.nz * 0.05);
     muro.rotation.y = -n.ang;
@@ -1169,109 +1203,140 @@ export async function fotoRealistica(opz) {
     bat.position.set(n.mx + n.nx * 0.006, 0.04, n.mz + n.nz * 0.006);
     bat.rotation.y = -n.ang;
     stanza.add(bat);
-  };
-  for (const m0 of (opz.muri || [])) {
-    aggiungiMuro({ a: { x: m0.a.x * MM, z: m0.a.z * MM }, b: { x: m0.b.x * MM, z: m0.b.z * MM }, interno: { x: m0.interno.x * MM, z: m0.interno.z * MM } }, false);
   }
-  // La pianta ha solo i muri della cucina: dove la stanza è "aperta" la foto
-  // mostrerebbe il pavimento che finisce nel vuoto. Chiudo la stanza con muri
-  // veri (rettangolo che contiene muri, mobili e fotografo), tranne quello alle
-  // spalle del fotografo, da cui entra la luce del resto della casa.
-  for (const v of stanzaChiusa(muri, box, cam.position, fH, !!opz.chiudiDietro)) aggiungiMuro(v, true);
   const dentro = cam.position.y < hStanza - 0.05;
+  // vista DA FUORI (dall'alto, o da lontano oltre un muro): la stanza si mostra
+  // "in sezione" come un plastico: senza soffitto, pavimento solo dentro, intorno
+  // un fondo neutro e luce morbida di studio (non la finestra, che lì non ha senso)
+  const fuoriDi = (p) => muri.reduce((mx, m) => Math.max(mx, -((p.x - m.n.mx) * m.n.nx + (p.z - m.n.mz) * m.n.nz)), 0);
+  const daFuori = !dentro || fuoriDi(cam.position) > 1.5;
+  // "firma" della stanza vista da una camera: quali muri, se il soffitto c'è e se è da fuori
+  const firmaPer = (camMm) => {
+    const p = { x: camMm.position.x * MM, z: camMm.position.z * MM }, y = camMm.position.y * MM;
+    return muri.map((m) => (camInterno(m.n, p) ? '1' : '0')).join('') + (y < hStanza - 0.05 ? 'S' : '-') + (y >= hStanza - 0.05 || fuoriDi(p) > 1.5 ? 'F' : '');
+  };
   const cx = (box.min.x + box.max.x) / 2, cz = (box.min.z + box.max.z) / 2;
   const lato = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) + 2 * Math.hypot(cam.position.x - cx, cam.position.z - cz) + 6;
-  if (dentro) {
-    const soffitto = new THREE.Mesh(new THREE.PlaneGeometry(lato, lato), matSoffitto);
+  if (dentro && !daFuori) {
+    const soffitto = new THREE.Mesh(new THREE.PlaneGeometry(lato + 20, lato + 20), matSoffitto);
     soffitto.rotation.x = Math.PI / 2; soffitto.position.set(cx, hStanza, cz); stanza.add(soffitto);
   }
   // pavimento in parquet (rovere, assi sfalsate) con il rilievo delle fughe
+  // la stanza in pianta (da fuori il parquet sta solo qui dentro)
+  const sx = [], sz = [];
+  for (const m of tutti) { sx.push(m.a.x, m.b.x); sz.push(m.a.z, m.b.z); }
+  if (!sx.length) { sx.push(box.min.x - 1.5, box.max.x + 1.5); sz.push(box.min.z - 1.5, box.max.z + 1.5); }
+  const st = { x0: Math.min(...sx), x1: Math.max(...sx), z0: Math.min(...sz), z1: Math.max(...sz) };
+  const latoPav = lato + 20;
+  const pavL = daFuori ? st.x1 - st.x0 : latoPav, pavP = daFuori ? st.z1 - st.z0 : latoPav;
   const parquet = await texParquet();
-  const ripPav = lato / (parquet.mmTile * MM);
-  const tPav = parquet.tex.clone(); tPav.needsUpdate = true; tPav.repeat.set(ripPav, ripPav);
+  const ripX = pavL / (parquet.mmTile * MM), ripZ = pavP / (parquet.mmTile * MM);
+  const tPav = parquet.tex.clone(); tPav.needsUpdate = true; tPav.repeat.set(ripX, ripZ);
   const mpPav = mappeDaFoto(parquet.tex, 1.4);
   const matPav = new THREE.MeshPhysicalMaterial({ map: tPav, roughness: 0.62, metalness: 0, clearcoat: 0.18, clearcoatRoughness: 0.35 });
   if (mpPav) {
-    matPav.normalMap = mpPav.normale.clone(); matPav.normalMap.repeat.set(ripPav, ripPav); matPav.normalMap.needsUpdate = true;
+    matPav.normalMap = mpPav.normale.clone(); matPav.normalMap.repeat.set(ripX, ripZ); matPav.normalMap.needsUpdate = true;
     matPav.normalScale = new THREE.Vector2(0.5, 0.5);
-    matPav.roughnessMap = mpPav.ruvido.clone(); matPav.roughnessMap.repeat.set(ripPav, ripPav); matPav.roughnessMap.needsUpdate = true;
+    matPav.roughnessMap = mpPav.ruvido.clone(); matPav.roughnessMap.repeat.set(ripX, ripZ); matPav.roughnessMap.needsUpdate = true;
     matPav.roughness = 1.0;
   }
-  const pav = new THREE.Mesh(new THREE.PlaneGeometry(lato, lato), matPav);
-  pav.rotation.x = -Math.PI / 2; pav.position.set(cx, 0, cz); stanza.add(pav);
+  const pav = new THREE.Mesh(new THREE.PlaneGeometry(pavL, pavP), matPav);
+  pav.rotation.x = -Math.PI / 2;
+  if (daFuori) pav.position.set((st.x0 + st.x1) / 2, 0, (st.z0 + st.z1) / 2); else pav.position.set(cx, 0, cz);
+  stanza.add(pav);
+  const matFondo = new THREE.MeshStandardMaterial({ color: 0xe6e3dd, roughness: 0.97, metalness: 0 });
+  if (daFuori) {                                 // il fondo neutro intorno, appena sotto
+    const fondo = new THREE.Mesh(new THREE.PlaneGeometry(latoPav, latoPav), matFondo);
+    fondo.rotation.x = -Math.PI / 2; fondo.position.set(cx, -0.004, cz); stanza.add(fondo);
+  }
   // --- LUCE -------------------------------------------------------------------
   // cielo / ambiente: la luce morbida che arriva dal resto della casa
+  // (da fuori il cielo è aperto sopra la stanza: più luce, e il fondo intorno non resta buio)
+  const ambiente = opz.ambiente ?? (daFuori ? 0.8 : 0.22);
   const cielo = new GradientEquirectTexture();
-  cielo.topColor.set(0xfbfbff).multiplyScalar(opz.ambiente ?? 0.22);
-  cielo.bottomColor.set(0x8d877e).multiplyScalar((opz.ambiente ?? 0.22) * 0.45);
+  cielo.topColor.set(0xfbfbff).multiplyScalar(ambiente);
+  cielo.bottomColor.set(0x8d877e).multiplyScalar(ambiente * 0.45);
   cielo.exponent = 1.4;
   cielo.update();
   scena.environment = cielo;
   const sfondo = new THREE.Color(0xf2f1ee);
   scena.background = sfondo;
-  // FINESTRA: in un muro laterale libero (con telaio e davanzale), altrimenti
-  // di lato fuori dall'inquadratura. La luce del giorno entra radente.
-  const dx = new THREE.Vector3(-fH.z, 0, fH.x);
-  const C = new THREE.Vector3(cx, 0, cz);
-  const finH = Math.min(1.45, hStanza - 1.2), finY = Math.min(0.95 + finH / 2, hStanza - 0.3 - finH / 2);
-  const inQuadro = (p) => { const v = p.clone().project(cam); return v.z < 1 && Math.abs(v.x) < 1.02 && Math.abs(v.y) < 1.02; };
-  const mobiliVicino = (m) => scatoleMobili.some((b) => {
-    // distanza della scatola dal muro e sovrapposizione lungo il muro
-    const ang = [[b.min.x, b.min.z], [b.max.x, b.min.z], [b.min.x, b.max.z], [b.max.x, b.max.z]];
-    const dist = Math.min(...ang.map(([x, z]) => Math.abs((x - m.a.x) * m.n.nx + (z - m.a.z) * m.n.nz)));
-    const lungo = ang.map(([x, z]) => (x - m.a.x) * m.n.ux + (z - m.a.z) * m.n.uz);
-    return dist < 0.75 && Math.max(...lungo) > 0.2 && Math.min(...lungo) < m.n.L - 0.2;
-  });
-  let finestra = null;
-  const laterale = (m) => Math.abs(m.n.nx * fH.x + m.n.nz * fH.z);
-  const candidati = muri.filter((m) => m.presente && m.n.L >= 1.4 && laterale(m) < 0.75 && !mobiliVicino(m)).sort((a, b) => laterale(a) - laterale(b));
-  for (const m of candidati) {
-    // a metà tra il fotografo e la cucina, dentro il muro
-    const M = C.clone().add(cam.position.clone().setY(0)).multiplyScalar(0.5);
-    const w = Math.min(1.5, m.n.L - 0.6);
-    let t = (M.x - m.a.x) * m.n.ux + (M.z - m.a.z) * m.n.uz;
-    t = Math.max(0.3 + w / 2, Math.min(m.n.L - 0.3 - w / 2, t));
-    finestra = {
-      pos: new THREE.Vector3(m.a.x + m.n.ux * t + m.n.nx * 0.004, finY, m.a.z + m.n.uz * t + m.n.nz * 0.004),
-      n: new THREE.Vector3(m.n.nx, 0, m.n.nz), w, nelMuro: true,
-    };
-    break;
-  }
-  if (!finestra) {
-    const est = Math.abs(dx.x) * (box.max.x - box.min.x) / 2 + Math.abs(dx.z) * (box.max.z - box.min.z) / 2;
-    for (const s of [-1, 1]) {
-      const p = C.clone().addScaledVector(dx, s * (est + 1.4)).addScaledVector(fH, -0.9); p.y = finY;
-      for (let i = 0; i < 8 && inQuadro(p); i++) p.addScaledVector(dx, s * 0.5);
-      const bloccata = muri.some((m) => m.presente && siIncrociano({ x: C.x, z: C.z }, { x: p.x, z: p.z }, m.a, m.b));
-      if (bloccata || inQuadro(p)) continue;
-      finestra = { pos: p, n: C.clone().setY(finY).sub(p).setY(0).normalize(), w: 1.5, nelMuro: false };
+  if (daFuori) {
+    // DA FUORI: luce di studio. Un grande pannello morbido davanti-sopra la cucina
+    // (fa vedere bene i frontali e lascia ombre morbide) + il cielo dall'alto
+    const davantiF = new THREE.Vector3(cx, 0, cz).addScaledVector(fH, -2.6);
+    const studio = new THREE.RectAreaLight(0xfffdf9, opz.studio ?? 9, 2.8, 2.2);
+    studio.position.set(davantiF.x, hStanza + 0.6, davantiF.z);
+    studio.lookAt(cx, 0.9, cz);
+    scena.add(studio);
+  } else {
+    // FINESTRA: in un muro laterale libero (con telaio e davanzale), altrimenti
+    // di lato fuori dall'inquadratura. La luce del giorno entra radente.
+    const dx = new THREE.Vector3(-fH.z, 0, fH.x);
+    const C = new THREE.Vector3(cx, 0, cz);
+    // punto "del fotografo": foto → la camera; vivo → davanti alla cucina
+    const davanti = opz.vivo ? C.clone().addScaledVector(fH, -2.5) : cam.position.clone().setY(0);
+    const finH = Math.min(1.45, hStanza - 1.2), finY = Math.min(0.95 + finH / 2, hStanza - 0.3 - finH / 2);
+    const inQuadro = (p) => { if (opz.vivo) return false; const v = p.clone().project(cam); return v.z < 1 && Math.abs(v.x) < 1.02 && Math.abs(v.y) < 1.02; };
+    const mobiliVicino = (m) => scatoleMobili.some((b) => {
+      // distanza della scatola dal muro e sovrapposizione lungo il muro
+      const ang = [[b.min.x, b.min.z], [b.max.x, b.min.z], [b.min.x, b.max.z], [b.max.x, b.max.z]];
+      const dist = Math.min(...ang.map(([x, z]) => Math.abs((x - m.a.x) * m.n.nx + (z - m.a.z) * m.n.nz)));
+      const lungo = ang.map(([x, z]) => (x - m.a.x) * m.n.ux + (z - m.a.z) * m.n.uz);
+      return dist < 0.75 && Math.max(...lungo) > 0.2 && Math.min(...lungo) < m.n.L - 0.2;
+    });
+    let finestra = null;
+    const laterale = (m) => Math.abs(m.n.nx * fH.x + m.n.nz * fH.z);
+    const candidati = muri.filter((m) => (opz.vivo || m.presente) && m.n.L >= 1.4 && laterale(m) < 0.75 && !mobiliVicino(m)).sort((a, b) => laterale(a) - laterale(b));
+    for (const m of candidati) {
+      // a metà tra il fotografo e la cucina, dentro il muro
+      const M = C.clone().add(davanti).multiplyScalar(0.5);
+      const w = Math.min(1.5, m.n.L - 0.6);
+      let t = (M.x - m.a.x) * m.n.ux + (M.z - m.a.z) * m.n.uz;
+      t = Math.max(0.3 + w / 2, Math.min(m.n.L - 0.3 - w / 2, t));
+      finestra = {
+        pos: new THREE.Vector3(m.a.x + m.n.ux * t + m.n.nx * 0.004, finY, m.a.z + m.n.uz * t + m.n.nz * 0.004),
+        n: new THREE.Vector3(m.n.nx, 0, m.n.nz), w, nelMuro: true, muro: m,
+      };
       break;
     }
-  }
-  if (!finestra) {                               // tutto chiuso: luce alle spalle del fotografo, dall'alto
-    const p = cam.position.clone().addScaledVector(fH, -0.6); p.y = Math.min(hStanza - 0.2, cam.position.y + 0.6);
-    finestra = { pos: p, n: C.clone().setY(1).sub(p).normalize(), w: 1.5, nelMuro: false };
-  }
-  const luceFin = new THREE.RectAreaLight(0xfffdf9, opz.finestra ?? 30, finestra.w, finH);
-  luceFin.position.copy(finestra.pos);
-  luceFin.lookAt(finestra.pos.clone().add(finestra.n));
-  scena.add(luceFin);
-  if (finestra.nelMuro) {
-    // telaio (due ante con montante centrale) e davanzale: fanno l'ombra a
-    // croce sul pavimento e il riflesso "da finestra" sulle superfici lucide
-    const tel = new THREE.Group();
-    const prof = 0.07, sp = 0.065;
-    const pezzo = (w, h, d, x, y, z, mat = matTelaio) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); b.position.set(x, y, z); tel.add(b); };
-    const W2 = finestra.w / 2, H2 = finH / 2;
-    pezzo(finestra.w + 2 * sp, sp, prof, 0, H2 + sp / 2, prof / 2);
-    pezzo(finestra.w + 2 * sp, sp, prof, 0, -H2 - sp / 2, prof / 2);
-    pezzo(sp, finH, prof, -W2 - sp / 2, 0, prof / 2);
-    pezzo(sp, finH, prof, W2 + sp / 2, 0, prof / 2);
-    pezzo(sp * 1.4, finH, prof, 0, 0, prof / 2);                                  // montante centrale
-    pezzo(finestra.w + 0.24, 0.03, 0.2, 0, -H2 - sp - 0.015, 0.1, matDavanzale);  // davanzale
-    tel.position.copy(finestra.pos);
-    tel.lookAt(finestra.pos.clone().add(finestra.n));                            // +Z verso la stanza
-    stanza.add(tel);
+    if (!finestra) {
+      const est = Math.abs(dx.x) * (box.max.x - box.min.x) / 2 + Math.abs(dx.z) * (box.max.z - box.min.z) / 2;
+      for (const s of [-1, 1]) {
+        const p = C.clone().addScaledVector(dx, s * (est + 1.4)).addScaledVector(fH, -0.9); p.y = finY;
+        for (let i = 0; i < 8 && inQuadro(p); i++) p.addScaledVector(dx, s * 0.5);
+        const bloccata = muri.some((m) => (opz.vivo || m.presente) && siIncrociano({ x: C.x, z: C.z }, { x: p.x, z: p.z }, m.a, m.b));
+        if (bloccata || inQuadro(p)) continue;
+        finestra = { pos: p, n: C.clone().setY(finY).sub(p).setY(0).normalize(), w: 1.5, nelMuro: false };
+        break;
+      }
+    }
+    if (!finestra) {                               // tutto chiuso: luce dal lato aperto della stanza, dall'alto
+      const p = davanti.clone().addScaledVector(fH, -0.6); p.y = Math.min(hStanza - 0.2, (opz.vivo ? 1.6 : cam.position.y) + 0.6);
+      finestra = { pos: p, n: C.clone().setY(1).sub(p).normalize(), w: 1.5, nelMuro: false };
+    }
+    const luceFin = new THREE.RectAreaLight(0xfffdf9, opz.finestra ?? 30, finestra.w, finH);
+    luceFin.position.copy(finestra.pos);
+    luceFin.lookAt(finestra.pos.clone().add(finestra.n));
+    scena.add(luceFin);
+    // telaio e davanzale solo se il muro della finestra c'è (vivo: la camera può essere fuori)
+    if (finestra.nelMuro && finestra.muro.presente) {
+      // telaio (due ante con montante centrale) e davanzale: fanno l'ombra a
+      // croce sul pavimento e il riflesso "da finestra" sulle superfici lucide
+      const tel = new THREE.Group();
+      const prof = 0.07, sp = 0.065;
+      const pezzo = (w, h, d, x, y, z, mat = matTelaio) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); b.position.set(x, y, z); tel.add(b); };
+      const W2 = finestra.w / 2, H2 = finH / 2;
+      pezzo(finestra.w + 2 * sp, sp, prof, 0, H2 + sp / 2, prof / 2);
+      pezzo(finestra.w + 2 * sp, sp, prof, 0, -H2 - sp / 2, prof / 2);
+      pezzo(sp, finH, prof, -W2 - sp / 2, 0, prof / 2);
+      pezzo(sp, finH, prof, W2 + sp / 2, 0, prof / 2);
+      pezzo(sp * 1.4, finH, prof, 0, 0, prof / 2);                                  // montante centrale
+      pezzo(finestra.w + 0.24, 0.03, 0.2, 0, -H2 - sp - 0.015, 0.1, matDavanzale);  // davanzale
+      tel.position.copy(finestra.pos);
+      tel.lookAt(finestra.pos.clone().add(finestra.n));                            // +Z verso la stanza
+      stanza.add(tel);
+    }
   }
   // LED sotto i pensili: strisce che fanno luce davvero
   for (const s of ledLuci) {
@@ -1285,11 +1350,44 @@ export async function fotoRealistica(opz) {
     luce.quaternion.copy(q);
     luce.rotateX(-Math.PI / 2);                    // rivolta verso il basso
     scena.add(luce);
-    const vecchio = s.material;
-    s.material = new THREE.MeshStandardMaterial({ color: 0x202020, emissive: col, emissiveIntensity: 2.2, roughness: 0.6 });
-    ripristina.push(() => { s.material.dispose(); s.material = vecchio; });
+    const m = new THREE.MeshStandardMaterial({ color: 0x202020, emissive: col, emissiveIntensity: 2.2, roughness: 0.6 });
+    s.material = m;
+    daLiberareFn.push(() => m.dispose());
   }
   scena.updateMatrixWorld(true);
+  const libera = () => {
+    cielo.dispose();
+    stanza.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
+    for (const m of [matMuro, matSoffitto, matTelaio, matDavanzale, matBattiscopa, matPav, matFondo]) m.dispose();
+    tPav.dispose();
+    if (matPav.normalMap) matPav.normalMap.dispose();
+    if (matPav.roughnessMap) matPav.roughnessMap.dispose();
+    for (const f of daLiberareFn) { try { f(); } catch (_) { /* avanti */ } }
+    involucro.remove(radice);
+  };
+  return { scena, cam, sfondo, firma: firmaPer({ position: camera.position }), firmaPer, libera };
+}
+
+/**
+ * Calcola la FOTO REALISTICA della scena.
+ * opz: {
+ *   radice: Object3D con la scena (in mm), camera: PerspectiveCamera (in mm),
+ *   larghezza, altezza (pixel), campioni (senza pulizia IA), campioniIA (con),
+ *   muri: [{ a:{x,z}, b:{x,z}, interno:{x,z} }] in mm (coordinate 3D), hStanza (mm),
+ *   onProgress(frazione, canvasAnteprima, info), annullato(): bool,
+ *   pulizia: true (default) = pulizia IA se il dispositivo la supporta
+ * }
+ * Ritorna il canvas con la foto (o null se annullata prima del primo campione).
+ */
+export async function fotoRealistica(opz) {
+  const { larghezza: W, altezza: H } = opz;
+  const avvisa = (f, tela, info) => { if (opz.onProgress) { try { opz.onProgress(f, tela, info || {}); } catch (_) { /* UI */ } } };
+  // con la pulizia IA (WebGPU) bastano meno passaggi; si prepara (scarica i
+  // pesi) mentre si calcola la luce
+  const conIA = opz.pulizia !== false && !opz.soloControllo && await puliziaIADisponibile();
+  const unetP = conIA ? caricaUNet() : Promise.resolve(null);
+  const campioni = Math.max(1, conIA ? (opz.campioniIA || opz.campioni || 160) : (opz.campioni || 400));
+  const { scena, cam, sfondo, libera } = await preparaScenaFoto(opz);
   // --- renderer e path tracer -------------------------------------------------
   const tela = document.createElement('canvas'); tela.width = W; tela.height = H;
   const renderer = new THREE.WebGLRenderer({ canvas: tela, antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
@@ -1340,6 +1438,7 @@ export async function fotoRealistica(opz) {
         // la luce calcolata (lineare, senza curva)
         const colore = new Float32Array(W * H * 4);
         renderer.readRenderTargetPixels(pt.target, 0, 0, W, H, colore);
+        togliPunti(colore, W, H);
         // il path tracer non serve più: libero subito la sua memoria (telefoni)
         try { pt.dispose(); } catch (_) { /* già liberato */ }
         ptLiberato = true;
@@ -1380,20 +1479,334 @@ export async function fotoRealistica(opz) {
   } finally {
     if (!ptLiberato) { try { pt.dispose(); } catch (_) { /* già liberato */ } }
     quad.dispose(); quad.material.dispose(); quadCopia.dispose(); quadCopia.material.dispose();
-    cielo.dispose();
-    stanza.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
-    for (const m of [matMuro, matSoffitto, matTelaio, matDavanzale, matBattiscopa, matPav]) m.dispose();
-    tPav.dispose();
-    if (matPav.normalMap) matPav.normalMap.dispose();
-    if (matPav.roughnessMap) matPav.roughnessMap.dispose();
-    for (const f of ripristina.reverse()) { try { f(); } catch (_) { /* avanti */ } }
-    // la scena torna nella vista 3D
-    if (padre) { padre.add(radice); if (indice >= 0) { padre.children.splice(padre.children.indexOf(radice), 1); padre.children.splice(indice, 0, radice); } }
-    else involucro.remove(radice);
-    radice.updateMatrixWorld(true);
+    libera();
     renderer.dispose();
     try { renderer.forceContextLoss(); } catch (_) { /* niente */ }
     avvisa(1, null, { fase: 'fine' });
   }
   return risultato;
+}
+
+// =============================================================================
+// VISTA 3D REALISTICA DAL VIVO
+// =============================================================================
+// Quando la vista 3D resta ferma (~1 s), la STESSA inquadratura si "sviluppa"
+// sullo stesso canvas in qualità foto: path tracing progressivo + pulizia IA.
+// Al primo tocco/movimento torna subito la vista veloce. A immagine finita la
+// scheda grafica si ferma (il canvas tiene l'immagine): niente consumo mentre
+// il cliente guarda. Lavora su una COPIA della scena (la vista non si tocca).
+// =============================================================================
+const CHIAVE_VIVO = 'ng-vista-realistica';
+/** La vista realistica è accesa? (scelta del dispositivo, di base sì) */
+export function vistaRealisticaAccesa() {
+  try { return localStorage.getItem(CHIAVE_VIVO) !== '0'; } catch (_) { return true; }
+}
+/** Le immagini delle texture sono già arrivate? (sul telefono, al primo caricamento, possono tardare) */
+function texturePronte(radice) {
+  let pronte = true;
+  radice.traverse((o) => {
+    if (!pronte || !o.isMesh) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (!m) continue;
+      for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'bumpMap', 'alphaMap', 'emissiveMap', 'aoMap']) {
+        const t = m[k];
+        if (!t || t.isRenderTargetTexture) continue;
+        const img = t.image;
+        if (!img || (typeof HTMLImageElement !== 'undefined' && img instanceof HTMLImageElement && !(img.complete && img.naturalWidth > 0))) { pronte = false; return; }
+      }
+    }
+  });
+  return pronte;
+}
+const materialeFinale = () => new THREE.ShaderMaterial({
+  uniforms: { map: { value: null } },
+  depthTest: false, depthWrite: false, blending: THREE.NoBlending, toneMapped: false,
+  vertexShader: VERTICE_QUAD,
+  fragmentShader: 'uniform sampler2D map; varying vec2 vUv; void main() { gl_FragColor = vec4(texture2D(map, vUv).rgb, 1.0); }',
+});
+/**
+ * opz: {
+ *   renderer, camera, controls (quelli della vista 3D), contenitore (dove mettere il bollino),
+ *   dati(): { radice, camera, muri, hStanza, soffittoAFilo } come per la foto
+ * }
+ * Ritorna { tick(altroMoto, bloccata) → true se il canvas lo tiene lei (non ridisegnare),
+ *           invalida(), ridisegna(), libera(), dispose() }.
+ * La telecamera la sorveglia da sola: si sviluppa solo quando l'inquadratura è ferma davvero.
+ */
+export function creaVistaRealistica(opz) {
+  const renderer = opz.renderer, canvas = renderer.domElement;
+  const telefono = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+  const ATTESA_PRIMA = 900;                        // ms di vista ferma prima di preparare la scena
+  const ATTESA = 450;                              // … se è già pronta (cambia solo il punto di vista)
+  const PIXEL_MAX = telefono ? 300000 : 900000;    // risoluzione del calcolo (poi ingrandita)
+  const FERMA_PX = 0.03;                           // movimento per fotogramma sotto cui la vista è ferma
+  const DERIVA_PX = 0.6;                           // deriva massima dall'inquadratura che si sta sviluppando
+  let accesa = vistaRealisticaAccesa();
+  let stato = 'fermo', tMosso = performance.now(), gen = 0, inCorso = null, inCorsoDa = 0;
+  let prep = null, scenaValida = false, pt = null, tappe = [32, 128];
+  let dimensione = '', abortIA = null, tappa = 0, conIA = null, aux = null;
+  let texFinale = null, bloccata = false, guasto = false, premuto = false;
+  const quadFinale = new FullScreenQuad(materialeFinale());
+  const v2 = new THREE.Vector2();
+  // --- la telecamera: di quanti pixel si è spostata l'immagine sullo schermo ----
+  // (conta anche quando si muove da sola: pulsanti di vista, coda dello smorzamento…)
+  const camUlt = { p: new THREE.Vector3(), q: new THREE.Quaternion(), fov: 0, zoom: 0, aspect: 0, ok: false };
+  const camSvil = { p: new THREE.Vector3(), q: new THREE.Quaternion() };   // la posa che si sta sviluppando
+  function pixelTra(p, q, c) {
+    const ang = 2 * Math.acos(Math.min(1, Math.abs(q.dot(c.quaternion))));
+    const t = opz.controls && opz.controls.target;
+    const dist = t ? Math.max(100, c.position.distanceTo(t)) : 3000;
+    const pxRad = v2.y / Math.max(1e-3, THREE.MathUtils.degToRad(c.fov || 50) / (c.zoom || 1));
+    return (ang + p.distanceTo(c.position) / dist) * pxRad;
+  }
+  // --- bollino nell'angolo della vista 3D: stato + acceso/spento ---------------
+  const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
+  let bollino = null;
+  if (opz.contenitore) {
+    bollino = document.createElement('button');
+    bollino.type = 'button'; bollino.className = 'bollino-realistica';
+    bollino.title = 'Tocca per accendere o spegnere la vista realistica';
+    opz.contenitore.appendChild(bollino);
+    bollino.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // dopo un guasto, toccarla la riprova (accesa); altrimenti accende/spegne
+      if (guasto) { guasto = false; accesa = true; } else accesa = !accesa;
+      try { localStorage.setItem(CHIAVE_VIVO, accesa ? '1' : '0'); } catch (_) { /* niente */ }
+      if (!accesa) { interrompi(); liberaTutto(); } else tMosso = performance.now();
+      aggiornaBollino();
+    });
+  }
+  let testoBollino = '';
+  function aggiornaBollino(frazione) {
+    if (!bollino) return;
+    const chiave = `${accesa}|${guasto}|${stato}|${frazione != null ? Math.round(frazione * 20) : ''}`;
+    if (chiave === testoBollino) return;
+    testoBollino = chiave;
+    bollino.classList.toggle('spenta', !accesa);
+    bollino.classList.toggle('lavora', accesa && !guasto && (stato === 'preparo' || stato === 'campiono' || stato === 'pulisco'));
+    if (!accesa) bollino.textContent = '✨ ' + tt('Vista realistica: spenta');
+    else if (guasto) bollino.textContent = '✨ ' + tt('Vista realistica non disponibile');
+    else if (stato === 'finito') bollino.textContent = '✨ ' + tt('Vista realistica');
+    else if (stato === 'fermo') bollino.textContent = '✨ ' + tt('Vista realistica: fermati un attimo');
+    else bollino.textContent = '✨ ' + tt('Sviluppo la vista…') + (frazione != null ? ` ${Math.round(frazione * 100)}%` : '');
+  }
+  aggiornaBollino();
+  // --- dita sullo schermo: finché sono giù non si comincia ----------------------
+  const giu = () => { premuto = true; };
+  const su = () => { if (premuto) { premuto = false; tMosso = performance.now(); } };
+  const rotella = () => { tMosso = performance.now(); };
+  // contesto grafico perso (il telefono ha liberato memoria): si libera tutto e la vista
+  // realistica si ferma (non deve rischiare di far perdere di nuovo la vista 3D);
+  // un tocco sul bollino la riprova
+  const perso = () => { const usata = !!(pt || prep); interrompi(); liberaTutto(); if (usata) { guasto = true; aggiornaBollino(); } };
+  canvas.addEventListener('pointerdown', giu, { passive: true });
+  canvas.addEventListener('wheel', rotella, { passive: true });
+  window.addEventListener('pointerup', su, { passive: true });
+  window.addEventListener('pointercancel', su, { passive: true });
+  canvas.addEventListener('webglcontextlost', perso);
+
+  function interrompi() {
+    gen++;
+    if (abortIA) { try { abortIA(); } catch (_) { /* niente */ } abortIA = null; }
+    if (texFinale) { texFinale.dispose(); texFinale = null; }
+    stato = 'fermo'; tappa = 0; aux = null;
+    aggiornaBollino();
+  }
+  function liberaTutto() {
+    if (pt) { try { pt.dispose(); } catch (_) { /* niente */ } pt = null; }
+    if (prep) { try { prep.libera(); } catch (_) { /* niente */ } prep = null; }
+    scenaValida = false;
+  }
+  function camDaVista(cam, camera, w, h) {
+    cam.position.copy(camera.position).multiplyScalar(MM);
+    cam.quaternion.copy(camera.quaternion);
+    cam.fov = camera.fov; cam.zoom = camera.zoom; cam.aspect = w / h;
+    cam.near = 0.03; cam.far = 300; cam.clearViewOffset();
+    cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+    camSvil.p.copy(camera.position); camSvil.q.copy(camera.quaternion);
+  }
+  async function avvia() {
+    stato = 'preparo'; aggiornaBollino(0);
+    const g = gen;
+    try {
+      const d = opz.dati && opz.dati();
+      if (!d || !d.radice || !d.camera) { stato = 'fermo'; tMosso = performance.now(); aggiornaBollino(); return; }
+      if (conIA === null) conIA = await puliziaIADisponibile();
+      // campioni → sviluppo a ogni tappa (la prima arriva presto, l'ultima è la qualità piena)
+      tappe = conIA ? (telefono ? [16, 64] : [32, 160]) : (telefono ? [32, 128] : [64, 256]);
+      if (conIA) caricaUNet();                     // i pesi si scaricano intanto
+      if (g !== gen) return;
+      renderer.getDrawingBufferSize(v2);
+      const w = Math.max(1, v2.x), h = Math.max(1, v2.y);
+      const firma = prep && scenaValida ? prep.firmaPer(d.camera) : null;
+      if (!prep || !scenaValida || firma !== prep.firma) {
+        // texture ancora in arrivo: si aspetta un poco (al massimo ~5 s), restando in "preparo"
+        for (let i = 0; i < 12 && !texturePronte(d.radice); i++) {
+          await new Promise((r) => setTimeout(r, 400));
+          if (g !== gen) return;
+        }
+        if (prep) { prep.libera(); prep = null; }
+        scenaValida = false;
+        const p = await preparaScenaFoto({ ...d, larghezza: w, altezza: h, vivo: true, segmentiSpigoli: telefono ? 3 : 5 });
+        if (g !== gen) { p.libera(); return; }    // nel frattempo si è mosso qualcosa
+        prep = p; scenaValida = true;
+        if (!pt) {
+          pt = new WebGLPathTracer(renderer);
+          pt.bounces = telefono ? 5 : 7; pt.transmissiveBounces = 4;
+          pt.filterGlossyFactor = 0.35;
+          pt.renderDelay = 0; pt.fadeDuration = 0; pt.minSamples = 1;
+          pt.rasterizeScene = false; pt.renderToCanvas = false; pt.dynamicLowRes = false;
+          pt.textureSize.set(1024, 1024);
+        }
+        camDaVista(prep.cam, d.camera, w, h);
+        pt.setScene(prep.scena, prep.cam);
+      } else {
+        camDaVista(prep.cam, d.camera, w, h);
+        pt.setCamera(prep.cam);
+      }
+      // risoluzione del calcolo; a tasselli: ogni fotogramma resta breve e la vista
+      // risponde subito appena la si tocca
+      pt.renderScale = Math.min(1, Math.sqrt(PIXEL_MAX / (w * h)));
+      pt.tiles.set(2, 2);
+      pt.reset();
+      if (g !== gen) return;
+      tappa = 0; aux = null;
+      stato = 'campiono'; aggiornaBollino(0);
+    } catch (e) {
+      console.warn('Vista realistica non disponibile:', e);
+      guasto = true; stato = 'fermo'; liberaTutto(); aggiornaBollino();
+    }
+  }
+  function disegnaFinale() {
+    if (!texFinale) return;
+    quadFinale.material.uniforms.map.value = texFinale;
+    renderer.setRenderTarget(null);
+    quadFinale.render(renderer);
+  }
+  async function sviluppaOra(ultima) {
+    stato = 'pulisco';
+    const g = gen;
+    try {
+      const sz = new THREE.Vector2(); pt._pathTracer.getSize(sz);
+      const W = sz.x, H = sz.y;
+      const colore = new Float32Array(W * H * 4);
+      renderer.readRenderTargetPixels(pt.target, 0, 0, W, H, colore);
+      // controllo: un'immagine tutta nera o piena di valori non validi vuol dire che il
+      // calcolo non funziona su questo dispositivo → meglio la vista normale.
+      // I rari pixel non validi si azzerano (la pulizia li spargerebbe intorno).
+      let somma = 0, nonValidi = 0;
+      for (let i = 0; i < colore.length; i += 4) {
+        const v = colore[i] + colore[i + 1] + colore[i + 2];
+        if (v < 1e30) somma += v;
+        else { nonValidi++; colore[i] = colore[i + 1] = colore[i + 2] = 0; }
+      }
+      if (!(somma > 0) || nonValidi > (colore.length / 4) * 0.05) throw new Error('immagine vuota dal calcolo');
+      togliPunti(colore, W, H);
+      // albedo e normali: una volta per inquadratura (servono alla pulizia e al bianco)
+      if (!aux || aux.W !== W || aux.H !== H) aux = { W, H, ...renderAusiliari(renderer, prep.scena, prep.cam, W, H, prep.sfondo) };
+      const a = aux;
+      let pulita = null;
+      const unet = conIA ? await caricaUNet() : null;
+      if (g !== gen) return;
+      if (unet) {
+        pulita = await new Promise((ok, ko) => {
+          try {
+            const ferma = unet.tileExecute({
+              color: { data: colore, width: W, height: H },
+              albedo: { data: a.albedo, width: W, height: H },
+              normal: { data: a.normale, width: W, height: H },
+              done: (out) => ok(out.data), error: (e) => ko(e),
+            });
+            // interrotta (la vista si è mossa): la pulizia non chiama più né done né error,
+            // quindi si chiude qui l'attesa (se no resterebbe appesa con la sua memoria)
+            abortIA = () => { try { ferma(); } catch (_) { /* niente */ } ok(null); };
+          } catch (e) { ko(e); }
+        }).catch((e) => { console.warn('Pulizia IA (vista):', e); return null; });
+        abortIA = null;
+      }
+      if (g !== gen) return;
+      if (!pulita) {
+        const tex = new THREE.DataTexture(colore, W, H, THREE.RGBAFormat, THREE.FloatType); tex.needsUpdate = true;
+        try { pulita = filtroGuidato(renderer, tex, a, W, H); } finally { tex.dispose(); }
+      }
+      if (g !== gen) return;
+      if (!pulita) throw new Error('immagine non sviluppata');
+      const tela = sviluppa(pulita, W, H, { albedo: a.albedo, vignetta: 0.06 }).canvas;
+      if (g !== gen) return;
+      if (texFinale) texFinale.dispose();
+      texFinale = new THREE.CanvasTexture(tela);
+      texFinale.minFilter = THREE.LinearFilter; texFinale.magFilter = THREE.LinearFilter; texFinale.generateMipmaps = false;
+      disegnaFinale();
+      stato = ultima ? 'finito' : 'campiono';
+      aggiornaBollino(ultima ? 1 : pt.samples / tappe[tappe.length - 1]);
+    } catch (e) {
+      // un errore qui si ripeterebbe a ogni pausa: meglio spegnerla (e dirlo) che consumare batteria
+      console.warn('Vista realistica (sviluppo):', e);
+      if (g === gen) { guasto = true; interrompi(); liberaTutto(); aggiornaBollino(); }
+    }
+  }
+  /** Un passo di calcolo. Il canvas tiene la vista veloce finché non c'è la prima immagine sviluppata. */
+  function campiona() {
+    pt.renderSample();
+    if (tappa < tappe.length && pt.samples >= tappe[tappa]) {
+      const ultima = tappa === tappe.length - 1;
+      tappa++;
+      sviluppaOra(ultima);
+    } else aggiornaBollino(Math.min(0.99, pt.samples / tappe[tappe.length - 1]));
+  }
+  return {
+    tick(altroMoto = false, bloccataOra = false) {
+      if (!accesa || guasto) return false;
+      const ora = performance.now();
+      renderer.getDrawingBufferSize(v2);
+      let mossa = !!altroMoto;
+      const dim = v2.x + 'x' + v2.y;
+      if (dim !== dimensione) { dimensione = dim; mossa = true; }
+      if (bloccataOra !== bloccata) { bloccata = bloccataOra; mossa = true; }
+      const c = opz.camera;
+      if (c) {
+        if (!camUlt.ok || camUlt.fov !== c.fov || camUlt.zoom !== c.zoom || camUlt.aspect !== c.aspect || pixelTra(camUlt.p, camUlt.q, c) > FERMA_PX) mossa = true;
+        else if ((stato === 'campiono' || stato === 'pulisco' || stato === 'finito') && pixelTra(camSvil.p, camSvil.q, c) > DERIVA_PX) mossa = true;
+        camUlt.p.copy(c.position); camUlt.q.copy(c.quaternion);
+        camUlt.fov = c.fov; camUlt.zoom = c.zoom; camUlt.aspect = c.aspect; camUlt.ok = true;
+      }
+      if (mossa || bloccata) {
+        if (stato !== 'fermo') interrompi();
+        tMosso = ora;
+        return false;
+      }
+      if (stato === 'fermo') {
+        if (premuto) { tMosso = ora; return false; }
+        if (inCorso && ora - inCorsoDa > 20000) inCorso = null;     // una preparazione rimasta appesa
+        if (!inCorso && ora - tMosso >= (prep && scenaValida ? ATTESA : ATTESA_PRIMA)) {
+          inCorsoDa = ora;
+          const p = inCorso = avvia().finally(() => { if (inCorso === p) inCorso = null; });
+        }
+        return false;
+      }
+      if (stato === 'preparo') return false;
+      if (stato === 'campiono') campiona();
+      return true;                                 // il canvas tiene l'ultima immagine: niente da ridisegnare
+    },
+    /** La scena è cambiata (mobili, colori…): si ricostruisce alla prossima pausa. */
+    invalida() { scenaValida = false; tMosso = performance.now(); if (stato !== 'fermo') interrompi(); },
+    /** Ridisegna l'immagine realistica, se c'è (es. dopo un salvataggio che ha usato il canvas). */
+    ridisegna() {
+      if (!accesa || guasto || !texFinale) return false;
+      disegnaFinale();
+      return true;
+    },
+    /** Libera la memoria (es. prima di calcolare una foto). */
+    libera() { interrompi(); liberaTutto(); tMosso = performance.now(); },
+    dispose() {
+      interrompi(); liberaTutto();
+      canvas.removeEventListener('pointerdown', giu);
+      canvas.removeEventListener('wheel', rotella);
+      window.removeEventListener('pointerup', su);
+      window.removeEventListener('pointercancel', su);
+      canvas.removeEventListener('webglcontextlost', perso);
+      quadFinale.dispose(); quadFinale.material.dispose();
+      if (bollino) bollino.remove();
+    },
+  };
 }

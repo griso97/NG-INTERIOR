@@ -13,13 +13,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261115w';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115w';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261115w';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115w';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115w';
+} from './modello.js?v=20261115x';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115x';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261115x';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115x';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115w';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115x';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -437,13 +437,45 @@ export function montaScena3d(canvas, progetto) {
   window.addEventListener('resize', forzaResize3d);
   animazioneAttiva = true;
   animate();
+  preparaVistaReale();
 }
 
 function animate() {
   if (!animazioneAttiva) return;
   requestAnimationFrame(animate);
   controls.update();
+  // vista ferma → la vista realistica si sviluppa da sola (e disegna lei);
+  // mentre si sposta un mobile o ce n'è uno selezionato resta la vista veloce
+  if (vistaReale && vistaReale.tick(false, selId != null || !!spost)) return;
   renderer.render(scene, camera);
+}
+
+// VISTA REALISTICA dal vivo (foto-realistica.js): si carica dopo la vista 3D
+let vistaReale = null, vistaRealeInCarica = false;
+function preparaVistaReale() {
+  if (vistaReale || vistaRealeInCarica || !renderer) return;
+  vistaRealeInCarica = true;
+  import('../foto-realistica.js?v=20261115x').then((m) => {
+    if (!renderer || vistaReale) return;
+    vistaReale = m.creaVistaRealistica({ renderer, camera, controls, contenitore: canvasEl && canvasEl.parentElement, dati: datiFoto });
+  }).catch((e) => console.warn('Vista realistica non caricata:', e))
+    .finally(() => { vistaRealeInCarica = false; });
+}
+/** I dati per la foto/vista realistica: scena, camera, muri con il lato interno. */
+function datiFoto() {
+  if (!gruppo || !camera || !_lastProgetto) return null;
+  // muri con il loro lato interno (coordinate 3D: x, z = −y della pianta)
+  const full = _lastProgetto.piano.pareti || [], vertici = calcolaVertici(full);
+  const muri = [];
+  full.forEach((p, i) => {
+    if (p.assente) return;
+    const a = vertici[i], b = vertici[i + 1], dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
+    const sgn = p.latoInterno === 'interno' ? 1 : -1;
+    const nx = -dy / L * sgn, ny = dx / L * sgn, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    muri.push({ a: { x: a.x, z: -a.y }, b: { x: b.x, z: -b.y }, interno: { x: mx + nx * 500, z: -(my + ny * 500) } });
+  });
+  const cierre = _lastProgetto.cierreTecho && _lastProgetto.cierreTecho.attivo;
+  return { radice: gruppo, camera, muri, hStanza: 2700, soffittoAFilo: !!cierre };
 }
 
 /** Punta la vista 3D da un punto verso un altro (mm, coordinate della pianta: x, altezza, y). */
@@ -469,22 +501,14 @@ export function forzaResize3d() {
  */
 export async function fotoRealistica3d(opz = {}) {
   if (!scene || !camera || !gruppo || !_lastProgetto) return null;
-  const { fotoRealistica } = await import('../foto-realistica.js?v=20261115w');
-  // muri con il loro lato interno (coordinate 3D: x, z = −y della pianta)
-  const full = _lastProgetto.piano.pareti || [], vertici = calcolaVertici(full);
-  const muri = [];
-  full.forEach((p, i) => {
-    if (p.assente) return;
-    const a = vertici[i], b = vertici[i + 1], dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
-    const sgn = p.latoInterno === 'interno' ? 1 : -1;
-    const nx = -dy / L * sgn, ny = dx / L * sgn, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-    muri.push({ a: { x: a.x, z: -a.y }, b: { x: b.x, z: -b.y }, interno: { x: mx + nx * 500, z: -(my + ny * 500) } });
-  });
+  const { fotoRealistica } = await import('../foto-realistica.js?v=20261115x');
+  const dati = datiFoto();
+  if (!dati) return null;
+  if (vistaReale) vistaReale.libera();                     // memoria al calcolo della foto
   const eraAttiva = animazioneAttiva;
   animazioneAttiva = false;                                // la vista 3D si ferma mentre si calcola la foto
   try {
-    const cierre = _lastProgetto.cierreTecho && _lastProgetto.cierreTecho.attivo;
-    return await fotoRealistica({ ...opz, radice: gruppo, camera, muri, hStanza: 2700, soffittoAFilo: !!cierre });
+    return await fotoRealistica({ ...opz, ...dati });
   } finally {
     animazioneAttiva = eraAttiva;
     if (eraAttiva) animate();
@@ -508,7 +532,7 @@ export function esportaImmagine3d(nomeFile = 'cucina.png', latoMax = latoMaxExpo
   renderer.setPixelRatio(pr0);
   renderer.setSize(cw, ch, false);
   camera.aspect = cw / ch; camera.updateProjectionMatrix();
-  renderer.render(scene, camera);
+  if (!(vistaReale && vistaReale.ridisegna())) renderer.render(scene, camera);
   if (!canvas2d) return false;
   return salvaImmagineCanvas(canvas2d, nomeFile);
 }
@@ -1677,6 +1701,7 @@ async function caricaModelloOgg(id) {
 }
 
 export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
+  if (vistaReale) vistaReale.invalida();     // la scena cambia: la vista realistica si rifà alla prossima pausa
   if (!scene) return;
   selId = selezionato;
   _lastProgetto = progetto;
@@ -1985,7 +2010,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   for (const a of accessori) aggiungiAccessorioTop(a, progetto.finiture || {});
 
   uvInScala(gruppo);
-  if (reframe) inquadra(bb);
+  if (reframe) inquadra(bb, direzioneStanza(full, vertici));
   if (renderer) renderer.render(scene, camera);
 }
 
@@ -2391,16 +2416,37 @@ function bbox(progetto, vertici) {
   return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
 }
 
-function inquadra(bb) {
+/**
+ * Da che parte dei muri sta la stanza (dove guardano i mobili), in 3D (x, z):
+ * la media dei lati interni dei muri, pesata sulla lunghezza. null = nessun muro.
+ */
+function direzioneStanza(full, vertici) {
+  let sx = 0, sz = 0;
+  (full || []).forEach((p, i) => {
+    const a = vertici[i], b = vertici[i + 1];
+    if (p.assente || !a || !b) return;
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const sgn = p.latoInterno === 'interno' ? 1 : -1;
+    sx += -dy * sgn; sz += -dx * sgn;            // normale interna × lunghezza (z 3D = −y pianta)
+  });
+  const n = Math.hypot(sx, sz);
+  return n > 1e-6 ? { x: sx / n, z: sz / n } : null;
+}
+
+function inquadra(bb, dir = null) {
   const cx = (bb.minX + bb.maxX) / 2, cz = -(bb.minY + bb.maxY) / 2;
   const diag = Math.hypot(bb.maxX - bb.minX, bb.maxY - bb.minY) + 2000;
   controls.target.set(cx, 800, cz);
-  camera.position.set(cx + diag * 0.7, diag * 0.75 + 1500, cz + diag * 0.9);
+  // di tre quarti DENTRO la stanza, davanti ai mobili (non dietro i muri)
+  let ox = diag * 0.7, oz = diag * 0.9;
+  if (dir) { ox = dir.x * diag * 0.9 - dir.z * diag * 0.7; oz = dir.z * diag * 0.9 + dir.x * diag * 0.7; }
+  camera.position.set(cx + ox, diag * 0.75 + 1500, cz + oz);
   camera.updateProjectionMatrix();
   controls.update();
 }
 
 export function smontaScena3d() {
   animazioneAttiva = false;
+  if (vistaReale) { vistaReale.dispose(); vistaReale = null; }
   window.removeEventListener('resize', forzaResize3d);
 }

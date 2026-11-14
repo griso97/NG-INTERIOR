@@ -671,3 +671,16 @@ table.distinta td.qta {
 .foto-reale-attesa[hidden] { display: none; }
 .foto-reale-barra { height: 6px; background: #2a241c; border-radius: 3px; overflow: hidden; margin-top: 10px; }
 .foto-reale-barra > div { height: 100%; width: 0; background: linear-gradient(90deg, #8a6a14, #e8c25a); transition: width .3s; }
+
+/* Vista realistica dal vivo: bollino nell'angolo della vista 3D */
+.bollino-realistica { position: absolute; right: 10px; bottom: 10px; z-index: 5; padding: 6px 11px; border-radius: 999px;
+  border: 1px solid rgba(201,169,74,.7); background: rgba(20,17,13,.78); color: #e8c25a; font: 600 12px/1.2 Inter, system-ui, sans-serif;
+  letter-spacing: .2px; cursor: pointer; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); max-width: calc(100% - 20px); }
+.bollino-realistica.spenta { color: #b8ad97; border-color: rgba(184,173,151,.45); }
+.bollino-realistica.lavora::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%;
+  background: #e8c25a; animation: bollino-pulsa 1s ease-in-out infinite; vertical-align: 1px; }
+@keyframes bollino-pulsa { 50% { opacity: .25; } }
+#cucina-3d[hidden] ~ .bollino-realistica, .mod-3d[hidden] ~ .bollino-realistica { display: none; }
+/* armadi: in basso ci sono gli avvisi e (sul telefono) "Apri porte" → sotto il selettore dello sfondo */
+.vista > .bollino-realistica { top: 60px; right: 12px; bottom: auto; }
+@media (max-width: 600px) { .bollino-realistica { font-size: 11px; padding: 5px 9px; } }

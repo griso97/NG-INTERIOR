@@ -12,8 +12,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261115w';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261115w';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261115x';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261115x';
 import { sfondoDi } from './sfondi.js?v=20261111b';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
@@ -83,7 +83,8 @@ function matDi(config, parte) {
   const id = config.materiali?.[parte]
     ?? ({ ante: 'roble-denver', carcassa: 'roble-hera',
           schiena: 'roble-hera', tamponamenti: 'roble-denver' }[parte]);
-  return getMaterialeTHREE(id, () => renderer?.render(scene, camera));
+  // texture arrivata: la vista veloce si aggiorna, quella realistica si rifà (senza c'era la foto vecchia)
+  return getMaterialeTHREE(id, () => { if (vistaReale) vistaReale.invalida(); renderer?.render(scene, camera); });
 }
 
 /**
@@ -202,6 +203,7 @@ export function inizializzaScena(canvas) {
   window.addEventListener('resize', () => ridimensiona(canvas));
 
   animate();
+  preparaVistaReale();
 }
 
 let pausa3d = false;           // ferma la vista 3D (mentre si calcola la foto realistica)
@@ -209,7 +211,33 @@ function animate() {
   requestAnimationFrame(animate);
   if (pausa3d) return;
   controls.update();
+  // vista ferma → la vista realistica si sviluppa da sola (e disegna lei);
+  // mentre si trascina un ripiano o ce n'è uno selezionato resta la vista veloce
+  if (vistaReale && vistaReale.tick(false, !!trascRip || !!_selRip)) return;
   renderer.render(scene, camera);
+}
+
+// VISTA REALISTICA dal vivo (foto-realistica.js): si carica dopo la vista 3D
+let vistaReale = null, vistaRealeInCarica = false;
+function preparaVistaReale() {
+  if (vistaReale || vistaRealeInCarica || !renderer) return;
+  vistaRealeInCarica = true;
+  import('./foto-realistica.js?v=20261115x').then((m) => {
+    if (!renderer || vistaReale) return;
+    vistaReale = m.creaVistaRealistica({ renderer, camera, controls, contenitore: renderer.domElement.parentElement, dati: datiFoto });
+  }).catch((e) => console.warn('Vista realistica non caricata:', e))
+    .finally(() => { vistaRealeInCarica = false; });
+}
+/** I dati per la foto/vista realistica: l'armadio contro il suo muro. */
+function datiFoto() {
+  if (!scene || !camera || !gruppoArmadio || !gruppoArmadio.children.length) return null;
+  gruppoArmadio.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(gruppoArmadio);
+  if (bb.isEmpty()) return null;
+  // muro dietro l'armadio (lo schienale sta a z minima); la stanza la chiude la foto
+  const zM = bb.min.z - 2, x0 = bb.min.x - 1800, x1 = bb.max.x + 1800;
+  const muri = [{ a: { x: x0, z: zM }, b: { x: x1, z: zM }, interno: { x: (x0 + x1) / 2, z: zM + 600 } }];
+  return { radice: gruppoArmadio, camera, muri, hStanza: 2700 };
 }
 
 /**
@@ -217,17 +245,13 @@ function animate() {
  * foto-realistica.js): l'armadio contro il suo muro, in una stanza vera.
  */
 export async function fotoRealisticaArmadio(opz = {}) {
-  if (!scene || !camera || !gruppoArmadio || !gruppoArmadio.children.length) return null;
-  const { fotoRealistica } = await import('./foto-realistica.js?v=20261115w');
-  gruppoArmadio.updateMatrixWorld(true);
-  const bb = new THREE.Box3().setFromObject(gruppoArmadio);
-  if (bb.isEmpty()) return null;
-  // muro dietro l'armadio (lo schienale sta a z minima); la stanza la chiude la foto
-  const zM = bb.min.z - 2, x0 = bb.min.x - 1800, x1 = bb.max.x + 1800;
-  const muri = [{ a: { x: x0, z: zM }, b: { x: x1, z: zM }, interno: { x: (x0 + x1) / 2, z: zM + 600 } }];
+  const dati = datiFoto();
+  if (!dati) return null;
+  const { fotoRealistica } = await import('./foto-realistica.js?v=20261115x');
+  if (vistaReale) vistaReale.libera();                     // memoria al calcolo della foto
   pausa3d = true;
   try {
-    return await fotoRealistica({ ...opz, radice: gruppoArmadio, camera, muri, hStanza: 2700 });
+    return await fotoRealistica({ ...opz, ...dati });
   } finally { pausa3d = false; }
 }
 
@@ -265,7 +289,7 @@ export function esportaImmagine(nomeFile = 'render.png', latoMax = latoMaxExport
   renderer.setPixelRatio(pr0);
   renderer.setSize(cw, ch, false);
   camera.aspect = cw / ch; camera.updateProjectionMatrix();
-  renderer.render(scene, camera);
+  if (!(vistaReale && vistaReale.ridisegna())) renderer.render(scene, camera);
   if (!canvas2d) return false;
   return salvaImmagineCanvas(canvas2d, nomeFile);
 }
@@ -279,6 +303,7 @@ export function esportaImmagine(nomeFile = 'render.png', latoMax = latoMaxExport
  */
 export function impostaApertura(valore) {
   porteAperte = valore;
+  if (vistaReale) vistaReale.invalida();
   if (!gruppoArmadio) return;
   gruppoArmadio.children.forEach((child) => {
     if (child.userData?.tipo === 'pivot-anta-battente') {
@@ -440,6 +465,7 @@ export function toggleAnte(valore) { impostaApertura(valore); }
  */
 export function aggiornaScena(config) {
   if (!gruppoArmadio) return;
+  if (vistaReale) vistaReale.invalida();     // la scena cambia: la vista realistica si rifà alla prossima pausa
   _zoneModuli = []; _selRip = null;
   impostaSfondo(config.sfondo || 'chiaro');
   // Pulisce i figli precedenti
