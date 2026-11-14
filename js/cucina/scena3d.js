@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261115o';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115o';
+} from './modello.js?v=20261115p';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115p';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261115o';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115o';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261115p';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115p';
 import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115o';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115p';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -98,6 +98,82 @@ function dimPlacca(w, d) { return { pw: Math.min(w - 40, 580), pd: Math.min(d - 
 
 /** Lavello / piano cottura / rubinetto posati SOPRA la superficie del top.
  *  fin = { lavello: 'acciaio'|'nero', rubinetto: 'acciaio'|'nero' } */
+// --- RUBINETTI ---------------------------------------------------------------
+export const FINITURE_RUBINETTO = [
+  { id: 'cromo', nome: 'Cromo', css: 'linear-gradient(135deg,#f4f5f7,#a7abb2 55%,#e6e8eb)', colore: 0xf2f3f6, metal: 0.78, rough: 0.12 },
+  { id: 'spazzolato', nome: 'Acciaio spazzolato', css: 'linear-gradient(135deg,#d9dbde,#a3a6ab)', colore: 0xd6d8dc, metal: 0.7, rough: 0.36 },
+  { id: 'nero', nome: 'Nero opaco', css: '#1c1c1e', colore: 0x1e1e20, metal: 0.35, rough: 0.5 },
+  { id: 'canna', nome: 'Canna di fucile', css: 'linear-gradient(135deg,#6a6c71,#34363a)', colore: 0x5d6066, metal: 0.7, rough: 0.3 },
+  { id: 'oro', nome: 'Oro spazzolato', css: 'linear-gradient(135deg,#e6c98a,#b08a45)', colore: 0xe2bf72, metal: 0.75, rough: 0.3 },
+  { id: 'rame', nome: 'Rame', css: 'linear-gradient(135deg,#e2a07d,#9c5a39)', colore: 0xd08860, metal: 0.75, rough: 0.3 },
+  { id: 'bianco', nome: 'Bianco opaco', css: '#f1f1ef', colore: 0xf2f2f0, metal: 0.05, rough: 0.35 },
+];
+export const MODELLI_RUBINETTO = [
+  { id: 'cigno', nome: 'Collo di cigno' },
+  { id: 'molla', nome: 'Professionale con molla' },
+  { id: 'squadrato', nome: 'Squadrato moderno' },
+];
+const _matRub = {};
+function materialeRubinetto(id) {
+  if (id === 'acciaio') id = 'cromo';                      // progetti salvati prima
+  if (!_matRub[id]) {
+    const f = FINITURE_RUBINETTO.find((x) => x.id === id) || FINITURE_RUBINETTO[0];
+    _matRub[id] = new THREE.MeshStandardMaterial({ color: f.colore, metalness: f.metal, roughness: f.rough, envMapIntensity: f.metal > 0.5 ? 1.6 : 0.5 });
+  }
+  return _matRub[id];
+}
+/**
+ * Rubinetto miscelatore. g: gruppo del lavello (y = sopra il piano, +z = davanti);
+ * zr: dove esce dal piano; sbalzo: quanto avanza la bocca (sopra il centro della vasca).
+ */
+function rubinetto(g, modello, finitura, zr, sbalzo) {
+  const m = materialeRubinetto(finitura);
+  const r = new THREE.Group(); r.position.set(0, 0, zr); g.add(r);
+  const mesh = (geo, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; r.add(o); return o; };
+  const tubo = (punti, raggio, seg = 80) => {
+    const c = new THREE.CatmullRomCurve3(punti.map(([x, y, z]) => new THREE.Vector3(x, y, z)), false, 'centripetal');
+    const o = new THREE.Mesh(new THREE.TubeGeometry(c, seg, raggio, 20, false), m); o.castShadow = true; r.add(o); return o;
+  };
+  if (modello === 'squadrato') {
+    // squadrato moderno: corpo a parallelepipedo, canna a L con spigoli netti
+    mesh(new THREE.BoxGeometry(56, 6, 56), 0, 3, 0);
+    mesh(new THREE.BoxGeometry(38, 120, 38), 0, 66, 0);
+    mesh(new THREE.BoxGeometry(26, 200, 26), 0, 226, -2);
+    mesh(new THREE.BoxGeometry(26, 26, sbalzo + 13), 0, 326 - 13, sbalzo / 2 - 2);
+    mesh(new THREE.BoxGeometry(26, 40, 26), 0, 313 - 30, sbalzo - 2);
+    mesh(new THREE.BoxGeometry(18, 4, 18), 0, 261, sbalzo - 2);
+    const leva = mesh(new THREE.BoxGeometry(70, 12, 14), 38 + 20, 112, 0); leva.rotation.z = 0.18;
+    return;
+  }
+  // base tonda e corpo del miscelatore
+  mesh(new THREE.CylinderGeometry(32, 34, 8, 40), 0, 4, 0);
+  mesh(new THREE.CylinderGeometry(24, 25, 120, 40), 0, 68, 0);
+  mesh(new THREE.SphereGeometry(24, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), 0, 128, 0).scale.y = 0.35;
+  // leva laterale (a destra), inclinata in su
+  const lv = new THREE.Group(); lv.position.set(24, 92, 0); lv.rotation.z = 0.35; r.add(lv);
+  const asta = new THREE.Mesh(new THREE.CylinderGeometry(6, 7, 78, 20), m); asta.rotation.z = -Math.PI / 2; asta.position.x = 39; lv.add(asta);
+  const pomo = new THREE.Mesh(new THREE.SphereGeometry(7, 20, 12), m); pomo.position.x = 78; lv.add(pomo);
+  const anello = new THREE.Mesh(new THREE.CylinderGeometry(11, 11, 14, 24), m); anello.rotation.z = -Math.PI / 2; anello.position.x = 4; lv.add(anello);
+  if (modello === 'molla') {
+    // professionale: colonna, MOLLA, braccio con doccetta estraibile
+    mesh(new THREE.CylinderGeometry(13, 13, 330, 28), 0, 128 + 165, 0);
+    const giri = 15, y0 = 150, y1 = 400, pts = [];
+    for (let i = 0; i <= giri * 24; i++) { const t = i / (giri * 24), th = t * giri * Math.PI * 2; pts.push(new THREE.Vector3(Math.cos(th) * 27, y0 + (y1 - y0) * t, Math.sin(th) * 27)); }
+    const molla = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), giri * 24, 3, 8, false), m); molla.castShadow = true; r.add(molla);
+    tubo([[0, 455, 0], [0, 490, 25], [0, 495, 80], [0, 470, sbalzo * 0.85], [0, 420, sbalzo]], 10);
+    const doccia = mesh(new THREE.CylinderGeometry(20, 17, 80, 28), 0, 380, sbalzo);
+    mesh(new THREE.CylinderGeometry(16, 16, 3, 28), 0, 339, sbalzo);
+    doccia.castShadow = true;
+    // gancio che tiene la doccetta
+    mesh(new THREE.BoxGeometry(10, 26, 40), 0, 400, sbalzo - 32);
+    return;
+  }
+  // COLLO DI CIGNO: canna curva continua che sale e scende sopra la vasca
+  tubo([[0, 128, 0], [0, 230, 0], [0, 320, 8], [0, 362, sbalzo * 0.35], [0, 352, sbalzo * 0.78], [0, 300, sbalzo], [0, 250, sbalzo]], 12);
+  mesh(new THREE.CylinderGeometry(13, 12.5, 22, 28), 0, 246, sbalzo);          // rompigetto
+  mesh(new THREE.CylinderGeometry(9.5, 9.5, 2, 24), 0, 234.5, sbalzo).material = new THREE.MeshStandardMaterial({ color: 0x2a2a2c, roughness: 0.6 });
+}
+
 function aggiungiAccessorioTop(a, fin = {}) {
   const g = new THREE.Group();
   g.position.set(a.x, a.surfaceY, -a.y);
@@ -176,26 +252,9 @@ function aggiungiAccessorioTop(a, fin = {}) {
     const scarico = new THREE.Mesh(new THREE.CylinderGeometry(26, 26, 10, 20),
       new THREE.MeshStandardMaterial({ color: 0x2e2e32, roughness: 0.5, metalness: 0.6 }));
     scarico.position.set(0, -prof + 8, zc); g.add(scarico);
-    // Rubinetto a miscelatore: base + colonna + canna orizzontale (collegati)
-    const matMet = fin.rubinetto === 'nero'
-      ? new THREE.MeshStandardMaterial({ color: 0x18181a, roughness: 0.4, metalness: 0.5, envMapIntensity: 0.6 })   // nero opaco
-      : new THREE.MeshStandardMaterial({ color: 0xdedee2, roughness: 0.15, metalness: 0.95 });
-    const zr = -a.d * 0.34, hTop = 300;
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(28, 34, 26, 20), matMet);
-    base.position.set(0, 13, zr); g.add(base);
-    const colonna = new THREE.Mesh(new THREE.CylinderGeometry(14, 16, hTop, 16), matMet);
-    colonna.position.set(0, 13 + hTop / 2, zr); g.add(colonna);
-    // Raccordo in cima (sfera) + canna che va in avanti e scende
-    const nodo = new THREE.Mesh(new THREE.SphereGeometry(16, 16, 16), matMet);
-    nodo.position.set(0, 13 + hTop, zr); g.add(nodo);
-    const canna = new THREE.Mesh(new THREE.CylinderGeometry(13, 13, 190, 16), matMet);
-    canna.rotation.x = Math.PI / 2;
-    canna.position.set(0, 13 + hTop, zr + 95); g.add(canna);
-    const beccuccio = new THREE.Mesh(new THREE.CylinderGeometry(13, 11, 55, 16), matMet);
-    beccuccio.position.set(0, 13 + hTop - 27, zr + 185); g.add(beccuccio);
-    const leva = new THREE.Mesh(new THREE.CapsuleGeometry(8, 70, 4, 8), matMet);
-    leva.rotation.z = Math.PI / 2;
-    leva.position.set(44, 52, zr); g.add(leva);
+    // RUBINETTO (modello e finitura scelti): dietro la vasca, la bocca sopra il centro della vasca
+    const zr = -a.d * 0.34;
+    rubinetto(g, fin.rubinettoModello || 'cigno', fin.rubinetto || 'cromo', zr, Math.max(150, Math.min(260, zc - zr)));
   }
   gruppo.add(g);
 }
