@@ -9,8 +9,8 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261115s';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111b';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261115u';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115u';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -92,9 +92,10 @@ export function monta(canvas) {
   ciclo();
 }
 
+let pausa3d = false;                // ferma la vista 3D (mentre si calcola la foto realistica)
 function ciclo() {
   requestAnimationFrame(ciclo);
-  if (!attiva || !renderer) return;
+  if (!attiva || !renderer || pausa3d) return;
   for (const c of cardini) {
     const target = anteAperte ? c.verso * ANGOLO_APERTA : 0;
     const d = target - c.g.rotation.y;
@@ -321,6 +322,25 @@ export function inquadra(tipo = 'tre4') {
   controls.update();
   const key = scene.children.find((o) => o.isDirectionalLight && o.castShadow);
   if (key) { key.target.position.copy(target); key.position.set(W / 2 + S, H + S * 1.2, P + S * 1.6); }
+}
+
+/**
+ * FOTO REALISTICA (path tracing + pulizia IA, vedi foto-realistica.js): il
+ * vano con i suoi muri è già nella scena.
+ */
+export async function fotoRealisticaModulari(opz = {}) {
+  if (!scene || !camera || !gruppo || !gruppo.children.length) return null;
+  const { fotoRealistica } = await import('../foto-realistica.js?v=20261115u');
+  gruppo.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(gruppo);
+  if (bb.isEmpty()) return null;
+  // muro di fondo (z = 0) largo: la stanza attorno la chiude la foto
+  const x0 = bb.min.x - 1800, x1 = bb.max.x + 1800, zM = bb.min.z;   // dietro il fondo del vano
+  const muri = [{ a: { x: x0, z: zM }, b: { x: x1, z: zM }, interno: { x: (x0 + x1) / 2, z: zM + 600 } }];
+  pausa3d = true;
+  try {
+    return await fotoRealistica({ ...opz, radice: gruppo, camera, muri, hStanza: 2700 });
+  } finally { pausa3d = false; }
 }
 
 /** Salva l'immagine (alta risoluzione, con logo). */

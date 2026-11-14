@@ -12,8 +12,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261115s';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261111b';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261115u';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261115u';
 import { sfondoDi } from './sfondi.js?v=20261111b';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
@@ -204,10 +204,31 @@ export function inizializzaScena(canvas) {
   animate();
 }
 
+let pausa3d = false;           // ferma la vista 3D (mentre si calcola la foto realistica)
 function animate() {
   requestAnimationFrame(animate);
+  if (pausa3d) return;
   controls.update();
   renderer.render(scene, camera);
+}
+
+/**
+ * FOTO REALISTICA dell'armadio (path tracing + pulizia IA, vedi
+ * foto-realistica.js): l'armadio contro il suo muro, in una stanza vera.
+ */
+export async function fotoRealisticaArmadio(opz = {}) {
+  if (!scene || !camera || !gruppoArmadio || !gruppoArmadio.children.length) return null;
+  const { fotoRealistica } = await import('./foto-realistica.js?v=20261115u');
+  gruppoArmadio.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(gruppoArmadio);
+  if (bb.isEmpty()) return null;
+  // muro dietro l'armadio (lo schienale sta a z minima); la stanza la chiude la foto
+  const zM = bb.min.z - 2, x0 = bb.min.x - 1800, x1 = bb.max.x + 1800;
+  const muri = [{ a: { x: x0, z: zM }, b: { x: x1, z: zM }, interno: { x: (x0 + x1) / 2, z: zM + 600 } }];
+  pausa3d = true;
+  try {
+    return await fotoRealistica({ ...opz, radice: gruppoArmadio, camera, muri, hStanza: 2700 });
+  } finally { pausa3d = false; }
 }
 
 function ridimensiona(canvas) {

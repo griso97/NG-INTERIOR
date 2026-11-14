@@ -23,12 +23,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261115s';
-import { renderPianta } from './pianta.js?v=20261115s';
-import { calcolaDistintaCucina } from './distinta.js?v=20261115s';
+} from './modello.js?v=20261115u';
+import { renderPianta } from './pianta.js?v=20261115u';
+import { calcolaDistintaCucina } from './distinta.js?v=20261115u';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261115s';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115s';
+import { agganciaTema } from '../tema.js?v=20261115u';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115u';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1127,7 +1127,9 @@ function renderPannelloStep3d() {
     <section class="step3-pannello">
       <h3>Immagine</h3>
       <div class="riga-3d" style="margin-bottom:6px">Salva una foto del rendering in alta qualità (PNG).</div>
-      <button id="s3-salva-img" class="btn-ghost" type="button" style="width:100%">📷 Salva immagine HD</button>
+      <button id="s3-foto-reale" class="btn-oro" type="button" style="width:100%;margin-bottom:8px">✨ Foto realistica</button>
+      <div class="riga-3d" style="margin-bottom:8px">Calcola la luce come una macchina fotografica vera (riflessi, ombre morbide, luce naturale e LED). Ci vuole da qualche decina di secondi a qualche minuto.</div>
+      <button id="s3-salva-img" class="btn-ghost" type="button" style="width:100%">📷 Salva immagine HD (veloce)</button>
     </section>
     <section class="actions">
       <button id="s3-indietro" class="btn-ghost" type="button" style="flex:1">← Moduli alti</button>
@@ -1183,6 +1185,11 @@ function renderPannelloStep3d() {
     else progetto.led = { attivo: true, colore: v };
     aggiorna();
   }));
+  document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
+    if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261115u');
+    apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
+  });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
     const ok = scena3dMod && scena3dMod.esportaImmagine3d
       && scena3dMod.esportaImmagine3d(`cucina-${nomeFileData()}.png`);
@@ -1709,7 +1716,7 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115s');
+    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115u');
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1814,7 +1821,7 @@ function renderPalette() {
 }
 // catalogo (oggetti creati dalle foto) per la tavolozza
 var matMod = null;      // (var: usabile anche prima di questa riga, mentre si carica)
-import('../materiali.js?v=20261115s').then((m) => {
+import('../materiali.js?v=20261115u').then((m) => {
   matMod = m;
   if (progetto.stepCorrente === 2) renderPalette();
   if (progetto.stepCorrente === 4) renderPannello();

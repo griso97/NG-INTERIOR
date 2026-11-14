@@ -653,3 +653,21 @@ table.distinta td.qta {
   border: 1px solid var(--bordo); background: #1a1510; color: #fff;
 }
 .ripiano-azioni button:hover { border-color: var(--oro-chiaro); }
+
+/* Finestra FOTO REALISTICA (cucina, armadi, modulari) */
+.foto-reale { position: fixed; inset: 0; z-index: 9000; background: rgba(0,0,0,.72); display: flex; align-items: center; justify-content: center; padding: 14px; }
+.foto-reale[hidden] { display: none; }
+.foto-reale-box { width: min(980px, 100%); max-height: 100%; overflow: auto; background: #14110d; color: #f3efe6; border: 1px solid #8a6a14; border-radius: 12px; padding: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.foto-reale-box h2 { margin: 0 0 10px; color: #e8c25a; font-size: 18px; letter-spacing: .5px; }
+.foto-reale-testo { font-size: 13px; color: #cfc6b4; margin: 8px 0; line-height: 1.45; }
+.foto-reale-qualita { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin: 12px 0; }
+.foto-reale-q { display: flex; gap: 8px; align-items: flex-start; border: 1px solid #3a3226; border-radius: 10px; padding: 10px; cursor: pointer; }
+.foto-reale-q:has(input:checked) { border-color: #c9a94a; }
+.foto-reale-q small { color: #b8ad97; }
+.foto-reale-azioni { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 10px; }
+.foto-reale-anteprima { position: relative; background: #000; border-radius: 8px; overflow: hidden; min-height: 180px; display: flex; align-items: center; justify-content: center; }
+.foto-reale-anteprima img { display: block; width: 100%; height: auto; max-height: min(60vh, 640px); object-fit: contain; }
+.foto-reale-attesa { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #e8c25a; font-size: 14px; }
+.foto-reale-attesa[hidden] { display: none; }
+.foto-reale-barra { height: 6px; background: #2a241c; border-radius: 3px; overflow: hidden; margin-top: 10px; }
+.foto-reale-barra > div { height: 100%; width: 0; background: linear-gradient(90deg, #8a6a14, #e8c25a); transition: width .3s; }

@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261115s';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115s';
+} from './modello.js?v=20261115u';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115u';
 impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261115s';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115s';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261111x';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261115u';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115u';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115u';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115s';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115u';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -331,10 +331,12 @@ const texDisplay = canvasTex(256, 64, (g, w, h) => {
   g.fillText('▲', 26, h / 2); g.fillText('▼', w - 26, h / 2);
 });
 const matElDisplay = new THREE.MeshBasicMaterial({ map: texDisplay, toneMapped: false });
+matElDisplay.userData.fotoLuce = true;                    // foto realistica: display acceso
 const matElButton = new THREE.MeshStandardMaterial({ map: texSpazzolato, color: 0xd8dade, roughness: 0.3, metalness: 0.85, envMapIntensity: 0.8 });
 // Vetro trasparente davanti alla finestra del forno (riflessi sopra la cavità)
 const matElVetroTrasp = new THREE.MeshPhysicalMaterial({ color: 0x000000, transparent: true, opacity: 0.28,
   roughness: 0.05, clearcoat: 1.0, clearcoatRoughness: 0.03, envMapIntensity: 1.0, depthWrite: false });
+matElVetroTrasp.userData.vetro = 'fume';                 // foto realistica: vetro fumé vero
 // Piano cottura in VETROCERAMICA: zone disegnate sul vetro + comandi touch
 function texPiano(pw, pd, fuochi) {
   const k = 2;
@@ -450,6 +452,36 @@ export function forzaResize3d() {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h, false);
+}
+
+/**
+ * FOTO REALISTICA (path tracing + pulizia IA, vedi foto-realistica.js): la
+ * scena com'è ora, vista dalla camera della vista 3D, calcolata come una foto
+ * vera. opz: { larghezza, altezza, campioni, campioniIA, onProgress, annullato }.
+ * Ritorna il canvas della foto.
+ */
+export async function fotoRealistica3d(opz = {}) {
+  if (!scene || !camera || !gruppo || !_lastProgetto) return null;
+  const { fotoRealistica } = await import('../foto-realistica.js?v=20261115u');
+  // muri con il loro lato interno (coordinate 3D: x, z = −y della pianta)
+  const full = _lastProgetto.piano.pareti || [], vertici = calcolaVertici(full);
+  const muri = [];
+  full.forEach((p, i) => {
+    if (p.assente) return;
+    const a = vertici[i], b = vertici[i + 1], dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
+    const sgn = p.latoInterno === 'interno' ? 1 : -1;
+    const nx = -dy / L * sgn, ny = dx / L * sgn, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    muri.push({ a: { x: a.x, z: -a.y }, b: { x: b.x, z: -b.y }, interno: { x: mx + nx * 500, z: -(my + ny * 500) } });
+  });
+  const eraAttiva = animazioneAttiva;
+  animazioneAttiva = false;                                // la vista 3D si ferma mentre si calcola la foto
+  try {
+    const cierre = _lastProgetto.cierreTecho && _lastProgetto.cierreTecho.attivo;
+    return await fotoRealistica({ ...opz, radice: gruppo, camera, muri, hStanza: 2700, soffittoAFilo: !!cierre });
+  } finally {
+    animazioneAttiva = eraAttiva;
+    if (eraAttiva) animate();
+  }
 }
 
 /** Salva l'immagine del rendering in ALTA QUALITÀ (PNG). */
@@ -588,6 +620,7 @@ const MAT_VETRO = {
   satinato: new THREE.MeshStandardMaterial({ color: 0xf3f5f4, transparent: true, opacity: 0.92, roughness: 0.92, metalness: 0, depthWrite: false }),
   fume: new THREE.MeshStandardMaterial({ color: 0x2b2d30, transparent: true, opacity: 0.62, roughness: 0.12, metalness: 0.1, depthWrite: false }),
 };
+for (const k of Object.keys(MAT_VETRO)) MAT_VETRO[k].userData.vetro = k;   // foto realistica: vetro vero
 const MAT_TELAIO = {
   alluminio: new THREE.MeshStandardMaterial({ color: 0xc2c5c9, roughness: 0.38, metalness: 0.85 }),
   nero: new THREE.MeshStandardMaterial({ color: 0x1c1c1d, roughness: 0.45, metalness: 0.4 }),
@@ -892,7 +925,7 @@ function fornoVero(grp, pw, ph, Z0, stile) {
   box(pw - 4, panH - 4, 10, 0, yPan, Z0 + 8, matPan);
   // display (nero e bianco)
   if (st !== 'inox') {
-    if (!_texDisplay[st]) _texDisplay[st] = new THREE.MeshBasicMaterial({ map: texDisplayForno(st), toneMapped: false });
+    if (!_texDisplay[st]) { _texDisplay[st] = new THREE.MeshBasicMaterial({ map: texDisplayForno(st), toneMapped: false }); _texDisplay[st].userData.fotoLuce = true; }
     const dw = pw * (st === 'nero' ? 0.26 : 0.3), dh = panH * (st === 'nero' ? 0.36 : 0.62);
     piano(dw, dh, 0, yPan + (st === 'nero' ? panH * 0.08 : panH * 0.04), Z0 + 8.6, _texDisplay[st]);
   }
@@ -918,6 +951,7 @@ function fornoVero(grp, pw, ph, Z0, stile) {
   }
   if (st === 'inox') {                                   // spia rossa
     const spia = new THREE.Mesh(new THREE.CircleGeometry(4, 20), new THREE.MeshBasicMaterial({ color: 0xff2a1a, toneMapped: false }));
+    spia.material.userData.fotoLuce = true;
     spia.position.set(pw * 0.33 - rK * 1.9, yPan + rK * 0.55, Z0 + 8.6); grp.add(spia);
   }
   // PORTA: vetro (nero o bianco) a tutta larghezza
@@ -1007,7 +1041,7 @@ function microondeVero(grp, pw, ph, Z0, stile) {
   piano(ww, wh, xPor, 0, Z0 + 12.9, matElVetroTrasp);
   // display
   const dc = st === 'bianco' ? '#ff4a3a' : st === 'nero' ? '#6fd7ff' : '#9fe0ff';
-  if (!_matDisplayMicro[st]) _matDisplayMicro[st] = new THREE.MeshBasicMaterial({ map: texDisplayMicro(dc), toneMapped: false });
+  if (!_matDisplayMicro[st]) { _matDisplayMicro[st] = new THREE.MeshBasicMaterial({ map: texDisplayMicro(dc), toneMapped: false }); _matDisplayMicro[st].userData.fotoLuce = true; }
   const dW = colW * 0.7, dH = dW * 0.4;
   piano(dW, dH, xCol, ih / 2 - ih * 0.15, Z0 + 12.6, _matDisplayMicro[st]);
   // tasti (inox, bianco) o icone touch (nero)
@@ -1440,6 +1474,7 @@ function aggiungiLedPensile(g, w, h, d, colore, avanti = 0) {
   const mesh = new THREE.Mesh(geo, mat);
   const zStrip = -d / 2 + stripD / 2 + 4 + avanti;
   mesh.position.set(0, -h / 2 + stripH / 2, zStrip);
+  mesh.userData.ledStriscia = { colore: hex, lunghezza: stripW };    // nella foto realistica: luce vera
   g.add(mesh);
   // Come un LED vero: illumina VERSO IL BASSO (piano di lavoro) e un po' la
   // parete dietro, non di lato. Coni morbidi e limitati: niente "bruciato"
@@ -1660,7 +1695,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   const cxF = (bb.minX + bb.maxX) / 2, czF = -(bb.minY + bb.maxY) / 2;
   const pav = new THREE.Mesh(new THREE.PlaneGeometry(padW, padD),
     new THREE.MeshStandardMaterial({ color: sf.pav, roughness: 0.95 }));
-  pav.rotation.x = -Math.PI / 2; pav.position.set(cxF, 0, czF); gruppo.add(pav);
+  pav.rotation.x = -Math.PI / 2; pav.position.set(cxF, 0, czF); pav.userData.pavimento = true; gruppo.add(pav);
   const grid = new THREE.GridHelper(Math.max(padW, padD), Math.round(Math.max(padW, padD) / 500), sf.g1, sf.g2);
   grid.position.set(cxF, 1, czF); gruppo.add(grid);
 
@@ -1674,6 +1709,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       new THREE.MeshStandardMaterial({ color: COL.muro, roughness: 0.9, transparent: true, opacity: 0.3 }));
     muro.position.set((a.x + b.x) / 2, ALT_MURO / 2, -(a.y + b.y) / 2);
     muro.rotation.y = -Math.atan2(dy, dx);
+    muro.userData.muroRiferimento = true;                 // nella foto realistica diventa un muro vero
     gruppo.add(muro);
   });
 
@@ -2029,6 +2065,7 @@ function materialePerTop(mat) {
     envMapIntensity: 0.0,
   });
   pianoComeFoto(m);          // colori, sfumature e venature identici alla foto
+  m.userData.fotoTop = true; // foto realistica: piano satinato (riflessi morbidi)
   _matTopCache.set(mat, m);
   return m;
 }

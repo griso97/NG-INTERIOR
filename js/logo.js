@@ -69,16 +69,16 @@ function dataURLtoBlob(dataURL) {
  * Tutto resta sincrono fino alla chiamata di share/click, così non si perde
  * il "gesto utente" richiesto dai browser.
  */
-export function salvaImmagineCanvas(canvas, nomeFile) {
+export function salvaImmagineCanvas(canvas, nomeFile, tipo = 'image/png', qualita) {
   let dataURL;
-  try { dataURL = canvas.toDataURL('image/png'); } catch (e) { return false; }
+  try { dataURL = canvas.toDataURL(tipo, qualita); } catch (e) { return false; }
   let blob;
   try { blob = dataURLtoBlob(dataURL); } catch (e) { blob = null; }
 
   // 1) Condivisione nativa con file (ideale su mobile → "Salva su Foto").
   if (blob && navigator.canShare && navigator.share) {
     try {
-      const file = new File([blob], nomeFile, { type: 'image/png' });
+      const file = new File([blob], nomeFile, { type: blob.type || tipo });
       if (navigator.canShare({ files: [file] })) {
         navigator.share({ files: [file], title: 'NG Interior' })
           .catch((err) => { if (!err || err.name !== 'AbortError') mostraOverlay(dataURL, nomeFile, blob); });

@@ -5,7 +5,7 @@
 // riepilogo in fondo. Niente logica di calcolo qui dentro.
 // =============================================================================
 
-import { trovaMateriale } from './materiali.js?v=20261115s';
+import { trovaMateriale } from './materiali.js?v=20261115u';
 
 /**
  * Risale dalla categoria + posizione del pezzo al materiale scelto
@@ -52,6 +52,7 @@ export function renderDistinta(contenitore, distinta, config) {
         <button id="btn-modello" class="btn-oro">⚙ Modello Excel</button>
         <button id="btn-csv" class="btn-oro">Esporta CSV</button>
         <button id="btn-pdf" class="btn-oro">Esporta PDF</button>
+        <button id="btn-foto-reale" class="btn-oro">✨ Foto realistica</button>
         <button id="btn-img" class="btn-oro">📷 Salva immagine HD</button>
       </div>
     </div>

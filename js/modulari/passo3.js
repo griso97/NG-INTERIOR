@@ -1,10 +1,10 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
-import { materialiPer } from '../materiali.js?v=20261115s';
-import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261115s';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte } from './scena3d.js?v=20261115s';
-import { apriDistinta } from './passo2.js?v=20261115s';
+import { materialiPer } from '../materiali.js?v=20261115u';
+import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261115u';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari } from './scena3d.js?v=20261115u';
+import { apriDistinta } from './passo2.js?v=20261115u';
 
 let FINITURE = materialiPer('legno');          // dal catalogo (si rilegge a ogni pannello)
 export { MATERIALI_DEFAULT };
@@ -102,6 +102,7 @@ function renderPannello() {
         <button type="button" class="btn-ghost" data-vista="frontale">Frontale</button>
       </div>
       <button type="button" class="btn-ghost ${anteSonoAperte() ? 'attivo' : ''}" id="p3-ante" style="width:100%;margin-top:8px">${anteSonoAperte() ? '🚪 Chiudi ante' : '🚪 Apri ante'}</button>
+      <button type="button" class="btn-oro" id="p3-foto-reale" style="width:100%;margin-top:8px">✨ Foto realistica</button>
       <button type="button" class="btn-oro" id="p3-foto" style="width:100%;margin-top:8px">📷 Salva immagine</button>
       <p class="mod-prossimo">Trascina per girare, due dita o rotella per lo zoom.</p>
       ${CON_INCLINATA.includes(ctx.forma.forma) ? `<label class="chk" style="margin-top:8px"><input type="checkbox" id="p3-scala" ${conScala() ? 'checked' : ''}> Scala sopra l'inclinata</label>` : ''}
@@ -137,6 +138,10 @@ function renderPannello() {
     impostaAnte(!anteSonoAperte());
     ev.currentTarget.textContent = anteSonoAperte() ? '🚪 Chiudi ante' : '🚪 Apri ante';
     ev.currentTarget.classList.toggle('attivo', anteSonoAperte());
+  });
+  P.querySelector('#p3-foto-reale').addEventListener('click', async () => {
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261115u');
+    apriFotoRealistica({ calcola: (p) => fotoRealisticaModulari(p), tela3d: ctx.canvas, nome: 'mobile' });
   });
   P.querySelector('#p3-foto').addEventListener('click', () => {
     if (!salvaImmagine('mobili-modulari.png')) alert('Non sono riuscito a salvare l\'immagine.');

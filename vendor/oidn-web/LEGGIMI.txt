@@ -1,0 +1,10 @@
+Pulizia della foto realistica (denoiser IA)
+
+oidn.js                 oidn-web 0.5.0 (MIT, (c) 2024 pissang) — dist/oidn.js del pacchetto npm, non modificato.
+                        Licenza: LICENSE
+rt_hdr_alb_nrm.tza      pesi della rete di Intel Open Image Denoise (repository RenderKit/oidn-weights),
+                        sha256 e586ef2ff48d7fbb7611986405220ed8fc5c13ca79bfc40be4dc742fbf959e1a.
+                        Licenza: Apache 2.0, LICENSE-pesi-oidn.txt — (c) Intel Corporation.
+
+Usati solo da js/foto-realistica.js, caricati soltanto quando si calcola una foto realistica
+e solo se il dispositivo ha WebGPU.
