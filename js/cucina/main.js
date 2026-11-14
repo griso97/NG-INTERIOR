@@ -23,12 +23,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261115v';
-import { renderPianta } from './pianta.js?v=20261115v';
-import { calcolaDistintaCucina } from './distinta.js?v=20261115v';
+} from './modello.js?v=20261115w';
+import { renderPianta } from './pianta.js?v=20261115w';
+import { calcolaDistintaCucina } from './distinta.js?v=20261115w';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261115v';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115v';
+import { agganciaTema } from '../tema.js?v=20261115w';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261115w';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1187,7 +1187,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261115v');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261115w');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1716,7 +1716,10 @@ async function aggiornaVista() {
   if (!in3d) return;
   try {
     const eraCaricato = !!scena3dMod;
-    if (!scena3dMod) scena3dMod = await import('./scena3d.js?v=20261115v');
+    // prima i materiali (già in caricamento per la tavolozza), poi il 3D: due
+    // caricamenti in parallelo dello stesso file fanno partire il 3D prima dei
+    // materiali su Safari (iPhone) → "Impossibile avviare la vista 3D"
+    if (!scena3dMod) scena3dMod = await caricaScena3d();
     if (!scena3dMontata) { scena3dMod.montaScena3d(canvas3d, progetto); scena3dMontata = true; }
     else { scena3dMod.aggiornaScena3d(progetto, false, step2.mobSelId); } // niente reframe: tiene la vista dove sei
     // Al primo caricamento del modulo 3D ri-render del pannello, così le liste
@@ -1726,10 +1729,21 @@ async function aggiornaVista() {
     requestAnimationFrame(() => scena3dMod.forzaResize3d());
   } catch (e) {
     console.error('Errore vista 3D:', e);
-    pannello.insertAdjacentHTML('afterbegin',
-      '<section><div class="avviso-pannello">Impossibile avviare la vista 3D su questo dispositivo.</div></section>');
+    avvisoVista3d(e);
   }
 }
+/** La vista 3D non parte (o si è fermata): il motivo tecnico e "Riprova". */
+function avvisoVista3d(e) {
+  const motivo = String((e && (e.message || e)) || '').slice(0, 180);
+  document.getElementById('avviso-3d')?.remove();
+  pannello.insertAdjacentHTML('afterbegin', `<section id="avviso-3d"><div class="avviso-pannello">Impossibile avviare la vista 3D su questo dispositivo.
+    ${motivo ? `<div class="avviso-dettaglio" data-no-i18n>${escHtml(motivo)}</div>` : ''}
+    <button type="button" class="btn-ghost" id="riprova-3d" style="margin-top:8px;width:100%">↻ Riprova</button></div></section>`);
+  document.getElementById('riprova-3d')?.addEventListener('click', () => location.reload());
+}
+// la scheda grafica ha fermato la vista 3D (memoria del telefono): avviso + Riprova
+window.addEventListener('ng-3d-perso', () => avvisoVista3d({ message: 'WebGL context lost' }));
+window.addEventListener('ng-3d-ripreso', () => document.getElementById('avviso-3d')?.remove());
 
 // --------- AGGIORNA (render completo + autosalvataggio) ---------
 function disegna() {
@@ -1821,7 +1835,21 @@ function renderPalette() {
 }
 // catalogo (oggetti creati dalle foto) per la tavolozza
 var matMod = null;      // (var: usabile anche prima di questa riga, mentre si carica)
-import('../materiali.js?v=20261115v').then((m) => {
+var _materialiPromessa = null, _scena3dPromessa = null;
+/** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
+function caricaMateriali() {
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261115w');
+  return _materialiPromessa;
+}
+/** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
+function caricaScena3d() {
+  if (!_scena3dPromessa) {
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261115w'));
+    _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
+  }
+  return _scena3dPromessa;
+}
+caricaMateriali().then((m) => {
   matMod = m;
   if (progetto.stepCorrente === 2) renderPalette();
   if (progetto.stepCorrente === 4) renderPannello();

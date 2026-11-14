@@ -9,13 +9,12 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261115v';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115v';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261115w';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115w';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
 const TEX_U = 700, TEX_V = 2000;
-impostaUnitaUV(TEX_U, TEX_V);        // foto del catalogo in scala vera
 const SP_MURO = 120;                // spessore muri del vano (solo scena)
 
 let scene, camera, renderer, controls, gruppo, canvasEl;
@@ -48,6 +47,7 @@ function creaAmbiente(rnd) {
 }
 
 export function monta(canvas) {
+  impostaUnitaUV(TEX_U, TEX_V);        // foto del catalogo in scala vera
   if (renderer) return;
   canvasEl = canvas;
   scene = new THREE.Scene();
@@ -330,7 +330,7 @@ export function inquadra(tipo = 'tre4') {
  */
 export async function fotoRealisticaModulari(opz = {}) {
   if (!scene || !camera || !gruppo || !gruppo.children.length) return null;
-  const { fotoRealistica } = await import('../foto-realistica.js?v=20261115v');
+  const { fotoRealistica } = await import('../foto-realistica.js?v=20261115w');
   gruppo.updateMatrixWorld(true);
   const bb = new THREE.Box3().setFromObject(gruppo);
   if (bb.isEmpty()) return null;

@@ -5,7 +5,7 @@
 // logo. Il calcolo vero è in foto-realistica.js: ogni pagina passa la sua
 // funzione `calcola` (quella della sua scena 3D).
 // =============================================================================
-import { componiConLogo, salvaImmagineCanvas } from './logo.js?v=20261115v';
+import { componiConLogo, salvaImmagineCanvas } from './logo.js?v=20261115w';
 
 // campioniIA: con la pulizia IA (WebGPU) bastano molti meno passaggi
 export const QUALITA_FOTO = [

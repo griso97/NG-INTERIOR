@@ -12,8 +12,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261115v';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261115v';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from './materiali.js?v=20261115w';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261115w';
 import { sfondoDi } from './sfondi.js?v=20261111b';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
@@ -21,7 +21,6 @@ import { sfondoDi } from './sfondi.js?v=20261111b';
 // alta 2m si vedono ~7 ripetizioni, su un ripiano di 600mm ~2 ripetizioni.
 // Non stira mai la texture, replica la fotografia.
 const TEX_MM = 300;
-impostaUnitaUV(TEX_MM);              // foto del catalogo in scala vera (UV in unità di TEX_MM)
 
 // Materiale metallico per le maniglie (cassettiera, ecc.)
 const MAT_METALLO = new THREE.MeshStandardMaterial({ color: 0xd0d2d6, roughness: 0.28, metalness: 0.9 });
@@ -136,6 +135,7 @@ export function impostaSfondo(id) {
 }
 
 export function inizializzaScena(canvas) {
+  impostaUnitaUV(TEX_MM);              // foto del catalogo in scala vera (UV in unità di TEX_MM)
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xe9e6df);
 
@@ -218,7 +218,7 @@ function animate() {
  */
 export async function fotoRealisticaArmadio(opz = {}) {
   if (!scene || !camera || !gruppoArmadio || !gruppoArmadio.children.length) return null;
-  const { fotoRealistica } = await import('./foto-realistica.js?v=20261115v');
+  const { fotoRealistica } = await import('./foto-realistica.js?v=20261115w');
   gruppoArmadio.updateMatrixWorld(true);
   const bb = new THREE.Box3().setFromObject(gruppoArmadio);
   if (bb.isEmpty()) return null;

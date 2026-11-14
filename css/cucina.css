@@ -724,3 +724,4 @@
   border-radius: 8px; background: transparent; color: inherit; font-size: 11px; text-align: center; }
 .ogg-voce:hover { border-color: var(--oro, #c9a94a); }
 .ogg-voce svg { width: 44px; height: 44px; fill: none; stroke: var(--oro-chiaro, #e8c25a); stroke-width: 2.5; }
+.avviso-dettaglio { margin-top: 6px; font: 12px/1.35 ui-monospace, Menlo, monospace; opacity: .8; word-break: break-word; }

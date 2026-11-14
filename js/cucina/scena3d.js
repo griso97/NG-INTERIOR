@@ -13,14 +13,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261115v';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115v';
-impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261115v';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115v';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115v';
+} from './modello.js?v=20261115w';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261115w';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261115w';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261115w';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261115w';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115v';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261115w';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -379,6 +378,7 @@ function creaAmbiente(rnd) {
 
 // ---------------------------------------------------------------------------
 export function montaScena3d(canvas, progetto) {
+  impostaUnitaUV(1000);                // UV in metri per i prodotti del catalogo (vedi uvInScala)
   canvasEl = canvas;
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xe9e6df);
@@ -390,6 +390,13 @@ export function montaScena3d(canvas, progetto) {
   // resta nitido (l'export immagine usa un percorso separato ad alta qualità).
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.setSize(w, h, false);
+  // se il telefono ferma la grafica (memoria), la pagina lo dice e propone "Riprova"
+  canvas.addEventListener('webglcontextlost', () => window.dispatchEvent(new CustomEvent('ng-3d-perso')));
+  canvas.addEventListener('webglcontextrestored', () => {
+    // la grafica è tornata: rifaccio la luce d'ambiente (era nella memoria persa)
+    try { scene.environment = creaAmbiente(renderer); } catch (_) { /* niente */ }
+    window.dispatchEvent(new CustomEvent('ng-3d-ripreso'));
+  });
   // Resa più realistica: tone mapping cinematografico + colori sRGB
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.5;
@@ -462,7 +469,7 @@ export function forzaResize3d() {
  */
 export async function fotoRealistica3d(opz = {}) {
   if (!scene || !camera || !gruppo || !_lastProgetto) return null;
-  const { fotoRealistica } = await import('../foto-realistica.js?v=20261115v');
+  const { fotoRealistica } = await import('../foto-realistica.js?v=20261115w');
   // muri con il loro lato interno (coordinate 3D: x, z = −y della pianta)
   const full = _lastProgetto.piano.pareti || [], vertici = calcolaVertici(full);
   const muri = [];
