@@ -981,6 +981,8 @@ window.NG_I18N_ES = {
  "Vano rettangolare: larghezza e altezza.": "Hueco rectangular: ancho y alto.",
  "Varie": "Varios",
  "Vicino al muro si orienta da solo (ante verso l’interno). Per una penisola attiva “Isola (libero)” e poi ruotalo.": "Cerca de la pared se orienta solo (puertas hacia el interior). Para una península activa “Isla (libre)” y luego gíralo.",
+ "Vicino al muro si orienta da solo (ante verso l’interno). Per una penisola premi “Ruota 90°”: resta girato come vuoi e lo puoi attaccare al muro.": "Cerca de la pared se orienta solo (puertas hacia el interior). Para una península pulsa “Girar 90°”: se queda girado como quieras y lo puedes pegar a la pared.",
+ "Girato a mano: resta girato così anche quando lo sposti (penisola). Accostalo al muro e agli altri mobili: si attacca da solo. I mobili che metti accanto prendono lo stesso verso.": "Girado a mano: se queda girado así aunque lo muevas (península). Acércalo a la pared y a los demás muebles: se engancha solo. Los muebles que pongas al lado toman la misma orientación.",
  "Visibile in questa sezione": "Visible en esta sección",
  "Vista": "Vista",
  "Vista 3D · trascina per girare": "Vista 3D · arrastra para girar",

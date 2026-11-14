@@ -497,8 +497,9 @@ function muroPiuVicino(progetto, x, y) {
  */
 export function respingiDaMobili(progetto, m, x, y) {
   const rv = rangeVerticale(m);
-  // Isola: niente "lungo il muro", uso l'asse di minore compenetrazione.
-  const u = m.isola ? null : muroPiuVicino(progetto, x, y);
+  // Isola (o mobile lontano dai muri, es. i pezzi della penisola): niente
+  // "lungo il muro", uso l'asse di minore compenetrazione.
+  const u = modoIsola(progetto, m, x, y) ? null : muroPiuVicino(progetto, x, y);
   for (const o of (progetto.mobiliLiberi || [])) {
     if (o.id === m.id) continue;
     if (categoriaTipo(o.tipo) === 'oggetto') continue;   // l'arredo non respinge i mobili
@@ -538,12 +539,12 @@ export function respingiDaMobili(progetto, m, x, y) {
  * al muro più vicino (schienale al muro). Ritorna null se non è vicino a
  * nessun muro (allora si tiene la rotazione attuale, es. isola al centro).
  */
-export function orientaVersoMuro(progetto, m, x, y) {
-  if (m.isola) return null;                        // isola: orientamento manuale
+/** Muro più vicino (dal lato interno) al punto (x,y): {dist, nx, ny} o null. */
+function muroVicino(progetto, x, y) {
   const full = progetto.piano.pareti || [];
   if (full.length === 0) return null;
   const vertici = calcolaVertici(full);
-  let bestDist = Infinity, bestN = null;
+  let best = null;
   for (let i = 0; i < full.length; i++) {
     const p = full[i];
     if (p.assente) continue;
@@ -557,10 +558,20 @@ export function orientaVersoMuro(progetto, m, x, y) {
     const dist = (x - a.x) * nx + (y - a.y) * ny;  // distanza dal muro
     if (dist < -400) continue;                     // dal lato sbagliato
     if (t < -300 || t > L + 300) continue;         // fuori dalla parete
-    if (dist < bestDist) { bestDist = dist; bestN = [nx, ny]; }
+    if (!best || dist < best.dist) best = { dist, nx, ny };
   }
-  if (!bestN || bestDist > 900) return null;       // troppo lontano da un muro
-  const [nx, ny] = bestN;
+  return best;
+}
+
+export function orientaVersoMuro(progetto, m, x, y) {
+  if (m.isola) return null;                        // isola: orientamento manuale
+  if (m.rotManuale) return null;                   // girato a mano (es. penisola): resta com'è
+  const w = muroVicino(progetto, x, y);
+  // Troppo lontano da un muro: si orienta solo se lo SCHIENALE può stare al
+  // muro (centro entro mezza profondità + 40 cm). Più in là è un pezzo di
+  // isola/penisola e tiene la sua rotazione.
+  if (!w || w.dist > Math.max(600, dimMobile(m).d / 2 + 400)) return null;
+  const { nx, ny } = w;
   // Il fronte (ante) in pianta, nel rendering 3D, guarda (−sin, −cos) della
   // rotazione. Scelgo la rotazione il cui fronte 3D guarda verso l'interno.
   let bestRot = m.rot || 0, bestVal = -Infinity;
@@ -570,6 +581,104 @@ export function orientaVersoMuro(progetto, m, x, y) {
     if (v > bestVal) { bestVal = v; bestRot = r; }
   }
   return bestRot;
+}
+
+/**
+ * Il mobile in (x,y) si comporta da ISOLA? Sì se è marcato isola o se è
+ * lontano dai muri (i pezzi di una penisola dopo il primo, un'isola al
+ * centro): allora si accosta e si allinea agli altri mobili e non "scorre
+ * lungo il muro". Un pezzo girato a mano ma appoggiato a un muro (il primo
+ * pezzo della penisola, col fianco al muro) resta "a muro".
+ */
+export function modoIsola(progetto, m, x, y) {
+  if (m.isola) return true;
+  const auto = orientaVersoMuro(progetto, { ...m, isola: false, rotManuale: false }, x, y);
+  if (auto === null) return true;
+  // girato di traverso rispetto al muro (pezzo di penisola): "a muro" solo se
+  // lo tocca col fianco; staccato dal muro si accosta come un'isola, lungo la
+  // fila della penisola
+  const r = ((m.rot || 0) % 360 + 360) % 360;
+  if (Math.abs(r - auto) % 180 !== 90) return false;
+  const w = muroVicino(progetto, x, y);
+  return !!w && w.dist - dimMobile(m).w / 2 > 150;
+}
+
+const FILA_ROTAZIONE = ['base', 'colonna', 'lavastoviglie', 'lavatrice', 'pensile'];
+/**
+ * Rotazione automatica mentre si trascina un mobile (o quando nasce):
+ *  · vicino a un muro → ante verso la stanza (orientaVersoMuro);
+ *  · lontano dai muri e accanto a un pezzo di penisola/isola → la STESSA
+ *    rotazione di quel pezzo, così la penisola si allunga mettendo i mobili
+ *    uno accanto all'altro senza doverli girare tutti a mano.
+ * null = tieni la rotazione attuale (anche se l'utente l'ha girato a mano).
+ */
+export function rotazioneAutomatica(progetto, m, x, y) {
+  if (m.isola || m.rotManuale) return null;
+  const pen = rotazionePenisola(progetto, m, x, y);
+  if (pen !== null) return pen;
+  return orientaVersoMuro(progetto, m, x, y);
+}
+
+/**
+ * Rotazione del pezzo di penisola/isola in fila col quale il mobile in (x,y)
+ * si sta mettendo (accanto, sulla stessa linea), o null. Vale anche vicino al
+ * muro (penisola con basi strette): la fila della penisola va PERPENDICOLARE
+ * al muro a cui è attaccata, mentre le file a muro gli corrono parallele.
+ */
+function rotazionePenisola(progetto, m, x, y) {
+  if (!FILA_ROTAZIONE.includes(categoriaTipo(m.tipo)) || /angolo/.test(m.tipo)) return null;
+  const rv = rangeVerticale(m), dm = dimMobile(m);
+  let best = null;
+  for (const o of (progetto.mobiliLiberi || [])) {
+    if (o.id === m.id || /angolo/.test(o.tipo)) continue;
+    if (!FILA_ROTAZIONE.includes(categoriaTipo(o.tipo))) continue;
+    if (!rangeSovrappone(rv, rangeVerticale(o))) continue;
+    const rotO = ((o.rot || 0) % 360 + 360) % 360;
+    // solo pezzi di isola/penisola: lontani dai muri, o messi di traverso
+    // rispetto al muro vicino (la fila della penisola). Le file a muro gli
+    // corrono parallele e restano fuori.
+    if (!o.isola) {
+      const autoO = orientaVersoMuro(progetto, { ...o, isola: false, rotManuale: false }, o.x, o.y);
+      if (autoO !== null && Math.abs(rotO - autoO) % 180 !== 90) continue;
+    }
+    const ro = (rotO * Math.PI) / 180, ax = Math.cos(ro), ay = Math.sin(ro);
+    const dO = dimMobile(o);
+    const du = Math.abs((x - o.x) * ax + (y - o.y) * ay);       // lungo la fila di o
+    const dv = Math.abs((x - o.x) * -ay + (y - o.y) * ax);      // fuori dalla fila
+    const gap = du - (dm.w + dO.w) / 2;
+    if (dv > dO.d / 2 || gap > 250) continue;                   // non è in fila accanto a o
+    if (!best || gap < best.gap) best = { gap, rot: rotO };
+  }
+  return best ? best.rot : null;
+}
+
+/**
+ * Lo SCHIENALE del mobile è contro un muro? (centro vicino al muro, dentro la
+ * sua lunghezza, e fronte che guarda la stanza). Un pezzo di penisola col
+ * fianco al muro NON è a muro: le ante non guardano la stanza da quel muro.
+ */
+export function retroAMuro(progetto, b) {
+  if (b.isola) return false;
+  const full = progetto.piano.pareti || [];
+  const vertici = calcolaVertici(full);
+  const rad = ((b.rot || 0) * Math.PI) / 180, Fx = -Math.sin(rad), Fy = -Math.cos(rad);
+  const d = dimMobile(b).d;
+  for (let i = 0; i < full.length; i++) {
+    const p = full[i];
+    if (p.assente) continue;
+    const a = vertici[i], c = vertici[i + 1];
+    const dx = c.x - a.x, dy = c.y - a.y;
+    const L = Math.hypot(dx, dy) || 1;
+    const ux = dx / L, uy = dy / L;
+    const sgn = p.latoInterno === 'interno' ? 1 : -1;
+    const nx = -dy / L * sgn, ny = dx / L * sgn;
+    const t = (b.x - a.x) * ux + (b.y - a.y) * uy;     // lungo il muro
+    const dist = (b.x - a.x) * nx + (b.y - a.y) * ny;  // distanza dal lato interno
+    if (t < -150 || t > L + 150) continue;             // fuori dalla lunghezza
+    if (dist < -50 || dist > d / 2 + 220) continue;
+    if (Fx * nx + Fy * ny > 0.7) return true;          // ante verso la stanza
+  }
+  return false;
 }
 
 /**
@@ -633,7 +742,7 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
   const rv = rangeVerticale(m);
   // Accostamento: lungo l'asse del muro vicino (mobili a parete) o del mobile.
   // Mobile lontano dai muri (isola, anche senza "Isola (libero)" attivato): si comporta da isola
-  const inIsola = !!m.isola || orientaVersoMuro(progetto, { ...m, isola: false }, x, y) === null;
+  const inIsola = modoIsola(progetto, m, x, y);
   const u = inIsola ? asseMobile(m) : (muroPiuVicino(progetto, x, y) || asseMobile(m));
   const [ux, uy] = u, vx = -uy, vy = ux;
   const A = aabb(m, x, y);
@@ -748,10 +857,11 @@ export function posizionaVincolata(progetto, m, x, y, libera = false) {
   const urto = sovrapposto(progetto, m, x, y);
   if (urto) {
     const voluto = { x, y };
+    const isolaM = modoIsola(progetto, m, x, y);
     const cand = [];
     for (const o of urto) {
       const A = aabb(m, 0, 0), B = aabb(o, o.x, o.y);
-      const u = libero ? null : muroPiuVicino(progetto, o.x, o.y);
+      const u = (libero || isolaM) ? null : muroPiuVicino(progetto, o.x, o.y);
       const passi = u ? [[u[0], u[1]], [-u[0], -u[1]]] : [[1, 0], [-1, 0], [0, 1], [0, -1]];
       for (const [ux, uy] of passi) {
         const e = (A.hx + B.hx) * Math.abs(ux) + (A.hy + B.hy) * Math.abs(uy);
@@ -788,24 +898,7 @@ export const LARGHEZZA_ANGOLO = 630;  // pensile d'angolo nelle cucine a L/U
  * dal lato interno. Un mobile marcato "isola" non è mai a muro.
  */
 export function baseAMuro(progetto, b) {
-  if (b.isola) return false;
-  const full = progetto.piano.pareti || [];
-  const vertici = calcolaVertici(full);
-  for (let i = 0; i < full.length; i++) {
-    const p = full[i];
-    if (p.assente) continue;
-    const a = vertici[i], c = vertici[i + 1];
-    const dx = c.x - a.x, dy = c.y - a.y;
-    const L = Math.hypot(dx, dy) || 1;
-    const ux = dx / L, uy = dy / L;
-    const sgn = p.latoInterno === 'interno' ? 1 : -1;
-    const nx = -dy / L * sgn, ny = dx / L * sgn;
-    const t = (b.x - a.x) * ux + (b.y - a.y) * uy;     // lungo il muro
-    const dist = (b.x - a.x) * nx + (b.y - a.y) * ny;  // distanza dal lato interno
-    if (t < -150 || t > L + 150) continue;             // fuori dalla lunghezza
-    if (dist >= -50 && dist <= PROFONDITA_BASE / 2 + 220) return true;
-  }
-  return false;
+  return retroAMuro(progetto, b);
 }
 
 /**
@@ -926,7 +1019,14 @@ export function generaPensiliAuto(progetto, altezzaPensile) {
 }
 export function ruotaMobileLibero(progetto, id) {
   const m = trovaMobileLibero(progetto, id);
-  if (m) m.rot = ((m.rot || 0) + 90) % 360;
+  if (!m) return;
+  m.rot = ((m.rot || 0) + 90) % 360;
+  // Girato a mano: resta così (penisola, mobile girato apposta). Se il giro
+  // lo riporta all'orientamento automatico (ante verso la stanza dal muro
+  // vicino), torna automatico.
+  const auto = orientaVersoMuro(progetto, { ...m, rotManuale: false }, m.x, m.y);
+  if (auto !== null && auto === m.rot) delete m.rotManuale;
+  else m.rotManuale = true;
 }
 
 /**
@@ -1178,6 +1278,25 @@ function aabbMondo(m) {
 }
 
 /**
+ * Il FRONTE (ante) del mobile m guarda il mobile o, a meno di `tol` mm?
+ * (o sta nella striscia davanti alle ante di m, sovrapposto per larghezza).
+ */
+function fronteVerso(m, A, B, tol = 155) {
+  const rad = ((Math.round((m.rot || 0) / 90) * 90) * Math.PI) / 180;
+  const Fx = Math.round(-Math.sin(rad)), Fy = Math.round(-Math.cos(rad));
+  if (Fy !== 0) {                                       // ante verso ±Y
+    if (Math.min(A.x1, B.x1) - Math.max(A.x0, B.x0) <= 5) return false;
+    const f = Fy > 0 ? A.y1 : A.y0;
+    const s0 = Fy > 0 ? f - A.d / 2 : f - tol, s1 = Fy > 0 ? f + tol : f + A.d / 2;
+    return Math.min(s1, B.y1) - Math.max(s0, B.y0) > 0;
+  }
+  if (Math.min(A.y1, B.y1) - Math.max(A.y0, B.y0) <= 5) return false;
+  const f = Fx > 0 ? A.x1 : A.x0;
+  const s0 = Fx > 0 ? f - A.d / 2 : f - tol, s1 = Fx > 0 ? f + tol : f + A.d / 2;
+  return Math.min(s1, B.x1) - Math.max(s0, B.x0) > 0;
+}
+
+/**
  * Info per il mobile "ad angolo cieco": trova la base PERPENDICOLARE che lo
  * copre all'angolo e calcola quanta parte del fronte è coperta e da che lato.
  * Ritorna null se il mobile non è segnato cieco o non trova il mobile che copre.
@@ -1207,11 +1326,17 @@ export function infoAngoloCieco(progetto, m) {
     const ix0 = Math.max(A.x0, B.x0), ix1 = Math.min(A.x1, B.x1);
     const iy0 = Math.max(A.y0, B.y0), iy1 = Math.min(A.y1, B.y1);
     const coperto = (ix1 - ix0 > 5) && (iy1 - iy0 > 5);
-    // Chi è il CIECO della coppia? Chi non può aprire un'anta = il più largo
-    // (ha 2 ante, una bloccata). Override manuale con angoloCieco true/false.
+    // Chi è il CIECO della coppia? Quello che ha le ANTE contro l'altro mobile.
+    // Se nessuno dei due ha le ante verso l'altro (es. penisola col retro o il
+    // fianco contro la fine della fila) non è un angolo. Se non si capisce
+    // (sovrapposti) è il più largo (2 ante, una bloccata). Override manuale
+    // con angoloCieco true/false.
+    const fM = fronteVerso(m, A, B), fO = fronteVerso(o, B, A);
+    if (!fM && !fO && m.angoloCieco !== true && o.angoloCieco !== true) continue;
     let mCieco;
     if (m.angoloCieco === true) mCieco = true;
     else if (o.angoloCieco === true) mCieco = false;
+    else if (fM !== fO) mCieco = fM;
     else { const wm = A.w, wo = B.w; mCieco = wm > wo || (wm === wo && m.id < o.id); }
     if (!mCieco) continue;
     let coveredW, latoDx, cornerX, cornerY;
@@ -1304,7 +1429,9 @@ export function inserisciInAngolo(progetto, m, tx, ty) {
   if (progetto.autoRegletta === false || m.isola) return false;
   if (categoriaTipo(m.tipo) !== 'base' || m.tipo === 'base-angolo') return false;
   const base = (progetto.reglettaAngolo && progetto.reglettaAngolo.base) || 30;
+  if (m.rotManuale) return false;                                  // pezzo di penisola girato a mano
   const W = vincolaAiMuri(progetto, m, tx, ty);
+  if (!retroAMuro(progetto, { ...m, x: W.x, y: W.y })) return false;
   const urti = sovrapposto(progetto, m, W.x, W.y);
   if (!urti) return false;
   const A = aabbMondo({ ...m, x: W.x, y: W.y });
@@ -1333,6 +1460,42 @@ export function inserisciInAngolo(progetto, m, tx, ty) {
     m.x = vecchio.x; m.y = vecchio.y; return false;
   }
   return true;
+}
+
+/**
+ * Sposta di `shift` mm (lungo X se asseX, altrimenti Y) il pezzo libero `primo`
+ * con tutti i pezzi a terra attaccati a lui che NON sono a muro (la penisola o
+ * l'isola intera, con costadi e pannelli). Se qualcosa esce dai muri o entra in
+ * un altro mobile non sposta niente. Ritorna true se l'ha fatto.
+ */
+function spostaBlocco(progetto, primo, asseX, shift, escludi = []) {
+  const tutti = (progetto.mobiliLiberi || []).filter((o) => FILA_PEZZI.includes(categoriaTipo(o.tipo)));
+  const blocco = [primo], visti = new Set([primo.id, ...escludi]);
+  for (let k = 0; k < blocco.length; k++) {
+    const P = aabbMondo(blocco[k]);
+    for (const o of tutti) {
+      if (visti.has(o.id)) continue;
+      const cat = categoriaTipo(o.tipo);
+      if (!['costado', 'regletta', 'pannello'].includes(cat) && retroAMuro(progetto, o)) continue;   // le file a muro restano ferme
+      const B = aabbMondo(o);
+      const sx = Math.max(B.x0 - P.x1, P.x0 - B.x1), sy = Math.max(B.y0 - P.y1, P.y0 - B.y1);
+      const tocca = (sx <= 5 && sy < -20) || (sy <= 5 && sx < -20);
+      if (!tocca) continue;
+      visti.add(o.id); blocco.push(o);
+    }
+  }
+  const prima = blocco.map((o) => ({ o, x: o.x, y: o.y }));
+  for (const o of blocco) { if (asseX) o.x = Math.round(o.x + shift); else o.y = Math.round(o.y + shift); }
+  const ids = new Set(blocco.map((o) => o.id));
+  let ok = true;
+  for (const o of blocco) {
+    const v = vincolaAiMuri(progetto, o, o.x, o.y);
+    if (Math.abs(v.x - o.x) > 1 || Math.abs(v.y - o.y) > 1) { ok = false; break; }
+    const urto = sovrapposto(progetto, o, o.x, o.y);
+    if (urto && urto.some((u) => !ids.has(u.id) && FILA_PEZZI.includes(categoriaTipo(u.tipo)))) { ok = false; break; }
+  }
+  if (!ok) for (const r of prima) { r.o.x = r.x; r.o.y = r.y; }
+  return ok;
 }
 
 function contaInFila(progetto, m) {
@@ -1376,6 +1539,22 @@ export function applicaRegletteAngolo(progetto) {
     if (!info || info.coperto) continue;           // solo angoli "che si toccano"
     const o = info.o;
     if (!o) continue;
+    // PENISOLA: uno dei due è un pezzo libero (non ha lo schienale a un muro) e
+    // l'altro sta nella fila a muro → si sposta SEMPRE il pezzo libero, con
+    // tutta la penisola attaccata, via dall'altro lungo la direzione delle ante
+    // del cieco. La fila a muro resta ferma (niente rimbalzi con l'altro angolo).
+    const cLib = !retroAMuro(progetto, c), oLib = !retroAMuro(progetto, o);
+    if (cLib !== oLib) {
+      const lib = cLib ? c : o, fermo = cLib ? o : c;
+      const C = aabbMondo(c), O = aabbMondo(o);
+      const asseX = !C.horiz;                      // ante del cieco lungo X o lungo Y
+      const ov = asseX ? Math.min(C.x1, O.x1) - Math.max(C.x0, O.x0) : Math.min(C.y1, O.y1) - Math.max(C.y0, O.y0);
+      const delta = ov + base;
+      if (Math.abs(delta) < 0.5) continue;
+      const dir = (asseX ? lib.x - fermo.x : lib.y - fermo.y) >= 0 ? 1 : -1;
+      spostaBlocco(progetto, lib, asseX, dir * delta, [fermo.id]);
+      continue;
+    }
     // Auto-regletta attiva → il gap d'angolo si apre SEMPRE in automatico,
     // anche se i mobili sono stati messi a mano: così la regletta ci sta
     // sempre (niente avviso "0 spazio" da risolvere a mano).

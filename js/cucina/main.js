@@ -19,16 +19,16 @@ import {
   toggleParete, muroTolto, snap, liberoPareti, generaPensiliAuto, riorientaMobili,
   spaziTraMobili, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo, inserisciInAngolo,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
-  vincolaAiMuri, posizionaVincolata, orientaVersoMuro,
+  vincolaAiMuri, posizionaVincolata, orientaVersoMuro, rotazioneAutomatica,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261116c';
-import { renderPianta } from './pianta.js?v=20261116c';
-import { calcolaDistintaCucina } from './distinta.js?v=20261116c';
+} from './modello.js?v=20261116d';
+import { renderPianta } from './pianta.js?v=20261116d';
+import { calcolaDistintaCucina } from './distinta.js?v=20261116d';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261116c';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116c';
+import { agganciaTema } from '../tema.js?v=20261116d';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116d';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 let progetto = caricaProgetto() || progettoDefault();
@@ -1187,7 +1187,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116c');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116d');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1838,13 +1838,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116c');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116d');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116c'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116d'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -1897,7 +1897,9 @@ function blocMobileSelezionato() {
       </div>
       <div class="mod-vuoto">${m.isola
         ? 'Isola/penisola: posizionalo dove vuoi e ruotalo a mano. Si attacca e si allinea agli altri mobili.'
-        : 'Vicino al muro si orienta da solo (ante verso l’interno). Per una penisola attiva “Isola (libero)” e poi ruotalo.'}<br><strong>Tieni premuto Ctrl</strong> mentre trascini per spostarlo libero (senza calamita).</div>
+        : (m.rotManuale
+          ? 'Girato a mano: resta girato così anche quando lo sposti (penisola). Accostalo al muro e agli altri mobili: si attacca da solo. I mobili che metti accanto prendono lo stesso verso.'
+          : 'Vicino al muro si orienta da solo (ante verso l’interno). Per una penisola premi “Ruota 90°”: resta girato come vuoi e lo puoi attaccare al muro.')}<br><strong>Tieni premuto Ctrl</strong> mentre trascini per spostarlo libero (senza calamita).</div>
     </section>
     ${cieco ? `
     <section>
@@ -2010,7 +2012,7 @@ function confermaScelta() {
     step2.mobSelId = aggiungiMobileLibero(progetto, tipoId, valori);
     // Nuovo mobile: se nasce vicino a un muro, orienta le ante verso l'interno
     const nuovo = trovaMobileLibero(progetto, step2.mobSelId);
-    const rot = nuovo && orientaVersoMuro(progetto, nuovo, nuovo.x, nuovo.y);
+    const rot = nuovo && rotazioneAutomatica(progetto, nuovo, nuovo.x, nuovo.y);
     if (nuovo && rot !== null && rot !== undefined) nuovo.rot = rot;
   }
   riblocca(step2.mobSelId);
@@ -2323,7 +2325,9 @@ svg.addEventListener('pointermove', (e) => {
     return;
   }
   const haFronte = !['costado', 'regletta'].includes(categoriaTipo(m.tipo)) && !/^(base|pensile)-angolo$/.test(m.tipo);
-  const rot = (!libera && haFronte) ? orientaVersoMuro(progetto, m, rx, ry) : null;
+  // (vicino al muro: ante verso la stanza; accanto a un pezzo di penisola/isola: la sua rotazione;
+  //  girato a mano: resta com'è)
+  const rot = (!libera && haFronte) ? rotazioneAutomatica(progetto, m, rx, ry) : null;
   const rotCambiata = rot !== null && rot !== m.rot;
   if (rotCambiata) m.rot = rot;
   const v = posizionaVincolata(progetto, m, rx, ry, libera);
