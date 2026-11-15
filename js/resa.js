@@ -7,7 +7,8 @@
 //  - OMBRE DI CONTATTO (GTAO): angoli, sotto i pensili, tra le ante, dove i
 //    mobili toccano muro e pavimento — è quello che fa sembrare vera una foto;
 //  - NITIDEZZA ADATTIVA: mentre si gira la vista disegna leggero (fluido sul
-//    telefono), appena ci si ferma ridisegna UNA volta a piena nitidezza;
+//    telefono e sul computer, che si adatta da solo alla sua scheda grafica),
+//    appena ci si ferma ridisegna UNA volta a piena nitidezza;
 //  - DISEGNO SOLO QUANDO SERVE: vista ferma = nessun lavoro (batteria);
 //  - FOTO: la stessa resa a grande risoluzione, in un istante.
 // =============================================================================
@@ -28,24 +29,57 @@ export function creaResa(opz) {
   const { renderer, scene, camera } = opz;
   const tel = eTelefono();
   const DPR = window.devicePixelRatio || 1;
-  const DPR_MOTO = Math.min(DPR, tel ? 1.25 : 1.5);          // mentre si gira: fluido
-  const DPR_FERMO = Math.min(DPR, tel ? 3 : 2);                // fermo: nitido come una foto (tutti i pixel del telefono)
-  let ao = null, quad = null, guasto = false;
-  try {
-    const s = renderer.getDrawingBufferSize(new THREE.Vector2());
-    ao = new GTAOPass(scene, camera, Math.max(2, s.x), Math.max(2, s.y));
-    ao.output = GTAOPass.OUTPUT.Off;                          // calcola soltanto: la fusione la faccio io
+  const DPR_FERMO_MAX = Math.min(DPR, tel ? 3 : 2);            // fermo: nitido come una foto (tutti i pixel del telefono)
+  // COMPUTER: lo schermo è grande, quindi ogni fotogramma ha molti più pixel che
+  // sul telefono e spesso la scheda grafica è più debole. Mentre si gira la vista:
+  //  - un tetto di pixel (come sul telefono: fluido),
+  //  - la risoluzione si adatta da sola se la scheda grafica non sta al passo
+  //    (e se lo ricorda per la volta dopo),
+  //  - una pausa breve col tasto ancora giù non fa partire il disegno nitido,
+  //  - le ombre di contatto del movimento e quelle da fermo hanno memorie
+  //    separate: niente memoria grafica rifatta a ogni inizio/fine giro.
+  // Da fermo torna tutto a piena nitidezza. Il telefono resta com'è.
+  const PIX_MOTO = 1.2e6, PIX_FERMO = 6e6, FATT_MIN = 0.55;
+  let fattore = 1;
+  if (!tel) { try { const f = parseFloat(localStorage.getItem('ng-3d-fluidita')); if (f >= FATT_MIN && f <= 1) fattore = f; } catch (_) { /* niente */ } }
+  const areaCss = () => { const el = renderer.domElement; return Math.max(1, (el.clientWidth || el.width) * (el.clientHeight || el.height)); };
+  const dprMoto = () => tel ? Math.min(DPR, 1.25)
+    : Math.max(0.5, Math.min(DPR, 1.5, Math.sqrt(PIX_MOTO / areaCss())) * fattore);
+  const dprFermo = () => tel ? DPR_FERMO_MAX : Math.min(DPR_FERMO_MAX, Math.max(1, Math.sqrt(PIX_FERMO / areaCss())));
+
+  let ao = null, aoMoto = null, quad = null, guasto = false;
+  const nuovoAO = (w, h) => {
+    const a = new GTAOPass(scene, camera, Math.max(2, w), Math.max(2, h));
+    a.output = GTAOPass.OUTPUT.Off;                           // calcola soltanto: la fusione la faccio io
     // ombre SOLO dove le cose si toccano davvero (angoli, sotto i pensili, tra le
     // ante): spessore piccolo → un oggetto davanti (sgabello) non sporca più
     // quello che sta dietro con un alone; pulizia più ampia → niente puntini
-    ao.updateGtaoMaterial({ radius: opz.raggio || 260, distanceExponent: 1.5, thickness: 140, distanceFallOff: 1, scale: 1, samples: 16 });
-    ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 3, normalPhi: 4, radius: 9, rings: 3, samples: 16 });
-    ao.blendIntensity = opz.intensita ?? 0.9;
+    a.updateGtaoMaterial({ radius: opz.raggio || 260, distanceExponent: 1.5, thickness: 140, distanceFallOff: 1, scale: 1, samples: 16 });
+    a.updatePdMaterial({ lumaPhi: 10, depthPhi: 3, normalPhi: 4, radius: 9, rings: 3, samples: 16 });
+    a.blendIntensity = opz.intensita ?? 0.9;
+    return a;
+  };
+  try {
+    const s = renderer.getDrawingBufferSize(new THREE.Vector2());
+    ao = nuovoAO(s.x, s.y);
+    if (!tel) aoMoto = nuovoAO(s.x, s.y);                      // computer: le sue (misura del movimento), niente memoria rifatta a ogni giro
     quad = new FullScreenQuad(ao.blendMaterial);
-  } catch (e) { console.warn('Ombre di contatto non disponibili', e); ao = null; }
+  } catch (e) { console.warn('Ombre di contatto non disponibili', e); ao = null; aoMoto = null; }
 
   let sporco = true, ultimoMoto = 0, nitido = false;
   const camPrima = new THREE.Matrix4();
+  const _s = new THREE.Vector2();
+
+  // dito / tasto del mouse ancora giù sulla vista: una pausa breve mentre si gira
+  // non deve far scattare il disegno nitido (pesante) a metà del movimento
+  const giu = new Set();
+  const suGiu = (e) => giu.add(e.pointerId);
+  const suSu = (e) => giu.delete(e.pointerId);
+  const svuota = () => giu.clear();
+  renderer.domElement.addEventListener('pointerdown', suGiu, true);
+  window.addEventListener('pointerup', suSu, true);
+  window.addEventListener('pointercancel', suSu, true);
+  window.addEventListener('blur', svuota);
 
   function dimensiona(dpr) {
     const el = renderer.domElement;
@@ -53,22 +87,24 @@ export function creaResa(opz) {
     if (!w || !h) return;
     if (Math.abs(renderer.getPixelRatio() - dpr) > 0.01) renderer.setPixelRatio(dpr);
     renderer.setSize(w, h, false);
-    const s = renderer.getDrawingBufferSize(new THREE.Vector2());
-    if (ao && (ao.width !== s.x || ao.height !== s.y)) ao.setSize(s.x, s.y);
+    // le ombre di contatto si adattano da sole al primo disegno (disegna): quelle
+    // da fermo restano grandi mentre si gira, così niente memoria rifatta a ogni giro
   }
 
-  /** Disegna adesso: scena + ombre di contatto sopra. */
-  function disegna() {
+  /** Disegna adesso: scena + ombre di contatto sopra (leggero = mentre si gira). */
+  function disegna(leggero = false) {
     if (opz.prima) opz.prima();
     renderer.setRenderTarget(null);
     renderer.render(scene, camera);
     if (!ao || guasto || opz.senzaAO?.()) return;
     try {
-      const s = renderer.getDrawingBufferSize(new THREE.Vector2());
-      if (ao.width !== s.x || ao.height !== s.y) ao.setSize(s.x, s.y);
-      ao.render(renderer, null, null);                         // normali + AO + pulizia
-      ao.blendMaterial.uniforms.tDiffuse.value = ao.pdRenderTarget.texture;
-      ao.blendMaterial.uniforms.intensity.value = ao.blendIntensity;
+      const s = renderer.getDrawingBufferSize(_s);
+      const a = (leggero && aoMoto) ? aoMoto : ao;
+      if (a.width !== s.x || a.height !== s.y) a.setSize(s.x, s.y);
+      a.render(renderer, null, null);                          // normali + AO + pulizia
+      a.blendMaterial.uniforms.tDiffuse.value = a.pdRenderTarget.texture;
+      a.blendMaterial.uniforms.intensity.value = a.blendIntensity;
+      quad.material = a.blendMaterial;
       const auto = renderer.autoClear;
       renderer.setRenderTarget(null); renderer.autoClear = false;
       quad.render(renderer);                                   // moltiplica: angoli e contatti più scuri
@@ -79,26 +115,50 @@ export function creaResa(opz) {
   /** Qualcosa è cambiato (scena, materiali, selezione): ridisegna al prossimo giro. */
   function cambiato() { sporco = true; }
 
+  // Computer: misura quanto dura ogni fotogramma mentre si gira la vista
+  // (tra due fotogrammi disegnati uno dopo l'altro) e adatta la risoluzione.
+  let tPrec = 0, salta = 0;
+  const campioni = [];
+  function misura(ora, consecutivo) {
+    const dt = ora - tPrec; tPrec = ora;
+    if (tel || !consecutivo) return;
+    if (salta > 0) { salta--; return; }                       // subito dopo un cambio di misura: non conta
+    campioni.push(dt);
+    if (campioni.length < 12) return;
+    campioni.sort((x, y) => x - y);
+    const med = campioni[6]; campioni.length = 0;
+    let f = fattore;
+    if (med > 26 && fattore > FATT_MIN) f = Math.max(FATT_MIN, fattore * 0.8);     // sotto i ~38 fotogrammi al secondo
+    else if (med < 18 && fattore < 1) f = Math.min(1, fattore * 1.12);             // fluido: riprovo più nitido
+    if (f === fattore) return;
+    fattore = f;
+    try { localStorage.setItem('ng-3d-fluidita', f.toFixed(3)); } catch (_) { /* niente */ }
+    dimensiona(dprMoto()); salta = 2;
+  }
+
   /**
    * Da chiamare a ogni frame (requestAnimationFrame): disegna solo se serve.
    * moto = la vista si sta muovendo per altro (porte che si aprono, trascinamento).
    */
+  let motoPrec = false;
   function tick(moto = false) {
     const ora = performance.now();
     const camMossa = !camPrima.equals(camera.matrixWorld);
     if (camMossa) camPrima.copy(camera.matrixWorld);
     if (camMossa || moto) {
       ultimoMoto = ora;
-      if (nitido) { dimensiona(DPR_MOTO); nitido = false; }
-      disegna(); sporco = false;
+      if (nitido) { dimensiona(dprMoto()); nitido = false; salta = 2; }
+      misura(ora, motoPrec);
+      disegna(true); sporco = false; motoPrec = true;
       return;
     }
-    // ferma da un attimo → una volta a piena nitidezza
-    if (!nitido && ora - ultimoMoto > 180) {
-      dimensiona(DPR_FERMO); nitido = true; disegna(); sporco = false;
+    motoPrec = false;
+    // ferma da un attimo → una volta a piena nitidezza (col dito ancora giù aspetta di più)
+    if (!nitido && ora - ultimoMoto > (giu.size ? 700 : 180)) {
+      dimensiona(dprFermo()); nitido = true; disegna(false); sporco = false;
       return;
     }
-    if (sporco) { disegna(); sporco = false; }
+    if (sporco) { disegna(!nitido); sporco = false; }
   }
 
   /**
@@ -121,14 +181,21 @@ export function creaResa(opz) {
     renderer.setPixelRatio(prima); renderer.setSize(w, h, false);
     const s2 = renderer.getDrawingBufferSize(new THREE.Vector2());
     if (ao) ao.setSize(s2.x, s2.y);
-    disegna();
+    disegna(!nitido);
     return c;
   }
 
-  function dispose() { try { ao && ao.dispose(); quad && quad.dispose(); } catch (_) { /* niente */ } ao = null; }
+  function dispose() {
+    try { ao && ao.dispose(); aoMoto && aoMoto.dispose(); quad && quad.dispose(); } catch (_) { /* niente */ }
+    ao = null; aoMoto = null;
+    renderer.domElement.removeEventListener('pointerdown', suGiu, true);
+    window.removeEventListener('pointerup', suSu, true);
+    window.removeEventListener('pointercancel', suSu, true);
+    window.removeEventListener('blur', svuota);
+  }
 
-  dimensiona(DPR_MOTO);
-  return { disegna, cambiato, tick, dimensiona: () => dimensiona(nitido ? DPR_FERMO : DPR_MOTO), foto, dispose };
+  dimensiona(dprMoto());
+  return { disegna, cambiato, tick, dimensiona: () => dimensiona(nitido ? dprFermo() : dprMoto()), foto, dispose };
 }
 
 // -----------------------------------------------------------------------------

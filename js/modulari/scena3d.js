@@ -9,9 +9,9 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261116e';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116e';
-import { creaResa, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116e';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261116f';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116f';
+import { creaResa, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116f';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -26,6 +26,12 @@ let ultimaVista = null;             // { W, H, P } per le inquadrature
 const ANGOLO_APERTA = (100 * Math.PI) / 180;
 let anteAperte = false;
 let cardini = [];                   // [{ g, verso }] verso = +1/-1
+// MODULO SCELTO toccandolo nel 3D: ogni modulo è un gruppo con la sua chiave;
+// quello scelto ha un contorno oro (i colori restano veri, niente tinta).
+let padreMobile = null;             // gruppo del modulo che si sta costruendo
+const contorni = new Map();         // chiave → poligono frontale [[x,y]…] del modulo
+let selChiave = null, selGrp = null, ultimaP = 600;
+const matSel = new THREE.MeshBasicMaterial({ color: 0xd9ad3c });
 
 const matMuro = new THREE.MeshStandardMaterial({ color: 0xe9e5dc, roughness: 0.95 });
 const matMuroFondo = new THREE.MeshStandardMaterial({ color: 0xdedad1, roughness: 0.95 });
@@ -125,7 +131,7 @@ function ridimensiona() {
 export function impostaAnte(aperte) { anteAperte = !!aperte; }
 export function anteSonoAperte() { return anteAperte; }
 
-function prisma(punti, z0, profondita, mat, ombra = true, padre = gruppo) {
+function prisma(punti, z0, profondita, mat, ombra = true, padre = padreMobile || gruppo) {
   const s = new THREE.Shape();
   punti.forEach(([x, y], i) => (i ? s.lineTo(x, y) : s.moveTo(x, y)));
   s.closePath();
@@ -182,7 +188,7 @@ function mobile(e, P, sp, matS, matA) {
       const zh = zC + Pc;                            // retro dell'anta
       const g = new THREE.Group();
       g.position.set(xh, 0, zh);
-      gruppo.add(g);
+      (padreMobile || gruppo).add(g);
       cardini.push({ g, verso: sx ? 1 : -1 });
       const rel = (pts) => pts.map(([x, y]) => [x - xh, y]);
       prisma(rel([[xa, y0 + 2], [xb, y0 + 2], [xb, yt(xb) - 2], [xa, yt(xa) - 2]]), 0, sA, matA, true, g);
@@ -223,7 +229,7 @@ function chiusura(ch, P, sp, matS, matA) {
     const xh = f.anta[0][0];
     const g = new THREE.Group();
     g.position.set(xh, 0, zC + Pc);
-    gruppo.add(g);
+    (padreMobile || gruppo).add(g);
     const verso = -ch.dir;
     cardini.push({ g, verso });
     prisma(f.anta.map(([x, y]) => [x - xh, y]), 0, sA, matA, true, g);
@@ -297,10 +303,26 @@ export function aggiorna(forma, elementi, opz) {
   };
   const fin = (e) => e.mat || opz.materiali;
   vano(forma, opz.P, opz.conGradini);
-  for (const e of elementi) mobile(e, opz.P, opz.spessori, mat(fin(e).struttura), mat(fin(e).ante));
+  contorni.clear(); ultimaP = opz.P;
+  // ogni modulo nel suo gruppo (chiave): si sceglie toccandolo nel 3D
+  const nelGruppo = (chiave, profilo, fai) => {
+    const gm = new THREE.Group();
+    gm.userData.chiave = chiave;
+    gruppo.add(gm);
+    padreMobile = gm;
+    try { fai(); } finally { padreMobile = null; }
+    if (chiave != null && profilo) contorni.set(chiave, profilo);
+  };
+  const profiloMobile = (x0, y0, L, hL, hR) => [[x0, y0], [x0 + L, y0], [x0 + L, y0 + hR], [x0, y0 + hL]];
+  for (const e of elementi) {
+    nelGruppo(e.chiave, profiloMobile(e.x0, e.y0 || 0, e.L, e.hL, e.hR),
+      () => mobile(e, opz.P, opz.spessori, mat(fin(e).struttura), mat(fin(e).ante)));
+  }
   if (opz.chiusura) {
-    const f = fin(opz.chiusura);
-    chiusura(opz.chiusura, opz.P, opz.spessori, mat(f.struttura), mat(f.ante));
+    const ch = opz.chiusura, f = fin(ch);
+    const prof = ch.fronte === 'fisso' ? ch.pannello?.profilo
+      : ch.triangolare ? ch.profili?.schiena : profiloMobile(ch.x0, 0, ch.larghezza, ch.hL, ch.hR);
+    nelGruppo(ch.chiave ?? 'chiusura', prof, () => chiusura(ch, opz.P, opz.spessori, mat(f.struttura), mat(f.ante)));
   }
   uvInScala(gruppo);                 // foto del catalogo: centrata su ogni pannello, misura vera
   ombreSuTutto(gruppo);              // tutto fa e riceve ombra
@@ -308,7 +330,66 @@ export function aggiorna(forma, elementi, opz) {
   const nuova = { W: forma.larghezza, H: forma.altezzaMax, P: opz.P };
   const cambiata = !ultimaVista || ['W', 'H', 'P'].some((k) => Math.abs(ultimaVista[k] - nuova[k]) > 1);
   ultimaVista = nuova;
+  disegnaSelezione();
   if (opz.reinquadra || cambiata) inquadra('tre4');
+}
+
+// ---------------------------------------------------------------------------
+// Scelta del modulo toccandolo nel 3D
+// ---------------------------------------------------------------------------
+const rayPick = new THREE.Raycaster();
+/** Chiave del modulo sotto il dito (o null se il tocco è sul vano / nel vuoto). */
+export function pickModulo(clientX, clientY) {
+  if (!renderer || !camera || !gruppo) return null;
+  const r = canvasEl.getBoundingClientRect();
+  if (!r.width || !r.height) return null;
+  rayPick.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), camera);
+  for (const hit of rayPick.intersectObjects(gruppo.children, true)) {
+    let o = hit.object;
+    while (o && o !== gruppo && o.userData.chiave === undefined) o = o.parent;
+    // il primo pezzo colpito decide: se è il muro (davanti al modulo) non scelgo niente
+    return o && o !== gruppo ? o.userData.chiave : null;
+  }
+  return null;
+}
+
+/** Evidenzia il modulo scelto (contorno oro) o nessuno (null). */
+export function evidenziaModulo(chiave) {
+  selChiave = chiave ?? null;
+  disegnaSelezione();
+}
+
+function disegnaSelezione() {
+  if (!scene) return;
+  if (selGrp) { scene.remove(selGrp); selGrp.traverse((o) => o.geometry?.dispose()); selGrp = null; }
+  const pts = selChiave != null ? contorni.get(selChiave) : null;
+  if (pts && pts.length >= 3) {
+    // barrette oro lungo il profilo davanti e dietro + gli spigoli in profondità:
+    // spesse quanto basta per vederle anche sul telefono
+    const S = ultimaVista ? Math.max(ultimaVista.W, ultimaVista.H) : 2500;
+    const t = Math.max(16, S / 90);
+    const zF = ultimaP + t / 2 + 2, zB = -t / 2 + 1;
+    const g = new THREE.Group();
+    const asse = new THREE.Vector3(1, 0, 0);
+    const barra = (a, b) => {
+      const d = new THREE.Vector3().subVectors(b, a), L = d.length();
+      if (L < 1) return;
+      const m = new THREE.Mesh(new THREE.BoxGeometry(L + t, t, t), matSel);
+      m.position.copy(a).addScaledVector(d, 0.5);
+      m.quaternion.setFromUnitVectors(asse, d.normalize());
+      g.add(m);
+    };
+    const v = (p, z) => new THREE.Vector3(p[0], p[1], z);
+    pts.forEach((p, i) => {
+      const q = pts[(i + 1) % pts.length];
+      barra(v(p, zF), v(q, zF));
+      barra(v(p, zB), v(q, zB));
+      barra(v(p, zB), v(p, zF));
+    });
+    selGrp = g;
+    scene.add(g);
+  }
+  if (resa) resa.cambiato();
 }
 
 /** Inquadrature: 'frontale' (dritta davanti) o 'tre4' (di tre quarti, dall'alto). */
@@ -341,7 +422,13 @@ export function inquadra(tipo = 'tre4') {
 export async function fotoRealisticaModulari(opz = {}) {
   if (!renderer || !resa) return null;
   const lato = Math.max(opz.larghezza || 0, opz.altezza || 0) || latoMaxExport();
-  return resa.foto(lato);
+  return senzaSelezione(() => resa.foto(lato));
+}
+/** Nelle foto il contorno del modulo scelto non c'è. */
+function senzaSelezione(fai) {
+  const vis = selGrp ? selGrp.visible : false;
+  if (selGrp) selGrp.visible = false;
+  try { return fai(); } finally { if (selGrp) { selGrp.visible = vis; if (resa) resa.cambiato(); } }
 }
 
 /** Salva l'immagine (alta risoluzione, con logo). */
@@ -350,6 +437,6 @@ export function salvaImmagine(nome = 'mobili-modulari.png') {
   const c = renderer.domElement;
   const cw = c.clientWidth || c.width, ch = c.clientHeight || c.height;
   let out = null;
-  try { out = componiConLogo(resa ? resa.foto(latoMaxExport()) : c); } catch { out = null; }
+  try { out = senzaSelezione(() => componiConLogo(resa ? resa.foto(latoMaxExport()) : c)); } catch { out = null; }
   return out ? salvaImmagineCanvas(out, nome) : false;
 }

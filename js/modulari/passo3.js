@@ -1,10 +1,10 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
-import { materialiPer } from '../materiali.js?v=20261116e';
-import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261116e';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari } from './scena3d.js?v=20261116e';
-import { apriDistinta } from './passo2.js?v=20261116e';
+import { materialiPer } from '../materiali.js?v=20261116f';
+import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261116f';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261116f';
+import { apriDistinta } from './passo2.js?v=20261116f';
 
 let FINITURE = materialiPer('legno');          // dal catalogo (si rilegge a ogni pannello)
 export { MATERIALI_DEFAULT };
@@ -53,11 +53,41 @@ function scegliibili() {
 
 export function esci3d() { attivaRendering(false); }
 
+// TOCCO su un modulo nel 3D = sceglierlo (come i pulsanti M1, M2… del pannello).
+// Un tocco è breve e senza trascinare: girare la vista non sceglie niente.
+let tocco = null, toccoPronto = false;
+function ascoltaTocchi(cv) {
+  if (toccoPronto) return;
+  toccoPronto = true;
+  cv.addEventListener('pointerdown', (e) => {
+    tocco = (e.isPrimary && e.button <= 0) ? { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId } : null;
+  });
+  cv.addEventListener('pointerup', (e) => {
+    const t0 = tocco; tocco = null;
+    if (!t0 || e.pointerId !== t0.id || !ctx || ctx.stato.step !== 3) return;
+    if (Math.hypot(e.clientX - t0.x, e.clientY - t0.y) > 8 || performance.now() - t0.t > 700) return;
+    scegliModulo(pickModulo(e.clientX, e.clientY));
+  });
+  cv.addEventListener('pointercancel', () => { tocco = null; });
+}
+function scegliModulo(chiave) {
+  if (chiave == null || !scegliibili().some((e) => e.chiave === chiave)) return;
+  const M = ctx.stato.materiali;
+  if (!M.diversi) {
+    // toccare un modulo = dargli i suoi colori: passo da solo a "Diversi per modulo"
+    M.diversi = true; M.per ||= {};
+    ctx.salva(); disegna(false);
+  }
+  selMod = chiave;
+  renderPannello();              // contorno oro sul modulo + i colori del pannello sono i suoi
+}
+
 export function renderPasso3(c) {
   ctx = c;
   const { stato } = ctx;
   stato.materiali = { ...MATERIALI_DEFAULT, ...(stato.materiali || {}) };
   monta(ctx.canvas);
+  ascoltaTocchi(ctx.canvas);
   attivaRendering(true);
   disegna(true);       // all'ingresso nel 3D inquadro sempre (lo schermo può essere cambiato)
   renderPannello();
@@ -104,7 +134,7 @@ function renderPannello() {
       <button type="button" class="btn-ghost ${anteSonoAperte() ? 'attivo' : ''}" id="p3-ante" style="width:100%;margin-top:8px">${anteSonoAperte() ? '🚪 Chiudi ante' : '🚪 Apri ante'}</button>
       <button type="button" class="btn-oro" id="p3-foto-reale" style="width:100%;margin-top:8px">✨ Foto realistica</button>
       <button type="button" class="btn-oro" id="p3-foto" style="width:100%;margin-top:8px">📷 Salva immagine</button>
-      <p class="mod-prossimo">Trascina per girare, due dita o rotella per lo zoom.</p>
+      <p class="mod-prossimo">Trascina per girare, due dita o rotella per lo zoom. Tocca un modulo per sceglierlo.</p>
       ${CON_INCLINATA.includes(ctx.forma.forma) ? `<label class="chk" style="margin-top:8px"><input type="checkbox" id="p3-scala" ${conScala() ? 'checked' : ''}> Scala sopra l'inclinata</label>` : ''}
     </section>
     <section>
@@ -114,10 +144,11 @@ function renderPannello() {
         <button type="button" class="btn-ghost ${diversi ? 'attivo' : ''}" data-colori="diversi">Diversi per modulo</button>
       </div>
       ${diversi ? `
-      <p class="mod-prossimo">Scegli il modulo, poi struttura e ante qui sotto.</p>
+      <p class="mod-prossimo">Tocca un modulo nel disegno 3D (o qui sotto), poi scegli struttura e ante.</p>
       <div class="chips-misura" style="margin-top:6px">${lista.map((e) => `<button type="button" class="btn-mini mod-chip ${e.chiave === selMod ? 'attivo' : ''}" data-mod="${esc(e.chiave)}"
         title="${esc(e.nome)}">${esc(e.nome)}${personalizzato(e.chiave) ? ' •' : ''}</button>`).join('')}</div>
-      <button type="button" class="btn-ghost" id="p3-tutti" style="width:100%">Usa questi colori per tutti</button>` : ''}
+      <button type="button" class="btn-ghost" id="p3-tutti" style="width:100%">Usa questi colori per tutti</button>`
+      : `<p class="mod-prossimo">Per dare colori diversi a un modulo, toccalo nel disegno 3D.</p>`}
     </section>
     <section>
       <h3>Struttura${dove} · ${nome(cur.struttura)}</h3>
@@ -132,6 +163,7 @@ function renderPannello() {
       </div>` : ''}
       ${palette('ante', cur.ante)}
     </section>`;
+  evidenziaModulo(diversi ? selMod : null);      // contorno oro sul modulo scelto
   const P = ctx.pannello;
   P.querySelectorAll('[data-vista]').forEach((b) => b.addEventListener('click', () => inquadra(b.dataset.vista)));
   P.querySelector('#p3-ante').addEventListener('click', (ev) => {
@@ -140,7 +172,7 @@ function renderPannello() {
     ev.currentTarget.classList.toggle('attivo', anteSonoAperte());
   });
   P.querySelector('#p3-foto-reale').addEventListener('click', async () => {
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116e');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116f');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaModulari(p), tela3d: ctx.canvas, nome: 'mobile' });
   });
   P.querySelector('#p3-foto').addEventListener('click', () => {
