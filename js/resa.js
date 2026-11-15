@@ -6,9 +6,9 @@
 // legno identico alla foto) aggiunge:
 //  - OMBRE DI CONTATTO (GTAO): angoli, sotto i pensili, tra le ante, dove i
 //    mobili toccano muro e pavimento — è quello che fa sembrare vera una foto;
-//  - NITIDEZZA ADATTIVA: mentre si gira la vista disegna leggero (fluido sul
-//    telefono e sul computer, che si adatta da solo alla sua scheda grafica),
-//    appena ci si ferma ridisegna UNA volta a piena nitidezza;
+//  - LEGGERO MENTRE SI GIRA: sul telefono meno pixel; sul computer stessa
+//    nitidezza, e se la scheda grafica è lenta ombre di contatto più leggere;
+//    appena ci si ferma ridisegna UNA volta a piena qualità;
 //  - DISEGNO SOLO QUANDO SERVE: vista ferma = nessun lavoro (batteria);
 //  - FOTO: la stessa resa a grande risoluzione, in un istante.
 // =============================================================================
@@ -29,24 +29,17 @@ export function creaResa(opz) {
   const { renderer, scene, camera } = opz;
   const tel = eTelefono();
   const DPR = window.devicePixelRatio || 1;
-  const DPR_FERMO_MAX = Math.min(DPR, tel ? 3 : 2);            // fermo: nitido come una foto (tutti i pixel del telefono)
-  // COMPUTER: lo schermo è grande, quindi ogni fotogramma ha molti più pixel che
-  // sul telefono e spesso la scheda grafica è più debole. Mentre si gira la vista:
-  //  - un tetto di pixel (come sul telefono: fluido),
-  //  - la risoluzione si adatta da sola se la scheda grafica non sta al passo
-  //    (e se lo ricorda per la volta dopo),
-  //  - una pausa breve col tasto ancora giù non fa partire il disegno nitido,
-  //  - le ombre di contatto del movimento e quelle da fermo hanno memorie
-  //    separate: niente memoria grafica rifatta a ogni inizio/fine giro.
-  // Da fermo torna tutto a piena nitidezza. Il telefono resta com'è.
-  const PIX_MOTO = 1.2e6, PIX_FERMO = 6e6, FATT_MIN = 0.55;
-  let fattore = 1;
-  if (!tel) { try { const f = parseFloat(localStorage.getItem('ng-3d-fluidita')); if (f >= FATT_MIN && f <= 1) fattore = f; } catch (_) { /* niente */ } }
-  const areaCss = () => { const el = renderer.domElement; return Math.max(1, (el.clientWidth || el.width) * (el.clientHeight || el.height)); };
-  const dprMoto = () => tel ? Math.min(DPR, 1.25)
-    : Math.max(0.5, Math.min(DPR, 1.5, Math.sqrt(PIX_MOTO / areaCss())) * fattore);
-  const dprFermo = () => tel ? DPR_FERMO_MAX : Math.min(DPR_FERMO_MAX, Math.max(1, Math.sqrt(PIX_FERMO / areaCss())));
-
+  // Nitidezza: sempre quella piena di prima (mentre si gira e da fermo).
+  const DPR_MOTO = Math.min(DPR, tel ? 1.25 : 1.5);          // mentre si gira
+  const DPR_FERMO = Math.min(DPR, tel ? 3 : 2);                // fermo: nitido come una foto (tutti i pixel del telefono)
+  try { localStorage.removeItem('ng-3d-fluidita'); } catch (_) { /* niente */ }
+  // COMPUTER, mentre si gira la vista: l'immagine resta SEMPRE nitida come
+  // prima. Se la scheda grafica non sta al passo (lo misura da sola, e se lo
+  // ricorda), alleggerisce solo le ombre di contatto, la parte più pesante:
+  // metà dei campioni per pixel (a occhio, mentre si muove, non cambia niente).
+  // Da fermo: tutto a piena qualità. Il telefono resta com'è.
+  let aoLeggera = false;
+  if (!tel) { try { aoLeggera = localStorage.getItem('ng-3d-ao-leggera') === '1'; } catch (_) { /* niente */ } }
   let ao = null, aoMoto = null, quad = null, guasto = false;
   const nuovoAO = (w, h) => {
     const a = new GTAOPass(scene, camera, Math.max(2, w), Math.max(2, h));
@@ -62,12 +55,14 @@ export function creaResa(opz) {
   try {
     const s = renderer.getDrawingBufferSize(new THREE.Vector2());
     ao = nuovoAO(s.x, s.y);
-    if (!tel) aoMoto = nuovoAO(s.x, s.y);                      // computer: le sue (misura del movimento), niente memoria rifatta a ogni giro
     quad = new FullScreenQuad(ao.blendMaterial);
+    if (!tel) {
+      aoMoto = nuovoAO(s.x, s.y);                             // le sue memorie: niente memoria rifatta a ogni giro
+      campioniMoto();
+    }
   } catch (e) { console.warn('Ombre di contatto non disponibili', e); ao = null; aoMoto = null; }
 
   let sporco = true, ultimoMoto = 0, nitido = false;
-  const camPrima = new THREE.Matrix4();
   const _s = new THREE.Vector2();
 
   // dito / tasto del mouse ancora giù sulla vista: una pausa breve mentre si gira
@@ -87,8 +82,15 @@ export function creaResa(opz) {
     if (!w || !h) return;
     if (Math.abs(renderer.getPixelRatio() - dpr) > 0.01) renderer.setPixelRatio(dpr);
     renderer.setSize(w, h, false);
-    // le ombre di contatto si adattano da sole al primo disegno (disegna): quelle
-    // da fermo restano grandi mentre si gira, così niente memoria rifatta a ogni giro
+    // le ombre di contatto si adattano da sole al primo disegno (disegna)
+  }
+
+  /** Ombre di contatto del movimento: 16 campioni per pixel, o 8 se la scheda grafica è lenta. */
+  function campioniMoto() {
+    if (!aoMoto) return;
+    const n = aoLeggera ? 8 : 16;
+    aoMoto.updateGtaoMaterial({ samples: n });
+    aoMoto.updatePdMaterial({ samples: n });
   }
 
   /** Disegna adesso: scena + ombre di contatto sopra (leggero = mentre si gira). */
@@ -115,50 +117,69 @@ export function creaResa(opz) {
   /** Qualcosa è cambiato (scena, materiali, selezione): ridisegna al prossimo giro. */
   function cambiato() { sporco = true; }
 
-  // Computer: misura quanto dura ogni fotogramma mentre si gira la vista
-  // (tra due fotogrammi disegnati uno dopo l'altro) e adatta la risoluzione.
-  let tPrec = 0, salta = 0;
+  // Quanto si è mossa la vista, in pixel dello schermo. La vista "scivola" ancora
+  // per qualche secondo di frazioni di pixel dopo che la lasci: quello non conta
+  // come movimento, così torna nitida subito.
+  const posPrec = new THREE.Vector3(), quatPrec = new THREE.Quaternion();
+  const posDis = new THREE.Vector3(), quatDis = new THREE.Quaternion();
+  let primo = true, motoPrec = false;
+  function scarto(p, q) {
+    const el = renderer.domElement;
+    const pxAng = THREE.MathUtils.degToRad(camera.fov || 50) / Math.max(1, el.clientHeight || el.height);
+    const dist = Math.max(500, camera.position.length());
+    const ang = 2 * Math.acos(Math.min(1, Math.abs(q.dot(camera.quaternion))));
+    return (ang + p.distanceTo(camera.position) / dist) / pxAng;
+  }
+  function disegnaOra(leggero) {
+    disegna(leggero); sporco = false;
+    posDis.copy(camera.position); quatDis.copy(camera.quaternion);
+  }
+
+  // Computer: quanto dura un fotogramma mentre si gira (tra due fotogrammi
+  // disegnati di seguito). Lento due volte di fila → ombre di contatto leggere
+  // mentre si gira; molto veloce → di nuovo piene. La nitidezza non cambia mai.
+  let tPrec = 0, nMoto = 0, lenti = 0;
   const campioni = [];
   function misura(ora, consecutivo) {
     const dt = ora - tPrec; tPrec = ora;
-    if (tel || !consecutivo) return;
-    if (salta > 0) { salta--; return; }                       // subito dopo un cambio di misura: non conta
+    if (!aoMoto || !consecutivo) return;
+    if (++nMoto < 20) return;                                  // i primi fotogrammi (preparazione) non contano
     campioni.push(dt);
     if (campioni.length < 12) return;
     campioni.sort((x, y) => x - y);
     const med = campioni[6]; campioni.length = 0;
-    let f = fattore;
-    if (med > 26 && fattore > FATT_MIN) f = Math.max(FATT_MIN, fattore * 0.8);     // sotto i ~38 fotogrammi al secondo
-    else if (med < 18 && fattore < 1) f = Math.min(1, fattore * 1.12);             // fluido: riprovo più nitido
-    if (f === fattore) return;
-    fattore = f;
-    try { localStorage.setItem('ng-3d-fluidita', f.toFixed(3)); } catch (_) { /* niente */ }
-    dimensiona(dprMoto()); salta = 2;
+    let nuova = aoLeggera;
+    if (!aoLeggera) { lenti = med > 26 ? lenti + 1 : 0; if (lenti >= 2) nuova = true; }   // sotto i ~38 fotogrammi al secondo
+    else if (med < 10) nuova = false;                                                    // scheda grafica molto veloce
+    if (nuova === aoLeggera) return;
+    aoLeggera = nuova; lenti = 0; campioniMoto();
+    try { localStorage.setItem('ng-3d-ao-leggera', nuova ? '1' : '0'); } catch (_) { /* niente */ }
   }
 
   /**
    * Da chiamare a ogni frame (requestAnimationFrame): disegna solo se serve.
    * moto = la vista si sta muovendo per altro (porte che si aprono, trascinamento).
    */
-  let motoPrec = false;
   function tick(moto = false) {
     const ora = performance.now();
-    const camMossa = !camPrima.equals(camera.matrixWorld);
-    if (camMossa) camPrima.copy(camera.matrixWorld);
-    if (camMossa || moto) {
+    if (primo) { primo = false; posPrec.copy(camera.position); quatPrec.copy(camera.quaternion); }
+    const passo = scarto(posPrec, quatPrec);
+    posPrec.copy(camera.position); quatPrec.copy(camera.quaternion);
+    if (moto || passo > 0.25) {
       ultimoMoto = ora;
-      if (nitido) { dimensiona(dprMoto()); nitido = false; salta = 2; }
-      misura(ora, motoPrec);
-      disegna(true); sporco = false; motoPrec = true;
+      if (nitido) { dimensiona(DPR_MOTO); nitido = false; misura(ora, false); }
+      else misura(ora, motoPrec);
+      disegnaOra(true); motoPrec = true;
       return;
     }
     motoPrec = false;
-    // ferma da un attimo → una volta a piena nitidezza (col dito ancora giù aspetta di più)
-    if (!nitido && ora - ultimoMoto > (giu.size ? 700 : 180)) {
-      dimensiona(dprFermo()); nitido = true; disegna(false); sporco = false;
+    // ferma da un attimo → una volta a piena qualità (col dito ancora giù aspetta di più)
+    if (!nitido && ora - ultimoMoto > (giu.size ? 700 : 160)) {
+      dimensiona(DPR_FERMO); nitido = true; disegnaOra(false);
       return;
     }
-    if (sporco) { disegna(!nitido); sporco = false; }
+    // da ferma: ridisegno se è cambiato qualcosa o se lo scivolamento si vede
+    if (sporco || scarto(posDis, quatDis) > 0.75) disegnaOra(!nitido);
   }
 
   /**
@@ -175,13 +196,11 @@ export function creaResa(opz) {
     renderer.setPixelRatio(pr); renderer.setSize(w, h, false);
     const s = renderer.getDrawingBufferSize(new THREE.Vector2());
     if (ao) ao.setSize(s.x, s.y);
-    disegna();
+    disegna(false);
     const c = document.createElement('canvas'); c.width = s.x; c.height = s.y;
     c.getContext('2d').drawImage(el, 0, 0);
     renderer.setPixelRatio(prima); renderer.setSize(w, h, false);
-    const s2 = renderer.getDrawingBufferSize(new THREE.Vector2());
-    if (ao) ao.setSize(s2.x, s2.y);
-    disegna(!nitido);
+    disegnaOra(!nitido);
     return c;
   }
 
@@ -194,8 +213,8 @@ export function creaResa(opz) {
     window.removeEventListener('blur', svuota);
   }
 
-  dimensiona(dprMoto());
-  return { disegna, cambiato, tick, dimensiona: () => dimensiona(nitido ? dprFermo() : dprMoto()), foto, dispose };
+  dimensiona(DPR_MOTO);
+  return { disegna, cambiato, tick, dimensiona: () => dimensiona(nitido ? DPR_FERMO : DPR_MOTO), foto, dispose };
 }
 
 // -----------------------------------------------------------------------------
