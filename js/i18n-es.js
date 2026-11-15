@@ -954,6 +954,7 @@ window.NG_I18N_ES = {
  "Trascina i cubi nel disegno: si agganciano al pavimento, alle pareti e agli altri cubi. Se diventano rossi sono fuori dal vano o sopra un altro cubo.": "Arrastra los cubos en el dibujo: se ajustan al suelo, a las paredes y a los demás cubos. Si se vuelven rojos, están fuera del hueco o encima de otro cubo.",
  "Trascina i pallini sugli angoli: oro = porta, blu = gola.": "Arrastra los puntos a las esquinas: dorado = puerta, azul = finger.",
  "Trascina per": "Arrastra para",
+ "Nel vano puoi mettere i tuoi oggetti (microonde, macchina del caffè…): aggiungili da “Aggiungi oggetti” e trascinali dentro il vano. Si appoggiano sul ripiano, dritti e centrati.": "En el hueco puedes poner tus objetos (microondas, cafetera…): añádelos desde “Añadir objetos” y arrástralos dentro del hueco. Se apoyan en el estante, rectos y centrados.",
  "Trascina per girare, due dita o rotella per lo zoom.": "Arrastra para girar; dos dedos o rueda para el zoom.",
  "Trascina per girare, due dita o rotella per lo zoom. Tocca un modulo per sceglierlo.": "Arrastra para girar; dos dedos o rueda para el zoom. Toca un módulo para elegirlo.",
  "Trascina per ridimensionare": "Arrastra para cambiar el tamaño",

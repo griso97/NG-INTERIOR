@@ -243,6 +243,32 @@ export function dimMobile(m) {
 }
 
 /**
+ * OGGETTO DEL CATALOGO (microonde, macchina del caffè…) lasciato sopra una
+ * colonna con VANO APERTO: va dentro il vano, appoggiato sul ripiano (lo fa il
+ * 3D), centrato in larghezza, quasi a filo davanti e girato come la colonna.
+ * Ritorna la colonna se l'ha messo nel vano, se no null.
+ */
+export function mettiNelVano(progetto, m) {
+  if (!m || typeof m.tipo !== 'string' || !m.tipo.startsWith('ogg:')) return null;
+  const dm = dimMobile(m);
+  for (const c of (progetto.mobiliLiberi || [])) {
+    if (categoriaTipo(c.tipo) !== 'colonna' || c.variante !== 'vano') continue;
+    const dc = dimMobile(c), r = ((c.rot || 0) * Math.PI) / 180;
+    const fx = -Math.sin(r), fy = -Math.cos(r);               // verso il fronte della colonna
+    const dx = m.x - c.x, dy = m.y - c.y;
+    const lungo = dx * fx + dy * fy, largo = -dx * fy + dy * fx;
+    if (Math.abs(largo) > dc.w / 2 || Math.abs(lungo) > dc.d / 2) continue;
+    // davanti: 2 cm dentro il filo delle ante; dietro: non oltre la schiena (18 mm)
+    const davanti = dc.d / 2 - 20 - dm.d / 2, dietro = -dc.d / 2 + 18 + dm.d / 2;
+    const t = davanti >= dietro ? davanti : 0;
+    m.x = Math.round(c.x + fx * t); m.y = Math.round(c.y + fy * t);
+    m.rot = c.rot || 0;
+    return c;
+  }
+  return null;
+}
+
+/**
  * Livello di un singolo mobile per il blocco a schermate (basso/alto):
  * i pensili sono "alti"; un costado dipende dalla sua profondità
  * (60 = basso/colonna, 35 = alto/pensile); gli altri sono "bassi".

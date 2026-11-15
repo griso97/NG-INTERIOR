@@ -17,7 +17,7 @@ import {
   spostaModulo, problemiIngombri, problemiMobiliLiberi,
   ruotaPianta, specchiaPianta, inverteAngolo,
   toggleParete, muroTolto, snap, liberoPareti, generaPensiliAuto, riorientaMobili,
-  spaziTraMobili, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo, inserisciInAngolo,
+  spaziTraMobili, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo, inserisciInAngolo, mettiNelVano,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro, rotazioneAutomatica, migraRotazioni,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
@@ -917,6 +917,7 @@ const fineSpost = (e) => {
   ignoraClick = true; setTimeout(() => { ignoraClick = false; }, 300);
   registraStoria();
   m.x = r.x; m.y = r.y; m.posManuale = true;
+  mettiNelVano(progetto, m);                  // lasciato nel vano di una colonna: dentro, dritto e centrato
   step2.mobSelId = m.id;
   aggiorna();
 };
@@ -1275,7 +1276,8 @@ function renderPannelloModificaMobile(m) {
       <input type="number" id="vano-h" class="modale-num" value="${m.altezzaVano_mm || 600}" min="100" step="10" style="width:100%" />
       <div class="opzioni-anta" style="margin-top:6px">
         ${[300, 400, 450, 600, 700].map((v) => `<button type="button" class="btn-ghost opt-vanoh ${(m.altezzaVano_mm || 600) === v ? 'attivo' : ''}" data-vanoh="${v}">${v / 10} cm</button>`).join('')}
-      </div>` : ''}
+      </div>
+      <div class="riga-3d" style="margin-top:8px">Nel vano puoi mettere i tuoi oggetti (microonde, macchina del caffè…): aggiungili da “Aggiungi oggetti” e trascinali dentro il vano. Si appoggiano sul ripiano, dritti e centrati.</div>` : ''}
     </section>` : ''}
     ${m.tipo === 'base-cassetti' ? (() => {
       const nc = Math.max(1, m.cassetti || 3), H = m.altezza_mm || 700;
@@ -2360,6 +2362,7 @@ const fineTrascinamento = () => {
   // mobile d'angolo lasciato in un angolo già occupato: va nell'angolo e la fila dell'altro muro scorre
   const ult = trascinamento_ultimo;
   if (m && ult && !ult.libera) inserisciInAngolo(progetto, m, ult.x, ult.y);
+  if (m) mettiNelVano(progetto, m);           // oggetto sopra una colonna con vano: dentro il vano
   if (m) { m.posManuale = true; step2.movePending = { id, prima }; }
   aggiorna();
 };

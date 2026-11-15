@@ -534,6 +534,7 @@ export function pickMobile(clientX, clientY) {
   rayPick.setFromCamera(mouse, camera);
   const hits = rayPick.intersectObjects(gruppo.children, true);
   for (const hit of hits) {
+    if (hit.object.userData.portaleVano) continue;       // l'apertura del vano non copre gli oggetti dentro
     let o = hit.object;
     while (o && o.userData.mobId === undefined) o = o.parent;
     if (o && o.userData.mobId !== undefined) return o.userData.mobId;
@@ -567,24 +568,37 @@ export function iniziaSpostamento(clientX, clientY, puoSpostare) {
   pianoTerra.constant = appoggio ? -g.position.y : (hit ? -hit.point.y : 0);
   const p = puntoATerra(clientX, clientY);
   if (!p) return false;
-  spost = { g, id, dx: g.position.x - p.x, dz: g.position.z - p.z, x0: g.position.x, z0: g.position.z, appoggio, sup: appoggio ? superficiAppoggio() : null };
+  spost = { g, id, dx: g.position.x - p.x, dz: g.position.z - p.z, x0: g.position.x, z0: g.position.z, appoggio,
+    sup: appoggio ? superficiAppoggio() : null, portali: appoggio ? portaliVano() : [] };
   controls.enabled = false;
   canvasEl.style.cursor = 'grabbing';
   return true;
 }
+/** Aperture dei vani delle colonne (invisibili): puntando dentro il vano l'oggetto ci va. */
+function portaliVano() {
+  const out = [];
+  if (gruppo) gruppo.traverse((o) => { if (o.isMesh && o.userData.portaleVano) out.push(o); });
+  return out;
+}
 /** Punto indicato dal dito sulle superfici d'appoggio o, se non ce ne sono, sul pavimento. */
-function puntoSuSuperfici(clientX, clientY, sup) {
+function puntoSuSuperfici(clientX, clientY, sup, portali = []) {
   const rect = canvasEl.getBoundingClientRect();
   rayPick.setFromCamera(new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1,
     -((clientY - rect.top) / rect.height) * 2 + 1), camera);
-  const hit = sup.length ? rayPick.intersectObjects(sup, false)[0] : null;
+  const cand = portali.length ? [...sup, ...portali] : sup;
+  const hit = cand.length ? rayPick.intersectObjects(cand, false)[0] : null;
+  if (hit && hit.object.userData.portaleVano) {
+    // dentro il vano della colonna: a metà profondità (poi si appoggia sul ripiano)
+    const n = new THREE.Vector3(0, 0, -1).transformDirection(hit.object.matrixWorld);
+    return hit.point.clone().addScaledVector(n, hit.object.userData.portaleVano.profondita / 2);
+  }
   if (hit) return hit.point;
   const pav = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p = new THREE.Vector3();
   return rayPick.ray.intersectPlane(pav, p) ? p : null;
 }
 export function muoviSpostamento(clientX, clientY) {
   if (!spost) return;
-  const p = spost.appoggio ? puntoSuSuperfici(clientX, clientY, spost.sup) : puntoATerra(clientX, clientY);
+  const p = spost.appoggio ? puntoSuSuperfici(clientX, clientY, spost.sup, spost.portali) : puntoATerra(clientX, clientY);
   if (!p) return;
   // vista radente (verso l'orizzonte): pochi pixel = metri → ignoro i punti troppo lontani
   const dCam = camera.position.distanceTo(controls.target);
@@ -1281,8 +1295,16 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
   } else if (m.variante === 'vano') {
     // Porta bassa → ripiano → vano aperto (a vista) → ripiano → porta alta.
     const vanoH = Math.max(100, Math.min(m.altezzaVano_mm || 600, rem - 100));
-    ripianoColonna(g, w, d, y0);              // ripiano sotto il vano
+    const fondoVano = ripianoColonna(g, w, d, y0);   // ripiano sotto il vano
+    fondoVano.userData.appoggio = true;       // ci si appoggiano gli oggetti (microonde, macchina del caffè…)
     ripianoColonna(g, w, d, y0 + vanoH);      // ripiano sopra il vano
+    // apertura del vano (invisibile): trascinando un oggetto e puntando nel vano, ci va dentro
+    const portale = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(10, w - 36), Math.max(10, vanoH - 18)),
+      new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+    portale.position.set(0, y0 + vanoH / 2, d / 2);
+    portale.visible = false;
+    portale.userData.portaleVano = { profondita: d - 60 };
+    g.add(portale);
     const topH = rem - vanoH;
     if (topH > 60) porta(y0 + vanoH, topH);   // porta alta (il vano resta aperto)
   } else {
@@ -1298,6 +1320,7 @@ function ripianoColonna(g, w, d, y) {
   sh.position.set(0, y, -5);
   sh.castShadow = true; sh.receiveShadow = true;
   g.add(sh);
+  return sh;
 }
 
 /** Lavastoviglie a incasso: anta unica + striscia comandi inox in alto. */
