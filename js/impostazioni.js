@@ -8,13 +8,13 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261117i';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261117i';
-import { anteprimaOggetto, riconosciViste } from './oggetto3d.js?v=20261117i';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261117i';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261117i';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261117i';
-import { agganciaTema } from './tema.js?v=20261117i';
+} from './catalogo.js?v=20261117j';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261117j';
+import { anteprimaOggetto, riconosciViste } from './oggetto3d.js?v=20261117j';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261117j';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261117j';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261117j';
+import { agganciaTema } from './tema.js?v=20261117j';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -974,7 +974,7 @@ function apriSchedaOggetto(p) {
   const carica = async (f, v) => {
     const im = await caricaImmagine(f).catch(() => null);
     if (!im) { errore(tr('Non riesco ad aprire questa foto. Prova con un JPG o PNG.')); return false; }
-    const seg = segmentaManiglia(im, null, 1, { raddrizza: false });
+    const seg = segmentaManiglia(im, null, 1, { raddrizza: false, oggetto: true });
     if (!seg) { errore(tr('Non riesco a isolare l\'oggetto in questa foto: usa una foto con lo sfondo uniforme (es. bianco).')); return false; }
     imgs[v] = seg.canvas; colori[v] = seg.colore; cambiate.add(v);
     return true;

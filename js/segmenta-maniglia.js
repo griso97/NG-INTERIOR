@@ -140,6 +140,48 @@ export function segmentaManiglia(img, zona = null, tol = 1, opz = {}) {
       m[i] = dF < dG ? 1 : 0;
     }
   }
+  // 3b) OGGETTI (tostapane, microonde…): è SFONDO solo quello che si raggiunge
+  //     dal BORDO della foto senza attraversare il contorno dell'oggetto. Le parti
+  //     DENTRO l'oggetto che hanno il colore dello sfondo (acciaio, cromo, bianco,
+  //     riflessi) restano: prima venivano tolte perché "sembravano sfondo".
+  //     Il contorno si riconosce anche dai bordi netti (cambio di luce), non solo dal colore.
+  if (opz.oggetto) {
+    const L = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) L[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+    const G = new Float32Array(w * h), gv = [];
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      const gx = (L[i - w + 1] + 2 * L[i + 1] + L[i + w + 1]) - (L[i - w - 1] + 2 * L[i - 1] + L[i + w - 1]);
+      const gy = (L[i + w - 1] + 2 * L[i + w] + L[i + w + 1]) - (L[i - w - 1] + 2 * L[i - w] + L[i - w + 1]);
+      G[i] = Math.hypot(gx, gy) / 4; if ((i & 3) === 0) gv.push(G[i]);
+    }
+    // soglia dei bordi: sopra il "rumore" dello sfondo (mediana dei gradienti sul bordo della foto)
+    const gb = []; for (let x = 1; x < w - 1; x++) { gb.push(G[w + x], G[(h - 2) * w + x]); } for (let y = 1; y < h - 1; y++) { gb.push(G[y * w + 1], G[y * w + w - 2]); }
+    gb.sort((a, b) => a - b);
+    const gT = Math.max(6, (gb[Math.floor(gb.length * 0.9)] || 0) * 2.5);
+    // muro = bordo netto (allargato di 1 px) oppure pixel chiaramente diverso dallo sfondo
+    const muro = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (m[i] || G[i] > gT) { muro[i] = 1; if (G[i] > gT) { if (x > 0) muro[i - 1] = 1; if (x < w - 1) muro[i + 1] = 1; if (y > 0) muro[i - w] = 1; if (y < h - 1) muro[i + w] = 1; } }
+    }
+    // riempimento dal bordo della foto: tutto ciò che si raggiunge senza passare un muro è sfondo
+    const sf = new Uint8Array(w * h), st = new Int32Array(w * h); let sp = 0;
+    const semina = (i) => { if (!muro[i] && !sf[i]) { sf[i] = 1; st[sp++] = i; } };
+    for (let x = 0; x < w; x++) { semina(x); semina((h - 1) * w + x); }
+    for (let y = 0; y < h; y++) { semina(y * w); semina(y * w + w - 1); }
+    while (sp) {
+      const j = st[--sp], x = j % w, y = (j / w) | 0;
+      if (x > 0) semina(j - 1); if (x < w - 1) semina(j + 1); if (y > 0) semina(j - w); if (y < h - 1) semina(j + w);
+    }
+    // i bordi netti che toccano lo sfondo raggiunto ma sono "quasi sfondo" (ombre leggere sul foglio) tornano sfondo
+    for (let i = 0; i < w * h; i++) m[i] = sf[i] ? 0 : 1;
+    for (let pass = 0; pass < 2; pass++) for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      if (!m[i] || diff[i] > t) continue;
+      if (sf[i - 1] || sf[i + 1] || sf[i - w] || sf[i + w]) { m[i] = 0; sf[i] = 1; }
+    }
+  }
   // 4) pulizia
   const r = Math.max(1, Math.round(Math.min(w, h) / 220));
   m = morf(morf(m, w, h, r, false), w, h, r, true);           // apertura (puntini)
