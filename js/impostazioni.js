@@ -8,13 +8,13 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261118h';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261118h';
-import { anteprimaOggetto, riconosciViste, vistaScambiata, orientaSopra, ruotaCanvas, controllaMisure } from './oggetto3d.js?v=20261118h';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261118h';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261118h';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261118h';
-import { agganciaTema } from './tema.js?v=20261118h';
+} from './catalogo.js?v=20261118i';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261118i';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261118i';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261118i';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261118i';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261118i';
+import { agganciaTema } from './tema.js?v=20261118i';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -886,6 +886,7 @@ function apriSchedaOggetto(p) {
   corpo.innerHTML = `
     <div class="imp-form">
       <div class="imp-aiuto">Carica le foto dell'oggetto su sfondo uniforme: vanno benissimo quelle del sito del produttore (su bianco). Il sito <strong>riconosce da solo quale foto è davanti, di lato, dietro o da sopra</strong>, isola l'oggetto e costruisce il <strong>3D con le misure vere e le tue foto sopra</strong>. Se sbaglia una vista, correggila con «Questa foto è».</div>
+      <div class="imp-aiuto">Per la forma servono foto <strong>dritte</strong> (davanti e di lato, con il telefono all'altezza dell'oggetto). Sotto ogni foto il sito scrive se è <strong>dritta</strong> o <strong>di tre quarti</strong> (a 45°: non la usa per la forma). Se sbaglia, tocca la scritta per cambiarla.</div>
       <label class="imp-tutte">📷 Carica tutte le foto insieme<input type="file" accept="image/*" multiple id="o-tutte"></label>
       <div class="imp-viste3">
         ${VISTE_OGG.map((v) => `
@@ -893,6 +894,7 @@ function apriSchedaOggetto(p) {
           <div class="imp-vista-tit"><span class="imp-vista-ico" aria-hidden="true">${v.svg}</span><span><strong>${v.nome}</strong>${v.obbl ? ' <span class="imp-obbl">*</span>' : ''}<br><small>${v.aiuto}</small></span></div>
           <label class="imp-vista-file">Scegli foto<input type="file" accept="image/*" data-vista="${v.id}"></label>
           <div class="imp-vista3-img" data-img="${v.id}"></div>
+          <button type="button" class="imp-tipo-foto" data-tipo="${v.id}" hidden></button>
           <div class="imp-vista-azioni" data-azioni="${v.id}" hidden>
             <label class="imp-vista-ruolo">Questa foto è:
               <select data-ruolo="${v.id}">${VISTE_OGG.map((q) => `<option value="${q.id}"${q.id === v.id ? ' selected' : ''}>${q.nome}</option>`).join('')}</select></label>
@@ -932,6 +934,9 @@ function apriSchedaOggetto(p) {
   modale.hidden = false;
   const imgs = {}, colori = {}, cambiate = new Set();
   let pianta = o.pianta || 'auto';
+  // foto DRITTA o DI TRE QUARTI: la scelta fatta a mano per casella (se no decide il sito)
+  const tipi = { ...((o && o.tipi) || {}) };
+  let tipiAuto = {};
   const errore = (t) => { const e = corpo.querySelector('#f-err'); e.textContent = t; e.hidden = false; e.scrollIntoView({ block: 'nearest' }); };
   const avviso = (t) => { const m = corpo.querySelector('#o-msg'); m.textContent = t; m.hidden = !t; };
   const num = (id) => Number(String(corpo.querySelector(id).value).replace(',', '.'));
@@ -940,6 +945,14 @@ function apriSchedaOggetto(p) {
     if (imgs[v]) { const c = document.createElement('canvas'); disegnaScacchi(c, imgs[v], 300, 220); box.appendChild(c); }
     corpo.querySelector(`[data-azioni="${v}"]`).hidden = !imgs[v];
     corpo.querySelector(`[data-ruolo="${v}"]`).value = v;
+    // DRITTA / DI TRE QUARTI (tocca per cambiare)
+    const bt = corpo.querySelector(`[data-tipo="${v}"]`), t = tipi[v] || tipiAuto[v];
+    bt.hidden = !imgs[v] || !t;
+    if (t) {
+      bt.classList.toggle('dritta', t === 'dritta'); bt.classList.toggle('storta', t !== 'dritta');
+      bt.innerHTML = (t === 'dritta' ? `✓ ${tr('Dritta')} · ${tr('la uso per la forma')}` : `↗ ${tr('Di tre quarti')} · ${tr('non la uso per la forma')}`)
+        + `<small>${tipi[v] ? tr('scelta tua · tocca per cambiare') : tr('automatico · tocca per cambiare')}</small>`;
+    }
     corpo.querySelector('#o-pianta-box').hidden = !!imgs.sopra;
   };
   const mostraTutte = () => VISTE_OGG.forEach((x) => mostra(x.id));
@@ -957,14 +970,19 @@ function apriSchedaOggetto(p) {
         const r = orientaSopra(imgs.sopra, W, D);
         if (r) { imgs.sopra = r; cambiate.add('sopra'); mostraTutte(); avviso(tr('Ho girato la foto da sopra: il davanti va in basso. Se è al contrario premi «↻ Ruota» due volte.')); }
       }
-      // DAVANTI e LATO al contrario (si capisce dalle misure): li scambio nelle caselle e lo dico
-      if (imgs.fronte && imgs.lato && vistaScambiata(imgs.fronte, imgs.lato, W, D, H)) {
-        scambia('lato', 'fronte'); mostraTutte();
+      // QUALI FOTO SONO DRITTE (davanti, lato) E QUALI DI TRE QUARTI; davanti e lato al contrario: li scambio
+      let av = assegnaViste({ ...imgs, tipi }, W, D, H);
+      if (av && av.scambiate && imgs.lato && !tipi.fronte && !tipi.lato) {
+        scambia('lato', 'fronte');
         avviso(tr('Ho scambiato davanti e lato: dalle misure, il davanti è la foto larga come la larghezza e il lato quella larga come la profondità.'));
+        av = assegnaViste({ ...imgs, tipi }, W, D, H);
       }
-      // LE MISURE TORNANO CON LE FOTO? se una non torna, dico quanto dovrebbe essere (con il pulsante per usarla)
+      tipiAuto = (av && av.tipi) || {};
+      mostraTutte();
+      // LE MISURE TORNANO CON LE FOTO? (solo con le foto dritte) se una non torna, dico quanto dovrebbe essere
       const mm = corpo.querySelector('#o-misure-msg');
-      const c = controllaMisure(imgs, W, D, H);
+      const dritte = Object.fromEntries(['fronte', 'lato', 'sopra'].filter((k) => imgs[k] && (tipi[k] || tipiAuto[k]) !== '45').map((k) => [k, imgs[k]]));
+      const c = dritte.fronte ? controllaMisure(dritte, W, D, H) : null;
       if (c && mm) {
         const nomi = { w: 'la larghezza', d: 'la profondità', h: "l'altezza" }, ids = { w: '#o-w', d: '#o-d', h: '#o-h' };
         const cm = (v) => (Math.round(v / 5) / 2).toLocaleString('it-IT');
@@ -974,14 +992,15 @@ function apriSchedaOggetto(p) {
         mm.hidden = false;
         mm.querySelector('#o-usa-misura').addEventListener('click', () => { corpo.querySelector(ids[c.campo]).value = cm(c.mm).replace(',', '.'); anteprima(); });
       } else if (mm) mm.hidden = true;
-      _chiudiAntOgg = await anteprimaOggetto(box, imgs, W, D, H, pianta);
+      _chiudiAntOgg = await anteprimaOggetto(box, { ...imgs, tipi }, W, D, H, pianta);
     }, 250);
   };
   /** Sposta/scambia la foto della casella da → a. */
   const scambia = (da, a) => {
     if (da === a) return;
     [imgs[da], imgs[a]] = [imgs[a], imgs[da]]; [colori[da], colori[a]] = [colori[a], colori[da]];
-    for (const k of [da, a]) { if (!imgs[k]) delete imgs[k]; cambiate.add(k); }
+    [tipi[da], tipi[a]] = [tipi[a], tipi[da]]; [tipiAuto[da], tipiAuto[a]] = [tipiAuto[a], tipiAuto[da]];
+    for (const k of [da, a]) { if (!imgs[k]) delete imgs[k]; if (!tipi[k]) delete tipi[k]; cambiate.add(k); }
   };
   /** Riconosce le viste e rimette ogni foto nella casella giusta (lo dice). */
   // RICONOSCIMENTO (solo con "Carica tutte le foto insieme"): sposta SOLO le foto
@@ -1017,7 +1036,7 @@ function apriSchedaOggetto(p) {
     if (!im) { errore(tr('Non riesco ad aprire questa foto. Prova con un JPG o PNG.')); return false; }
     const seg = segmentaManiglia(im, null, 1, { raddrizza: false, oggetto: true });
     if (!seg) { errore(tr('Non riesco a isolare l\'oggetto in questa foto: usa una foto con lo sfondo uniforme (es. bianco).')); return false; }
-    imgs[v] = seg.canvas; colori[v] = seg.colore; cambiate.add(v);
+    imgs[v] = seg.canvas; colori[v] = seg.colore; cambiate.add(v); delete tipi[v]; delete tipiAuto[v];
     return true;
   };
   for (const v of VISTE_OGG.map((x) => x.id)) {
@@ -1029,13 +1048,19 @@ function apriSchedaOggetto(p) {
       e.target.value = '';
     });
     corpo.querySelector(`[data-togli="${v}"]`).addEventListener('click', () => {
-      delete imgs[v]; delete colori[v]; cambiate.add(v); avviso('');
+      delete imgs[v]; delete colori[v]; delete tipi[v]; delete tipiAuto[v]; cambiate.add(v); avviso('');
       mostraTutte(); anteprima();
     });
     // RUOTA di 90° (es. foto da sopra con l'oggetto di traverso)
     corpo.querySelector(`[data-ruota="${v}"]`).addEventListener('click', () => {
       if (!imgs[v]) return;
       imgs[v] = ruotaCanvas(imgs[v], 1); cambiate.add(v); avviso('');
+      mostraTutte(); anteprima();
+    });
+    // DRITTA ↔ DI TRE QUARTI: la scelta a mano vince su quella automatica
+    corpo.querySelector(`[data-tipo="${v}"]`).addEventListener('click', () => {
+      const ora = tipi[v] || tipiAuto[v];
+      tipi[v] = ora === 'dritta' ? '45' : 'dritta';
       mostraTutte(); anteprima();
     });
     corpo.querySelector(`[data-ruolo="${v}"]`).addEventListener('change', (e) => {
@@ -1092,7 +1117,7 @@ function apriSchedaOggetto(p) {
       const viste = Object.fromEntries(['lato', 'sopra', 'dietro'].map((v) => [v, !!imgs[v]]));
       const dati = { id, sezione: 'oggetti', nome, info: { note: corpo.querySelector('#f-note').value.trim() },
         colore: colori.fronte ?? (p && p.colore), aggiornato: Date.now(),
-        oggetto: { w, d, h, pianta, viste } };
+        oggetto: { w, d, h, pianta, viste, tipi: Object.fromEntries(Object.entries(tipi).filter(([k, t]) => imgs[k] && t)) } };
       if (nuovo) stato.prodotti.push({ ...dati, creato: Date.now() });
       else stato.prodotti = stato.prodotti.map((x) => (x.id === id ? { ...x, ...dati } : x));
       if (_chiudiAntOgg) { _chiudiAntOgg(); _chiudiAntOgg = null; }

@@ -112,4 +112,8 @@
 .imp-vista-file input { max-width: 100%; }
 .imp-vista-azioni { display: flex; flex-direction: column; gap: 6px; }
 .imp-vista-ruolo { font-size: 12px; display: flex; flex-direction: column; gap: 3px; }
+.imp-tipo-foto { display: block; width: 100%; text-align: left; font: inherit; font-size: 12.5px; padding: 7px 9px; margin: 6px 0; border-radius: 8px; cursor: pointer; background: transparent; border: 1px solid var(--bordo); color: var(--testo); }
+.imp-tipo-foto small { display: block; font-size: 11px; color: var(--testo-dim); margin-top: 2px; }
+.imp-tipo-foto.dritta { border-color: #4f9a5c; color: #6cc27a; }
+.imp-tipo-foto.storta { border-color: #b8873a; color: #e0a64a; }
 .imp-vista-ruolo select { padding: 6px; border-radius: 6px; }

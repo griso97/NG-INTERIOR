@@ -14,7 +14,7 @@
 // Assi (mm): x = larghezza (centro 0) · y = altezza (0 = appoggio) · z = profondità (+ = davanti)
 // =============================================================================
 import * as THREE from 'three';
-import { formaOggetto, sagomaEstrusa, compattezza } from './scanner3d.js?v=20261118h';
+import { formaOggetto, sagomaEstrusa, compattezza } from './scanner3d.js?v=20261118i';
 import { edgeTable, triTable } from '../vendor/three/addons/objects/mc-tabelle.js';
 
 /** Distanza (chamfer 3-4, in pixel) di ogni pixel dal più vicino pixel "fuori" (m = 0). */
@@ -569,22 +569,26 @@ function raggioCima(p, largh, alt) {
   return Math.min(v * alt, restr * 1.2 + v * alt * 0.2);
 }
 
-export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
-  W = Math.max(10, W); D = Math.max(10, D); H = Math.max(10, H);
-  // foto da sopra di traverso: la giro (davanti in basso)
-  if (foto.sopra) { const r = orientaSopra(foto.sopra, W, D); if (r) foto = { ...foto, sopra: r }; }
-  // QUALE FOTO È QUALE, dalle proporzioni (le misure scritte sono vere):
-  //  - dritta davanti: larga/alta come larghezza × altezza
-  //  - dritta di lato: come profondità × altezza
-  //  - di TRE QUARTI (a 45°): non torna con nessuna delle due (si vedono due facce insieme):
-  //    non serve per la forma
-  const dritta = (V, l, a) => !!V && Math.abs(Math.log(V.aspetto / (l / a))) < 0.16;
-  const tipo = (src) => {
-    const V = vista(src); if (!V) return null;
+/**
+ * QUALE FOTO È QUALE, dalle proporzioni (le misure scritte sono vere):
+ *  - dritta davanti: larga/alta come larghezza × altezza
+ *  - dritta di lato: come profondità × altezza
+ *  - di TRE QUARTI (a 45°): non torna con nessuna delle due (si vedono due facce insieme):
+ *    non serve per la forma.
+ * foto.tipi = scelte dell'utente per casella ('dritta' | '45'): vincono sulle proporzioni.
+ * Ritorna { davanti, lato, dietro, scambiate, girata, W, D, tipi: per casella 'dritta'|'45' }.
+ */
+export function assegnaViste(foto, W, D, H) {
+  const scelte = foto.tipi || {};
+  const tipo = (k) => {
+    const src = foto[k]; const V = src ? vista(src) : null; if (!V) return null;
+    if (scelte[k] === '45') return { k, src, f: null, l: null };
+    if (scelte[k] === 'dritta') return { k, src, f: k === 'lato' ? null : 0, l: k === 'lato' ? 0 : null };
     const f = Math.abs(Math.log(V.aspetto / (W / H))), l = Math.abs(Math.log(V.aspetto / (D / H)));
-    return { src, f: f < 0.16 ? f : null, l: l < 0.16 ? l : null };
+    return { k, src, f: f < 0.16 ? f : null, l: l < 0.16 ? l : null };
   };
-  const qF = tipo(foto.fronte), qL = tipo(foto.lato);
+  const qF = tipo('fronte'), qL = tipo('lato');
+  if (!qF && !qL) return null;
   let davanti = null, lato = null, scambiate = false;
   // il davanti: la foto nella casella "davanti" se è dritta davanti, se no quella di lato se lo è
   if (qF && qF.f != null && (!qL || qL.f == null || qF.f <= qL.f || qL.l != null)) davanti = qF.src;
@@ -594,8 +598,34 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   // solo una foto dritta, ed è di LATO (es. impastatrice fotografata di fianco): la uso come davanti
   let girata = false;
   if (!davanti && lato) { davanti = lato; lato = null; [W, D] = [D, W]; girata = true; }
-  if (!davanti) davanti = foto.fronte;                       // nessuna dritta: uso quella che c'è
-  foto = { ...foto, fronte: davanti, lato, dietro: scambiate || girata ? null : foto.dietro };
+  const nessunaDritta = !davanti;
+  if (!davanti) davanti = foto.fronte || foto.lato;          // nessuna dritta: uso quella che c'è
+  // dietro: solo se è dritta (come il davanti)
+  let dietro = null;
+  if (foto.dietro && !scambiate && !girata) {
+    const V = vista(foto.dietro);
+    if (scelte.dietro === 'dritta' || (scelte.dietro !== '45' && V && Math.abs(Math.log(V.aspetto / (W / H))) < 0.16)) dietro = foto.dietro;
+  }
+  const tipi = {};
+  for (const k of ['fronte', 'lato']) if (foto[k]) tipi[k] = !nessunaDritta && (foto[k] === davanti || foto[k] === lato) ? 'dritta' : '45';
+  if (foto.dietro) tipi.dietro = dietro ? 'dritta' : '45';
+  if (foto.sopra) {
+    const T = orientaSopra(foto.sopra, W, D) || foto.sopra, Tv = vista(T), f = Tv ? formaDaSopra(Tv) : null;
+    tipi.sopra = scelte.sopra === 'dritta' || (scelte.sopra !== '45' && f && Math.abs(Math.log(f.aspetto / (W / D))) < 0.5) ? 'dritta' : '45';
+  }
+  return { davanti, lato, dietro, scambiate, girata, W, D, tipi };
+}
+
+export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
+  W = Math.max(10, W); D = Math.max(10, D); H = Math.max(10, H);
+  // foto da sopra di traverso: la giro (davanti in basso)
+  if (foto.sopra) { const r = orientaSopra(foto.sopra, W, D); if (r) foto = { ...foto, sopra: r }; }
+  // QUALE FOTO È QUALE (dritta davanti, dritta di lato, di tre quarti): vedi assegnaViste
+  const av = assegnaViste(foto, W, D, H);
+  if (!av) return null;
+  const { scambiate, girata } = av;
+  W = av.W; D = av.D;
+  foto = { ...foto, fronte: av.davanti, lato: av.lato, dietro: av.dietro };
   const F = vista(foto.fronte); if (!F) return null;
   const S = vista(foto.lato);
   const B = foto.dietro ? true : false;
@@ -606,7 +636,8 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   // le sporgenze (leva, cursore): il contorno si disegna dentro davanti × lato a ogni altezza,
   // così davanti e lato restano ESATTI come le loro foto
   const formaT = Tv ? formaDaSopra(Tv) : null;
-  const T = Tv && formaT && Math.abs(Math.log(formaT.aspetto / (W / D))) < 0.5 ? Tv : null;   // foto storte di tre quarti: solo per l'aspetto
+  const sceltaT = (foto.tipi || {}).sopra;
+  const T = Tv && (sceltaT === 'dritta' || (sceltaT !== '45' && formaT && Math.abs(Math.log(formaT.aspetto / (W / D))) < 0.5)) ? Tv : null;   // foto storte di tre quarti: solo per l'aspetto
   // FORMA A PEZZI (scanner3d.js): il CORPO liscio dai contorni senza pezzi, e i PEZZI
   // (leve, manopole, maniglie, piedini) come solidi a sé — niente fasce né anelli
   // OGGETTI PIATTI O COMPOSTI (ceppo dei coltelli con supporto, tagliere, impastatrice con la
@@ -619,7 +650,7 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
     const g = sagomaEstrusa(foto.fronte, W, H, D, THREE); if (!g) return null;
     pezzi.push(g);
   } else {
-    forma = formaOggetto({ fronte: foto.fronte, lato: foto.lato, sopra: T ? foto.sopra : null }, W, D, H, THREE);
+    forma = formaOggetto({ fronte: foto.fronte, lato: foto.lato, sopra: T ? foto.sopra : null }, W, D, H, THREE, pianta);
     if (!forma) return null;
     davantiSx = forma.davantiSx;
     for (const v of forma.corpo.vert) vert.push(v);
@@ -734,7 +765,7 @@ function caricaImg(url) { return new Promise((ok, ko) => { if (!url) return ok(n
  */
 export function oggettoDaFoto(def, quandoPronto) {
   const mi = def.misure || {};
-  const chiave = `${def.id}|${mi.w}|${mi.d}|${mi.h}|${def.pianta}`;
+  const chiave = `${def.id}|${mi.w}|${mi.d}|${mi.h}|${def.pianta}|${JSON.stringify(def.tipi || {})}`;
   const c = _cache.get(chiave);
   if (c && c !== 'attesa' && c !== 'errore') return c;
   if (c) return null;
@@ -742,7 +773,7 @@ export function oggettoDaFoto(def, quandoPronto) {
   const v = def.viste || {};
   Promise.all([caricaImg(v.fronte), caricaImg(v.lato), caricaImg(v.sopra), caricaImg(v.dietro)])
     .then(([fronte, lato, sopra, dietro]) => {
-      const r = geometriaOggetto({ fronte, lato, sopra, dietro }, mi.w, mi.d, mi.h, def.pianta);
+      const r = geometriaOggetto({ fronte, lato, sopra, dietro, tipi: def.tipi || {} }, mi.w, mi.d, mi.h, def.pianta);
       if (!r) { _cache.set(chiave, 'errore'); return; }
       _cache.set(chiave, { geo: r.geo, mat: r.mats });
       if (quandoPronto) quandoPronto();
@@ -786,4 +817,3 @@ export async function anteprimaOggetto(box, foto, W, D, H, pianta) {
   giro();
   return () => { vivo = false; ctr.dispose(); r.dispose(); };
 }
-export { vista as _vistaProva, profilo as _profiloProva, estremiCorpo as _estremiProva };

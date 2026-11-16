@@ -412,7 +412,7 @@ export function corpoLiscio(fr, la, yMin, yMax, nSup) {
  * FORMA DELL'OGGETTO dalle foto (già girate: sopra con il davanti in basso).
  * Ritorna { corpo: { vert, ind }, davantiSx, viste: { F, S, T }, nSup } o null.
  */
-export function formaOggetto(foto, W, D, H, THREE = null) {
+export function formaOggetto(foto, W, D, H, THREE = null, pianta = 'auto') {
   const F = analizzaVista(foto.fronte, W, H); if (!F) return null;
   const S = foto.lato ? analizzaVista(foto.lato, D, H) : null;
   const T = foto.sopra ? analizzaVista(foto.sopra, W, D) : null;
@@ -440,6 +440,7 @@ export function formaOggetto(foto, W, D, H, THREE = null) {
   const cF = cupola(F), cS = cupola(S), cc = [cF, cS].filter((v) => v != null);
   const h90 = cc.length ? cc.reduce((a, b) => a + b, 0) / cc.length : 0.12;
   let nSup = h90 > 0.22 ? 2.2 : h90 > 0.1 ? 3.5 : h90 > 0.05 ? 5 : 8;
+  if (pianta === 'tonda' || pianta === 'ovale') nSup = 2; else if (pianta === 'squadrata') nSup = 8;   // scelta a mano (senza foto da sopra)
   if (T) {
     const f = fitSuperellisse(T.corpoMm);
     if (Math.abs(Math.log((f.a / f.b) / (W / D))) < 0.5) nSup = f.n;
