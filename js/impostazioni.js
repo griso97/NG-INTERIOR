@@ -8,13 +8,13 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261117m';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261117m';
-import { anteprimaOggetto, riconosciViste, vistaScambiata } from './oggetto3d.js?v=20261117m';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261117m';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261117m';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261117m';
-import { agganciaTema } from './tema.js?v=20261117m';
+} from './catalogo.js?v=20261117r';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261117r';
+import { anteprimaOggetto, riconosciViste, vistaScambiata, orientaSopra, ruotaCanvas } from './oggetto3d.js?v=20261117r';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261117r';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261117r';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261117r';
+import { agganciaTema } from './tema.js?v=20261117r';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -896,6 +896,7 @@ function apriSchedaOggetto(p) {
           <div class="imp-vista-azioni" data-azioni="${v.id}" hidden>
             <label class="imp-vista-ruolo">Questa foto è:
               <select data-ruolo="${v.id}">${VISTE_OGG.map((q) => `<option value="${q.id}"${q.id === v.id ? ' selected' : ''}>${q.nome}</option>`).join('')}</select></label>
+            <button type="button" class="btn-ghost btn-mini" data-ruota="${v.id}">↻ Ruota</button>
             <button type="button" class="btn-ghost btn-mini imp-togli" data-togli="${v.id}">✕ Togli questa foto</button>
           </div>
         </div>`).join('')}
@@ -950,6 +951,11 @@ function apriSchedaOggetto(p) {
       if (!imgs.fronte || !(W > 0 && D > 0 && H > 0)) { box.innerHTML = `<div class="imp-aiuto">${tr('Carica la foto davanti e scrivi le misure.')}</div>`; return; }
       box.innerHTML = `<div class="imp-aiuto">${tr('Costruisco il 3D…')}</div>`;
       await new Promise((r) => setTimeout(r, 30));
+      // FOTO DA SOPRA di traverso (si capisce dalle misure): la giro, con il davanti in basso, e lo dico
+      if (imgs.sopra) {
+        const r = orientaSopra(imgs.sopra, W, D);
+        if (r) { imgs.sopra = r; cambiate.add('sopra'); mostraTutte(); avviso(tr('Ho girato la foto da sopra: il davanti va in basso. Se è al contrario premi «↻ Ruota» due volte.')); }
+      }
       // DAVANTI e LATO al contrario (si capisce dalle misure): li scambio nelle caselle e lo dico
       if (imgs.fronte && imgs.lato && vistaScambiata(imgs.fronte, imgs.lato, W, D, H)) {
         scambia('lato', 'fronte'); mostraTutte();
@@ -1011,6 +1017,12 @@ function apriSchedaOggetto(p) {
     });
     corpo.querySelector(`[data-togli="${v}"]`).addEventListener('click', () => {
       delete imgs[v]; delete colori[v]; cambiate.add(v); avviso('');
+      mostraTutte(); anteprima();
+    });
+    // RUOTA di 90° (es. foto da sopra con l'oggetto di traverso)
+    corpo.querySelector(`[data-ruota="${v}"]`).addEventListener('click', () => {
+      if (!imgs[v]) return;
+      imgs[v] = ruotaCanvas(imgs[v], 1); cambiate.add(v); avviso('');
       mostraTutte(); anteprima();
     });
     corpo.querySelector(`[data-ruolo="${v}"]`).addEventListener('change', (e) => {

@@ -237,6 +237,44 @@ export function vistaScambiata(fFronte, fLato, W, D, H) {
   const err = (a, e) => Math.abs(Math.log(a / e));
   return err(S.aspetto, eF) + err(F.aspetto, eS) + 0.15 < err(F.aspetto, eF) + err(S.aspetto, eS);
 }
+/** Canvas girato di 90° (verso 1 = orario, −1 = antiorario). */
+export function ruotaCanvas(src, verso = 1) {
+  const w0 = src.naturalWidth || src.width, h0 = src.naturalHeight || src.height;
+  const c = document.createElement('canvas'); c.width = h0; c.height = w0;
+  const g = c.getContext('2d');
+  if (verso > 0) { g.translate(h0, 0); g.rotate(Math.PI / 2); } else { g.translate(0, w0); g.rotate(-Math.PI / 2); }
+  g.drawImage(src, 0, 0);
+  return c;
+}
+/**
+ * Da che parte (sinistra / destra) la sagoma ha un pezzo che SPORGE (leva,
+ * manopola, cursore): lì c'è il davanti. null se non si capisce.
+ */
+function latoSporgente(V) {
+  const { w, A, x0, y0, bw, bh } = V;
+  const alt = new Float32Array(bw);
+  for (let i = 0; i < bw; i++) { let n = 0; for (let y = y0; y < y0 + bh; y++) if (A[y * w + x0 + i] > 0.5) n++; alt[i] = n; }
+  const centro = [...alt.slice(Math.floor(bw * 0.2), Math.ceil(bw * 0.8))].sort((a, b) => a - b);
+  const med = centro[centro.length >> 1] || 0;
+  let sx = 0; while (sx < bw * 0.4 && alt[sx] < med * 0.7) sx++;
+  let dx = 0; while (dx < bw * 0.4 && alt[bw - 1 - dx] < med * 0.7) dx++;
+  if (Math.abs(sx - dx) < bw * 0.02) return null;
+  return sx > dx ? 'sx' : 'dx';
+}
+/**
+ * FOTO DA SOPRA DI TRAVERSO: le foto prodotto da sopra hanno spesso l'oggetto
+ * in orizzontale. Se le proporzioni corrispondono a profondità × larghezza
+ * (invece di larghezza × profondità) la giro di 90°, con il davanti (il lato
+ * dove sporge la leva / il comando) in basso. Ritorna il canvas girato o null.
+ */
+export function orientaSopra(src, W, D) {
+  const V = vista(src);
+  if (!V || !(W > 0 && D > 0) || Math.abs(Math.log(W / D)) < 0.12) return null;
+  const err = (e) => Math.abs(Math.log(V.aspetto / e));
+  if (err(D / W) >= err(W / D)) return null;                      // già dritta
+  const lato = latoSporgente(V);
+  return ruotaCanvas(src, lato === 'sx' ? -1 : 1);                // il lato del davanti va in basso
+}
 /**
  * Raggio (mm) degli spigoli in alto della sagoma: quanto la sagoma si stringe
  * in cima (es. tostapane bombato ~4 cm, scatola squadrata ~0).
@@ -252,6 +290,8 @@ function raggioCima(p, largh, alt) {
 
 export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   W = Math.max(10, W); D = Math.max(10, D); H = Math.max(10, H);
+  // foto da sopra di traverso: la giro (davanti in basso)
+  if (foto.sopra) { const r = orientaSopra(foto.sopra, W, D); if (r) foto = { ...foto, sopra: r }; }
   // davanti e lato al contrario (si vede dalle misure): li scambio da solo
   let scambiate = false;
   if (foto.fronte && foto.lato && vistaScambiata(foto.fronte, foto.lato, W, D, H)) {
@@ -263,10 +303,19 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   // foto DA SOPRA: per la FORMA solo se è davvero dall'alto (proporzioni come larghezza × profondità);
   // le foto prodotto "da sopra" sono spesso di tre quarti e farebbero forme storte → solo per l'aspetto
   const Tv = vista(foto.sopra);
-  const T = Tv && Math.abs(Math.log(Tv.aspetto / (W / D))) < 0.22 ? Tv : null;
+  // CORPO nella foto da sopra: le righe a tutta larghezza (leve, manopole, cursori che sporgono restano fuori)
+  let corpoT = null;
+  if (Tv) {
+    const pp = profilo(Tv), mw = pp.mDx - pp.mSx;
+    let t0 = 0, t1 = 1;
+    while (t0 < 0.45 && (pp.dx(t0) - pp.sx(t0)) < mw * 0.6) t0 += 0.002;
+    while (t1 > 0.55 && (pp.dx(t1) - pp.sx(t1)) < mw * 0.6) t1 -= 0.002;
+    corpoT = { p: pp, t0, t1, aspetto: Tv.bw / Math.max(1, Tv.bh * (t1 - t0)) };
+  }
+  const T = Tv && Math.abs(Math.log(corpoT.aspetto / (W / D))) < 0.25 ? Tv : null;
   // PROFILI riga per riga (davanti, lato, sopra) → volume con facce piatte
   const pF = profilo(F);
-  const pS = S ? profilo(S) : null, pT = T ? profilo(T) : null;
+  const pS = S ? profilo(S) : null, pT = T ? corpoT.p : null;
   // lato: il davanti è dove sporge qualcosa (maniglia); fascia e profondità della sporgenza
   let davantiSx = true, corpoF = 0, banda = null, man = null;
   if (pS) {
@@ -274,15 +323,22 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
     for (let k = 0; k <= 100; k++) { const v = k / 100; sporgeSx.push(pS.mSx - pS.sx(v)); sporgeDx.push(pS.dx(v) - pS.mDx); }
     const nSx = sporgeSx.filter((x) => x > 0.025).length, nDx = sporgeDx.filter((x) => x > 0.025).length;
     davantiSx = nSx >= nDx;
+    // il davanti nella foto di lato è dove SPORGE la leva / il comando (più affidabile)
+    const ls = latoSporgente(S);
+    if (ls) davantiSx = ls === 'sx';
     const sp = davantiSx ? sporgeSx : sporgeDx;
     const righe = sp.map((x, k) => (x > 0.025 ? k / 100 : null)).filter((x) => x !== null);
     corpoF = davantiSx ? pS.mSx : 1 - pS.mDx;                 // dalla punta davanti all'inizio del corpo (0..1 di D)
     if (righe.length >= 3) {
       banda = [Math.min(...righe), Math.max(...righe)];
-      if (!T) man = trovaManiglia(F, banda[0], banda[1]) || { a: 0.4, b: 0.6 };
+      // quanto è largo il pezzo che sporge: lo dice la foto davanti. Se lì non si vede una
+      // maniglia vera (es. leva o manopola piccole), niente sporgenza: niente barre finte.
+      man = trovaManiglia(F, banda[0], banda[1]);
+      const contigue = righe.length / ((banda[1] - banda[0]) * 100 + 1);
+      if (!man || contigue < 0.7) { banda = null; man = null; corpoF = 0; }
     } else corpoF = 0;
   }
-  const passo = Math.max(W, D, H) / 150;
+  const passo = Math.max(W, D, H) / 170;
   const NX = Math.max(16, Math.round(W / passo)), NY = Math.max(16, Math.round(H / passo)), NZ = Math.max(16, Math.round(D / passo));
   const GX = NX + 2, GY = NY + 2, GZ = NZ + 2;
   const id = (i, j, k) => (k * GY + j) * GX + i;
@@ -304,29 +360,45 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
     if (Number.isNaN(xl) || Number.isNaN(xr)) continue;
     let zf = D / 2, zb = -D / 2;
     if (pS) {
-      const a = pS.sx(vy), b = pS.dx(vy);
+      let a = pS.sx(vy), b = pS.dx(vy);
       if (Number.isNaN(a) || Number.isNaN(b)) continue;
+      if (!banda) {
+        // niente maniglia vera: della foto di lato conta solo il CORPO (leve e manopole che sporgono fuori)
+        const m0 = pS.mSx, m1 = pS.mDx, L = Math.max(1e-3, m1 - m0);
+        a = Math.max(0, (a - m0) / L); b = Math.min(1, (b - m0) / L);
+      }
       if (davantiSx) { zf = D / 2 - a * D; zb = D / 2 - b * D; } else { zf = D / 2 - (1 - b) * D; zb = D / 2 - (1 - a) * D; }
     }
     const sporgeQui = banda && vy >= banda[0] - 0.01 && vy <= banda[1] + 0.01;
     for (let k = 1; k <= NZ; k++) {
       const z = (k - 0.5) / NZ * D - D / 2, wz = (z + D / 2) / D;
-      let txl = -Infinity, txr = Infinity;
-      if (pT) { const a = pT.sx(wz), b = pT.dx(wz); if (Number.isNaN(a)) continue; txl = a * W - W / 2; txr = b * W - W / 2; }
       for (let i = 1; i <= NX; i++) {
         const x = (i - 0.5) / NX * W - W / 2;
         // corpo: dentro al profilo davanti (x) e di lato (z), spigoli verticali arrotondati
         const zfc = Math.min(zf, zCorpo + (sporgeQui ? 0 : 0));
         const hx = (xr - xl) / 2, hz = (zfc - zb) / 2, cx = (xl + xr) / 2, cz = (zfc + zb) / 2;
         let dd;
-        if (tonda) {
+        if (pT) {
+          // FORMA VERA DA SOPRA: a ogni altezza il contorno visto da sopra, largo e
+          // profondo come dicono le foto davanti e di lato a quell'altezza
+          const v = (zfc - z) / Math.max(1, zfc - zb);                 // 0 = davanti … 1 = dietro
+          const vT = corpoT.t0 + (1 - v) * (corpoT.t1 - corpoT.t0);  // nella foto da sopra: in alto = dietro, in basso = davanti (solo il corpo)
+          if (v < 0 || v > 1) dd = -Math.max(z - zfc, zb - z, passo);
+          else {
+            const a = pT.sx(vT), b = pT.dx(vT);
+            if (Number.isNaN(a) || Number.isNaN(b)) dd = -passo;
+            else {
+              const xa = xl + a * (xr - xl), xb = xl + b * (xr - xl);
+              dd = Math.min(x - xa, xb - x, z - zb, zfc - z);
+            }
+          }
+        } else if (tonda) {
           const ex = (x - cx) / Math.max(1, hx), ez = (z - cz) / Math.max(1, hz);
           dd = (1 - Math.sqrt(ex * ex + ez * ez)) * Math.min(hx, hz);
         } else {
           const qx = Math.abs(x - cx) - (hx - rr), qz = Math.abs(z - cz) - (hz - rr);
           dd = -(Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0) - rr);
         }
-        if (pT) dd = Math.min(dd, x - txl, txr - x);
         let o = dentro(dd);
         // MANIGLIA: davanti al corpo, solo dove è nella foto davanti
         if (sporgeQui && z > zCorpo - passo && zf > zCorpo + passo) {
@@ -400,18 +472,23 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   const tT = Tv ? texturaVista(foto.sopra) : null;
   const uvDa = (t, u, v) => (t ? [t.bx0 + Math.min(1, Math.max(0, u)) * t.bw, 1 - (t.by0 + Math.min(1, Math.max(0, v)) * t.bh)] : [0, 0]);
   const P = gi.attributes.position, nV = P.count;
-  const uvF = new Float32Array(nV * 2), uvB = new Float32Array(nV * 2), uvS = new Float32Array(nV * 2), uvT = new Float32Array(nV * 2);
+  const uvF = new Float32Array(nV * 2), uvB = new Float32Array(nV * 2), uvS = new Float32Array(nV * 2), uvS2 = new Float32Array(nV * 2), uvT = new Float32Array(nV * 2);
   for (let v = 0; v < nV; v++) {
     const x = P.getX(v), y = P.getY(v), z = P.getZ(v);
     const u = (x + W / 2) / W, vy = 1 - y / H, wz = (z + D / 2) / D;
     uvF.set(uvDa(tF, u, vy), v * 2);
     uvB.set(uvDa(tB || tF, 1 - u, vy), v * 2);                     // dietro: la sua foto, se no il davanti specchiato
-    uvS.set(uvDa(tS, davantiSx ? 1 - wz : wz, vy), v * 2);
-    uvT.set(uvDa(tT, u, wz), v * 2);
+    // lato fotografato: la foto com'è; lato opposto: la stessa foto NON specchiata (scritte e loghi leggibili)
+    const us = davantiSx ? 1 - wz : wz;
+    const corpoS = (q) => (pS && !banda ? pS.mSx + q * (pS.mDx - pS.mSx) : q);
+    uvS.set(uvDa(tS, corpoS(us), vy), v * 2);
+    uvS2.set(uvDa(tS, corpoS(1 - us), vy), v * 2);
+    uvT.set(uvDa(tT, u, corpoT ? corpoT.t0 + wz * (corpoT.t1 - corpoT.t0) : wz), v * 2);
   }
   gi.setAttribute('uvF', new THREE.BufferAttribute(uvF, 2));
   gi.setAttribute('uvB', new THREE.BufferAttribute(uvB, 2));
   gi.setAttribute('uvS', new THREE.BufferAttribute(uvS, 2));
+  gi.setAttribute('uvS2', new THREE.BufferAttribute(uvS2, 2));
   gi.setAttribute('uvT', new THREE.BufferAttribute(uvT, 2));
   const cimaCol = (() => { const l = []; for (let u = 0.15; u <= 0.85; u += 0.05) for (let v = 0.005; v < 0.05; v += 0.01) { const c = F.col(u, v); if (c) l.push(c); } return l.length ? [0, 1, 2].map((q) => l.map((c) => c[q]).sort((a, b) => a - b)[l.length >> 1]) : F.media; })();
   const lin = (c) => new THREE.Color().setRGB(...c.map((x) => Math.pow(x / 255, 2.2)));
@@ -424,21 +501,22 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   const U = {
     oF: { value: tF.tex }, oB: { value: (tB || tF).tex }, oS: { value: tS ? tS.tex : vuota }, oT: { value: tT ? tT.tex : vuota },
     haS: { value: tS ? 1 : 0 }, haT: { value: tT ? 1 : 0 },
+    latoFoto: { value: davantiSx ? 1 : -1 },                     // lato fotografato: x > 0 se nella foto il davanti è a sinistra
     cS: { value: lin(corpoCol) }, cT: { value: lin(cimaCol) }, cU: { value: lin(F.media.map((x) => x * 0.55)) },
   };
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', `#include <common>
-attribute vec2 uvF; attribute vec2 uvB; attribute vec2 uvS; attribute vec2 uvT;
-varying vec2 vUvF; varying vec2 vUvB; varying vec2 vUvS; varying vec2 vUvT; varying vec3 vObjN;`)
+attribute vec2 uvF; attribute vec2 uvB; attribute vec2 uvS; attribute vec2 uvS2; attribute vec2 uvT;
+varying vec2 vUvF; varying vec2 vUvB; varying vec2 vUvS; varying vec2 vUvS2; varying vec2 vUvT; varying vec3 vObjN;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-vUvF = uvF; vUvB = uvB; vUvS = uvS; vUvT = uvT; vObjN = normal;`);
+vUvF = uvF; vUvB = uvB; vUvS = uvS; vUvS2 = uvS2; vUvT = uvT; vObjN = normal;`);
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
 uniform sampler2D oF; uniform sampler2D oB; uniform sampler2D oS; uniform sampler2D oT;
-uniform float haS; uniform float haT; uniform vec3 cS; uniform vec3 cT; uniform vec3 cU;
-varying vec2 vUvF; varying vec2 vUvB; varying vec2 vUvS; varying vec2 vUvT; varying vec3 vObjN;`)
+uniform float haS; uniform float haT; uniform float latoFoto; uniform vec3 cS; uniform vec3 cT; uniform vec3 cU;
+varying vec2 vUvF; varying vec2 vUvB; varying vec2 vUvS; varying vec2 vUvS2; varying vec2 vUvT; varying vec3 vObjN;`)
       .replace('#include <map_fragment>', `
 {
   vec3 n = normalize(vObjN), a = abs(n);
@@ -447,11 +525,11 @@ varying vec2 vUvF; varying vec2 vUvB; varying vec2 vUvS; varying vec2 vUvT; vary
   float wS = pow(a.x, k), wT = n.y > 0.0 ? pow(a.y, k) : 0.0, wU = n.y < 0.0 ? pow(a.y, k) : 0.0;
   float tot = max(1e-4, wF + wB + wS + wT + wU);
   vec3 c = texture2D(oF, vUvF).rgb * wF + texture2D(oB, vUvB).rgb * wB
-    + mix(cS, texture2D(oS, vUvS).rgb, haS) * wS + mix(cT, texture2D(oT, vUvT).rgb, haT) * wT + cU * wU;
+    + mix(cS, texture2D(oS, n.x * latoFoto > 0.0 ? vUvS : vUvS2).rgb, haS) * wS + mix(cT, texture2D(oT, vUvT).rgb, haT) * wT + cU * wU;
   diffuseColor.rgb *= c / tot;
 }`);
   };
-  mat.customProgramCacheKey = () => 'ogg-proiezione-v1';
+  mat.customProgramCacheKey = () => 'ogg-proiezione-v2';
   const mats = mat;
   const geo = gi;
   return { geo, mats, W, D, H, colore: hex(F.media), scambiate };

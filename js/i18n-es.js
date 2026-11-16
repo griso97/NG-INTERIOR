@@ -1489,4 +1489,6 @@ window.NG_I18N_ES = {
  "moduli del ponte": "módulos del puente",
  "pensili sotto il ponte": "altos bajo el puente",
  "Ho scambiato davanti e lato: dalle misure, il davanti è la foto larga come la larghezza e il lato quella larga come la profondità.": "He intercambiado delante y lado: por las medidas, el delante es la foto ancha como la anchura y el lado la ancha como la profundidad.",
+ "↻ Ruota": "↻ Girar",
+ "Ho girato la foto da sopra: il davanti va in basso. Se è al contrario premi «↻ Ruota» due volte.": "He girado la foto de arriba: el delante va abajo. Si queda al revés pulsa «↻ Girar» dos veces.",
 };
