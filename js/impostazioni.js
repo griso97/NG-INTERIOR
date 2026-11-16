@@ -8,13 +8,13 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261118j';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261118j';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261118j';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261118j';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261118j';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261118j';
-import { agganciaTema } from './tema.js?v=20261118j';
+} from './catalogo.js?v=20261118k';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261118k';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261118k';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261118k';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261118k';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261118k';
+import { agganciaTema } from './tema.js?v=20261118k';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -90,7 +90,7 @@ function render() {
             <label class="imp-vis"><input type="checkbox" data-vis="${esc(m.id)}" ${vis ? 'checked' : ''}> Visibile in questa sezione</label>
           </div>
           <div class="imp-azioni">
-            <button type="button" class="btn-ghost btn-mini" data-mod="${esc(m.id)}">Modifica</button>
+            ${m.categoria === 'oggetto' && !m.proprio ? '' : `<button type="button" class="btn-ghost btn-mini" data-mod="${esc(m.id)}">Modifica</button>`}
             ${m.proprio && !m.derivato ? `<button type="button" class="btn-ghost btn-mini" data-del="${esc(m.id)}">Elimina</button>` : ''}
           </div>
         </div>`;

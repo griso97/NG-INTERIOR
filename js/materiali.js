@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118j';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118k';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -156,6 +156,18 @@ export const MATERIALI = [
   { id: 'r3-supra-oak', nome: 'Encimera EP141NAT ANV 02 OAK R3 Supra 620x38mm', categoria: 'encimera',
     thumb: 'materials/r3-supra-oak-thumb.jpg',
     texture: 'materials/r3-supra-oak.jpg', colore: 0xcdb48a, spessore: 38 },
+  // ---- Oggetti ed elettrodomestici PRONTI (foto già ritagliate, misure delle schede tecniche) ----
+  //      il 3D lo fa lo scanner a pezzi (oggetto3d.js) come per gli oggetti aggiunti da foto
+  { id: 'smeg-tsf01-nero', nome: 'Tostapane SMEG TSF01 nero', categoria: 'oggetto', sezione: 'oggetti',
+    thumb: 'oggetti/smeg-tsf01-nero-fronte-thumb.png', texture: 'oggetti/smeg-tsf01-nero-fronte.png', colore: 0x15161a,
+    misure: { w: 325, d: 195, h: 198 }, pianta: 'auto', tipi: {},
+    viste: { fronte: 'oggetti/smeg-tsf01-nero-fronte.png', lato: 'oggetti/smeg-tsf01-nero-lato.png', sopra: null, dietro: null },
+    info: { note: 'SMEG TSF01BLEU · 31 × 19,5 × 19,8 cm (32,5 cm con la leva)' } },
+  { id: 'smeg-klf03-panna', nome: 'Bollitore SMEG KLF03 panna', categoria: 'oggetto', sezione: 'oggetti',
+    thumb: 'oggetti/smeg-klf03-panna-fronte-thumb.png', texture: 'oggetti/smeg-klf03-panna-fronte.png', colore: 0xeee8d6,
+    misure: { w: 226, d: 171, h: 248 }, pianta: 'auto', tipi: {},
+    viste: { fronte: 'oggetti/smeg-klf03-panna-fronte.png', lato: null, sopra: null, dietro: null },
+    info: { note: 'SMEG KLF03CREU · 22,6 × 17,1 × 24,8 cm' } },
   // ---- Zoccoli (cucina) ----
   { id: 'nero-opaco', nome: 'Nero opaco', categoria: 'zoccolo', css: '#17171a', colore: 0x17171a,
     solido: true, roughness: 1.0, metalness: 0.0 },
@@ -189,7 +201,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118j');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118k');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -325,7 +337,7 @@ export function materialiPer(sezione, { tutti = false } = {}) {
     case 'encimera': l = MATERIALI.filter((m) => m.categoria === 'encimera'); break;
     case 'pannello': l = [...legni, ...MATERIALI.filter((m) => m.categoria === 'encimera'), ...propri('pannello')]; break;
     case 'zoccolo': l = MATERIALI.filter((m) => m.categoria === 'zoccolo'); break;
-    case 'oggetti': l = propri('oggetti'); break;
+    case 'oggetti': l = [...MATERIALI.filter((m) => m.categoria === 'oggetto' && !m.proprio), ...propri('oggetti')]; break;
     case 'maniglie': l = MATERIALI.filter((m) => m.categoria === 'maniglia'); break;
     case 'binari': l = MATERIALI.filter((m) => m.categoria === 'binario'); break;
     default: l = [];
