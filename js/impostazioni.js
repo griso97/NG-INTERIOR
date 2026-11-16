@@ -8,13 +8,13 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261117l';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261117l';
-import { anteprimaOggetto, riconosciViste, vistaScambiata } from './oggetto3d.js?v=20261117l';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261117l';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261117l';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261117l';
-import { agganciaTema } from './tema.js?v=20261117l';
+} from './catalogo.js?v=20261117m';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261117m';
+import { anteprimaOggetto, riconosciViste, vistaScambiata } from './oggetto3d.js?v=20261117m';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261117m';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261117m';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261117m';
+import { agganciaTema } from './tema.js?v=20261117m';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -965,22 +965,34 @@ function apriSchedaOggetto(p) {
     for (const k of [da, a]) { if (!imgs[k]) delete imgs[k]; cambiate.add(k); }
   };
   /** Riconosce le viste e rimette ogni foto nella casella giusta (lo dice). */
-  const riconosci = () => {
+  // RICONOSCIMENTO (solo con "Carica tutte le foto insieme"): sposta SOLO le foto
+  // appena aggiunte (nuove) e solo in caselle libere o tenute da altre foto nuove;
+  // le foto che c'erano già restano dove sono. Nessuna foto si perde.
+  const riconosci = (nuove = new Set()) => {
     const r = riconosciViste(imgs);
-    if (!r) { avviso(''); return; }
+    if (!r || !nuove.size) { avviso(''); return; }
+    const fisse = VISTE_OGG.map((x) => x.id).filter((k) => imgs[k] && !nuove.has(k));
+    const mosse = [];
     const vecchie = { ...imgs }, vecchiCol = { ...colori };
-    for (const k of VISTE_OGG.map((x) => x.id)) { delete imgs[k]; delete colori[k]; }
-    for (const [dest, orig] of Object.entries(r.mappa)) { imgs[dest] = vecchie[orig]; colori[dest] = vecchiCol[orig]; }
-    // nessuna foto si perde: quelle non riconosciute vanno in una casella libera
-    for (const k of Object.keys(vecchie)) {
-      if (!vecchie[k] || Object.values(imgs).includes(vecchie[k])) continue;
-      const libera = imgs[k] ? VISTE_OGG.map((x) => x.id).find((q) => !imgs[q]) : k;
-      if (libera) { imgs[libera] = vecchie[k]; colori[libera] = vecchiCol[k]; }
+    const nuovoImgs = {}, nuovoCol = {};
+    for (const k of fisse) { nuovoImgs[k] = vecchie[k]; nuovoCol[k] = vecchiCol[k]; }
+    for (const [dest, orig] of Object.entries(r.mappa)) {
+      if (!nuove.has(orig) || nuovoImgs[dest]) continue;        // si muovono solo le nuove, in caselle libere
+      nuovoImgs[dest] = vecchie[orig]; nuovoCol[dest] = vecchiCol[orig];
+      if (dest !== orig) mosse.push([dest, orig]);
     }
+    for (const k of nuove) {                                     // nuove non sistemate: dove sono o nella prima libera
+      if (Object.values(nuovoImgs).includes(vecchie[k])) continue;
+      const libera = !nuovoImgs[k] ? k : VISTE_OGG.map((x) => x.id).find((q) => !nuovoImgs[q]);
+      if (libera) { nuovoImgs[libera] = vecchie[k]; nuovoCol[libera] = vecchiCol[k]; }
+    }
+    for (const k of VISTE_OGG.map((x) => x.id)) { delete imgs[k]; delete colori[k]; if (nuovoImgs[k]) { imgs[k] = nuovoImgs[k]; colori[k] = nuovoCol[k]; } }
     for (const k of VISTE_OGG.map((x) => x.id)) if (vecchie[k] !== imgs[k]) cambiate.add(k);
-    const frasi = Object.entries(r.cambi).map(([dest, orig]) => `${tr('la foto messa in')} «${tr(NOMI_VISTA[orig])}» ${tr('è')} «${tr(NOMI_VISTA[dest])}»`);
+    if (!mosse.length) { avviso(''); return; }
+    const frasi = mosse.map(([dest, orig]) => `${tr('la foto messa in')} «${tr(NOMI_VISTA[orig])}» ${tr('è')} «${tr(NOMI_VISTA[dest])}»`);
     avviso(`✓ ${tr('Ho riconosciuto le viste')}: ${frasi.join('; ')}. ${tr('Se è sbagliato, correggi con «Questa foto è».')}`);
   };
+
   const carica = async (f, v) => {
     const im = await caricaImmagine(f).catch(() => null);
     if (!im) { errore(tr('Non riesco ad aprire questa foto. Prova con un JPG o PNG.')); return false; }
@@ -1010,8 +1022,9 @@ function apriSchedaOggetto(p) {
     const files = [...(e.target.files || [])].slice(0, 4); if (!files.length) return;
     corpo.querySelector('#f-err').hidden = true;
     const libere = VISTE_OGG.map((x) => x.id).filter((k) => !imgs[k]);
-    for (const f of files) { const v = libere.shift() || 'dietro'; await carica(f, v); }
-    riconosci(); mostraTutte(); anteprima();
+    const nuove = new Set();
+    for (const f of files) { const v = libere.shift(); if (!v) break; if (await carica(f, v)) nuove.add(v); }
+    riconosci(nuove); mostraTutte(); anteprima();
     e.target.value = '';
   });
   corpo.querySelectorAll('[data-pianta]').forEach((b) => b.addEventListener('click', () => {
