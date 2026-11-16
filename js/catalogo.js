@@ -20,7 +20,8 @@ export const SEZIONI = [
   { id: 'pannello',   nome: 'Pannello dietro il piano', desc: 'Materiali per il pannello tra piano di lavoro e pensili. Prende in automatico legni, colori ed encimere.' },
   { id: 'zoccolo',    nome: 'Zoccoli',                  desc: 'Colori e materiali dello zoccolo della cucina.' },
   { id: 'maniglie',   nome: 'Maniglie',                 desc: 'Maniglie applicate alle ante quando si sceglie la maniglia.' },
-  { id: 'oggetti',    nome: 'Oggetti ed elettrodomestici', desc: 'Friggitrici, microonde, macchine del caffè, vasi…: dalle foto (davanti, lato, sopra, dietro) il sito isola l\'oggetto e crea il suo 3D da mettere in cucina.' },
+  { id: 'binari',     nome: 'Binari',                   desc: 'Colori dei binari degli armadi scorrevoli.' },
+  { id: 'oggetti',   nome: 'Oggetti ed elettrodomestici', desc: 'Friggitrici, microonde, macchine del caffè, vasi…: dalle foto (davanti, lato, sopra, dietro) il sito isola l\'oggetto e crea il suo 3D da mettere in cucina.' },
 ];
 
 const DB = 'ng-catalogo', STORE = 'kv', VERSIONE = 1;

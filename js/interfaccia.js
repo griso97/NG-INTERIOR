@@ -6,7 +6,7 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch } from './materiali.js?v=20261116l';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261116m';
 
 export function configDefault() {
   return {
@@ -29,6 +29,7 @@ export function configDefault() {
     scorrevole: {
       anteModulo: 2, // ante per modulo (default: 2, scorrono una davanti all'altra)
       binario: 75,   // 75 default, oppure 85
+      coloreBinario: 'binario-grigio', // colore del binario (catalogo: Impostazioni → Binari)
     },
     cassettiere: [], // lista GLOBALE di cassettiere; ciascuna ha `moduli: [i,...]`
     tamponamenti: {
@@ -124,6 +125,7 @@ export function renderPannello(contenitore, config, onChange) {
           </select>
         </label>
       </div>
+      <div id="sc-colore-bin">${coloriBinario(config)}</div>
       <p class="hint">Default: 2 ante per modulo, scorrono una davanti all'altra. Il binario non entra nella distinta (è a parte).</p>
       <p class="hint">Formula ante: larghezza = <code>Lm − 25</code>, altezza = <code>H − 47</code>.</p>
     </section>
@@ -251,6 +253,16 @@ export function renderPannello(contenitore, config, onChange) {
     config.scorrevole.binario = (v === 85) ? 85 : 75;
     onChange(config);
   }, 'change');
+  // Colore del binario (catalogo: Impostazioni → Binari)
+  const attaccaColoreBinario = () => {
+    contenitore.querySelectorAll('[data-bin]').forEach((btn) => btn.addEventListener('click', () => {
+      config.scorrevole.coloreBinario = btn.dataset.bin;
+      const box = contenitore.querySelector('#sc-colore-bin');
+      if (box) { box.innerHTML = coloriBinario(config); attaccaColoreBinario(); }
+      onChange(config);
+    }));
+  };
+  attaccaColoreBinario();
 
   bind('#n-moduli', (e) => {
     const n = Math.max(1, Math.min(10, Math.round(Number(e.target.value) || 1)));
@@ -791,6 +803,21 @@ function renderMateriali(config) {
       </details>
     `;
   }).join('') + cardManiglie(config);
+}
+
+/** Colore del binario degli scorrevoli: i colori del catalogo (sezione Binari). */
+function coloriBinario(config) {
+  const lista = materialiPer('binari');
+  if (!lista.length) return '';
+  const sel = lista.some((m) => m.id === config.scorrevole?.coloreBinario)
+    ? config.scorrevole.coloreBinario : (lista.find((m) => m.id === BINARIO_DEFAULT) || lista[0]).id;
+  return `
+      <span class="mat-parte">Colore del binario</span>
+      <div class="mat-grid bin-grid">
+        ${lista.map((m) => `
+          <button type="button" class="mat-swatch ${m.id === sel ? 'sel' : ''}" data-bin="${m.id}" title="${m.nome}">
+            <span class="man-tessera" style="background:${sfondoSwatch(m)}"></span><span>${m.nome}</span></button>`).join('')}
+      </div>`;
 }
 
 /** Maniglie delle ante (catalogo, come in cucina): nessuna = ante lisce. */

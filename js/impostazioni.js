@@ -8,18 +8,18 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261116l';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261116l';
-import { anteprimaOggetto, riconosciViste } from './oggetto3d.js?v=20261116l';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261116l';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261116l';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261116l';
-import { agganciaTema } from './tema.js?v=20261116l';
+} from './catalogo.js?v=20261116m';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261116m';
+import { anteprimaOggetto, riconosciViste } from './oggetto3d.js?v=20261116m';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261116m';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261116m';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261116m';
+import { agganciaTema } from './tema.js?v=20261116m';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
 // Sezioni dove si possono già aggiungere prodotti da foto
-const CON_AGGIUNTA = ['legno', 'fingerpull', 'encimera', 'pannello', 'zoccolo', 'maniglie', 'oggetti'];
+const CON_AGGIUNTA = ['legno', 'fingerpull', 'encimera', 'pannello', 'zoccolo', 'maniglie', 'binari', 'oggetti'];
 
 let stato = await leggiCatalogo();
 let sezione = (location.hash || '').slice(1);

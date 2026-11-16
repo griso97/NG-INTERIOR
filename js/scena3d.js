@@ -12,11 +12,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI } from './materiali.js?v=20261116l';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261116l';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261116l';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261116m';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261116m';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261116m';
 import { sfondoDi } from './sfondi.js?v=20261111b';
-import { creaResa, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261116l';
+import { creaResa, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261116m';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -74,10 +74,12 @@ let porteAperte = false;     // toggle: false = chiuse, true = aperte
 let floorMesh, gridMesh;     // pavimento + griglia (per cambiare sfondo)
 let sfondoAttuale = null;    // id sfondo applicato
 
-// Binario scorrevole: materiale metallico fisso (non è legno).
-const matBinario = new THREE.MeshStandardMaterial({
-  color: 0x5f5f5f, roughness: 0.55, metalness: 0.4,
-});
+// Binario scorrevole: colore dal catalogo (Impostazioni → Binari); grigio di partenza.
+function matBinarioDi(config) {
+  const id = config.scorrevole?.coloreBinario;
+  const ok = id && MATERIALI.some((m) => m.id === id && m.categoria === 'binario');
+  return getMaterialeTHREE(ok ? id : BINARIO_DEFAULT, () => { if (resa) resa.cambiato(); else renderer?.render(scene, camera); });
+}
 
 // Per le altre parti usiamo materiali derivati dalla config.materiali,
 // risolti al momento del render via getMaterialeTHREE().
@@ -924,6 +926,7 @@ function costruisciBinariGlobali(config) {
   const sC = config.spessoreCarcassa;
   const altBinSup = B * 0.6;
   const altBinInf = B * 0.4;
+  const matBinario = matBinarioDi(config);
   // Binario superiore (sotto il top)
   aggiungiBox(W, altBinSup, B,
     W / 2, H - sC - altBinSup / 2, D - B / 2,

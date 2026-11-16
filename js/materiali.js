@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261116l';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261116m';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -134,14 +134,22 @@ export const MATERIALI = [
   // ---- Maniglie ----
   { id: 'maniglia-standard', nome: 'Maniglia standard (barra)', categoria: 'maniglia', css: 'linear-gradient(135deg,#e2e3e6,#a9acb1)',
     colore: 0xcfcfcf, solido: true, roughness: 0.35, metalness: 0.6 },
+  // ---- Binari degli armadi scorrevoli (grigio = quello di sempre) ----
+  { id: 'binario-grigio', nome: 'Grigio', categoria: 'binario', css: 'linear-gradient(135deg,#7a7a7a,#4f4f4f)',
+    colore: 0x5f5f5f, solido: true, roughness: 0.55, metalness: 0.4 },
+  { id: 'binario-bianco', nome: 'Bianco', categoria: 'binario', css: 'linear-gradient(135deg,#f4f3ef,#d9d7d1)',
+    colore: 0xeceae4, solido: true, roughness: 0.5, metalness: 0.1 },
+  { id: 'binario-nero', nome: 'Nero', categoria: 'binario', css: 'linear-gradient(135deg,#2a2a2d,#111113)',
+    colore: 0x1b1b1d, solido: true, roughness: 0.5, metalness: 0.3 },
 ];
+export const BINARIO_DEFAULT = 'binario-grigio';
 
 // ---------------------------------------------------------------------------
 // CATALOGO della carpinteria (js/catalogo.js): prodotti aggiunti con foto,
 // prodotti nascosti per sezione, modifiche ai predefiniti.
 // ---------------------------------------------------------------------------
 let statoCatalogo = { prodotti: [], nascosti: {}, modifiche: {} };
-const CAT_DA_SEZIONE = { legno: 'legno', fingerpull: 'legno', encimera: 'encimera', pannello: 'legno', zoccolo: 'zoccolo', maniglie: 'maniglia', oggetti: 'oggetto' };
+const CAT_DA_SEZIONE = { legno: 'legno', fingerpull: 'legno', encimera: 'encimera', pannello: 'legno', zoccolo: 'zoccolo', maniglie: 'maniglia', oggetti: 'oggetto', binari: 'binario' };
 async function applicaCatalogo() {
   statoCatalogo = await leggiCatalogo();
   // prodotti salvati con un trattamento della foto più vecchio: la texture si
@@ -149,7 +157,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261116l');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261116m');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -286,6 +294,7 @@ export function materialiPer(sezione, { tutti = false } = {}) {
     case 'zoccolo': l = MATERIALI.filter((m) => m.categoria === 'zoccolo'); break;
     case 'oggetti': l = propri('oggetti'); break;
     case 'maniglie': l = MATERIALI.filter((m) => m.categoria === 'maniglia'); break;
+    case 'binari': l = MATERIALI.filter((m) => m.categoria === 'binario'); break;
     default: l = [];
   }
   return l.filter(vis);

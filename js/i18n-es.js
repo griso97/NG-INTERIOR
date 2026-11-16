@@ -1380,4 +1380,8 @@ window.NG_I18N_ES = {
   "Sviluppo la vista…": "Revelando la vista…",
   "Tocca per accendere o spegnere la vista realistica": "Toca para activar o desactivar la vista realista",
   "Il progetto viene calcolato come una foto vera: luce del giorno che entra da una finestra, luce che rimbalza su muri e pavimento, ombre morbide, riflessi, vetri e LED veri. Alla fine un'intelligenza artificiale toglie la grana. Si usa l'inquadratura della vista 3D: sistemala prima come vuoi.": "El proyecto se calcula como una foto de verdad: luz del día que entra por una ventana, luz que rebota en paredes y suelo, sombras suaves, reflejos, cristales y LED reales. Al final una inteligencia artificial quita el grano. Se usa el encuadre de la vista 3D: colócalo antes como quieras.",
+ "Binari": "Carriles",
+ "Colori dei binari degli armadi scorrevoli.": "Colores de los carriles de los armarios correderos.",
+ "Colore del binario": "Color del carril",
+ "Grigio": "Gris",
 };
