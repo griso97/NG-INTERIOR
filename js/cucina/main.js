@@ -17,19 +17,19 @@ import {
   rimuoviModuloBase, rimuoviFascia,
   spostaModulo, problemiIngombri, problemiMobiliLiberi,
   ruotaPianta, specchiaPianta, inverteAngolo,
-  toggleParete, muroTolto, snap, liberoPareti, generaPensiliAuto, generaPonteAuto, riorientaMobili,
+  toggleParete, muroTolto, snap, liberoPareti, generaPensiliAuto, generaPonteAuto, spessorePannelloPonte, riorientaMobili,
   spaziTraMobili, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo, inserisciInAngolo, mettiNelVano,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro, rotazioneAutomatica, migraRotazioni,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261116r';
-import { renderPianta } from './pianta.js?v=20261116r';
-import { calcolaDistintaCucina } from './distinta.js?v=20261116r';
+} from './modello.js?v=20261116s';
+import { renderPianta } from './pianta.js?v=20261116s';
+import { calcolaDistintaCucina } from './distinta.js?v=20261116s';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261116r';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116r';
+import { agganciaTema } from '../tema.js?v=20261116s';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116s';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -640,6 +640,15 @@ function renderPannelloModuli() {
         ${[240, 360, 480, 600].map((h) => `<button class="btn-oro ponte-auto" type="button" data-h="${h}">${h / 10}</button>`).join('')}
       </div>
       <div class="riga-3d" style="margin-top:8px">Sotto il ponte puoi mettere anche i pensili (Auto 70/90 o a mano): si attaccano da soli sotto il ponte.</div>
+      <div class="riga-3d" style="margin:12px 0 6px"><strong>Pannello sotto il ponte</strong>: copre il fondo dei moduli profondi, per tutta la fila, sopra i pensili piccoli. Va nella lista dei pezzi.</div>
+      <div class="opzioni-anta">
+        <button type="button" class="btn-ghost opt-pponte ${(progetto.pannelloPonte || {}).attivo !== false ? 'attivo' : ''}" data-pponte="si">${(progetto.pannelloPonte || {}).attivo !== false ? '✓ ' : ''}Sì</button>
+        <button type="button" class="btn-ghost opt-pponte ${(progetto.pannelloPonte || {}).attivo === false ? 'attivo' : ''}" data-pponte="no">${(progetto.pannelloPonte || {}).attivo === false ? '✓ ' : ''}No</button>
+      </div>
+      ${(progetto.pannelloPonte || {}).attivo !== false ? `
+      <div class="ra-campi" style="margin-top:8px">
+        <label>Spessore pannello (mm)<input id="pponte-sp" type="number" value="${spessorePannelloPonte(progetto)}" min="5" step="1" inputmode="numeric"></label>
+      </div>` : ''}
     </section>` : ''}
 
     ${livello === 'alto' ? `
@@ -812,6 +821,18 @@ function attaccaEventiStep2() {
     if (n === 0) alert('Aggiungi prima i mobili bassi: i pensili vengono creati sopra le basi.');
   };
   document.getElementById('auto-70')?.addEventListener('click', () => autoPensili(700));
+  pannello.querySelectorAll('.opt-pponte').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    progetto.pannelloPonte = { ...(progetto.pannelloPonte || {}), attivo: b.dataset.pponte === 'si' };
+    aggiorna();
+  }));
+  document.getElementById('pponte-sp')?.addEventListener('change', (e) => {
+    const v = Math.round(Number(e.target.value));
+    if (!(v >= 5)) return;
+    registraStoria();
+    progetto.pannelloPonte = { ...(progetto.pannelloPonte || {}), attivo: true, spessore: v };
+    aggiorna();
+  });
   pannello.querySelectorAll('.ponte-auto').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     const n = generaPonteAuto(progetto, Number(b.dataset.h));
@@ -1268,7 +1289,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116r');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116s');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1930,13 +1951,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116r');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116s');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116r'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116s'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

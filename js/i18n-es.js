@@ -1420,4 +1420,9 @@ window.NG_I18N_ES = {
  "Puoi cambiare tipo quando vuoi dalla Pianta.": "Puedes cambiar el tipo cuando quieras desde la Planta.",
  "Metti prima le basi e, ai due lati, le colonne (o i costadi alti): il ponte va sopra le basi che stanno fra loro.": "Coloca primero los bajos y, a los dos lados, las columnas (o los costados altos): el puente va sobre los bajos que quedan entre ellas.",
  "Ponte: che misura?": "Puente: ¿qué medida?",
+ "Pannello sotto il ponte": "Panel bajo el puente",
+ "Pannello sotto ponte": "Panel bajo el puente",
+ "Pannello sotto ponte (oltre 2800: da giuntare)": "Panel bajo el puente (más de 2800: a empalmar)",
+ "Spessore pannello (mm)": "Grosor del panel (mm)",
+ ": copre il fondo dei moduli profondi, per tutta la fila, sopra i pensili piccoli. Va nella lista dei pezzi.": ": cubre el fondo de los módulos profundos, en toda la fila, sobre los altos pequeños. Va en la lista de piezas.",
 };

@@ -11,16 +11,16 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111x';
 import {
-  calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, anteDiMobile, portaBassaColonna, frontiCassetti,
+  calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261116r';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116r';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261116r';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116r';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116r';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116r';
+} from './modello.js?v=20261116s';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116s';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261116s';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116s';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116s';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116s';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116r';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116s';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -116,7 +116,8 @@ function fondoPonteSopra(progetto, m, q) {
   let fondo = null;
   for (const o of (progetto.mobiliLiberi || [])) {
     if (o.id === m.id || categoriaTipo(o.tipo) !== 'altillo' || !siSovrappongono(m, o)) continue;
-    const b = baseAltillo(progetto, o, q.topLine, q.cimaAlta, q.scelta);
+    // sotto il ponte c'è il PANNELLO che ne copre il fondo: il pensile va sotto di lui
+    const b = baseAltillo(progetto, o, q.topLine, q.cimaAlta, q.scelta) - (o.tipo === 'ponte' ? spessorePannelloPonte(progetto) : 0);
     fondo = fondo == null ? b : Math.min(fondo, b);
   }
   return fondo;
@@ -2125,7 +2126,8 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const gA = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matColonna || matPensile);
       cimeAlte.set(m.id, base + h);
       // PONTE senza pensili sotto: i LED (se accesi) vanno sotto il ponte, sul piano
-      if (m.tipo === 'ponte' && progetto.led && progetto.led.attivo
+      // (con il pannello sotto il ponte li porta lui, più in basso)
+      if (m.tipo === 'ponte' && progetto.led && progetto.led.attivo && !spessorePannelloPonte(progetto)
         && !(progetto.mobiliLiberi || []).some((o) => categoriaTipo(o.tipo) === 'pensile' && siSovrappongono(o, m))) {
         aggiungiLedPensile(gA, dim.w, h, dim.d, progetto.led.colore, 0);
       }
@@ -2213,6 +2215,26 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       }
     }
     if (g3d) { g3d.userData.mobId = m.id; if (m.id === selId) evidenzia(g3d); gruppo.add(g3d); }
+  }
+
+  // PANNELLO SOTTO IL PONTE: copre il fondo dei moduli del ponte, per tutta la
+  // fila, sopra i pensili piccoli; colore del ponte. Con i LED accesi e senza
+  // pensili sotto, la luce sta sotto il pannello.
+  {
+    const spP = spessorePannelloPonte(progetto);
+    const q = { topLine, cimaAlta, scelta: cimaScelta };
+    for (const f of pannelliSottoPonte(progetto)) {
+      const pz = f.ids.map((id) => (progetto.mobiliLiberi || []).find((o) => o.id === id)).filter(Boolean);
+      if (!pz.length) continue;
+      const fondo = Math.min(...pz.map((o) => baseAltillo(progetto, o, q.topLine, q.cimaAlta, q.scelta)));
+      const primo = pz[0];
+      const mat = (primo.coloreFronte ? getMaterialeTHREE(primo.coloreFronte, reRender) : null) || matColonna || matPensile || COL.anta;
+      const gP = new THREE.Group();
+      gP.add(corpo(f.w, spP, f.d, mat));
+      const conPensili = (progetto.mobiliLiberi || []).some((o) => categoriaTipo(o.tipo) === 'pensile' && pz.some((p) => siSovrappongono(o, p)));
+      if (progetto.led && progetto.led.attivo && !conPensili) aggiungiLedPensile(gP, f.w, spP, f.d, progetto.led.colore, 0);
+      gruppo.add(collocaMobile(gP, f.x, fondo - spP, -f.y, spP, f.rot));
+    }
   }
 
   // CIERRE A TECHO: segue il fronte dei mobili (colonne a filo colonne, pensili a

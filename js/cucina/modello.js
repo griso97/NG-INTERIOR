@@ -1211,6 +1211,48 @@ export function generaPonteAuto(progetto, altezza) {
   progetto.mobiliLiberi.push(...nuovi);
   return nuovi.length;
 }
+/** Spessore del PANNELLO SOTTO IL PONTE (0 = niente pannello). */
+export function spessorePannelloPonte(progetto) {
+  const p = progetto.pannelloPonte || {};
+  if (p.attivo === false) return 0;
+  return Math.max(5, Math.round(Number(p.spessore) || 18));
+}
+/**
+ * PANNELLO SOTTO IL PONTE: un pannello orizzontale che copre il fondo dei
+ * moduli del ponte (profondi 60), sopra i pensili piccoli, per tutta la fila.
+ * Una fila = moduli del ponte attaccati, stessa rotazione e stessa linea.
+ * Ritorna [{ x, y, rot, w, d, ids }] (centro in pianta, w lungo la fila).
+ */
+export function pannelliSottoPonte(progetto) {
+  if (!spessorePannelloPonte(progetto)) return [];
+  const ponti = (progetto.mobiliLiberi || []).filter((m) => m.tipo === 'ponte');
+  const gruppi = [];
+  for (const m of ponti) {
+    const rot = ((Math.round((m.rot || 0) / 90) * 90) % 360 + 360) % 360, r = rot * Math.PI / 180;
+    const ax = Math.round(Math.cos(r)), ay = Math.round(Math.sin(r)), fx = -Math.round(Math.sin(r)), fy = -Math.round(Math.cos(r));
+    const d = dimMobile(m);
+    const lungo = m.x * ax + m.y * ay, perp = m.x * fx + m.y * fy;
+    let g = gruppi.find((G) => G.rot === rot && Math.abs(G.perp - perp) < 40);
+    if (!g) { g = { rot, ax, ay, fx, fy, perp, pezzi: [] }; gruppi.push(g); }
+    g.pezzi.push({ id: m.id, a0: lungo - d.w / 2, a1: lungo + d.w / 2, d: d.d });
+  }
+  const out = [];
+  for (const g of gruppi) {
+    g.pezzi.sort((p, q) => p.a0 - q.a0);
+    let fila = null;
+    const chiudi = () => {
+      if (!fila) return;
+      const c = (fila.a0 + fila.a1) / 2;
+      out.push({ x: c * g.ax + g.perp * g.fx, y: c * g.ay + g.perp * g.fy, rot: g.rot, w: Math.round(fila.a1 - fila.a0), d: fila.d, ids: fila.ids });
+    };
+    for (const p of g.pezzi) {
+      if (fila && p.a0 - fila.a1 <= 5) { fila.a1 = Math.max(fila.a1, p.a1); fila.d = Math.max(fila.d, p.d); fila.ids.push(p.id); }
+      else { chiudi(); fila = { a0: p.a0, a1: p.a1, d: p.d, ids: [p.id] }; }
+    }
+    chiudi();
+  }
+  return out;
+}
 export function ruotaMobileLibero(progetto, id) {
   const m = trovaMobileLibero(progetto, id);
   if (!m) return;

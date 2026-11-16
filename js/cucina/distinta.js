@@ -12,8 +12,8 @@
 // =============================================================================
 
 import {
-  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho,
-} from './modello.js?v=20261116r';
+  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte,
+} from './modello.js?v=20261116s';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -318,6 +318,16 @@ export function calcolaDistintaCucina(progetto) {
         : f.lunghezza > 2800 ? 'Cierre a techo (fascia, oltre 2800: da giuntare)' : 'Cierre a techo (fascia)',
         larghezza: f.lunghezza, altezza: Math.max(20, Math.round(Number(ct.altezza) || 300)), spessore: SP, materiale: 'anta',
         materialeNome: nomeMateriale(f.gruppo === 'pensile' ? col.pensile : col.colonna, 'Colore da scegliere'), quantita: 1 });
+    }
+  }
+  // PANNELLO SOTTO IL PONTE: uno per fila di ponte, lungo quanto la fila, profondo come il ponte
+  {
+    const spP = spessorePannelloPonte(progetto), col = progetto.coloriFronti || {};
+    for (const f of pannelliSottoPonte(progetto)) {
+      const primo = (progetto.mobiliLiberi || []).find((o) => o.id === f.ids[0]);
+      raw.push({ nome: f.w > 2800 ? 'Pannello sotto ponte (oltre 2800: da giuntare)' : 'Pannello sotto ponte',
+        larghezza: f.w, altezza: Math.round(f.d), spessore: spP, materiale: 'anta',
+        materialeNome: nomeMateriale((primo && primo.coloreFronte) || col.colonna || col.pensile, 'Colore da scegliere'), quantita: 1 });
     }
   }
   const aggMap = new Map();
