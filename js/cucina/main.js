@@ -10,7 +10,7 @@ import {
   progettoDefault, TIPOLOGIE,
   applicaPreset, aggiungiParete, rimuoviParete,
   TIPI_MODULO_BASE, CATALOGO_MOBILI, LARGHEZZE_BASE, nomeTipo,
-  infoTipo, altezzeTipo, campiMobile, descrizioneMobile, categoriaTipo, livelloDiMobile,
+  infoTipo, altezzeTipo, campiMobile, descrizioneMobile, categoriaTipo, livelloDiMobile, frigoSottoAltillo,
   spazioLiberoParete, moduliDiParete,
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
@@ -23,12 +23,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261116n';
-import { renderPianta } from './pianta.js?v=20261116n';
-import { calcolaDistintaCucina } from './distinta.js?v=20261116n';
+} from './modello.js?v=20261116o';
+import { renderPianta } from './pianta.js?v=20261116o';
+import { calcolaDistintaCucina } from './distinta.js?v=20261116o';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261116n';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116n';
+import { agganciaTema } from '../tema.js?v=20261116o';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116o';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -760,6 +760,7 @@ function attaccaEventiStep2() {
   const mobSel = trovaMobileLibero(progetto, step2.mobSelId);
   if (mobSel) {
     agganciaBaseAngolo(pannello, mobSel);
+    agganciaDistanzaFrigo(pannello, mobSel);
     // piano cottura / lavello anche sulla cassettiera (non solo sulla base con ante)
     document.getElementById('mob-placca')?.addEventListener('click', () => {
       registraStoria(); mobSel.placca = !mobSel.placca; if (mobSel.placca) mobSel.lavello = false; aggiorna();
@@ -1195,7 +1196,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116n');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116o');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1305,6 +1306,7 @@ function renderPannelloModificaMobile(m) {
       <div class="riga-3d" style="margin-top:8px">Frontali (dall'alto): <strong>${alt.join(' · ')} mm</strong></div>
     </section>`;
     })() : ''}
+    ${htmlDistanzaFrigo(m)}
     ${puoAnte ? `
     <section class="step3-pannello">
       <h3>Ante del modulo</h3>
@@ -1456,6 +1458,7 @@ function renderPannelloModificaMobile(m) {
     <section class="actions">
       <button id="s3-indietro" class="btn-ghost" type="button" style="flex:1">← Moduli alti</button>
     </section>`;
+  agganciaDistanzaFrigo(pannello, m);
   pannello.querySelectorAll('.swatch[data-mat], .opt-piano[data-mat]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     if (costadoSingolo) { m.colore = b.dataset.mat; aggiorna(); return; }
@@ -1849,13 +1852,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116n');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116o');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116n'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116o'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -1865,6 +1868,57 @@ caricaMateriali().then((m) => {
   if (progetto.stepCorrente === 2) renderPalette();
   if (progetto.stepCorrente === 4) renderPannello();
 }).catch(() => {});
+
+/**
+ * MOBILE SOPRA FRIGO: "Distanza dal frigo". Cambiandola il mobile sale o
+ * scende, e TUTTI i moduli alti (pensili, altri mobili sopra frigo) vanno alla
+ * sua stessa cima. "Automatica" = a filo con i costadi / le colonne accanto.
+ */
+function htmlDistanzaFrigo(m) {
+  if (categoriaTipo(m.tipo) !== 'altillo') return '';
+  const fr = frigoSottoAltillo(progetto, m);
+  if (!fr) return `
+    <section class="step3-pannello">
+      <h3>Distanza dal frigo</h3>
+      <div class="riga-3d">Mettilo sopra un frigo per scegliere lo spazio tra il frigo e il mobile.</div>
+    </section>`;
+  const attuale = scena3dMod && scena3dMod.distanzaAltilloFrigo ? scena3dMod.distanzaAltilloFrigo(progetto, m) : null;
+  const val = m.distanzaFrigo_mm != null ? m.distanzaFrigo_mm : attuale;
+  return `
+    <section class="step3-pannello">
+      <h3>Distanza dal frigo</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Spazio tra la cima del frigo e il mobile. Se lo alzi o lo abbassi, <strong>tutti i moduli alti</strong> vanno alla stessa altezza.</div>
+      <div class="ra-campi">
+        <label>Distanza (mm)<input id="dist-frigo" type="number" placeholder="es. 20" value="${val != null ? val : ''}" min="0" step="5" inputmode="numeric"></label>
+      </div>
+      <div class="opzioni-anta" style="margin-top:8px">
+        <button type="button" class="btn-oro" id="dist-frigo-ok">Modifica distanza dal frigo</button>
+        <button type="button" class="btn-ghost ${m.distanzaFrigo_mm == null ? 'attivo' : ''}" id="dist-frigo-auto">${m.distanzaFrigo_mm == null ? '✓ ' : ''}Automatica</button>
+      </div>
+      <div class="riga-3d" style="margin-top:6px">${m.distanzaFrigo_mm == null
+        ? 'Automatica: la cima è a filo con i costadi o le colonne accanto.'
+        : `Scelta a mano: ${m.distanzaFrigo_mm} mm. «Automatica» lo rimette a filo con i costadi.`}</div>
+    </section>`;
+}
+function agganciaDistanzaFrigo(root, m) {
+  const inp = root.querySelector('#dist-frigo');
+  // distanza automatica attuale (la calcola la vista 3D, caricata se serve)
+  if (inp && !inp.value) caricaScena3d().then((mod) => {
+    const v = mod && mod.distanzaAltilloFrigo ? mod.distanzaAltilloFrigo(progetto, m) : null;
+    if (v != null && inp.isConnected && !inp.value) inp.value = v;
+  }).catch(() => {});
+  const applica = () => {
+    const v = Math.round(Number(String(inp.value).replace(',', '.')));
+    if (!Number.isFinite(v) || v < 0) { inp.focus(); return; }
+    registraStoria(); m.distanzaFrigo_mm = v; aggiorna();
+  };
+  root.querySelector('#dist-frigo-ok')?.addEventListener('click', applica);
+  inp?.addEventListener('keydown', (e) => { if (e.key === 'Enter') applica(); });
+  root.querySelector('#dist-frigo-auto')?.addEventListener('click', () => {
+    if (m.distanzaFrigo_mm == null) return;
+    registraStoria(); delete m.distanzaFrigo_mm; aggiorna();
+  });
+}
 
 function blocMobileSelezionato() {
   const m = trovaMobileLibero(progetto, step2.mobSelId);
@@ -1892,6 +1946,7 @@ function blocMobileSelezionato() {
         <button id="mob-elimina" class="btn-ghost" type="button">Elimina</button>
       </div>
       ${htmlBaseAngolo(m)}
+      ${htmlDistanzaFrigo(m)}
       ${(m.tipo === 'base-ante' || m.tipo === 'base-cassetti') ? `
       <div class="mob-azioni-grid" style="margin-top:8px">
         <button id="mob-placca" class="btn-ghost ${m.placca ? 'attivo' : ''}" type="button">${m.placca ? '✓ ' : ''}🔥 Piano cottura</button>

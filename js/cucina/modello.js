@@ -119,8 +119,10 @@ export const CATALOGO_MOBILI = [
     larghezze: [600, 700, 550], altezze: [1850, 1700, 1800, 2000], profondita: 600 },
   // Mobile sopra il frigo: la CIMA va a filo con la cosa alta accanto (costado,
   // colonna, pannello); l'altezza la scegli tu (es. 35 cm)
+  // Misure standard: 60 di larghezza, 35 o 45 di altezza, profondo come i mobili
+  // bassi (58 + anta = 60); tutte modificabili a mano
   { id: 'sopra-frigo',   nome: 'Mobile sopra frigo', categoria: 'altillo',
-    larghezze: [600, 700, 650], altezze: [350, 300, 400, 450, 500], profondita: 600 },
+    larghezze: [600], altezze: [350, 450], profondita: PROFONDITA_BASE },
   // Oggetti 3D (arredo/decor): non sono moduli, si posano liberamente.
   { id: 'sgabello',      nome: 'Sgabello bar', categoria: 'oggetto',
     larghezze: [527], altezze: [880], profondita: 430 },
@@ -184,7 +186,7 @@ export function campiMobile(tipoId) {
     return [
       { campo: 'larghezza_mm',  et: 'Larghezza (mm)', tipo: 'numero', min: 100, step: 10, opzioni: t.larghezze, default: 600 },
       { campo: 'altezza_mm',    et: 'Altezza (mm)', tipo: 'numero', min: 100, step: 10, opzioni: t.altezze, default: 350 },
-      { campo: 'profondita_mm', et: 'Profondità (mm)', tipo: 'numero', min: 200, step: 10, opzioni: [600, 350], default: 600 },
+      { campo: 'profondita_mm', et: 'Profondità con le ante (mm)', tipo: 'numero', min: 200, step: 10, opzioni: [PROFONDITA_BASE], default: PROFONDITA_BASE },
     ];
   }
   if (t.categoria === 'colonna') {
@@ -267,6 +269,24 @@ export function dimMobile(m) {
   if (cat === 'altillo') return { w: m.larghezza_mm || 600, d: m.profondita_mm || 600 };
   if (typeof m.tipo === 'string' && m.tipo.startsWith('ogg:')) return { w: m.larghezza_mm || 300, d: m.profondita_mm || profonditaTipo(m.tipo) };
   return { w: m.larghezza_mm, d: profonditaTipo(m.tipo) };
+}
+
+/**
+ * Il FRIGO che sta sotto il mobile sopra frigo (in pianta si sovrappongono),
+ * oppure null.
+ */
+export function frigoSottoAltillo(progetto, m) {
+  const box = (o) => { const d = dimMobile(o), rr = ((Math.round((o.rot || 0) / 90) * 90) % 180 + 180) % 180;
+    const hx = (rr === 0 ? d.w : d.d) / 2, hy = (rr === 0 ? d.d : d.w) / 2; return { x0: o.x - hx, x1: o.x + hx, y0: o.y - hy, y1: o.y + hy }; };
+  const A = box(m);
+  let best = null;
+  for (const o of (progetto.mobiliLiberi || [])) {
+    if (o.id === m.id || categoriaTipo(o.tipo) !== 'frigo') continue;
+    const B = box(o);
+    if (Math.max(B.x0 - A.x1, A.x0 - B.x1) < -20 && Math.max(B.y0 - A.y1, A.y0 - B.y1) < -20
+      && (!best || (o.altezza_mm || 1850) > (best.altezza_mm || 1850))) best = o;
+  }
+  return best;
 }
 
 /**
