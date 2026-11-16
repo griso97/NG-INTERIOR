@@ -10,11 +10,13 @@
 // =============================================================================
 
 const TIPI = {
-  cucina: { chiave: 'ng-cucina-progetto-v1', pagina: 'cucina.html', nome: 'Cucina', ico: '🍳' },
+  cucina: { chiave: 'ng-cucina-progetto-v1', pagina: 'cucina.html?tipo=normale', nome: 'Cucina', ico: '🍳' },
+  cucinaPonte: { chiave: 'ng-cucina-ponte-v1', pagina: 'cucina.html?tipo=ponte', nome: 'Cucina a ponte', ico: '🌉' },
   armadio: { chiave: 'ng-interior-configuratore-v1', pagina: 'configuratore.html', nome: 'Armadio', ico: '🚪' },
   modulari: { chiave: 'ng-modulari-v1', pagina: 'modulari.html', nome: 'Mobili modulari', ico: '🧩' },
 };
-const tipoPagina = /cucina\.html/.test(location.pathname) ? 'cucina'
+const _tipoCucinaUrl = new URLSearchParams(location.search).get('tipo');
+const tipoPagina = /cucina\.html/.test(location.pathname) ? (_tipoCucinaUrl === 'ponte' ? 'cucinaPonte' : _tipoCucinaUrl === 'normale' ? 'cucina' : null)
   : /configuratore\.html/.test(location.pathname) ? 'armadio'
   : /modulari\.html/.test(location.pathname) ? 'modulari' : null;
 const CHIAVE_CORRENTE = (tipo) => `ng-prev-corrente-${tipo}`;
@@ -79,6 +81,14 @@ async function salva(tipo, nome, comeNuovo) {
 async function apri(id) {
   const p = await leggiPreventivo(id);
   if (!p || !TIPI[p.tipo]) return;
+  // CUCINA A PONTE: una cucina normale si carica qui e diventa a ponte (copia:
+  // il preventivo della cucina normale resta com'è)
+  if (tipoPagina === 'cucinaPonte' && p.tipo === 'cucina') {
+    localStorage.setItem(TIPI.cucinaPonte.chiave, JSON.stringify({ ...p.dati, tipoCucina: 'ponte' }));
+    impostaCorrente('cucinaPonte', null);
+    location.reload();
+    return;
+  }
   localStorage.setItem(TIPI[p.tipo].chiave, JSON.stringify(p.dati));
   impostaCorrente(p.tipo, p.id);
   if (p.tipo === tipoPagina) location.reload();
@@ -196,8 +206,8 @@ async function finestraSalva() {
 }
 
 /** Finestra "I miei preventivi": cerca, apri, duplica, rinomina, elimina, copia su file. */
-async function finestraElenco(filtro = '') {
-  const lista = await elencoPreventivi();
+async function finestraElenco(filtro = '', opz = {}) {
+  const lista = (await elencoPreventivi()).filter((p) => !opz.soloCucine || p.tipo === 'cucina' || p.tipo === 'cucinaPonte');
   const aperto = tipoPagina ? correnteId(tipoPagina) : null;
   const box = apriFinestra(`
     <h2>📂 ${t('I miei preventivi')}</h2>
@@ -220,7 +230,7 @@ async function finestraElenco(filtro = '') {
         <div class="ngp-nome">${TIPI[p.tipo]?.ico || ''} <span data-no-i18n>${esc(p.nome)}</span></div>
         <div class="ngp-info">${t(TIPI[p.tipo]?.nome || p.tipo)} · ${t('salvato')} ${data(p.aggiornato)}${p.id === aperto ? ` · <strong>${t('aperto ora')}</strong>` : ''}</div>
         <div class="ngp-azioni">
-          <button type="button" class="ngp-apri" data-a="apri">${t('Apri')}</button>
+          <button type="button" class="ngp-apri" data-a="apri">${tipoPagina === 'cucinaPonte' && p.tipo === 'cucina' ? t('Apri come cucina a ponte') : t('Apri')}</button>
           <button type="button" data-a="duplica">${t('Duplica')}</button>
           <button type="button" data-a="rinomina">${t('Rinomina')}</button>
           <button type="button" class="ngp-del" data-a="elimina">${t('Elimina')}</button>
@@ -235,6 +245,7 @@ async function finestraElenco(filtro = '') {
     const id = b.closest('[data-id]').dataset.id, p = lista.find((x) => x.id === id); if (!p) return;
     const a = b.dataset.a;
     if (a === 'apri') {
+      if (tipoPagina === 'cucinaPonte' && p.tipo === 'cucina' && !confirm(t('Caricare questa cucina nella cucina a ponte? Il progetto a ponte aperto ora verrà sostituito; la cucina normale salvata resta com\'è.'))) return;
       if (tipoPagina && p.tipo === tipoPagina && aperto !== p.id && !confirm(t('Aprire questo preventivo? Il progetto aperto ora verrà sostituito (se non l\'hai salvato, salvalo prima).'))) return;
       return apri(p.id);
     }
@@ -261,10 +272,23 @@ async function finestraElenco(filtro = '') {
   });
   box.querySelector('#ngp-importa').addEventListener('change', async (e) => {
     const f = e.target.files && e.target.files[0]; if (!f) return;
-    try { const n = await importaFile(f); finestraElenco(cerca.value).then(() => {}); setTimeout(() => { const m = fondo.querySelector('#ngp-msg'); if (m) { m.hidden = false; m.className = 'ngp-msg'; m.textContent = `✓ ${t('Preventivi importati')}: ${n}`; } }, 50); }
+    try { const n = await importaFile(f); finestraElenco(cerca.value, opz).then(() => {}); setTimeout(() => { const m = fondo.querySelector('#ngp-msg'); if (m) { m.hidden = false; m.className = 'ngp-msg'; m.textContent = `✓ ${t('Preventivi importati')}: ${n}`; } }, 50); }
     catch (err) { avviso(err.message || t('Importazione non riuscita.'), true); }
   });
 }
+
+/** CUCINA A PONTE: prende la cucina normale aperta ora (anche non salvata) e la trasforma. */
+function prendiCucinaNormale() {
+  const dati = datiCorrenti('cucina');
+  if (!dati || !(dati.mobiliLiberi || []).length && !(dati.piano && dati.pianoConfermato)) {
+    alert(t('Nella cucina normale non c\'è ancora un progetto.')); return;
+  }
+  if (!confirm(t('Prendere la cucina normale aperta ora e trasformarla in cucina a ponte? Il progetto a ponte aperto ora verrà sostituito; la cucina normale resta com\'è.'))) return;
+  localStorage.setItem(TIPI.cucinaPonte.chiave, JSON.stringify({ ...dati, tipoCucina: 'ponte' }));
+  impostaCorrente('cucinaPonte', null);
+  location.reload();
+}
+if (typeof window !== 'undefined') window.NGPreventivi = { elenco: finestraElenco, prendiCucinaNormale };
 
 // --------------------------------------------------------------- pulsanti nell'intestazione
 function monta() {

@@ -24,12 +24,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261116s';
-import { renderPianta } from './pianta.js?v=20261116s';
-import { calcolaDistintaCucina } from './distinta.js?v=20261116s';
-import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261116s';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116s';
+} from './modello.js?v=20261116t';
+import { renderPianta } from './pianta.js?v=20261116t';
+import { calcolaDistintaCucina } from './distinta.js?v=20261116t';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261116t';
+import { agganciaTema } from '../tema.js?v=20261116t';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116t';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -39,46 +39,52 @@ if (!progetto.stepCorrente) progetto.stepCorrente = 1;
 if (progettoSalvato && progettoSalvato.piano) migraRotazioni(progettoSalvato);
 // Progetti salvati con versioni precedenti: completo i campi mancanti
 progetto = { ...progettoDefault(), ...progetto };
-// Progetti già iniziati prima della scelta del tipo: cucina normale
-if (!progetto.tipoCucina && (progetto.mobiliLiberi || []).length) progetto.tipoCucina = 'normale';
+// Due cucine separate: il tipo lo dice la pagina (cucina.html?tipo=normale / ?tipo=ponte)
+progetto.tipoCucina = MODO_CUCINA || 'normale';
 const cucinaPonte = () => progetto.tipoCucina === 'ponte';
 
 /**
- * SCELTA DEL TIPO DI CUCINA (all'inizio di un progetto nuovo): normale o a
- * ponte. La cucina a ponte è la stessa, con in più il PONTE (mobili profondi
- * fra le colonne). Si può cambiare quando si vuole dalla Pianta.
+ * SCHERMATA DI SCELTA (cucina.html senza tipo): Cucina normale o Cucina a
+ * ponte. Ognuna ha il SUO progetto in corso; la cucina a ponte può caricare un
+ * progetto di cucina normale e trasformarlo, senza rifarlo da zero.
  */
 function mostraSceltaTipoCucina() {
-  if (progetto.tipoCucina || document.getElementById('scelta-tipo-cucina')) return;
+  if (MODO_CUCINA || document.getElementById('scelta-tipo-cucina')) return;
   const t = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
   const ov = document.createElement('div');
   ov.id = 'scelta-tipo-cucina';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:var(--bg,#0d0d0d);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
   const card = (id, titolo, testo, svg) => `
-    <button type="button" data-tipocucina="${id}" style="flex:1 1 220px;max-width:300px;background:var(--bg-2,#151515);color:var(--testo,#eee);border:1px solid var(--oro,#c9a94a);border-radius:10px;padding:18px;cursor:pointer;text-align:left;font:inherit">
-      <svg viewBox="0 0 120 70" width="100%" height="90" fill="none" stroke="#c9a94a" stroke-width="2.5">${svg}</svg>
-      <div style="font-weight:700;font-size:18px;margin:10px 0 6px;color:var(--oro-chiaro,#e8c25a)">${t(titolo)}</div>
-      <div style="font-size:14px;line-height:1.4;opacity:.85">${t(testo)}</div>
-    </button>`;
+    <a href="./cucina.html?tipo=${id}" data-tipocucina="${id}" style="flex:1 1 240px;max-width:320px;background:var(--bg-2,#151515);color:var(--testo,#eee);border:1px solid var(--oro,#c9a94a);border-radius:12px;padding:20px;text-decoration:none;display:block">
+      <svg viewBox="0 0 120 70" width="100%" height="100" fill="none" stroke="#c9a94a" stroke-width="2.5">${svg}</svg>
+      <div style="font-weight:700;font-size:20px;margin:12px 0 6px;color:var(--oro-chiaro,#e8c25a)">${t(titolo)}</div>
+      <div style="font-size:14px;line-height:1.45;opacity:.85">${t(testo)}</div>
+      <div style="margin-top:12px;color:var(--oro,#c9a94a);font-weight:600">${t('Progetta →')}</div>
+    </a>`;
   ov.innerHTML = `
-    <div style="background:var(--bg,#0d0d0d);border:1px solid var(--bordo,#333);border-radius:12px;padding:20px;max-width:680px;width:100%">
-      <div style="letter-spacing:.2em;font-size:13px;color:var(--oro,#c9a94a);margin-bottom:6px">${t('NUOVA CUCINA')}</div>
-      <div style="font-size:20px;font-weight:700;margin-bottom:14px">${t('Che cucina vuoi progettare?')}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center">
-        ${card('normale', 'Cucina normale', 'Basi, pensili, colonne, isola e penisola: tutto quello che c\'è già.',
+    <div style="max-width:720px;width:100%">
+      <a href="./scegli.html" style="color:var(--oro,#c9a94a);text-decoration:none;font-size:14px">← ${t('Torna alla scelta')}</a>
+      <div style="letter-spacing:.2em;font-size:13px;color:var(--oro,#c9a94a);margin:14px 0 6px">${t('CUCINA')}</div>
+      <div style="font-size:22px;font-weight:700;margin-bottom:16px;color:var(--testo,#eee)">${t('Che cucina vuoi progettare?')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:center">
+        ${card('normale', 'Cucina normale', 'Basi, pensili, colonne, isola e penisola.',
           '<rect x="8" y="40" width="104" height="24"/><rect x="8" y="8" width="104" height="18"/><line x1="34" y1="40" x2="34" y2="64"/><line x1="60" y1="40" x2="60" y2="64"/><line x1="86" y1="40" x2="86" y2="64"/>')}
-        ${card('ponte', 'Cucina a ponte', 'Come la normale, più il PONTE: mobili profondi come le colonne, sopra le basi, fra due colonne.',
+        ${card('ponte', 'Cucina a ponte', 'Colonne ai lati e il PONTE sopra le basi. Puoi caricare una cucina normale già fatta e trasformarla.',
           '<rect x="6" y="6" width="22" height="58"/><rect x="92" y="6" width="22" height="58"/><rect x="28" y="6" width="64" height="14" fill="rgba(201,169,74,.25)"/><rect x="28" y="44" width="64" height="20"/><line x1="49" y1="44" x2="49" y2="64"/><line x1="70" y1="44" x2="70" y2="64"/><line x1="49" y1="6" x2="49" y2="20"/><line x1="70" y1="6" x2="70" y2="20"/>')}
       </div>
-      <div style="font-size:13px;opacity:.7;margin-top:12px;text-align:center">${t('Puoi cambiare tipo quando vuoi dalla Pianta.')}</div>
+      <div style="font-size:13px;opacity:.7;margin-top:14px;text-align:center;color:var(--testo,#eee)">${t('Ognuna ha il suo progetto: lavorare su una non cambia l\'altra.')}</div>
     </div>`;
-  ov.querySelectorAll('[data-tipocucina]').forEach((b) => b.addEventListener('click', () => {
-    progetto.tipoCucina = b.dataset.tipocucina;
-    ov.remove();
-    aggiorna();
-  }));
   document.body.appendChild(ov);
 }
+mostraSceltaTipoCucina();
+// intestazione: che cucina è + freccia indietro alla scelta
+(() => {
+  if (!MODO_CUCINA) return;
+  const sub = document.querySelector('.app-header .sottotitolo');
+  if (sub && MODO_CUCINA === 'ponte') sub.textContent = 'Progettazione cucina a ponte';
+  const back = document.querySelector('.app-header .back-link');
+  if (back) { back.href = './cucina.html'; back.title = 'Torna alla scelta della cucina'; }
+})();
 
 const pannello = document.getElementById('cucina-pannello');
 // NOME SOTTO OGNI MATERIALE (come negli armadi): ogni quadratino delle
@@ -319,14 +325,13 @@ document.querySelectorAll('#stepper .step').forEach((btn) => {
 // --------- RENDER PANNELLO SINISTRO — STEP 1 ---------
 function renderPannelloStep1() {
   pannello.innerHTML = `
+    ${cucinaPonte() ? `
     <section>
-      <h3>Tipo di cucina</h3>
-      <div class="opzioni-anta">
-        <button type="button" class="btn-ghost opt-tipocucina ${!cucinaPonte() ? 'attivo' : ''}" data-tipocucina="normale">${!cucinaPonte() ? '✓ ' : ''}Cucina normale</button>
-        <button type="button" class="btn-ghost opt-tipocucina ${cucinaPonte() ? 'attivo' : ''}" data-tipocucina="ponte">${cucinaPonte() ? '✓ ' : ''}Cucina a ponte</button>
-      </div>
-      ${cucinaPonte() ? '<div class="riga-3d" style="margin-top:6px">Nei Moduli alti trovi il <strong>Ponte</strong>: mobili profondi come le colonne, sopra le basi.</div>' : ''}
-    </section>
+      <h3>Carica progetto</h3>
+      <div class="riga-3d" style="margin-bottom:8px">Parti da una cucina già fatta: pareti, mobili, colori e misure restano tutti, poi aggiungi il <strong>ponte</strong> nei Moduli alti.</div>
+      <button type="button" id="ponte-carica-salvato" class="btn-oro" style="width:100%">📂 Carica un progetto salvato</button>
+      <button type="button" id="ponte-carica-normale" class="btn-ghost" style="width:100%;margin-top:6px">⇢ Prendi la cucina normale aperta ora</button>
+    </section>` : ''}
 
     <section>
       <h3>Tipologia</h3>
@@ -467,10 +472,8 @@ function renderRiepilogoStep1() {
 // --------- EVENTI PANNELLO ---------
 function attaccaEventiPannello() {
   // Preset tipologia
-  pannello.querySelectorAll('.opt-tipocucina').forEach((btn) => btn.addEventListener('click', () => {
-    if (progetto.tipoCucina === btn.dataset.tipocucina) return;
-    registraStoria(); progetto.tipoCucina = btn.dataset.tipocucina; aggiorna();
-  }));
+  document.getElementById('ponte-carica-salvato')?.addEventListener('click', () => window.NGPreventivi?.elenco('', { soloCucine: true }));
+  document.getElementById('ponte-carica-normale')?.addEventListener('click', () => window.NGPreventivi?.prendiCucinaNormale());
   pannello.querySelectorAll('.tipo-card').forEach((btn) => {
     btn.addEventListener('click', () => {
       registraStoria();
@@ -1289,7 +1292,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116s');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116t');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1884,7 +1887,6 @@ function aggiorna() {
   aggiornaBottoniStoria();
   if (typeof aggiornaBtnStampa === 'function') aggiornaBtnStampa();
   salvaProgetto(progetto);
-  mostraSceltaTipoCucina();
 }
 function aggiornaSoloDisegno() {
   // Durante l'input continuo (es. digitazione) non rirenderizzo il pannello
@@ -1951,13 +1953,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116s');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116t');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116s'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116t'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
