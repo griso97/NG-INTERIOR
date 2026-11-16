@@ -1012,7 +1012,8 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
  * ai muri, così si assesta rispettando tutto. Infine aggancio magnetico ai
  * mobili vicini, così si accostano combaciando senza lasciare spazio.
  */
-export function posizionaVincolata(progetto, m, x, y, libera = false) {
+export function posizionaVincolata(progetto, m, x, y, libera = false, info = null) {
+  if (info) info.bloccato = false;
   // Oggetti d'arredo (sgabelli, decor): posizione TOTALMENTE libera, si mettono
   // a mano dove si vuole — niente vincolo ai muri, niente respinta, niente
   // aggancio magnetico ai mobili.
@@ -1054,6 +1055,7 @@ export function posizionaVincolata(progetto, m, x, y, libera = false) {
       }
     }
     cand.sort((a, b) => Math.hypot(a.x - voluto.x, a.y - voluto.y) - Math.hypot(b.x - voluto.x, b.y - voluto.y));
+    if (!cand[0] && info) info.bloccato = true;       // non c'è posto: resta dov'era (chi chiama può avvisare)
     return cand[0] || { x: m.x, y: m.y };
   }
   return { x, y };
@@ -1425,7 +1427,13 @@ export function ruotaMobileLibero(progetto, id) {
  */
 export function anteDiMobile(m) {
   if (m.ante === 1 || m.ante === 2) return m.ante;
-  return (m.larghezza_mm || 600) >= 900 ? 2 : 1;
+  // DI DEFAULT: da 60 cm in su DUE ANTE (bassi e alti), sotto i 60 una.
+  // Fra 60 e 90 cm, se è già stato scelto il lato dell'anta singola (progetti fatti
+  // quando lì l'anta era una sola), resta UNA: non cambio quello che è stato deciso.
+  const w = m.larghezza_mm || 600;
+  if (w >= 900) return 2;
+  if (w >= 600) return m.antaLato ? 1 : 2;
+  return 1;
 }
 
 /**

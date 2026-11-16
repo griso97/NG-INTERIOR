@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra,
-} from './modello.js?v=20261118k';
+} from './modello.js?v=20261118l';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -157,7 +157,7 @@ function pezziDiModulo(progetto, m) {
       if (hp > 15) pz.push({ modulo: mod, nome: 'Pannello sotto forno', larghezza: round(L - 3), altezza: hp, spessore: SP, materiale: 'anta', quantita: 1 });
     } else {
       // base-ante / lavello
-      const N = m.tipo === 'lavello' ? (L >= 900 ? 2 : 1) : anteDiMobile(m);
+      const N = m.tipo === 'lavello' ? (L >= 600 ? 2 : 1) : anteDiMobile(m);
       anteModulo(pz, mod, L, H, N, m.antaLato, null, false, m.tipo === 'base-ante' ? m.vetrina : null);
       reglettaAngolo(pz, mod, progetto, m, H);
     }

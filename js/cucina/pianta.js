@@ -11,9 +11,15 @@ import {
   moduliDiParete, nomeTipo, PROFONDITA_BASE, PROFONDITA_PENSILE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
   dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili, angoloInternoVertice,
-} from './modello.js?v=20261118k';
+} from './modello.js?v=20261118l';
 
 const NS = 'http://www.w3.org/2000/svg';
+
+/** Mobile che arriva fino alla zona dei pensili (colonna, frigo, costado alto). */
+function arrivaInAlto(m) {
+  const cat = categoriaTipo(m.tipo);
+  return cat === 'colonna' || cat === 'frigo' || (cat === 'costado' && (m.altezza_mm || 0) > 1200);
+}
 const el = (tag, attrs = {}) => {
   const e = document.createElementNS(NS, tag);
   for (const [k, v] of Object.entries(attrs)) if (v !== null && v !== undefined) e.setAttribute(k, v);
@@ -211,6 +217,9 @@ export function renderPianta(svg, progetto, opts = {}) {
     (progetto.mobiliLiberi || []).forEach((m) => {
       // stampa: solo i livelli scelti (es. solo bassi), gli altri non si disegnano
       if (opts.livelliVisibili && !opts.livelliVisibili.includes(livelloDiMobile(m))) return;
+      // "Nascondi alti / bassi": l'altro livello non si disegna (così si vede bene cosa si fa).
+      // Colonne, frigo e costadi alti arrivano fin su: restano anche nascondendo i bassi.
+      if (opts.nascondiLivello && livelloDiMobile(m) === opts.nascondiLivello && !(opts.nascondiLivello === 'basso' && arrivaInAlto(m))) return;
       const bloccato = livelloAttivo !== null && livelloDiMobile(m) !== livelloAttivo;
       gMob.appendChild(renderMobileLibero(m, m.id === mobSelId, interattivo && !bloccato, bloccato));
     });

@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261118k';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261118k';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261118k';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118k';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118k';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118k';
+} from './modello.js?v=20261118l';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118l';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261118l';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118l';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118l';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118l';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118k';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118l';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1662,7 +1662,7 @@ function anteCieche(g, w, h, d, matAnta, cieco) {
   const doorCx = latoDx ? (-w / 2 + freeW / 2) : (w / 2 - freeW / 2);
   const blindCx = latoDx ? (w / 2 - coveredW / 2) : (-w / 2 + coveredW / 2);
   // Anta/e apribili sulla parte libera
-  const nAnte = freeW >= 900 ? 2 : 1;
+  const nAnte = freeW >= 600 ? 2 : 1;                // da 60 cm in su: due ante
   const uw = freeW - FUGA_W;
   const pw = (uw - (nAnte - 1) * GAP_ANTE) / nAnte;
   for (let i = 0; i < nAnte; i++) {
@@ -1746,13 +1746,13 @@ function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
   addBox(THK, legV, planeX, cornerY + dirVy * (FUGA_W + legV / 2));
 }
 
-// Colori LED per temperatura (K approssimativi): caldo ~3000K, medio ~4000K,
-// freddo ~6500K. Valori scelti per leggibilita' sul 3D, non riflettenti
-// perche' le strisce LED viste di sotto appaiono molto luminose.
+// Colori LED per temperatura, come li vede l'occhio in una cucina vera (bianchi, non colori):
+// caldo 3000K = bianco caldo dorato (non arancione), neutro 4000K = bianco pulito,
+// freddo 6500K = bianco luce del giorno (appena azzurrato, non blu).
 const LED_COLORI = {
-  caldo:  0xffb878,   // bianco caldo (giallo/ambra)
-  medio:  0xffe8c8,   // bianco neutro (crema)
-  freddo: 0xc8dcff,   // bianco freddo (azzurrino)
+  caldo:  0xffd8b6,   // 3000K (un filo verso il pesca: il chiaro forte tende al giallo)
+  medio:  0xfff6ec,   // 4000K (quello di prima sul pannello dietro)
+  freddo: 0xe6eeff,   // 6500K
 };
 
 /**
@@ -1782,17 +1782,14 @@ function aggiungiLedPensile(g, w, h, d, colore, avanti = 0) {
   // Come un LED vero: illumina VERSO IL BASSO (piano di lavoro) e un po' la
   // parete dietro, non di lato. Coni morbidi e limitati: niente "bruciato"
   // sui costadi e sui fianchi delle colonne vicine.
-  const spot = new THREE.SpotLight(hex, 5000, 2600, Math.PI / 3.6, 1.0, 1.0);
-  spot.position.set(0, -h / 2 - 6, zStrip + 10);
-  spot.target.position.set(0, -h / 2 - 1000, zStrip + 160);
+  // UNA luce per LED (prima erano due: con tanti pensili il computer doveva calcolare decine
+  // di luci per ogni pixel). Il cono, un po' più largo e appena inclinato verso il muro,
+  // illumina il piano di lavoro e fa il bagliore sul pannello dietro.
+  const spot = new THREE.SpotLight(hex, 4800, 2600, Math.PI / 3.2, 1.0, 1.0);
+  spot.position.set(0, -h / 2 - 6, zStrip + 30);
+  spot.target.position.set(0, -h / 2 - 1000, zStrip + 40);
   g.add(spot);
   g.add(spot.target);
-  // bagliore sulla parete/pannello dietro: cono stretto rivolto al muro
-  const muro = new THREE.SpotLight(hex, 1900, 1500, Math.PI / 4, 1.0, 1.0);
-  muro.position.set(0, -h / 2 - 10, zStrip + 40);
-  muro.target.position.set(0, -h / 2 - 500, -d / 2 - 200);
-  g.add(muro);
-  g.add(muro.target);
 }
 
 /**
@@ -1899,7 +1896,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   if (tipo === 'pensile-angolo-45') { pensileAngoloFronte(g, w, h, d, matAnta); return g; }
   if (cat === 'colonna') { colonnaFronte(g, w, h, d, m, matAnta); return g; }
   if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta, m.cassettoPiccolo_mm); return g; }
-  if (tipo === 'lavello') { ante(g, w, h, d, w >= 900 ? 2 : 1, matAnta); return g; } // lavello disegnato sopra il top
+  if (tipo === 'lavello') { ante(g, w, h, d, w >= 600 ? 2 : 1, matAnta); return g; } // lavello disegnato sopra il top
   if (tipo === 'lavastoviglie') { lavastoviglieFronte(g, w, h, d); return g; }
   if (cat === 'lavatrice') { lavatriceFronte(g, w, h, d); return g; }
   if (tipo === 'forno') { fronteForno(g, w, h, d, matAnta); return g; } // placca sopra il top
@@ -2365,6 +2362,8 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   for (const a of accessori) aggiungiAccessorioTop(a, progetto.finiture || {});
 
   uvInScala(gruppo);
+  // LED sotto i pensili: la loro luce tinge anche le foto (piano, pannello dietro, ante)
+  impostaTintaLed(progetto.led && progetto.led.attivo ? (LED_COLORI[progetto.led.colore] || LED_COLORI.caldo) : null);
   if (reframe) inquadra(bb, direzioneStanza(full, vertici));
   // OMBRE: tutto fa ombra (muri e pavimento la ricevono soltanto), inquadrate sulla cucina
   ombreSuTutto(gruppo, (o) => !!(o.userData.muroNormale || o.userData.pavimento));
@@ -2444,8 +2443,9 @@ function materialePerTop(mat) {
   if (!tex) {
     tex = mat.map.clone();
     tex.colorSpace = mat.map.colorSpace || THREE.SRGBColorSpace;
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.RepeatWrapping;
+    // stessa ripetizione della foto originale (a specchio per le lastre in scala vera)
+    tex.wrapS = mat.map.wrapS || THREE.RepeatWrapping;
+    tex.wrapT = mat.map.wrapT || THREE.RepeatWrapping;
     tex.anisotropy = mat.map.anisotropy || 4;
     tex.center.set(0.5, 0.5);
     tex.rotation = Math.PI / 2;

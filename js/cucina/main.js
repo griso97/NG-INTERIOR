@@ -11,7 +11,7 @@ import {
   applicaPreset, aggiungiParete, rimuoviParete,
   TIPI_MODULO_BASE, CATALOGO_MOBILI, LARGHEZZE_BASE, nomeTipo,
   infoTipo, altezzeTipo, campiMobile, descrizioneMobile, categoriaTipo, livelloDiMobile, frigoSottoAltillo,
-  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, togliAltiDentroColonne, spazioMancante, COLORI_FRIGO, pontiSopra, cambiaPensileSottoPonte,
+  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, togliAltiDentroColonne, spazioMancante, baseAMuro, COLORI_FRIGO, pontiSopra, cambiaPensileSottoPonte,
   spazioLiberoParete, moduliDiParete,
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
@@ -24,16 +24,19 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261118k';
-import { renderPianta } from './pianta.js?v=20261118k';
-import { calcolaDistintaCucina } from './distinta.js?v=20261118k';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261118k';
-import { agganciaTema } from '../tema.js?v=20261118k';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261118k';
+} from './modello.js?v=20261118l';
+import { renderPianta } from './pianta.js?v=20261118l';
+import { calcolaDistintaCucina } from './distinta.js?v=20261118l';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261118l';
+import { agganciaTema } from '../tema.js?v=20261118l';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261118l';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
 let progetto = progettoSalvato || progettoDefault();
+// Nascondi l'altro livello (alti mentre fai i bassi, bassi mentre fai gli alti): scelta di questo dispositivo
+const nascondiAltro = { basso: false, alto: false };
+try { Object.assign(nascondiAltro, JSON.parse(localStorage.getItem('ng-cucina-nascondi') || '{}')); } catch (_) { /* niente memoria: si parte tutto visibile */ }
 if (!progetto.stepCorrente) progetto.stepCorrente = 1;
 // Progetti di prima: i mobili girati a mano al centro tengono la rotazione
 if (progettoSalvato && progettoSalvato.piano) migraRotazioni(progettoSalvato);
@@ -1359,7 +1362,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261118k');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261118l');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1964,9 +1967,32 @@ function disegna() {
       anteprima: anteprimaML,
       interattivo: st === 2 || st === 3,
       livelloAttivo: (st === 2 || st === 3) ? livelloStep() : null,
+      nascondiLivello: (st === 2 || st === 3) && nascondiAltro[livelloStep()] ? (livelloStep() === 'basso' ? 'alto' : 'basso') : null,
     });
   }
+  aggiornaBottoneLivello();
 }
+// NASCONDI L'ALTRO LIVELLO: nei mobili bassi si possono nascondere gli alti, nei mobili alti i bassi
+// (per vedere bene cosa si sta facendo). La scelta resta su questo dispositivo.
+function aggiornaBottoneLivello() {
+  const b = document.getElementById('btn-altro-livello');
+  if (!b) return;
+  const st = progetto.stepCorrente;
+  b.hidden = !(st === 2 || st === 3);
+  if (b.hidden) return;
+  const liv = livelloStep(), nasc = !!nascondiAltro[liv];
+  const stato = liv + nasc;
+  if (b.dataset.stato === stato) return;          // testo già giusto (e già tradotto)
+  b.dataset.stato = stato;
+  b.textContent = liv === 'basso' ? (nasc ? '👁 Mostra alti' : '👁 Nascondi alti') : (nasc ? '👁 Mostra bassi' : '👁 Nascondi bassi');
+  b.classList.toggle('attivo', nasc);
+}
+document.getElementById('btn-altro-livello')?.addEventListener('click', () => {
+  const liv = livelloStep();
+  nascondiAltro[liv] = !nascondiAltro[liv];
+  try { localStorage.setItem('ng-cucina-nascondi', JSON.stringify(nascondiAltro)); } catch (_) { /* va bene anche senza */ }
+  disegna();
+});
 function aggiorna() {
   correggiLatoInterno(progetto);      // lato interno delle pareti sempre verso l'interno della forma
   riorientaMobili(progetto);          // ante sempre verso l'interno (a parete)
@@ -2048,13 +2074,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261118k');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261118l');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261118k'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261118l'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2776,8 +2802,9 @@ svg.addEventListener('pointermove', (e) => {
   const rot = (!libera && haFronte) ? rotazioneAutomatica(progetto, m, rx, ry) : null;
   const rotCambiata = rot !== null && rot !== m.rot;
   if (rotCambiata) m.rot = rot;
-  const v = posizionaVincolata(progetto, m, rx, ry, libera);
-  trascinamento.ultimo = { x: rx, y: ry, libera };                  // dove l'ha voluto il dito (per l'angolo)
+  const info = {};
+  const v = posizionaVincolata(progetto, m, rx, ry, libera, info);
+  trascinamento.ultimo = { x: rx, y: ry, libera, bloccato: info.bloccato };   // dove l'ha voluto il dito (per l'angolo)
   if (v.x !== m.x || v.y !== m.y || rotCambiata) {
     m.x = v.x; m.y = v.y;
     trascinamento.mosso = true;
@@ -2805,12 +2832,16 @@ const fineTrascinamento = () => {
   if (m && ult && !ult.libera) inserisciInAngolo(progetto, m, ult.x, ult.y);
   if (m) mettiNelVano(progetto, m);           // oggetto sopra una colonna con vano: dentro il vano
   if (m) { m.posManuale = true; step2.movePending = { id, prima }; }
-  // NON ENTRA: lasciato contro il muro ma finirebbe dentro un altro mobile → lo dico, con i cm che mancano
+  // NON ENTRA: lasciato contro il muro ma non c'è posto → lo dico, con i cm che mancano.
+  // Conta se il mobile ha trovato posto, non dove si è alzato il dito: lasciato un filo dentro
+  // l'angolo, un costado o il mobile vicino, si mette da solo accanto e va benissimo (niente avviso).
+  // Avviso solo se davvero non ci sta: nessun posto libero (resta dov'era), rimasto dentro un
+  // altro mobile, o spinto via dal muro dentro la stanza.
   if (m && ult && !ult.libera && !m.isola && categoriaTipo(m.tipo) !== 'oggetto') {
-    const manca = spazioMancante(progetto, m, ult.x, ult.y);
-    if (manca > 2 && Math.hypot(m.x - ult.x, m.y - ult.y) > 40) {
-      avvisoNonEntra(manca);
-    }
+    const mancaFine = spazioMancante(progetto, m, m.x, m.y);
+    const aMuroDito = baseAMuro(progetto, { ...m, x: ult.x, y: ult.y }), aMuroFine = baseAMuro(progetto, m);
+    if (mancaFine > 2) avvisoNonEntra(mancaFine);
+    else if (ult.bloccato || (aMuroDito && !aMuroFine)) { const manca = spazioMancante(progetto, m, ult.x, ult.y); if (manca > 2) avvisoNonEntra(manca); }
   }
   aggiorna();
 };

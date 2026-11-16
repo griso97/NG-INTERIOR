@@ -34,10 +34,16 @@ export function creaResa(opz) {
   // Da fermo: telefono a tutti i suoi pixel; COMPUTER al doppio dei pixel dello
   // schermo, poi rimpicciolito come una foto: bordi e ombre negli angoli puliti,
   // niente linee zigrinate (le ombre di contatto da sole non sono levigate).
-  const PIX_FERMO = 8e6;
+  // QUALITÀ DA FERMO SU MISURA DEL COMPUTER: il disegno nitido (da fermo) si misura da solo.
+  // Se su questo computer è lento (portatile, scheda grafica integrata) scende di un gradino
+  // (meno pixel, ombre di contatto più leggere) e se lo ricorda; se è velocissimo risale.
+  // Scheda grafica potente = qualità piena come prima.
+  const LIVELLI = [{ pix: 8e6, ao: 32 }, { pix: 4.5e6, ao: 24 }, { pix: 2.6e6, ao: 16 }, { pix: 0, ao: 12 }];
+  let livello = 0;
+  if (!tel) { try { livello = Math.min(LIVELLI.length - 1, Math.max(0, Number(localStorage.getItem('ng-3d-livello-fermo')) || 0)); } catch (_) { /* niente */ } }
   const areaCss = () => { const el = renderer.domElement; return Math.max(1, (el.clientWidth || el.width) * (el.clientHeight || el.height)); };
   const dprFermo = () => tel ? Math.min(DPR, 3)
-    : Math.max(Math.min(DPR, 1.5), Math.min(2, Math.sqrt(PIX_FERMO / areaCss())));
+    : Math.max(Math.min(DPR, 1.5), Math.min(2, Math.sqrt(LIVELLI[livello].pix / areaCss())));
   try { localStorage.removeItem('ng-3d-fluidita'); } catch (_) { /* niente */ }
   // COMPUTER, mentre si gira la vista: l'immagine resta SEMPRE nitida come
   // prima. Se la scheda grafica non sta al passo (lo misura da sola, e se lo
@@ -62,7 +68,7 @@ export function creaResa(opz) {
     const s = renderer.getDrawingBufferSize(new THREE.Vector2());
     ao = nuovoAO(s.x, s.y);
     // computer, disegno da fermo (una volta sola): più campioni, ombre di contatto più lisce
-    if (!tel) { ao.updateGtaoMaterial({ samples: 32 }); ao.updatePdMaterial({ samples: 32, rings: 4 }); }
+    if (!tel) campioniFermo();
     quad = new FullScreenQuad(ao.blendMaterial);
     if (!tel) {
       aoMoto = nuovoAO(s.x, s.y);                             // le sue memorie: niente memoria rifatta a ogni giro
@@ -93,6 +99,11 @@ export function creaResa(opz) {
     // le ombre di contatto si adattano da sole al primo disegno (disegna)
   }
 
+  function campioniFermo() {
+    if (!ao || tel) return;
+    const n = LIVELLI[livello].ao;
+    ao.updateGtaoMaterial({ samples: n }); ao.updatePdMaterial({ samples: n, rings: n >= 24 ? 4 : 3 });
+  }
   /** Ombre di contatto del movimento: 16 campioni per pixel, o 8 se la scheda grafica è lenta. */
   function campioniMoto() {
     if (!aoMoto) return;
@@ -138,8 +149,27 @@ export function creaResa(opz) {
     const ang = 2 * Math.acos(Math.min(1, Math.abs(q.dot(camera.quaternion))));
     return (ang + p.distanceTo(camera.position) / dist) / pxAng;
   }
+  // misura del disegno nitido (da fermo, computer): quanto ci mette davvero la scheda grafica
+  const _px = new Uint8Array(4);
+  let veloci = 0;
+  function misuraFermo(dt) {
+    let nuovo = livello;
+    if (dt > 170 && livello < LIVELLI.length - 1) { nuovo = livello + 1; veloci = 0; }
+    else if (dt < 45 && livello > 0) { if (++veloci >= 3) { nuovo = livello - 1; veloci = 0; } }
+    else veloci = 0;
+    if (nuovo === livello) return;
+    livello = nuovo; campioniFermo();
+    try { localStorage.setItem('ng-3d-livello-fermo', String(livello)); } catch (_) { /* niente */ }
+    if (nitido) { dimensiona(dprFermo()); sporco = true; }                 // il prossimo disegno nitido è più leggero
+  }
   function disegnaOra(leggero) {
-    disegna(leggero); sporco = false;
+    if (!leggero && !tel) {
+      const t0 = performance.now();
+      disegna(false);
+      try { const gl = renderer.getContext(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, _px); } catch (_) { /* niente */ }
+      misuraFermo(performance.now() - t0);
+    } else disegna(leggero);
+    sporco = false;
     posDis.copy(camera.position); quatDis.copy(camera.quaternion);
   }
 

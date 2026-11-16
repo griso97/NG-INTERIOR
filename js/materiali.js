@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118k';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118l';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -74,7 +74,7 @@ export const MATERIALI = [
   { id: 'sm-nuvola-01', nome: 'SM Nuvola 01', categoria: 'legno',
     thumb: 'materials/sm-nuvola-01-thumb.jpg',
     texture: 'materials/sm-nuvola-01.jpg', colore: 0xf0ece2,
-    campione: { wMm: 1240, hMm: 2750 }, nota: 'Alvic Zenit Nuvola 01 Supermate' },
+    campione: { wMm: 1240, hMm: 2750 }, marmo: true, nota: 'Alvic Zenit Nuvola 01 Supermate' },
   // ---- Tinte solide (matte e lucide) ----
   // OPACHI: superficie totalmente matte, tono un filo "schiarito/polveroso"
   // così lo stacco con il lucido è netto anche senza riflessi.
@@ -201,7 +201,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118k');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118l');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -363,6 +363,18 @@ const LUCE_FOTO = { value: 0.7 };   // luce di riferimento sui pannelli vertical
 const LUCE_PIANO = { value: 1.0 };  // luce di riferimento sui piani orizzontali (top)
 const CONTRASTO_FOTO = 0.6;         // quanto la luce scurisce/schiarisce (0 = piatto)
 const PARAM_FOTO = { roughness: 0.85, metalness: 0.0, envMapIntensity: 0.25 };
+// TINTA DEI LED (sotto i pensili) sulle foto: neutro = (1,1,1) cioè la foto com'è; caldo e
+// freddo la tingono appena, solo dove la luce dei LED si aggiunge a quella della stanza
+const TINTA_LED = { value: new THREE.Vector3(1, 1, 1) };
+/** Colore dei LED della scena (hex), o null se spenti/neutri: aggiorna la tinta delle foto. */
+export function impostaTintaLed(hex, neutro = 0xfff6ec) {
+  if (hex == null) { TINTA_LED.value.set(1, 1, 1); return; }
+  const c = new THREE.Color(hex), n = new THREE.Color(neutro);
+  // diviso per il canale più forte: la tinta toglie un po' degli altri colori, non ne aggiunge
+  // (aggiungere "brucia" il chiaro verso il giallo limone sul caldo)
+  const r = c.r / n.r, g = c.g / n.g, b = c.b / n.b, k = Math.max(r, g, b);
+  TINTA_LED.value.set(r / k, g / k, b / k);
+}
 function coloreFoto(m, rif = LUCE_FOTO) {
   m.color.set(0xffffff);
   m.toneMapped = false;
@@ -372,16 +384,20 @@ function coloreFoto(m, rif = LUCE_FOTO) {
     m.onBeforeCompile = (sh) => {
       sh.uniforms.ngLuceRif = m.userData.ngRif;
       sh.uniforms.ngSpec = { value: m.userData.ngSpec || 0 };   // lucido: riflessi sommati
-      sh.fragmentShader = 'uniform float ngLuceRif;\nuniform float ngSpec;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', `{
+      sh.uniforms.ngTintaLed = TINTA_LED;
+      sh.fragmentShader = 'uniform float ngLuceRif;\nuniform float ngSpec;\nuniform vec3 ngTintaLed;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', `{
         vec3 wl = vec3(0.2126, 0.7152, 0.0722);
         float f = dot(totalDiffuse, wl) / max(dot(diffuseColor.rgb, wl), 1e-4) / ngLuceRif;
+        // LUCE IN PIÙ (es. LED sotto i pensili): dove arriva, tinge la foto del SUO colore
+        // (caldo/neutro/freddo). La luce normale della stanza non cambia la tinta della foto.
+        vec3 tinta = mix(vec3(1.0), ngTintaLed, clamp((f - 1.0) * 1.5, 0.0, 1.0));
         // luce in più (es. LED): schiarisce ma non "brucia" la foto
         if (f > 1.0) f = 1.0 + 0.45 * (1.0 - exp(-(f - 1.0) * 1.6));
-        outgoingLight = diffuseColor.rgb * mix(1.0, f, ${CONTRASTO_FOTO.toFixed(2)}) + totalEmissiveRadiance + totalSpecular * ngSpec;
+        outgoingLight = diffuseColor.rgb * mix(1.0, f, ${CONTRASTO_FOTO.toFixed(2)}) * tinta + totalEmissiveRadiance + totalSpecular * ngSpec;
       }
       #include <opaque_fragment>`);
     };
-    m.customProgramCacheKey = () => 'ng-foto' + (m.userData.ngSpec ? '-l' : '');
+    m.customProgramCacheKey = () => 'ng-foto2' + (m.userData.ngSpec ? '-l' : '');
   }
   m.needsUpdate = true;
 }
@@ -727,9 +743,14 @@ export function getMaterialeTHREE(id, onPronto) {
     : { color: def.colore, roughness: 0.6, metalness: 0.05 });
   // misura reale del legno: quella del campione fotografato, o ~60 cm per i legni
   // già nel sito (foto ravvicinate di campioni): mai stirato, mai a piastrelle
-  const campione = def.campione || (def.categoria === 'legno' && def.texture ? { wMm: 600, hMm: 600 } : null);
-  // legno continuo solo per i LEGNI (ante, pannelli); i piani di lavoro hanno la loro lastra
-  const continuo = !!campione && def.categoria === 'legno';
+  // PIANI DI LAVORO: la foto (un pezzo di lastra di ~60 cm) in scala vera, ripetuta a
+  // specchio come le lastre "a libro"; prima veniva stirata su tutta la lunghezza del piano
+  // (una foto da 60 cm su 3–4 metri: venature diventate strisce)
+  const campione = def.campione || (def.categoria === 'legno' && def.texture ? { wMm: 600, hMm: 600 } : null)
+    || (def.categoria === 'encimera' && def.texture ? { wMm: 1500, hMm: 1500 } : null);
+  // CONTINUO (senza specchi né giunte, la foto prosegue): legni e piani di lavoro. Ripetere la
+  // foto a specchio fa disegni simmetrici (a "farfalla") che si notano subito.
+  const continuo = !!campione && (def.categoria === 'legno' || def.categoria === 'encimera');
   if (campione) { mat.userData.campioneMm = campione; if (continuo) mat.userData.continuo = true; }
   if (def.proprio && def.lucido) mat.userData.ngSpec = 1;   // foto lucida: riflessi veri nel 3D
   // Finger-pull da foto: materiale della GOLA (la parte sopra, es. nera)

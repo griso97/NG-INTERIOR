@@ -594,6 +594,7 @@
 }
 .btn-storia:hover:not(:disabled) { border-color: var(--oro); color: var(--oro-chiaro); }
 .btn-storia:disabled { opacity: .35; cursor: default; }
+.btn-storia.attivo { border-color: var(--oro); color: var(--oro-chiaro); }   /* altro livello nascosto */
 
 /* Mobili di un altro livello: bloccati (non toccabili, attenuati) */
 .sv-mob-g.bloccato { opacity: 0.4; }
