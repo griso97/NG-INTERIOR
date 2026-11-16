@@ -12,11 +12,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI } from './materiali.js?v=20261116j';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261116j';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261116j';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI } from './materiali.js?v=20261116k';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261116k';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261116k';
 import { sfondoDi } from './sfondi.js?v=20261111b';
-import { creaResa, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261116j';
+import { creaResa, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261116k';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -82,15 +82,18 @@ const matBinario = new THREE.MeshStandardMaterial({
 // Per le altre parti usiamo materiali derivati dalla config.materiali,
 // risolti al momento del render via getMaterialeTHREE().
 // MANIGLIE delle ante (dal catalogo, come in cucina): config.maniglia = id
-// (vuoto o 'nessuna' = ante lisce). Verticali, vicino al bordo che si apre.
+// (vuoto o 'nessuna' = ante lisce). Verticali, vicino al bordo che si apre,
+// a partire dal bordo basso dell'anta.
 let _cfgUltima = null;
 function manigliaScelta(config) {
   const id = config.maniglia;
   if (!id || id === 'nessuna') return null;
   return MATERIALI.find((m) => m.id === id && m.categoria === 'maniglia') || null;
 }
-/** Altezza (da terra) del centro della maniglia: comoda, ~105 cm, mai sopra metà anta. */
-function altezzaManiglia(H) { return Math.min(H / 2, 1050); }
+/** Lunghezza vera della maniglia (quella standard: 30 cm). */
+function lunghezzaManiglia(def) { return def.texture && def.lunghezzaMm ? def.lunghezzaMm : 300; }
+/** Centro della maniglia rispetto al centro dell'anta: parte dal BORDO BASSO dell'anta e sale. */
+function yManiglia(def, altAnta) { return -altAnta / 2 + Math.min(lunghezzaManiglia(def), altAnta) / 2; }
 function aggiungiManiglia(parent, def, x, y, z) {
   let grp = null;
   if (def.texture && def.lunghezzaMm && (def.forma === 'foto' || !def.formaV)) {
@@ -101,7 +104,7 @@ function aggiungiManiglia(parent, def, x, y, z) {
   if (!grp) {
     const catalogo = !!(def.texture && def.lunghezzaMm);
     const forma = catalogo ? (!def.forma || def.forma === 'foto' ? 'barra' : def.forma) : 'barra';
-    grp = costruisciManiglia(forma, catalogo ? def.finitura : 'inox', catalogo ? def.lunghezzaMm : 300, catalogo ? def.colore : null);
+    grp = costruisciManiglia(forma, catalogo ? def.finitura : 'inox', lunghezzaManiglia(def), catalogo ? def.colore : null);
   }
   grp.position.set(x, y, z);                       // z = faccia davanti dell'anta
   grp.rotation.z = Math.PI / 2;                    // verticale
@@ -750,7 +753,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       pivot.add(mesh);
       // maniglia sul bordo che si apre (lontano dal cardine)
       const man = manigliaScelta(config);
-      if (man) aggiungiManiglia(pivot, man, cardineSx ? larAnta - 40 : -larAnta + 40, altezzaManiglia(H) - H / 2, sA / 2);
+      if (man) aggiungiManiglia(pivot, man, cardineSx ? larAnta - 40 : -larAnta + 40, yManiglia(man, altAnta), sA / 2);
       gruppoArmadio.add(pivot);
     }
   }
@@ -789,7 +792,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       mesh.castShadow = true; mesh.receiveShadow = true;
       mesh.userData.tipo = 'anta';
       pivot.add(mesh);
-      if (manSc) aggiungiManiglia(pivot, manSc, latoManiglia * (larAntaSc / 2 - 40), altezzaManiglia(H) - cy, sA / 2);
+      if (manSc) aggiungiManiglia(pivot, manSc, latoManiglia * (larAntaSc / 2 - 40), yManiglia(manSc, altAntaSc), sA / 2);
       gruppoArmadio.add(pivot);
     };
 

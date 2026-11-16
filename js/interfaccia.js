@@ -6,7 +6,7 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch } from './materiali.js?v=20261116j';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch } from './materiali.js?v=20261116k';
 
 export function configDefault() {
   return {
