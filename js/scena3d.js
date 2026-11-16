@@ -12,11 +12,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261117c';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261117c';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261117c';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261117d';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261117d';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261117d';
 import { sfondoDi } from './sfondi.js?v=20261111b';
-import { creaResa, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261117c';
+import { creaResa, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261117d';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta

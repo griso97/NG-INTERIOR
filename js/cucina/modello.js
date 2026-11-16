@@ -1059,6 +1059,24 @@ export function posizionaVincolata(progetto, m, x, y, libera = false) {
   return { x, y };
 }
 
+/**
+ * Il mobile NON ENTRA dove l'hai lasciato? Lo porto contro il muro in (x, y) e
+ * guardo se finisce dentro un altro mobile: ritorna di quanti mm si
+ * sovrappone (cioè quanto spazio manca), oppure 0 se entra.
+ */
+export function spazioMancante(progetto, m, x, y) {
+  const w = vincolaAiMuri(progetto, m, x, y);
+  const urti = sovrapposto(progetto, m, w.x, w.y);
+  if (!urti) return 0;
+  const A = aabb(m, w.x, w.y);
+  let manca = 0;
+  for (const o of urti) {
+    const B = aabb(o, o.x, o.y);
+    const ox = (A.hx + B.hx) - Math.abs(w.x - o.x), oy = (A.hy + B.hy) - Math.abs(w.y - o.y);
+    manca = Math.max(manca, Math.min(ox, oy));
+  }
+  return Math.round(manca);
+}
 /** Mobili (stessa fascia di altezza) dentro cui il mobile m finirebbe in (x,y). */
 function sovrapposto(progetto, m, x, y) {
   const rv = rangeVerticale(m), A = aabb(m, x, y), out = [];

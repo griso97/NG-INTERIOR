@@ -11,7 +11,7 @@ import {
   applicaPreset, aggiungiParete, rimuoviParete,
   TIPI_MODULO_BASE, CATALOGO_MOBILI, LARGHEZZE_BASE, nomeTipo,
   infoTipo, altezzeTipo, campiMobile, descrizioneMobile, categoriaTipo, livelloDiMobile, frigoSottoAltillo,
-  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, togliAltiDentroColonne, COLORI_FRIGO, pontiSopra, cambiaPensileSottoPonte,
+  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, togliAltiDentroColonne, spazioMancante, COLORI_FRIGO, pontiSopra, cambiaPensileSottoPonte,
   spazioLiberoParete, moduliDiParete,
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
@@ -24,12 +24,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261117c';
-import { renderPianta } from './pianta.js?v=20261117c';
-import { calcolaDistintaCucina } from './distinta.js?v=20261117c';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261117c';
-import { agganciaTema } from '../tema.js?v=20261117c';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261117c';
+} from './modello.js?v=20261117d';
+import { renderPianta } from './pianta.js?v=20261117d';
+import { calcolaDistintaCucina } from './distinta.js?v=20261117d';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261117d';
+import { agganciaTema } from '../tema.js?v=20261117d';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261117d';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1359,7 +1359,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261117c');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261117d');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2042,13 +2042,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261117c');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261117d');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261117c'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261117d'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2793,8 +2793,32 @@ const fineTrascinamento = () => {
   if (m && ult && !ult.libera) inserisciInAngolo(progetto, m, ult.x, ult.y);
   if (m) mettiNelVano(progetto, m);           // oggetto sopra una colonna con vano: dentro il vano
   if (m) { m.posManuale = true; step2.movePending = { id, prima }; }
+  // NON ENTRA: lasciato contro il muro ma finirebbe dentro un altro mobile → lo dico, con i cm che mancano
+  if (m && ult && !ult.libera && !m.isola && categoriaTipo(m.tipo) !== 'oggetto') {
+    const manca = spazioMancante(progetto, m, ult.x, ult.y);
+    if (manca > 2 && Math.hypot(m.x - ult.x, m.y - ult.y) > 40) {
+      const es = window.NGI18N && window.NGI18N.lingua === 'es';
+      const cm = (manca / 10).toLocaleString(es ? 'es-ES' : 'it-IT', { maximumFractionDigits: 1 });
+      const nome = window.NGI18N ? window.NGI18N.t(nomeTipo(m.tipo)) : nomeTipo(m.tipo);
+      avvisoBreve(es
+        ? `${nome}: aquí no cabe, faltan ${cm} cm. Acorta un mueble cercano, revisa la medida de la pared o quita la regleta de esquina (Auto regleta).`
+        : `${nome}: qui non entra, mancano ${cm} cm. Accorcia un mobile vicino, controlla la misura del muro o togli la regletta d'angolo (Auto regletta).`);
+    }
+  }
   aggiorna();
 };
+/** Messaggio breve in basso (sparisce da solo dopo qualche secondo). */
+function avvisoBreve(testo) {
+  let el = document.getElementById('avviso-breve');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'avviso-breve'; el.setAttribute('role', 'status');
+    el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9500;max-width:min(560px,calc(100vw - 32px));background:#2a1f0e;color:#f3efe6;border:1px solid #c9a94a;border-radius:10px;padding:12px 16px;font:15px/1.4 Inter,system-ui,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.5)';
+    el.addEventListener('click', () => { el.hidden = true; });
+    document.body.appendChild(el);
+  }
+  el.textContent = '⚠ ' + testo; el.hidden = false;
+  clearTimeout(avvisoBreve._t); avvisoBreve._t = setTimeout(() => { el.hidden = true; }, 9000);
+}
 svg.addEventListener('pointerup', fineTrascinamento);
 svg.addEventListener('pointercancel', fineTrascinamento);
 
