@@ -24,12 +24,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261117e';
-import { renderPianta } from './pianta.js?v=20261117e';
-import { calcolaDistintaCucina } from './distinta.js?v=20261117e';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261117e';
-import { agganciaTema } from '../tema.js?v=20261117e';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261117e';
+} from './modello.js?v=20261117g';
+import { renderPianta } from './pianta.js?v=20261117g';
+import { calcolaDistintaCucina } from './distinta.js?v=20261117g';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261117g';
+import { agganciaTema } from '../tema.js?v=20261117g';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261117g';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1359,7 +1359,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261117e');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261117g');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2042,13 +2042,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261117e');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261117g');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261117e'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261117g'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2450,6 +2450,12 @@ function confermaScelta() {
     if (nuovo && rot !== null && rot !== undefined) nuovo.rot = rot;
   }
   riblocca(step2.mobSelId);
+  // misura cambiata (o mobile nuovo) e non ci sta contro il muro: avviso con i cm che mancano
+  const mm = trovaMobileLibero(progetto, step2.mobSelId);
+  if (mobId && mm && categoriaTipo(mm.tipo) !== 'oggetto' && !mm.isola) {          // solo cambiando la misura di un mobile già messo
+    const manca = spazioMancante(progetto, mm, mm.x, mm.y);
+    if (manca > 2) avvisoNonEntra(manca);
+  }
   chiudiModale();
   aggiorna();
 }
@@ -2797,16 +2803,19 @@ const fineTrascinamento = () => {
   if (m && ult && !ult.libera && !m.isola && categoriaTipo(m.tipo) !== 'oggetto') {
     const manca = spazioMancante(progetto, m, ult.x, ult.y);
     if (manca > 2 && Math.hypot(m.x - ult.x, m.y - ult.y) > 40) {
-      const es = window.NGI18N && window.NGI18N.lingua === 'es';
-      const cm = (manca / 10).toLocaleString(es ? 'es-ES' : 'it-IT', { maximumFractionDigits: 1 });
-      const nome = window.NGI18N ? window.NGI18N.t(nomeTipo(m.tipo)) : nomeTipo(m.tipo);
-      avvisoBreve(es
-        ? `${nome}: aquí no cabe, faltan ${cm} cm. Acorta un mueble cercano, revisa la medida de la pared o quita la regleta de esquina (Auto regleta).`
-        : `${nome}: qui non entra, mancano ${cm} cm. Accorcia un mobile vicino, controlla la misura del muro o togli la regletta d'angolo (Auto regletta).`);
+      avvisoNonEntra(manca);
     }
   }
   aggiorna();
 };
+/** Il mobile supera la misura della parete: avviso con i cm che mancano. */
+function avvisoNonEntra(manca) {
+  const es = window.NGI18N && window.NGI18N.lingua === 'es';
+  const cm = (manca / 10).toLocaleString(es ? 'es-ES' : 'it-IT', { maximumFractionDigits: 1 });
+  avvisoBreve(es
+    ? `Imposible colocar el mueble: supera la medida total de la pared (faltan ${cm} cm).`
+    : `Impossibile posizionare l'armadio: supera la misura totale della parete (mancano ${cm} cm).`);
+}
 /** Messaggio breve in basso (sparisce da solo dopo qualche secondo). */
 function avvisoBreve(testo) {
   let el = document.getElementById('avviso-breve');

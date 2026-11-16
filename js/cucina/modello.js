@@ -1073,7 +1073,7 @@ export function spazioMancante(progetto, m, x, y) {
   for (const o of urti) {
     const B = aabb(o, o.x, o.y);
     const ox = (A.hx + B.hx) - Math.abs(w.x - o.x), oy = (A.hy + B.hy) - Math.abs(w.y - o.y);
-    manca = Math.max(manca, Math.min(ox, oy));
+    manca += Math.min(ox, oy);                       // da tutti e due i lati: quanto manca in tutto
   }
   return Math.round(manca);
 }
