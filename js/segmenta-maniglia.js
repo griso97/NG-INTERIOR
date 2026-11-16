@@ -242,12 +242,14 @@ export function segmentaManiglia(img, zona = null, tol = 1, opz = {}) {
     }
     // i bordi netti che toccano lo sfondo raggiunto ma sono "quasi sfondo" (ombre leggere sul foglio) tornano sfondo
     for (let i = 0; i < w * h; i++) m[i] = sf[i] ? 0 : 1;
+    if (opz.debug) { opz.debug.w = w; opz.debug.h = h; opz.debug.dopoRiempimento = m.slice(); opz.debug.muro = muro.slice(); }
     for (let pass = 0; pass < 2; pass++) for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
       const i = y * w + x;
       if (!m[i] || diff[i] > t) continue;
       if (sf[i - 1] || sf[i + 1] || sf[i - w] || sf[i + w]) { m[i] = 0; sf[i] = 1; }
     }
   }
+  if (opz.debug) opz.debug.primaPulizia = m.slice();
   // 4) pulizia
   const r = Math.max(1, Math.round(Math.min(w, h) / 220));
   m = morf(morf(m, w, h, r, false), w, h, r, true);           // apertura (puntini)
@@ -281,6 +283,7 @@ export function segmentaManiglia(img, zona = null, tol = 1, opz = {}) {
   });
   // se ha preso quasi tutto il riquadro, lo sfondo non si distingue: niente da fare
   areaOgg = 0; for (let i = 0; i < w * h; i++) areaOgg += m[i];
+  if (opz.debug) opz.debug.finale = m.slice();
   if (areaOgg < 12 || areaOgg > w * h * 0.92) return null;
 
   // 5) asse principale (PCA) → raddrizzo all'asse più vicino

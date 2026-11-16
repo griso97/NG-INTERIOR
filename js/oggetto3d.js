@@ -14,6 +14,7 @@
 // Assi (mm): x = larghezza (centro 0) · y = altezza (0 = appoggio) · z = profondità (+ = davanti)
 // =============================================================================
 import * as THREE from 'three';
+import { formaOggetto } from './scanner3d.js?v=20261118h';
 import { edgeTable, triTable } from '../vendor/three/addons/objects/mc-tabelle.js';
 
 /** Distanza (chamfer 3-4, in pixel) di ogni pixel dal più vicino pixel "fuori" (m = 0). */
@@ -353,6 +354,9 @@ function texturaVista(src) {
     if (!nuovi.length) break;
     for (const [i, r, gg, b] of nuovi) { d[i * 4] = r; d[i * 4 + 1] = gg; d[i * 4 + 2] = b; pieno[i] = 1; }
   }
+  // quello che resta vuoto (buchi grandi, es. dentro un manico): il colore medio dell'oggetto, mai nero
+  { let r = 0, gg = 0, b = 0, n = 0; for (let i = 0; i < w * h; i++) if (pieno[i]) { r += d[i * 4]; gg += d[i * 4 + 1]; b += d[i * 4 + 2]; n++; }
+    if (n) for (let i = 0; i < w * h; i++) if (!pieno[i]) { d[i * 4] = r / n; d[i * 4 + 1] = gg / n; d[i * 4 + 2] = b / n; } }
   for (let i = 3; i < d.length; i += 4) d[i] = 255;
   g.putImageData(im, 0, 0);
   const tex = new THREE.CanvasTexture(c);
@@ -585,108 +589,17 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   // così davanti e lato restano ESATTI come le loro foto
   const formaT = Tv ? formaDaSopra(Tv) : null;
   const T = Tv && formaT && Math.abs(Math.log(formaT.aspetto / (W / D))) < 0.5 ? Tv : null;   // foto storte di tre quarti: solo per l'aspetto
-  // SAGOME ESATTE: ogni foto, portata ESATTAMENTE alle misure scritte, è quella faccia
-  // (davanti = larghezza × altezza, lato = profondità × altezza, sopra = larghezza × profondità).
-  // L'oggetto è quello che sta dentro TUTTE le sagome insieme. Dietro = davanti; l'altro lato = il lato specchiato.
-  const pF = profilo(F);
-  const pS = S ? profilo(S) : null;
-  // lato: il davanti è dove sporge qualcosa (maniglia); fascia e profondità della sporgenza
-  let davantiSx = true, corpoF = 0, banda = null, man = null;
-  if (pS && !T) {
-    const sporgeSx = [], sporgeDx = [];
-    for (let k = 0; k <= 100; k++) { const v = k / 100; sporgeSx.push(pS.mSx - pS.sx(v)); sporgeDx.push(pS.dx(v) - pS.mDx); }
-    const nSx = sporgeSx.filter((x) => x > 0.025).length, nDx = sporgeDx.filter((x) => x > 0.025).length;
-    davantiSx = nSx >= nDx;
-    // il davanti nella foto di lato è dove SPORGE la leva / il comando (più affidabile)
-    const ls = latoSporgente(S);
-    if (ls) davantiSx = ls === 'sx';
-    const sp = davantiSx ? sporgeSx : sporgeDx;
-    const righe = sp.map((x, k) => (x > 0.025 ? k / 100 : null)).filter((x) => x !== null);
-    corpoF = davantiSx ? pS.mSx : 1 - pS.mDx;                 // dalla punta davanti all'inizio del corpo (0..1 di D)
-    if (righe.length >= 3) {
-      banda = [Math.min(...righe), Math.max(...righe)];
-      // quanto è largo il pezzo che sporge: lo dice la foto davanti. Se lì non si vede una
-      // maniglia vera (es. leva o manopola piccole), niente sporgenza: niente barre finte.
-      man = trovaManiglia(F, banda[0], banda[1]);
-      const contigue = righe.length / ((banda[1] - banda[0]) * 100 + 1);
-      if (!man || contigue < 0.7) { banda = null; man = null; corpoF = 0; }
-    } else corpoF = 0;
-  } else if (pS) {
-    const ls = latoSporgente(S);                               // solo da che parte è il davanti nella foto di lato
-    if (ls) davantiSx = ls === 'sx';
-  }
-  const tonda = !T && (pianta === 'tonda' || pianta === 'ovale');
-  // FORMA DA SOPRA AUTOMATICA (senza la foto da sopra): spigoli arrotondati come si
-  // vedono nelle foto (in cima davanti e di lato); 'squadrata' = spigoli appena smussati
-  let rr = Math.min(W, D) * 0.045;
-  if (!T && pianta !== 'squadrata' && !tonda) {
-    const rF = raggioCima(pF, W, H), rS = pS ? raggioCima(pS, D, H) : rF;
-    rr = Math.max(rr, Math.min(Math.min(W, D) * 0.48, (rF + rS) / 2));
-  }
-  // rettangolo arrotondato → superellisse (n alto = squadrato, 2 = ovale)
-  const kR = Math.min(1, rr / (Math.min(W, D) / 2));
-  // con la foto da sopra: la forma è quella trovata sul suo contorno (ovale, rettangolo tondo, quadrato)
-  const nSup = T ? formaT.n : tonda ? 2 : Math.max(2, Math.min(24, 2 / Math.pow(Math.max(0.06, kR), 0.8)));
-  const zCorpo = D / 2 - corpoF * D;                       // faccia davanti del corpo (oltre: solo la maniglia)
-
-  // SUPERFICIE A FETTE (come i modellatori 3D): a ogni altezza una curva chiusa e continua,
-  // larga ESATTAMENTE come la foto davanti e profonda come quella di lato, con la forma
-  // del contorno da sopra; le fette si uniscono in una pelle unica e liscia
-  const M = 160, NYr = 150;
-  const ANG = Array.from({ length: M }, (_, q) => (q / M) * Math.PI * 2);
-  const sezione = (xl, xr, zb, zf) => {
-    const cx = (xl + xr) / 2, cz = (zb + zf) / 2, hx = Math.max(0.5, (xr - xl) / 2), hz = Math.max(0.5, (zf - zb) / 2);
-    return ANG.map((th) => { const c = Math.cos(th), sn = Math.sin(th); return [cx + hx * Math.sign(c) * Math.pow(Math.abs(c), 2 / nSup), cz + hz * Math.sign(sn) * Math.pow(Math.abs(sn), 2 / nSup)]; });
-  };
-  const anelli = [];
-  for (let jj = 0; jj <= NYr; jj++) {
-    const y = (jj / NYr) * H, vy = Math.min(0.9985, Math.max(0.0015, 1 - y / H));
-    const xl = pF.sx(vy) * W - W / 2, xr = pF.dx(vy) * W - W / 2;
-    if (Number.isNaN(xl) || Number.isNaN(xr) || xr - xl < 1) continue;
-    let zf = D / 2, zb = -D / 2;
-    if (pS) {
-      let a = pS.sx(vy), b = pS.dx(vy);
-      if (Number.isNaN(a) || Number.isNaN(b)) continue;
-      if (davantiSx) { zf = D / 2 - a * D; zb = D / 2 - b * D; } else { zf = D / 2 - (1 - b) * D; zb = D / 2 - (1 - a) * D; }
-    }
-    zf = Math.min(zf, zCorpo);
-    if (zf - zb < 1) continue;
-    anelli.push({ y, p: sezione(xl, xr, zb, zf) });
-  }
-  if (anelli.length < 2) return null;
-  // PELLE LISCIA: ogni fetta si ammorbidisce tutto intorno (niente righe verticali) e le
-  // fette si ammorbidiscono tra loro (niente onde orizzontali); la prima e l'ultima restano ferme
-  for (let it = 0; it < 3; it++) for (const r of anelli) {
-    const p = r.p, nuovo = p.map((_, q) => { const a = p[(q + M - 1) % M], b = p[q], c = p[(q + 1) % M]; return [(a[0] + 2 * b[0] + c[0]) / 4, (a[1] + 2 * b[1] + c[1]) / 4]; });
-    r.p = nuovo;
-  }
-  for (let it = 0; it < 5; it++) {
-    const prima = anelli.map((r) => r.p.map((pt) => pt.slice()));
-    for (let r = 1; r < anelli.length - 1; r++) for (let q = 0; q < M; q++) {
-      const a = prima[r - 1][q], b = prima[r][q], c = prima[r + 1][q];
-      anelli[r].p[q] = [(a[0] + 2 * b[0] + c[0]) / 4, (a[1] + 2 * b[1] + c[1]) / 4];
-    }
-  }
-  const vert = [], ind = [];
-  anelli.forEach((r) => { for (const [x, z] of r.p) vert.push(x, r.y, z); });
-  for (let r = 0; r < anelli.length - 1; r++) for (let q = 0; q < M; q++) {
-    const a = r * M + q, b = r * M + ((q + 1) % M), c = (r + 1) * M + q, d = (r + 1) * M + ((q + 1) % M);
-    ind.push(a, c, b, b, c, d);
-  }
-  // tappi sotto e sopra (centro della prima e dell'ultima fetta)
-  for (const [r, giu] of [[0, true], [anelli.length - 1, false]]) {
-    let sx = 0, sz = 0; for (const [x, z] of anelli[r].p) { sx += x; sz += z; }
-    const ci = vert.length / 3; vert.push(sx / M, anelli[r].y, sz / M);
-    for (let q = 0; q < M; q++) { const a = r * M + q, b = r * M + ((q + 1) % M); if (giu) ind.push(ci, a, b); else ind.push(ci, b, a); }
-  }
-  // MANIGLIA vera (vista davanti e di lato): un blocco davanti al corpo, solo dove c'è
-  if (banda && man) {
-    const y0 = H * (1 - banda[1]), y1 = H * (1 - banda[0]);
-    let zMax = zCorpo; for (let k = 0; k <= 20; k++) { const vy = banda[0] + (banda[1] - banda[0]) * k / 20, a = pS.sx(vy), b = pS.dx(vy); const zf = davantiSx ? D / 2 - a * D : D / 2 - (1 - b) * D; if (!Number.isNaN(zf)) zMax = Math.max(zMax, zf); }
-    const x0 = man.a * W - W / 2, x1 = man.b * W - W / 2, z0 = zCorpo - 5, z1 = zMax;
-    const b0 = vert.length / 3;
-    for (const [x, y, z] of [[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]]) vert.push(x, y, z);
-    for (const [a, b, c] of [[0, 2, 1], [0, 3, 2], [4, 5, 6], [4, 6, 7], [0, 1, 5], [0, 5, 4], [3, 7, 6], [3, 6, 2], [1, 2, 6], [1, 6, 5], [0, 4, 7], [0, 7, 3]]) ind.push(b0 + a, b0 + b, b0 + c);
+  // FORMA A PEZZI (scanner3d.js): il CORPO liscio dai contorni senza pezzi, e i PEZZI
+  // (leve, manopole, maniglie, piedini) come solidi a sé — niente fasce né anelli
+  const forma = formaOggetto({ fronte: foto.fronte, lato: foto.lato, sopra: T ? foto.sopra : null }, W, D, H, THREE);
+  if (!forma) return null;
+  const davantiSx = forma.davantiSx;
+  const vert = forma.corpo.vert.slice(), ind = forma.corpo.ind.slice();
+  for (const g of forma.pezzi3d) {
+    const gg = g.index ? g : null; const pos = g.attributes.position, off = vert.length / 3;
+    for (let i = 0; i < pos.count; i++) vert.push(pos.getX(i), pos.getY(i), pos.getZ(i));
+    if (gg) for (let i = 0; i < gg.index.count; i++) ind.push(gg.index.getX(i) + off);
+    else for (let i = 0; i < pos.count; i++) ind.push(i + off);
   }
   const gi = new THREE.BufferGeometry();
   gi.setAttribute('position', new THREE.Float32BufferAttribute(vert, 3));
