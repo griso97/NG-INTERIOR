@@ -6,7 +6,7 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch } from './materiali.js?v=20261116k';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch } from './materiali.js?v=20261116l';
 
 export function configDefault() {
   return {
@@ -814,10 +814,25 @@ function cardManiglie(config) {
             <button type="button" class="mat-swatch ${m.id === sel ? 'sel' : ''}" data-man="${m.id}" title="${m.nome}">
               ${tessera(m)}<span>${m.nome}</span></button>`).join('')}
         </div>
-      </details>`;
+      </details>
+      ${corr && (corr.texture && corr.lunghezzaMm ? corr.lunghezzaMm : 300) > 1000 ? `
+      <div class="man-pos">
+        <span class="mat-parte">Posizione della maniglia</span>
+        <div class="man-pos-scelte">
+          ${[['centro', 'Dal centro'], ['fondo', 'Dal fondo']].map(([v, n]) => `<button type="button" class="btn-ghost btn-mini ${(config.manigliaPosizione || 'fondo') === v ? 'attivo' : ''}" data-manpos="${v}">${n}</button>`).join('')}
+        </div>
+      </div>` : ''}`;
 }
 
 function attaccaEventiMateriali(contenitore, config, onChange) {
+  contenitore.querySelectorAll('[data-manpos]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      config.manigliaPosizione = btn.dataset.manpos;
+      renderMateriali(config);
+      attaccaEventiMateriali(contenitore, config, onChange);
+      onChange(config);
+    });
+  });
   contenitore.querySelectorAll('.mat-swatch[data-man]').forEach((btn) => {
     btn.addEventListener('click', () => {
       config.maniglia = btn.dataset.man === 'nessuna' ? null : btn.dataset.man;

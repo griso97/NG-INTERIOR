@@ -532,6 +532,10 @@ table.distinta td.qta {
   background-size: cover; background-position: center;
 }
 .mat-corrente .man-tessera { width: 28px; height: 28px; flex: 0 0 28px; }
+.man-pos { margin: 8px 0 4px; display: flex; flex-direction: column; gap: 6px; }
+.man-pos-scelte { display: flex; gap: 6px; }
+.man-pos-scelte .btn-ghost { flex: 1; }
+.man-pos-scelte .btn-ghost.attivo { border-color: var(--oro-chiaro); color: var(--oro-chiaro); }
 .man-tessera.man-nessuna { display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--testo-dim); background: var(--bg-3, #222); }
 
 /* Bottone fisso "Apri/Chiudi porte" per mobile */
