@@ -283,8 +283,48 @@ export function orientaSopra(src, W, D) {
   if (!V || !(W > 0 && D > 0) || Math.abs(Math.log(W / D)) < 0.12) return null;
   const err = (e) => Math.abs(Math.log(V.aspetto / e));
   if (err(D / W) >= err(W / D)) return null;                      // già dritta
-  const lato = latoSporgente(V);
-  return ruotaCanvas(src, lato === 'sx' ? -1 : 1);                // il lato del davanti va in basso
+  // giro, poi guardo dove resta la sporgenza (leva, cursore): deve stare in basso (davanti)
+  let c = ruotaCanvas(src, 1);
+  const Vr = vista(c);
+  if (Vr) {
+    const { t0, t1 } = estremiCorpo(profilo(Vr));
+    if (t0 > (1 - t1) + 0.02) c = ruotaCanvas(src, -1);           // la sporgenza è finita in alto: giro dall'altra parte
+  }
+  return c;
+}
+/**
+ * CORPO nella foto da sopra (lungo l'asse verticale della foto): dove inizia e
+ * dove finisce, senza le sporgenze. Una SPORGENZA (leva, cursore, manopola,
+ * gambo) è un pezzo in fondo più stretto del corpo che, arrivando al corpo, si
+ * ALLARGA DI COLPO; le estremità arrotondate invece si allargano poco alla
+ * volta e restano corpo. Ritorna { t0, t1 } (0..1).
+ */
+function estremiCorpo(p) {
+  const N = 500, mw = p.mDx - p.mSx;
+  const w = new Float32Array(N + 1);
+  for (let i = 0; i <= N; i++) { const v = p.dx(i / N) - p.sx(i / N); w[i] = Number.isNaN(v) ? 0 : v; }
+  // corpo centrale sicuro: dove è largo almeno l'80%
+  let b0 = 0, b1 = N;
+  while (b0 < N && w[b0] < mw * 0.8) b0++;
+  while (b1 > 0 && w[b1] < mw * 0.8) b1--;
+  if (b1 <= b0) return { t0: 0, t1: 1 };
+  const W20 = 20;                                                    // finestra = 4% della lunghezza
+  const lato = (dir) => {
+    const i0 = dir < 0 ? b0 : b1;
+    let e = dir < 0 ? 0 : N;
+    while (e !== i0 && w[e] < mw * 0.15) e -= dir;                   // gambi sottilissimi (pomelli, perni): mai corpo
+    // un tratto PIANO più stretto del corpo (largo uguale per il 4%) = una sporgenza (leva, cursore)
+    let piano = null;
+    for (let st = i0; dir < 0 ? st - W20 >= e : st + W20 <= e; st += dir) {
+      let mn = Infinity, mx = -Infinity; const seg = [];
+      for (let q = 0; q <= W20; q++) { const v = w[st + q * dir]; seg.push(v); if (v < mn) mn = v; if (v > mx) mx = v; }
+      if (mn >= mw * 0.15 && mx < mw * 0.7 && mx - mn < mw * 0.08) { seg.sort((a, b) => a - b); piano = seg[seg.length >> 1]; break; }
+    }
+    if (piano == null) return e / N;                                 // estremità arrotondata: è tutta corpo
+    let k = i0; while (k !== e && w[k] > piano * 1.15) k += dir;     // il corpo finisce dove si arriva alla larghezza della sporgenza
+    return k / N;
+  };
+  return { t0: lato(-1), t1: lato(1) };
 }
 /**
  * LE MISURE TORNANO CON LE FOTO? Le proporzioni del CORPO in ogni foto (leve e
@@ -303,8 +343,7 @@ export function controllaMisure(foto, W, D, H) {
   const rS = S ? S.larg / S.V.bh : null;                        // profondità / altezza
   let rT = null;                                                // profondità / larghezza
   if (T) {
-    const mw = T.p.mDx - T.p.mSx, larg = (t) => T.p.dx(t) - T.p.sx(t);
-    let t0 = 0, t1 = 1; while (t0 < 0.3 && larg(t0) < mw * 0.15) t0 += 0.002; while (t1 > 0.7 && larg(t1) < mw * 0.15) t1 -= 0.002;
+    const { t0, t1 } = estremiCorpo(T.p);
     rT = (T.V.bh * (t1 - t0)) / T.larg;
   }
   const e = (a, b) => Math.log(a / b);
@@ -359,18 +398,8 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   // CORPO nella foto da sopra: le righe a tutta larghezza (leve, manopole, cursori che sporgono restano fuori)
   let corpoT = null;
   if (Tv) {
-    const pp = profilo(Tv), mw = pp.mDx - pp.mSx;
-    const larg = (t) => pp.dx(t) - pp.sx(t);
-    // sporgenza = un pezzo STRETTO in fondo che poi si allarga di colpo (leva, manopola);
-    // le estremità arrotondate (si stringono piano piano) restano parte del corpo
-    const finePezzo = (da, passo) => {
-      let t0 = da; while (Math.abs(t0 - da) < 0.3 && larg(t0) < mw * 0.15) t0 += passo;   // gambi sottilissimi (pomelli, perni): mai corpo
-      let t = t0; while (Math.abs(t - da) < 0.4 && larg(t) < mw * 0.3) t += passo;
-      if (Math.abs(t - t0) < 0.01) return t0;                        // niente pezzo stretto
-      const dopo = larg(t + passo * 5);
-      return dopo > mw * 0.6 ? t : t0;                               // si allarga di colpo: era una sporgenza
-    };
-    const t0 = finePezzo(0, 0.002), t1 = finePezzo(1, -0.002);
+    const pp = profilo(Tv);
+    const { t0, t1 } = estremiCorpo(pp);
     corpoT = { p: pp, t0, t1, aspetto: Tv.bw / Math.max(1, Tv.bh * (t1 - t0)) };
   }
   const T = Tv && Math.abs(Math.log(corpoT.aspetto / (W / D))) < 0.25 ? Tv : null;
@@ -557,9 +586,9 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
     const x = P.getX(v), y = P.getY(v), z = P.getZ(v);
     const u = (x + W / 2) / W, vy = 1 - y / H, wz = (z + D / 2) / D;
     uvF.set(uvDa(tF, u, vy), v * 2);
-    aff[v * 3] = 0.08 + 0.92 * liscia(Math.min(u, 1 - u) / 0.14);            // davanti / dietro: bordi sinistro e destro
+    aff[v * 3] = 0.3 + 0.7 * liscia(Math.min(u, 1 - u) / 0.14);              // davanti / dietro: bordi sinistro e destro
     aff[v * 3 + 1] = 0.08 + 0.92 * liscia(Math.min(wz, 1 - wz) / 0.14);      // lati: bordi davanti e dietro
-    aff[v * 3 + 2] = 0.08 + 0.92 * liscia(Math.min(u, 1 - u, wz, 1 - wz) / 0.12);   // sopra
+    aff[v * 3 + 2] = 1;                                                     // sopra: la foto dall'alto vale ovunque guardi in su
     uvB.set(uvDa(tB || tF, 1 - u, vy), v * 2);                     // dietro: la sua foto, se no il davanti specchiato
     // lato fotografato: la foto com'è; lato opposto: la stessa foto NON specchiata (scritte e loghi leggibili)
     const us = davantiSx ? 1 - wz : wz;
