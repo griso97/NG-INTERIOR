@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118i';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118j';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -61,18 +61,50 @@ export const MATERIALI = [
     thumb: 'materials/rovere-nodoso-thumb.jpg',
     texture: 'materials/rovere-nodoso.jpg', colore: 0xa0804c,
     nota: 'nome provvisorio' },
+  // ---- Alvic Syncron / Zenit (foto ufficiali Alvic: la foto è la tavola intera 1240 × 2750 mm,
+  //      così venatura e disegno escono nella misura vera) ----
+  { id: 'aok-01', nome: 'AOK 01', categoria: 'legno',
+    thumb: 'materials/aok-01-thumb.jpg',
+    texture: 'materials/aok-01.jpg', colore: 0xcfc2b2,
+    campione: { wMm: 1240, hMm: 2750 }, nota: 'Alvic Syncron Anniversary Oak 01' },
+  { id: 'syncron-noce-01', nome: 'Syncron Noce 01', categoria: 'legno',
+    thumb: 'materials/syncron-noce-01-thumb.jpg',
+    texture: 'materials/syncron-noce-01.jpg', colore: 0xae9179,
+    campione: { wMm: 1240, hMm: 2750 }, nota: 'Alvic Syncron Nocce 01 HO' },
+  { id: 'sm-nuvola-01', nome: 'SM Nuvola 01', categoria: 'legno',
+    thumb: 'materials/sm-nuvola-01-thumb.jpg',
+    texture: 'materials/sm-nuvola-01.jpg', colore: 0xf0ece2,
+    campione: { wMm: 1240, hMm: 2750 }, nota: 'Alvic Zenit Nuvola 01 Supermate' },
   // ---- Tinte solide (matte e lucide) ----
   // OPACHI: superficie totalmente matte, tono un filo "schiarito/polveroso"
   // così lo stacco con il lucido è netto anche senza riflessi.
   { id: 'bianco-matte',  nome: 'Bianco opaco',   categoria: 'tinta',
     thumb: 'materials/bianco-matte-thumb.jpg',  colore: 0xe7e5de,
     solido: true, roughness: 1.0, metalness: 0.0 },
-  { id: 'nero-matte',    nome: 'Nero opaco',     categoria: 'tinta',
-    thumb: 'materials/nero-matte-thumb.jpg',    colore: 0x1f1f23,
-    solido: true, roughness: 1.0, metalness: 0.0 },
+  // SM Negro (Alvic Zenit Supermate) al posto del vecchio "Nero opaco": stesso id, così i
+  // progetti salvati restano uguali
+  { id: 'nero-matte',    nome: 'SM Negro',       categoria: 'tinta',
+    thumb: 'materials/sm-negro-thumb.jpg',      colore: 0x141414,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Negro Supermate' },
   { id: 'grigio-matte',  nome: 'Grigio opaco',   categoria: 'tinta',
     thumb: 'materials/grigio-matte-thumb.jpg',  colore: 0x8a8a8a,
     solido: true, roughness: 1.0, metalness: 0.0 },
+  // ---- Alvic Zenit Supermate (SM): opachi pieni, colori dalle foto ufficiali ----
+  { id: 'sm-agua-marina', nome: 'SM Agua Marina', categoria: 'tinta',
+    thumb: 'materials/sm-agua-marina-thumb.jpg', colore: 0x91a5a3,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Agua Marina Supermate' },
+  { id: 'sm-azul-marino', nome: 'SM Azul Marino', categoria: 'tinta',
+    thumb: 'materials/sm-azul-marino-thumb.jpg', colore: 0x2d354c,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Azul Marino Supermate' },
+  { id: 'sm-basalto', nome: 'SM Basalto', categoria: 'tinta',
+    thumb: 'materials/sm-basalto-thumb.jpg', colore: 0x8d7b77,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Basalto Supermate' },
+  { id: 'sm-gris-nube', nome: 'SM Gris Nube', categoria: 'tinta',
+    thumb: 'materials/sm-gris-nube-thumb.jpg', colore: 0xcac7c2,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Gris Nube Supermate' },
+  { id: 'sm-gris-plomo', nome: 'SM Gris Plomo', categoria: 'tinta',
+    thumb: 'materials/sm-gris-plomo-thumb.jpg', colore: 0x645e5e,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Gris Plomo Supermate' },
   // LUCIDI: laccato lucido con riflessi netti (roughness bassissima + clearcoat).
   { id: 'bianco-lucido', nome: 'Bianco lucido',  categoria: 'tinta',
     thumb: 'materials/bianco-lucido-thumb.jpg', colore: 0xfafafa,
@@ -157,7 +189,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118i');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118j');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
