@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho,
-} from './modello.js?v=20261116m';
+} from './modello.js?v=20261116n';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -197,6 +197,11 @@ function pezziDiModulo(progetto, m) {
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(m.larghezza_mm || L), altezza: H, spessore: SP, materiale: 'anta', quantita: 1 });
   } else if (cat === 'regletta') {
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(m.latoA_mm || 30), altezza: H, spessore: SP, materiale: 'anta', quantita: 1 });
+  } else if (cat === 'altillo') {
+    // MOBILE SOPRA FRIGO: la carcassa si ordina come i pensili; qui le ante (H − 2)
+    anteModulo(pz, mod, L, H, anteDiMobile(m), m.antaLato);
+  } else if (cat === 'frigo') {
+    // Frigo: elettrodomestico comprato, niente da tagliare (niente zoccolo)
   } else if (cat === 'lavatrice' || cat === 'lavastoviglie') {
     // Elettrodomestico: NON si tagliano carcassa/ante (è un apparecchio comprato).
     // Ma va calcolato come un modulo da 45/60 per le MISURE: occupa il suo spazio
@@ -213,6 +218,7 @@ function pezziDiModulo(progetto, m) {
   const col = progetto.coloriFronti || {};
   const alto = cat === 'costado' && (m.profondita_mm || 620) < 500;
   let idAnte = cat === 'pensile' ? col.pensile : cat === 'colonna' ? col.colonna
+    : cat === 'altillo' ? (col.colonna || col.pensile)
     : cat === 'costado' ? ((progetto.costadiDiversi && m.colore) || (alto ? (col.pensile || col.costado)
       : (col.costado || ((m.altezza_mm || 0) >= 1500 ? (col.colonna || col.base) : col.base)))) : col.base;
   // costado "come il piano di lavoro": materiale dell'encimera
@@ -249,9 +255,9 @@ function gruppoPezzo(p) {
 const ORDINE_MODULI = ['Colonne', 'Moduli alti', 'Moduli bassi', 'Elettrodomestici'];
 function gruppoModulo(cat) {
   if (cat === 'colonna') return 'Colonne';
-  if (cat === 'pensile') return 'Moduli alti';
+  if (cat === 'pensile' || cat === 'altillo') return 'Moduli alti';
   if (cat === 'base') return 'Moduli bassi';
-  if (cat === 'lavastoviglie' || cat === 'lavatrice') return 'Elettrodomestici';
+  if (cat === 'lavastoviglie' || cat === 'lavatrice' || cat === 'frigo') return 'Elettrodomestici';
   return null;
 }
 

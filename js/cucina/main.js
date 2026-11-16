@@ -23,12 +23,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261116m';
-import { renderPianta } from './pianta.js?v=20261116m';
-import { calcolaDistintaCucina } from './distinta.js?v=20261116m';
+} from './modello.js?v=20261116n';
+import { renderPianta } from './pianta.js?v=20261116n';
+import { calcolaDistintaCucina } from './distinta.js?v=20261116n';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261116m';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116m';
+import { agganciaTema } from '../tema.js?v=20261116n';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116n';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -243,7 +243,7 @@ const NOMI_STEP = {
 };
 // Livello di mobili attivo nello step corrente ('basso' = a terra, 'alto' = pensili)
 function livelloStep() { return progetto.stepCorrente === 3 ? 'alto' : 'basso'; }
-function livelloMobile(cat) { return cat === 'pensile' ? 'alto' : 'basso'; }
+function livelloMobile(cat) { return (cat === 'pensile' || cat === 'altillo') ? 'alto' : 'basso'; }
 function step2Disponibile() {
   return progetto.pianoConfermato && progetto.piano.pareti.some((p) => !p.assente);
 }
@@ -1195,7 +1195,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116m');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116n');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1240,12 +1240,12 @@ function renderPannelloModificaMobile(m) {
   const isBase = cat === 'base';
   const puoAgg = m.tipo === 'base-ante' || m.tipo === 'base-cassetti';
   // Configurazione ante (numero + lato apertura): vale per base con ante e pensili
-  const puoAnte = m.tipo === 'base-ante' || m.tipo === 'pensile';
+  const puoAnte = m.tipo === 'base-ante' || m.tipo === 'pensile' || m.tipo === 'sopra-frigo';
   const nAnte = anteDiMobile(m);
   const latoAnta = m.antaLato === 'sx' ? 'sx' : 'dx';
   const fuochi = (m.larghezza_mm || 600) < 600 ? 2 : 4;
   const sinkCm = Math.max(30, Math.round(((m.larghezza_mm || 600) - 100) / 10));
-  const gruppoColore = cat === 'pensile' ? 'pensile' : cat === 'colonna' ? 'colonna'
+  const gruppoColore = cat === 'pensile' ? 'pensile' : (cat === 'colonna' || cat === 'altillo') ? 'colonna'
     : cat === 'costado' ? 'costado' : isBase ? 'base' : null;
   const nomeGruppo = { base: 'mobili bassi', pensile: 'pensili', colonna: 'colonne', costado: 'costadi' }[gruppoColore];
   const materialiTutti = (scena3dMod && scena3dMod.MATERIALI) || [];
@@ -1812,6 +1812,8 @@ function iconaMobile(id) {
     'regletta-grande': '<rect x="28" y="4" width="8" height="56"/><line x1="22" y1="4" x2="28" y2="8"/><line x1="22" y1="60" x2="28" y2="56"/>',
     'pannello-copertura': '<rect x="6" y="14" width="52" height="36"/><line x1="12" y1="20" x2="52" y2="20" stroke-dasharray="3 3"/><line x1="12" y1="44" x2="52" y2="44" stroke-dasharray="3 3"/>',
     costado: '<rect x="26" y="6" width="12" height="52"/><line x1="20" y1="6" x2="26" y2="10"/><line x1="20" y1="54" x2="26" y2="58"/>',
+    frigo: '<rect x="14" y="4" width="36" height="56" rx="3"/><line x1="14" y1="38" x2="50" y2="38"/><line x1="43" y1="12" x2="43" y2="24"/><line x1="43" y1="44" x2="43" y2="52"/>',
+    'sopra-frigo': '<rect x="10" y="6" width="44" height="14"/><line x1="32" y1="6" x2="32" y2="20"/><rect x="14" y="24" width="36" height="34" rx="3" stroke-dasharray="4 3"/>',
     sgabello: '<ellipse cx="32" cy="16" rx="13" ry="6"/><path d="M22 14 a10 8 0 0 1 20 0" fill="none"/><line x1="32" y1="22" x2="32" y2="48"/><ellipse cx="32" cy="52" rx="16" ry="5"/><ellipse cx="32" cy="40" rx="10" ry="3" fill="none"/>',
   };
   return `<svg viewBox="0 0 64 64" aria-hidden="true">${ic[id] || ic['base-ante']}</svg>`;
@@ -1847,13 +1849,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116m');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116n');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116m'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116n'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

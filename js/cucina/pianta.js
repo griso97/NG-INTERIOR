@@ -11,7 +11,7 @@ import {
   moduliDiParete, nomeTipo, PROFONDITA_BASE, PROFONDITA_PENSILE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
   dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili, angoloInternoVertice,
-} from './modello.js?v=20261116m';
+} from './modello.js?v=20261116n';
 
 const NS = 'http://www.w3.org/2000/svg';
 const el = (tag, attrs = {}) => {
@@ -399,7 +399,7 @@ function renderMobileLibero(m, selezionato, interattivo, bloccato = false) {
     cornersLocali = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]];
   }
   const corners = cornersLocali.map(([x, y]) => versoSvg(x, y));
-  const tipoCls = categoria === 'pensile' ? ' sv-mob-pensile' :
+  const tipoCls = (categoria === 'pensile' || categoria === 'altillo') ? ' sv-mob-pensile' :
     categoria === 'colonna' ? ' sv-mob-colonna' :
     categoria === 'regletta' ? ' sv-mob-regletta' :
     categoria === 'pannello' ? ' sv-mob-pannello' :

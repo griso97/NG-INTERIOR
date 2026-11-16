@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261116m';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116m';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261116m';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116m';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116m';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116m';
+} from './modello.js?v=20261116n';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116n';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261116n';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116n';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116n';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116n';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116m';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116n';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -33,7 +33,7 @@ function zoccoloPerAltezza(h) { return h >= 800 ? 100 : 150; }
 // con piedini + piano: base, lavello, forno, cassettiera...). Serve per far
 // adattare i piedini della colonna ai mobili bassi: se i bassi sono da 80
 // (piedini 100), anche la colonna deve stare su piedini da 100, non 150.
-const CAT_NON_BASSE = new Set(['pensile', 'colonna', 'regletta', 'pannello', 'costado', 'oggetto']);
+const CAT_NON_BASSE = new Set(['pensile', 'colonna', 'regletta', 'pannello', 'costado', 'oggetto', 'frigo', 'altillo']);
 function altezzaBaseDominante(progetto) {
   const conteggio = new Map();
   for (const m of (progetto.mobiliLiberi || [])) {
@@ -53,6 +53,54 @@ function zoccoloColonna(progetto, m) {
   return zoccoloPerAltezza(baseH != null ? baseH : (m.altezzaBassa_mm || 700));
 }
 
+/**
+ * Cima (mm da terra) di un costado A TERRA. Quello alto (≥ 150 cm) va a filo
+ * sopra con le colonne, se ci sono; senza colonne (es. solo frigo tra due
+ * costadi) sta appoggiato a terra, alto quanto l'hai fatto.
+ */
+function cimaCostadoAlto(m, topLine) {
+  const h = m.altezza_mm || 850;
+  return (h >= 1500 && topLine != null ? Math.max(0, topLine - h) : 0) + h;
+}
+/**
+ * MOBILE SOPRA FRIGO: la sua cima va a filo con la cosa alta che ha accanto
+ * (costado alto, colonna, pannello alto); se non tocca niente di alto, con la
+ * cima delle colonne, se no 235 cm. Non scende mai dentro il frigo sotto.
+ * Ritorna la quota del suo fondo (mm da terra).
+ */
+function baseAltillo(progetto, m, topLine, cimaAlta = topLine) {
+  const h = m.altezza_mm || 350, dm = dimMobile(m);
+  const box = (o, d) => { const rr = ((Math.round((o.rot || 0) / 90) * 90) % 180 + 180) % 180;
+    const hx = (rr === 0 ? d.w : d.d) / 2, hy = (rr === 0 ? d.d : d.w) / 2; return { x0: o.x - hx, x1: o.x + hx, y0: o.y - hy, y1: o.y + hy }; };
+  const A = box(m, dm);
+  let cima = null, frigoSotto = 0;
+  for (const o of (progetto.mobiliLiberi || [])) {
+    if (o.id === m.id) continue;
+    const cat = categoriaTipo(o.tipo);
+    const B = box(o, dimMobile(o));
+    const gx = Math.max(B.x0 - A.x1, A.x0 - B.x1), gy = Math.max(B.y0 - A.y1, A.y0 - B.y1);
+    if (cat === 'frigo' && gx < -20 && gy < -20) { frigoSotto = Math.max(frigoSotto, o.altezza_mm || 1850); continue; }
+    if (gx > 60 || gy > 60) continue;                      // non lo tocca
+    let c = null;
+    if (cat === 'colonna') c = (o.altezza_mm || 2200) + zoccoloColonna(progetto, o);
+    else if (cat === 'costado' && (o.profondita_mm || 620) >= 500 && (o.altezza_mm || 0) >= 1500) c = cimaCostadoAlto(o, topLine);
+    else if (cat === 'pannello' && (o.altezza_mm || 0) >= 1500) c = o.altezza_mm;
+    if (c != null) cima = Math.max(cima ?? 0, c);
+  }
+  if (cima == null) cima = cimaAlta != null ? cimaAlta : 2350;
+  return Math.max(cima - h, frigoSotto ? frigoSotto + 10 : 0);
+}
+
+/** Cima più alta dei costadi (profondi, a terra) e dei pannelli alti (≥ 150 cm); null se non ce ne sono. */
+function quotaAltaPannelli(progetto) {
+  let q = null;
+  for (const m of (progetto.mobiliLiberi || [])) {
+    const cat = categoriaTipo(m.tipo), h = m.altezza_mm || 0;
+    if (h < 1500) continue;
+    if ((cat === 'costado' && (m.profondita_mm || 620) >= 500) || cat === 'pannello') q = Math.max(q ?? 0, h);
+  }
+  return q;
+}
 // Quota della cima delle colonne (cassa + zoccolo). null se non ci sono colonne.
 function quotaAltaColonne(progetto) {
   const cols = (progetto.mobiliLiberi || []).filter((m) => categoriaTipo(m.tipo) === 'colonna');
@@ -750,7 +798,7 @@ let _maniglia = null;
 let _manByCat = {};
 let _reRenderMan = null;
 function manigliaCat(cat) {
-  const g = cat === 'pensile' ? 'pensile' : cat === 'colonna' ? 'colonna' : 'base';
+  const g = cat === 'pensile' ? 'pensile' : (cat === 'colonna' || cat === 'altillo') ? 'colonna' : 'base';
   const id = _manByCat[g];
   return id ? MATERIALI.find((m) => m.id === id && m.categoria === 'maniglia') || null : null;
 }
@@ -832,7 +880,7 @@ let _fpByCat = {};
 // Finger-pull per categoria: progetto.fingerPull può essere un oggetto
 // { base, pensile, colonna } oppure (vecchio) un booleano = vale per tutto.
 function fpCat(fp, cat) {
-  const key = cat === 'base' ? 'base' : cat === 'pensile' ? 'pensile' : cat === 'colonna' ? 'colonna' : null;
+  const key = cat === 'base' ? 'base' : cat === 'pensile' ? 'pensile' : (cat === 'colonna' || cat === 'altillo') ? 'colonna' : null;
   if (!key) return false;
   if (fp === true) return true;
   return !!(fp && typeof fp === 'object' && fp[key]);
@@ -1385,6 +1433,35 @@ function lavastoviglieFronte(g, w, h, d) {
 }
 
 /**
+ * FRIGO LIBERO (combinato): corpo bianco laccato, porta frigo in alto e porta
+ * congelatore in basso, con la fuga in mezzo e le maniglie incassate sul lato.
+ */
+const matFrigo = new THREE.MeshStandardMaterial({ color: 0xf1f1ee, roughness: 0.32, metalness: 0.05, envMapIntensity: 0.8 });
+const matFrigoFuga = new THREE.MeshStandardMaterial({ color: 0x8d8f93, roughness: 0.6, metalness: 0.2 });
+function frigoLibero(g, w, h, d) {
+  const box = (bw, bh, bd, x, y, z, mat) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(2, bw), Math.max(2, bh), Math.max(2, bd)), mat);
+    m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+  };
+  const sp = 40;                                          // spessore delle porte
+  box(w - 4, h - 4, d - sp, 0, 0, -sp / 2, matFrigo);      // corpo (dietro le porte)
+  const hCong = Math.round(Math.min(800, h * 0.38));      // congelatore in basso
+  const fuga = 8, y0 = -h / 2;
+  const zP = d / 2 - sp / 2;
+  // porta congelatore
+  box(w - 6, hCong - fuga, sp, 0, y0 + (hCong - fuga) / 2 + 2, zP, matFrigo);
+  // porta frigo
+  const hFr = h - hCong - 4;
+  box(w - 6, hFr, sp, 0, y0 + hCong + hFr / 2, zP, matFrigo);
+  // fuga tra le porte (si vede scura)
+  box(w - 10, fuga, 4, 0, y0 + hCong - fuga / 2, d / 2 - sp - 1, matFrigoFuga);
+  // maniglie incassate: listello verticale sul bordo destro di ogni porta
+  const xM = w / 2 - 24;
+  box(12, Math.min(260, hFr * 0.3), 8, xM, y0 + hCong + 30 + Math.min(260, hFr * 0.3) / 2, d / 2 + 2, matFrigoFuga);
+  box(12, Math.min(220, hCong * 0.35), 8, xM, y0 + hCong - fuga - 30 - Math.min(220, hCong * 0.35) / 2, d / 2 + 2, matFrigoFuga);
+}
+
+/**
  * Fronte LAVATRICE realistico: corpo bianco, fascia comandi in alto (cassetto
  * detersivo + display + manopola), e OBLÒ tondo con anello cromato e vetro
  * scuro. Costruito DAVANTI alla faccia del mobile (Z0) per non essere coperto.
@@ -1647,6 +1724,7 @@ function pensileAngoloFronte(g, w, h, d, matAnta) {
 /** Costruisce il mobile completo centrato nell'origine (corpo + fronti). */
 function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
+  if (cat === 'frigo') { frigoLibero(g, w, h, d); return g; }
   _fingerPull = fpCat(_fpByCat, cat);   // finger-pull per categoria del mobile
   _maniglia = manigliaCat(cat);         // maniglia del catalogo per categoria
   // Colonna: il fianco si vede (sopra i pensili, di lato) → stesso materiale
@@ -1681,7 +1759,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   if (cat === 'lavatrice') { lavatriceFronte(g, w, h, d); return g; }
   if (tipo === 'forno') { fronteForno(g, w, h, d, matAnta); return g; } // placca sopra il top
   // base con ante / pensile (il pensile può avere l'anta sporgente sotto)
-  _anteInBasso = cat === 'pensile';
+  _anteInBasso = cat === 'pensile' || cat === 'altillo';   // in alto: maniglia sotto
   _vetrina = vetrina;
   ante(g, w, h, d, anteDiMobile(m), matAnta, opt.sporg, m.antaLato);
   _anteInBasso = false; _vetrina = null;
@@ -1879,10 +1957,14 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   // riferimento (2350).
   const topLine = quotaAltaColonne(progetto);
   const QUOTA_RIF = topLine != null ? topLine : 2350;
+  // Cima dei PENSILI: a filo con le colonne; senza colonne, con il costado o il
+  // pannello alto a terra (es. frigo tra due costadi: il pensile accanto arriva
+  // alla loro cima); se no appesi all'altezza standard
+  const cimaAlta = topLine != null ? topLine : quotaAltaPannelli(progetto);
   // Cima di ogni pensile (stessa regola del pensile qui sotto): serve ai
   // costadi alti, che vanno SEMPRE a filo sopra col pensile vicino.
   const cimePensili = (progetto.mobiliLiberi || []).filter((x) => categoriaTipo(x.tipo) === 'pensile')
-    .map((x) => { const h = x.altezza_mm || 700; return { x: x.x, y: x.y, cima: (topLine != null ? topLine - h : MONTAGGIO_PENSILE) + h,
+    .map((x) => { const h = x.altezza_mm || 700; return { x: x.x, y: x.y, cima: (cimaAlta != null ? cimaAlta - h : MONTAGGIO_PENSILE) + h,
       hAnta: h + (antaPensileSporge(progetto.antaPensile, h) ? 20 : 0) }; });
 
   // CIERRE A TECHO: pannello sopra pensili e colonne fino al soffitto (altezza scelta)
@@ -1916,7 +1998,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const h = m.altezza_mm || 700;
       // Se ci sono colonne, la CIMA del pensile va alla cima delle colonne;
       // altrimenti resta appeso all'altezza standard (140 cm da terra).
-      const base = topLine != null ? (topLine - h) : MONTAGGIO_PENSILE;
+      const base = cimaAlta != null ? (cimaAlta - h) : MONTAGGIO_PENSILE;
       pensiliPlan.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, yBottom: base });
       const sporg = antaPensileSporge(progetto.antaPensile, h);
       const gPens = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matPensile, { sporg });
@@ -1953,6 +2035,18 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const gCol = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matColonna);
       cimeAlte.set(m.id, zocc + h);
       g3d = collocaMobile(gCol, cx, zocc, cz, h, m.rot);
+    } else if (cat === 'frigo') {
+      // FRIGO libero: a terra, niente zoccolo; il piano di lavoro si ferma contro
+      const h = m.altezza_mm || 1850;
+      fianchi.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, h, cat: 'colonna' });
+      g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, null), cx, 0, cz, h, m.rot);
+    } else if (cat === 'altillo') {
+      // MOBILE SOPRA FRIGO: cima a filo con il costado / la colonna accanto
+      const h = m.altezza_mm || 350;
+      const base = baseAltillo(progetto, m, topLine, cimaAlta);
+      const gA = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matColonna || matPensile);
+      cimeAlte.set(m.id, base + h);
+      g3d = collocaMobile(gA, cx, base, cz, h, m.rot);
     } else if (cat === 'regletta') {
       const h = m.altezza_mm || 700;
       const zocc = zoccoloPerAltezza(h);
@@ -1970,7 +2064,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       // Il costado ALTO è a filo SOPRA col pensile più vicino (qualunque sia
       // la porta: 70, 72, 90, 92) e ha il colore delle ante dei pensili.
       const alto = (m.profondita_mm || 620) < 500;
-      let base = alto ? MONTAGGIO_PENSILE : (h >= 1500 ? Math.max(0, QUOTA_RIF - h) : 0);
+      let base = alto ? MONTAGGIO_PENSILE : cimaCostadoAlto(m, topLine) - h;
       if (alto) {
         let vicino = null, dMin = Infinity;
         for (const pz of cimePensili) { const dd = Math.hypot(pz.x - m.x, pz.y - m.y); if (dd < dMin) { dMin = dd; vicino = pz; } }

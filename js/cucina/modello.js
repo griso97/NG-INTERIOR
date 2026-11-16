@@ -113,6 +113,14 @@ export const CATALOGO_MOBILI = [
     larghezze: [1200, 1800, 2400, 3000], altezze: [850, 900], profondita: 18 },
   { id: 'costado',       nome: 'Costado', categoria: 'costado',
     larghezze: [20], altezze: ALTEZZE_COSTADO, profondita: 620 },
+  // FRIGO libero (elettrodomestico, a terra, niente zoccolo): di solito tra due
+  // costadi alti, con il MOBILE SOPRA FRIGO in cima
+  { id: 'frigo',         nome: 'Frigo', categoria: 'frigo',
+    larghezze: [600, 700, 550], altezze: [1850, 1700, 1800, 2000], profondita: 600 },
+  // Mobile sopra il frigo: la CIMA va a filo con la cosa alta accanto (costado,
+  // colonna, pannello); l'altezza la scegli tu (es. 35 cm)
+  { id: 'sopra-frigo',   nome: 'Mobile sopra frigo', categoria: 'altillo',
+    larghezze: [600, 700, 650], altezze: [350, 300, 400, 450, 500], profondita: 600 },
   // Oggetti 3D (arredo/decor): non sono moduli, si posano liberamente.
   { id: 'sgabello',      nome: 'Sgabello bar', categoria: 'oggetto',
     larghezze: [527], altezze: [880], profondita: 430 },
@@ -166,6 +174,19 @@ export function campiMobile(tipoId) {
       { campo: 'spessore_mm',   et: 'Spessore (mm)', tipo: 'numero', default: 18, min: 5, step: 1, opzioni: [18, 20, 25, 30] },
     ];
   }
+  if (t.categoria === 'frigo') {
+    return [
+      { campo: 'larghezza_mm', et: 'Larghezza (mm)', tipo: 'numero', min: 300, step: 10, opzioni: t.larghezze, default: 600 },
+      { campo: 'altezza_mm',   et: 'Altezza (mm)', tipo: 'numero', min: 500, step: 10, opzioni: t.altezze, default: 1850 },
+    ];
+  }
+  if (t.categoria === 'altillo') {
+    return [
+      { campo: 'larghezza_mm',  et: 'Larghezza (mm)', tipo: 'numero', min: 100, step: 10, opzioni: t.larghezze, default: 600 },
+      { campo: 'altezza_mm',    et: 'Altezza (mm)', tipo: 'numero', min: 100, step: 10, opzioni: t.altezze, default: 350 },
+      { campo: 'profondita_mm', et: 'Profondità (mm)', tipo: 'numero', min: 200, step: 10, opzioni: [600, 350], default: 600 },
+    ];
+  }
   if (t.categoria === 'colonna') {
     return [
       { campo: 'altezza_mm',      et: 'Altezza totale (mm)', opzioni: ALTEZZE_COLONNA, default: ALTEZZE_COLONNA[0] },
@@ -205,6 +226,11 @@ export function descrizioneMobile(m) {
   if (cat === 'colonna') {
     return `${m.larghezza_mm}×${m.altezza_mm} · ${nomeVarianteColonna(m.variante)}`;
   }
+  if (cat === 'frigo') return `${m.larghezza_mm}×${m.altezza_mm}`;
+  if (cat === 'altillo') {
+    const na = anteDiMobile(m);
+    return `${m.larghezza_mm}×${m.altezza_mm} · p ${m.profondita_mm || 600} · ${na === 1 ? `1 anta ${m.antaLato === 'sx' ? 'sx' : 'dx'}` : '2 ante'}`;
+  }
   const extra = (m.placca ? ' · piano cottura' : '') + (m.lavello ? ' · lavello' : '');
   if (m.tipo === 'base-cassetti') {
     return `${m.larghezza_mm}×${m.altezza_mm} · ${m.cassetti || 3} cassetti${extra}`;
@@ -238,6 +264,7 @@ export function dimMobile(m) {
     const w = m.larghezza_mm || 880;
     return { w, d: m.latoB_mm || w };
   }
+  if (cat === 'altillo') return { w: m.larghezza_mm || 600, d: m.profondita_mm || 600 };
   if (typeof m.tipo === 'string' && m.tipo.startsWith('ogg:')) return { w: m.larghezza_mm || 300, d: m.profondita_mm || profonditaTipo(m.tipo) };
   return { w: m.larghezza_mm, d: profonditaTipo(m.tipo) };
 }
@@ -275,7 +302,7 @@ export function mettiNelVano(progetto, m) {
  */
 export function livelloDiMobile(m) {
   const cat = categoriaTipo(m.tipo);
-  if (cat === 'pensile') return 'alto';
+  if (cat === 'pensile' || cat === 'altillo') return 'alto';
   if (cat === 'costado') return (m.profondita_mm || 620) >= 500 ? 'basso' : 'alto';
   return 'basso';
 }
@@ -481,6 +508,8 @@ const MONT_PENSILE_MM = 1400;
 export function rangeVerticale(m) {
   const cat = categoriaTipo(m.tipo);
   if (cat === 'pensile') { const h = m.altezza_mm || 700; return [MONT_PENSILE_MM, MONT_PENSILE_MM + h]; }
+  // Mobile sopra frigo: sta in alto (sopra il frigo, che non tocca), accanto ai costadi alti
+  if (cat === 'altillo') return [2100, 4000];
   const h = m.altezza_mm || (cat === 'colonna' ? 2200 : 700);
   return [0, h];
 }
@@ -630,7 +659,7 @@ export function modoIsola(progetto, m, x, y) {
   return !!w && w.dist - dimMobile(m).w / 2 > 150;
 }
 
-const FILA_ROTAZIONE = ['base', 'colonna', 'lavastoviglie', 'lavatrice', 'pensile'];
+const FILA_ROTAZIONE = ['base', 'colonna', 'lavastoviglie', 'lavatrice', 'pensile', 'frigo', 'altillo'];
 /**
  * Rotazione automatica mentre si trascina un mobile (o quando nasce):
  *  · vicino a un muro → ante verso la stanza (orientaVersoMuro);
@@ -1411,9 +1440,9 @@ export function infoAngoloCieco(progetto, m) {
  * principale (più mobili attaccati) o è un pezzo isolato: nell'angolo cieco,
  * chi è in fila con altri resta fermo, chi è isolato si sposta.
  */
-const FILA_TERRA = ['base', 'colonna', 'lavastoviglie', 'lavatrice'];
+const FILA_TERRA = ['base', 'colonna', 'lavastoviglie', 'lavatrice', 'frigo'];
 /** Pezzi che stanno nella fila a terra e si spostano con lei (anche costadi, reglette, pannelli). */
-const FILA_PEZZI = [...FILA_TERRA, 'costado', 'regletta', 'pannello'];
+const FILA_PEZZI = [...FILA_TERRA, 'costado', 'regletta', 'pannello', 'altillo'];
 
 /**
  * Sposta lungo il suo muro il mobile `primo` di `shift` mm in direzione `dir`
@@ -1917,7 +1946,7 @@ export function bboxPerimetro(pareti) {
  * come i bassi, così le linee di porte e cassetti sono tutte alla stessa quota.
  * null se non ci sono mobili bassi.
  */
-const CAT_NON_BASSE_M = new Set(['pensile', 'colonna', 'regletta', 'pannello', 'costado', 'oggetto']);
+const CAT_NON_BASSE_M = new Set(['pensile', 'colonna', 'regletta', 'pannello', 'costado', 'oggetto', 'frigo', 'altillo']);
 export function altezzaBassiCucina(progetto) {
   const conteggio = new Map();
   for (const m of (progetto.mobiliLiberi || [])) {

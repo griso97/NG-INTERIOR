@@ -1384,4 +1384,8 @@ window.NG_I18N_ES = {
  "Colori dei binari degli armadi scorrevoli.": "Colores de los carriles de los armarios correderos.",
  "Colore del binario": "Color del carril",
  "Grigio": "Gris",
+ "Frigo": "Frigorífico",
+ "Mobile sopra frigo": "Mueble sobre frigorífico",
+ "Frigo: che misura?": "Frigorífico: ¿qué medida?",
+ "Mobile sopra frigo: che misura?": "Mueble sobre frigorífico: ¿qué medida?",
 };
