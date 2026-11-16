@@ -223,10 +223,43 @@ const hex = (rgb) => (Math.round(rgb[0]) << 16) | (Math.round(rgb[1]) << 8) | Ma
  * lato, sopra, dietro } (immagini isolate); W, D, H in mm; pianta: 'squadrata' |
  * 'tonda' | 'ovale' (solo senza la foto da sopra). Ritorna { geo, mats, colore } o null.
  */
-export function geometriaOggetto(foto, W, D, H, pianta = 'squadrata') {
+/**
+ * DAVANTI o LATO? Con le MISURE si capisce quale foto è quale: il davanti è
+ * largo come la larghezza, il lato come la profondità (in proporzione
+ * all'altezza). Se le due foto sono messe al contrario (es. tostapane: foto
+ * stretta come davanti e foto lunga come lato) ritorna true = vanno scambiate.
+ */
+export function vistaScambiata(fFronte, fLato, W, D, H) {
+  const F = vista(fFronte), S = vista(fLato);
+  if (!F || !S || !(W > 0 && D > 0 && H > 0)) return false;
+  const eF = W / H, eS = D / H;
+  if (Math.abs(Math.log(eF / eS)) < 0.15) return false;           // larghezza ≈ profondità: non si capisce
+  const err = (a, e) => Math.abs(Math.log(a / e));
+  return err(S.aspetto, eF) + err(F.aspetto, eS) + 0.15 < err(F.aspetto, eF) + err(S.aspetto, eS);
+}
+/**
+ * Raggio (mm) degli spigoli in alto della sagoma: quanto la sagoma si stringe
+ * in cima (es. tostapane bombato ~4 cm, scatola squadrata ~0).
+ */
+function raggioCima(p, largh, alt) {
+  const m = p.mDx - p.mSx;
+  if (!(m > 0)) return 0;
+  let v = 0;
+  while (v < 0.4 && (p.dx(v) - p.sx(v)) < m * 0.97) v += 0.004;
+  const restr = Math.max(0, (m - (p.dx(0.004) - p.sx(0.004))) / 2) * largh;   // quanto è più stretta la prima riga
+  return Math.min(v * alt, restr * 1.2 + v * alt * 0.2);
+}
+
+export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
+  W = Math.max(10, W); D = Math.max(10, D); H = Math.max(10, H);
+  // davanti e lato al contrario (si vede dalle misure): li scambio da solo
+  let scambiate = false;
+  if (foto.fronte && foto.lato && vistaScambiata(foto.fronte, foto.lato, W, D, H)) {
+    foto = { ...foto, fronte: foto.lato, lato: foto.fronte, dietro: null };
+    scambiate = true;
+  }
   const F = vista(foto.fronte); if (!F) return null;
   const S = vista(foto.lato), T = vista(foto.sopra), B = foto.dietro ? true : false;
-  W = Math.max(10, W); D = Math.max(10, D); H = Math.max(10, H);
   // PROFILI riga per riga (davanti, lato, sopra) → volume con facce piatte
   const pF = profilo(F);
   const pS = S ? profilo(S) : null, pT = T ? profilo(T) : null;
@@ -251,7 +284,14 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'squadrata') {
   const id = (i, j, k) => (k * GY + j) * GX + i;
   const f = new Float32Array(GX * GY * GZ);
   const tonda = !T && (pianta === 'tonda' || pianta === 'ovale');
-  const rr = Math.min(W, D) * 0.045;                       // spigoli verticali arrotondati (come i veri)
+  // FORMA DA SOPRA AUTOMATICA (senza la foto da sopra): rettangolo con gli
+  // spigoli arrotondati come si vede nelle foto (in cima davanti e di lato);
+  // le misure restano esatte. 'squadrata' = spigoli appena smussati.
+  let rr = Math.min(W, D) * 0.045;
+  if (!T && pianta !== 'squadrata' && !tonda) {
+    const rF = raggioCima(pF, W, H), rS = pS ? raggioCima(pS, D, H) : rF;
+    rr = Math.max(rr, Math.min(Math.min(W, D) * 0.48, (rF + rS) / 2));
+  }
   const zCorpo = D / 2 - corpoF * D;                       // faccia davanti del corpo (oltre: solo la maniglia)
   const dentro = (dd) => Math.max(0, Math.min(1, 0.5 + dd / passo));
   for (let j = 1; j <= NY; j++) {
@@ -391,7 +431,7 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'squadrata') {
   geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrmA, 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvA, 2));
   gi.dispose();
-  return { geo, mats, W, D, H, colore: hex(F.media) };
+  return { geo, mats, W, D, H, colore: hex(F.media), scambiate };
 }
 
 // ------------------------------------------------------------------ in cucina
@@ -427,6 +467,7 @@ export async function anteprimaOggetto(box, foto, W, D, H, pianta) {
   box.innerHTML = '';
   const res = geometriaOggetto(foto, W, D, H, pianta);
   if (!res) { box.innerHTML = '<div class="imp-aiuto">Non riesco a costruire il 3D: controlla la foto davanti.</div>'; return () => {}; }
+  if (res.scambiate && box.dataset) box.dataset.scambiate = '1'; else if (box.dataset) delete box.dataset.scambiate;
   const LW = Math.min(box.clientWidth || 320, 520), LH = Math.round(LW * 0.75);
   const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
   r.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); r.setSize(LW, LH);

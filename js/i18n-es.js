@@ -1488,4 +1488,5 @@ window.NG_I18N_ES = {
  "Come il ponte": "Como el puente",
  "moduli del ponte": "módulos del puente",
  "pensili sotto il ponte": "altos bajo el puente",
+ "Ho scambiato davanti e lato: dalle misure, il davanti è la foto larga come la larghezza e il lato quella larga come la profondità.": "He intercambiado delante y lado: por las medidas, el delante es la foto ancha como la anchura y el lado la ancha como la profundidad.",
 };

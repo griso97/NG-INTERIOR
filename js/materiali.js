@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261117j';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261117k';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -157,7 +157,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261117j');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261117k');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -212,7 +212,7 @@ async function applicaCatalogo() {
     if (p.sezione === 'oggetti' && p.oggetto) {
       const o = p.oggetto;
       def.misure = { w: (Number(o.w) || 30) * 10, d: (Number(o.d) || 30) * 10, h: (Number(o.h) || 30) * 10 };
-      def.pianta = o.pianta || 'squadrata';
+      def.pianta = o.pianta || 'auto';
       const [fl, fs, fd] = await Promise.all(['lato', 'sopra', 'dietro'].map((t) => (o.viste && o.viste[t] ? leggiFoto(p.id, t) : null)));
       def.viste = { fronte: url, lato: fl ? URL.createObjectURL(fl) : null, sopra: fs ? URL.createObjectURL(fs) : null, dietro: fd ? URL.createObjectURL(fd) : null };
     }

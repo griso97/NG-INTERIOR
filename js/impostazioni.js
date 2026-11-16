@@ -8,13 +8,13 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261117j';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261117j';
-import { anteprimaOggetto, riconosciViste } from './oggetto3d.js?v=20261117j';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261117j';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261117j';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261117j';
-import { agganciaTema } from './tema.js?v=20261117j';
+} from './catalogo.js?v=20261117k';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261117k';
+import { anteprimaOggetto, riconosciViste, vistaScambiata } from './oggetto3d.js?v=20261117k';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261117k';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261117k';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261117k';
+import { agganciaTema } from './tema.js?v=20261117k';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -880,7 +880,7 @@ function aCanvas(im) {
 }
 function apriSchedaOggetto(p) {
   const nuovo = !p;
-  const o = (p && p.oggetto) || { w: '', d: '', h: '', pianta: 'squadrata' };
+  const o = (p && p.oggetto) || { w: '', d: '', h: '', pianta: 'auto' };
   const info = (p && p.info) || {};
   const corpo = document.getElementById('imp-modale-corpo');
   corpo.innerHTML = `
@@ -913,9 +913,9 @@ function apriSchedaOggetto(p) {
       <fieldset class="imp-misura" id="o-pianta-box">
         <legend>Forma vista da sopra</legend>
         <div class="opzioni-anta imp-pianta">
-          ${[['squadrata', 'Squadrata'], ['tonda', 'Tonda'], ['ovale', 'Ovale']].map(([id, n]) => `<button type="button" class="btn-ghost btn-mini ${o.pianta === id ? 'attivo' : ''}" data-pianta="${id}">${n}</button>`).join('')}
+          ${[['auto', 'Automatica'], ['squadrata', 'Squadrata'], ['tonda', 'Tonda'], ['ovale', 'Ovale']].map(([id, n]) => `<button type="button" class="btn-ghost btn-mini ${(o.pianta || 'auto') === id ? 'attivo' : ''}" data-pianta="${id}">${n}</button>`).join('')}
         </div>
-        <div class="imp-aiuto">Serve solo senza la foto da sopra: per esempio una friggitrice tonda.</div>
+        <div class="imp-aiuto"><strong>Automatica</strong>: il sito la ricava dalle foto (spigoli arrotondati come si vedono), con le misure esatte. Le altre servono solo per casi particolari, senza la foto da sopra (es. friggitrice tonda).</div>
       </fieldset>
       <div class="imp-sup-titolo">Anteprima 3D</div>
       <div id="o-vista" class="imp-man3d-vista"><div class="imp-aiuto">Carica la foto davanti e scrivi le misure.</div></div>
@@ -929,7 +929,7 @@ function apriSchedaOggetto(p) {
     </div>`;
   modale.hidden = false;
   const imgs = {}, colori = {}, cambiate = new Set();
-  let pianta = o.pianta || 'squadrata';
+  let pianta = o.pianta || 'auto';
   const errore = (t) => { const e = corpo.querySelector('#f-err'); e.textContent = t; e.hidden = false; e.scrollIntoView({ block: 'nearest' }); };
   const avviso = (t) => { const m = corpo.querySelector('#o-msg'); m.textContent = t; m.hidden = !t; };
   const num = (id) => Number(String(corpo.querySelector(id).value).replace(',', '.'));
@@ -950,6 +950,11 @@ function apriSchedaOggetto(p) {
       if (!imgs.fronte || !(W > 0 && D > 0 && H > 0)) { box.innerHTML = `<div class="imp-aiuto">${tr('Carica la foto davanti e scrivi le misure.')}</div>`; return; }
       box.innerHTML = `<div class="imp-aiuto">${tr('Costruisco il 3D…')}</div>`;
       await new Promise((r) => setTimeout(r, 30));
+      // DAVANTI e LATO al contrario (si capisce dalle misure): li scambio nelle caselle e lo dico
+      if (imgs.fronte && imgs.lato && vistaScambiata(imgs.fronte, imgs.lato, W, D, H)) {
+        scambia('lato', 'fronte'); mostraTutte();
+        avviso(tr('Ho scambiato davanti e lato: dalle misure, il davanti è la foto larga come la larghezza e il lato quella larga come la profondità.'));
+      }
       _chiudiAntOgg = await anteprimaOggetto(box, imgs, W, D, H, pianta);
     }, 250);
   };
