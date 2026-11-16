@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261116g';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116g';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261116g';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116g';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116g';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116g';
+} from './modello.js?v=20261116h';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116h';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261116h';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116h';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116h';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116h';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116g';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116h';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -568,6 +568,11 @@ export function iniziaSpostamento(clientX, clientY, puoSpostare) {
   pianoTerra.constant = appoggio ? -g.position.y : (hit ? -hit.point.y : 0);
   const p = puntoATerra(clientX, clientY);
   if (!p) return false;
+  // oggetti da appoggiare: lo scarto è tra il punto preso SULL'OGGETTO e il suo
+  // centro (al massimo mezzo oggetto). Col piano all'altezza della base, da una
+  // vista bassa il punto finiva lontano dietro e l'oggetto, portato su un altro
+  // piano, cadeva davanti al mobile.
+  if (appoggio && hit) { p.x = hit.point.x; p.z = hit.point.z; }
   spost = { g, id, dx: g.position.x - p.x, dz: g.position.z - p.z, x0: g.position.x, z0: g.position.z, appoggio,
     sup: appoggio ? superficiAppoggio() : null, portali: appoggio ? portaliVano() : [] };
   controls.enabled = false;
@@ -585,14 +590,26 @@ function puntoSuSuperfici(clientX, clientY, sup, portali = []) {
   const rect = canvasEl.getBoundingClientRect();
   rayPick.setFromCamera(new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1,
     -((clientY - rect.top) / rect.height) * 2 + 1), camera);
-  const cand = portali.length ? [...sup, ...portali] : sup;
-  const hit = cand.length ? rayPick.intersectObjects(cand, false)[0] : null;
-  if (hit && hit.object.userData.portaleVano) {
-    // dentro il vano della colonna: a metà profondità (poi si appoggia sul ripiano)
-    const n = new THREE.Vector3(0, 0, -1).transformDirection(hit.object.matrixWorld);
-    return hit.point.clone().addScaledVector(n, hit.object.userData.portaleVano.profondita / 2);
+  // Conta la PRIMA cosa che si vede sotto il dito: un piano d'appoggio, il vano
+  // di una colonna o il pavimento. Se è un muro o un'anta l'oggetto resta dov'è
+  // (prima finiva sul pavimento DIETRO il muro).
+  const visibile = (o) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
+  const dentroOggetto = (o) => { for (let q = o; q; q = q.parent) if (spost && q === spost.g) return true; return false; };
+  for (const hit of rayPick.intersectObjects(gruppo ? gruppo.children : [], true)) {
+    const o = hit.object;
+    if (!o.isMesh || dentroOggetto(o)) continue;
+    if (o.userData.portaleVano) {
+      // dentro il vano della colonna: a metà profondità (poi si appoggia sul ripiano)
+      const n = new THREE.Vector3(0, 0, -1).transformDirection(o.matrixWorld);
+      const q = hit.point.clone().addScaledVector(n, o.userData.portaleVano.profondita / 2);
+      q.vano = true;
+      return q;
+    }
+    if (!visibile(o)) continue;                              // muri nascosti, aperture: non contano
+    if (o.userData.appoggio || sup.includes(o)) return hit.point;
+    if (hit.point.y < 5) return hit.point;                   // pavimento
+    return null;                                             // muro, anta, fianco: resta dov'è
   }
-  if (hit) return hit.point;
   const pav = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p = new THREE.Vector3();
   return rayPick.ray.intersectPlane(pav, p) ? p : null;
 }
@@ -603,6 +620,14 @@ export function muoviSpostamento(clientX, clientY) {
   // vista radente (verso l'orizzonte): pochi pixel = metri → ignoro i punti troppo lontani
   const dCam = camera.position.distanceTo(controls.target);
   if (p.distanceTo(camera.position) > dCam * 2.5) return;
+  if (p.vano) {
+    // puntato dentro il vano di una colonna: l'oggetto va lì subito, sul ripiano
+    // (centrato e girato bene quando lo lasci)
+    const g = spost.g;
+    g.position.x = p.x; g.position.z = p.z;
+    g.position.y = quotaPiani(p.x, p.z, spost.sup);
+    return;
+  }
   // movimento morbido: al massimo 15 cm per volta, così l'oggetto non "salta"
   let nx = p.x + spost.dx - spost.g.position.x, nz = p.z + spost.dz - spost.g.position.z;
   const L = Math.hypot(nx, nz), MAX = spost.appoggio ? 400 : 150;

@@ -23,12 +23,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261116g';
-import { renderPianta } from './pianta.js?v=20261116g';
-import { calcolaDistintaCucina } from './distinta.js?v=20261116g';
+} from './modello.js?v=20261116h';
+import { renderPianta } from './pianta.js?v=20261116h';
+import { calcolaDistintaCucina } from './distinta.js?v=20261116h';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261116g';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116g';
+import { agganciaTema } from '../tema.js?v=20261116h';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116h';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -917,6 +917,10 @@ const fineSpost = (e) => {
   ignoraClick = true; setTimeout(() => { ignoraClick = false; }, 300);
   registraStoria();
   m.x = r.x; m.y = r.y; m.posManuale = true;
+  if (String(m.tipo).startsWith('ogg:')) {
+    // mai dentro il muro (puntando in fondo al piano col dito un po' più avanti)
+    const v = vincolaAiMuri(progetto, m, m.x, m.y); m.x = Math.round(v.x); m.y = Math.round(v.y);
+  }
   mettiNelVano(progetto, m);                  // lasciato nel vano di una colonna: dentro, dritto e centrato
   step2.mobSelId = m.id;
   aggiorna();
@@ -1191,7 +1195,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116g');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116h');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1843,13 +1847,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116g');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116h');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116g'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116h'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
