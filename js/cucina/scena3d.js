@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261116q';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116q';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261116q';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116q';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116q';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116q';
+} from './modello.js?v=20261116r';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116r';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261116r';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116r';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116r';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116r';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116q';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116r';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -96,6 +96,30 @@ function baseAltillo(progetto, m, topLine, cimaAlta = topLine, cimaScelta = null
   }
   if (cima == null) cima = cimaAlta != null ? cimaAlta : 2350;
   return Math.max(cima - h, frigoSotto ? frigoSotto + 10 : 0);
+}
+
+/** Rettangolo in pianta (rotazioni a 90°). */
+function boxPianta(o) {
+  const d = dimMobile(o), rr = ((Math.round((o.rot || 0) / 90) * 90) % 180 + 180) % 180;
+  const hx = (rr === 0 ? d.w : d.d) / 2, hy = (rr === 0 ? d.d : d.w) / 2;
+  return { x0: o.x - hx, x1: o.x + hx, y0: o.y - hy, y1: o.y + hy };
+}
+function siSovrappongono(a, b) {
+  const A = boxPianta(a), B = boxPianta(b);
+  return Math.max(B.x0 - A.x1, A.x0 - B.x1) < -20 && Math.max(B.y0 - A.y1, A.y0 - B.y1) < -20;
+}
+/**
+ * PENSILE SOTTO IL PONTE (o sotto un mobile sopra frigo): la sua cima tocca il
+ * fondo del ponte. Ritorna la quota del fondo del ponte sopra m, o null.
+ */
+function fondoPonteSopra(progetto, m, q) {
+  let fondo = null;
+  for (const o of (progetto.mobiliLiberi || [])) {
+    if (o.id === m.id || categoriaTipo(o.tipo) !== 'altillo' || !siSovrappongono(m, o)) continue;
+    const b = baseAltillo(progetto, o, q.topLine, q.cimaAlta, q.scelta);
+    fondo = fondo == null ? b : Math.min(fondo, b);
+  }
+  return fondo;
 }
 
 /**
@@ -2049,7 +2073,10 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const h = m.altezza_mm || 700;
       // Se ci sono colonne, la CIMA del pensile va alla cima delle colonne;
       // altrimenti resta appeso all'altezza standard (140 cm da terra).
-      const base = cimaAlta != null ? (cimaAlta - h) : MONTAGGIO_PENSILE;
+      let base = cimaAlta != null ? (cimaAlta - h) : MONTAGGIO_PENSILE;
+      // sotto il PONTE: la cima del pensile tocca il fondo del ponte
+      const fondoPonte = fondoPonteSopra(progetto, m, { topLine, cimaAlta, scelta: cimaScelta });
+      if (fondoPonte != null) base = fondoPonte - h;
       pensiliPlan.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, yBottom: base });
       const sporg = antaPensileSporge(progetto.antaPensile, h);
       const gPens = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matPensile, { sporg });
@@ -2097,6 +2124,11 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const base = baseAltillo(progetto, m, topLine, cimaAlta, cimaScelta);
       const gA = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matColonna || matPensile);
       cimeAlte.set(m.id, base + h);
+      // PONTE senza pensili sotto: i LED (se accesi) vanno sotto il ponte, sul piano
+      if (m.tipo === 'ponte' && progetto.led && progetto.led.attivo
+        && !(progetto.mobiliLiberi || []).some((o) => categoriaTipo(o.tipo) === 'pensile' && siSovrappongono(o, m))) {
+        aggiungiLedPensile(gA, dim.w, h, dim.d, progetto.led.colore, 0);
+      }
       g3d = collocaMobile(gA, cx, base, cz, h, m.rot);
     } else if (cat === 'regletta') {
       const h = m.altezza_mm || 700;

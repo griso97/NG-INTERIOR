@@ -125,6 +125,10 @@ export const CATALOGO_MOBILI = [
   // bassi (58 + anta = 60); tutte modificabili a mano
   { id: 'sopra-frigo',   nome: 'Mobile sopra frigo', categoria: 'altillo',
     larghezze: [600], altezze: [350, 450], profondita: PROFONDITA_BASE },
+  // CUCINA A PONTE: il "ponte" sono mobili profondi come le colonne (60), uno
+  // sopra ogni base, larghi come lei, con la cima a filo con le colonne ai lati
+  { id: 'ponte',         nome: 'Ponte', categoria: 'altillo',
+    larghezze: LARGHEZZE_BASE, altezze: [360, 240, 480, 600], profondita: PROFONDITA_BASE },
   // Oggetti 3D (arredo/decor): non sono moduli, si posano liberamente.
   { id: 'sgabello',      nome: 'Sgabello bar', categoria: 'oggetto',
     larghezze: [527], altezze: [880], profondita: 430 },
@@ -197,7 +201,7 @@ export function campiMobile(tipoId) {
   if (t.categoria === 'altillo') {
     return [
       { campo: 'larghezza_mm',  et: 'Larghezza (mm)', tipo: 'numero', min: 100, step: 10, opzioni: t.larghezze, default: 600 },
-      { campo: 'altezza_mm',    et: 'Altezza (mm)', tipo: 'numero', min: 100, step: 10, opzioni: t.altezze, default: 350 },
+      { campo: 'altezza_mm',    et: 'Altezza (mm)', tipo: 'numero', min: 100, step: 10, opzioni: t.altezze, default: t.altezze[0] },
       { campo: 'profondita_mm', et: 'Profondità con le ante (mm)', tipo: 'numero', min: 200, step: 10, opzioni: [PROFONDITA_BASE], default: PROFONDITA_BASE },
     ];
   }
@@ -588,7 +592,7 @@ export function rangeVerticale(m) {
   const cat = categoriaTipo(m.tipo);
   if (cat === 'pensile') { const h = m.altezza_mm || 700; return [MONT_PENSILE_MM, MONT_PENSILE_MM + h]; }
   // Mobile sopra frigo: sta in alto (sopra il frigo, che non tocca), accanto ai costadi alti
-  if (cat === 'altillo') return [2100, 4000];
+  if (cat === 'altillo') return [2300, 4000];
   const h = m.altezza_mm || (cat === 'colonna' ? 2200 : 700);
   return [0, h];
 }
@@ -1166,6 +1170,45 @@ export function generaPensiliAuto(progetto, altezzaPensile) {
     const v = vincolaAiMuri(progetto, p, p.x, p.y);
     p.x = snap(v.x); p.y = snap(v.y);
   }
+  return nuovi.length;
+}
+/**
+ * CUCINA A PONTE: crea il PONTE, un modulo sopra ogni base (stessa larghezza,
+ * allineato) fra le colonne / i costadi alti ai lati, alto `altezza` (24, 36,
+ * 48, 60 cm…), profondo come le basi; la cima va a filo con le colonne.
+ * Sostituisce il ponte che c'era. Ritorna quanti moduli ha creato (0 = non ci
+ * sono basi fra due mobili alti sulla stessa fila).
+ */
+export function generaPonteAuto(progetto, altezza) {
+  const mob = (progetto.mobiliLiberi || []);
+  progetto.mobiliLiberi = mob.filter((m) => m.tipo !== 'ponte');
+  let nextId = Math.max(0, ...progetto.mobiliLiberi.map((m) => m.id)) + 1;
+  const alto = (o) => { const c = categoriaTipo(o.tipo);
+    return c === 'colonna' || c === 'frigo' || (c === 'costado' && (o.profondita_mm || 620) >= 500 && (o.altezza_mm || 0) >= 1500)
+      || (c === 'pannello' && (o.altezza_mm || 0) >= 1500); };
+  const alti = progetto.mobiliLiberi.filter(alto);
+  const nuovi = [];
+  for (const b of progetto.mobiliLiberi) {
+    const c = categoriaTipo(b.tipo);
+    if (!['base', 'lavastoviglie', 'lavatrice'].includes(c) || /angolo/.test(b.tipo)) continue;
+    const rad = (b.rot || 0) * Math.PI / 180, ax = Math.cos(rad), ay = Math.sin(rad);
+    const fx = -Math.sin(rad), fy = -Math.cos(rad);
+    // un mobile alto a sinistra e uno a destra, sulla stessa fila
+    let sx = false, dx = false;
+    for (const o of alti) {
+      const lungo = (o.x - b.x) * ax + (o.y - b.y) * ay, fuori = (o.x - b.x) * fx + (o.y - b.y) * fy;
+      if (Math.abs(fuori) > 400) continue;
+      if (lungo < 0) sx = true; else if (lungo > 0) dx = true;
+    }
+    if (!sx || !dx) continue;
+    const w = Math.round(dimMobile(b).w);
+    const p = { id: nextId++, tipo: 'ponte', larghezza_mm: w, altezza_mm: altezza, profondita_mm: PROFONDITA_BASE,
+      x: b.x, y: b.y, rot: b.rot || 0, sopraBase: b.id };
+    if (b.antaLato != null) p.antaLato = b.antaLato;
+    if (b.ante != null) p.ante = b.ante;
+    nuovi.push(p);
+  }
+  progetto.mobiliLiberi.push(...nuovi);
   return nuovi.length;
 }
 export function ruotaMobileLibero(progetto, id) {
