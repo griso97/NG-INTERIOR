@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261116o';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116o';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261116o';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116o';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116o';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116o';
+} from './modello.js?v=20261116p';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116p';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261116p';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116p';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116p';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116p';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116o';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116p';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -60,6 +60,8 @@ function zoccoloColonna(progetto, m) {
  */
 function cimaCostadoAlto(m, topLine) {
   const h = m.altezza_mm || 850;
+  // costado legato al mobile sopra frigo: sempre a terra, alto fino alla sua cima
+  if (m.seguiFrigo != null) return h;
   return (h >= 1500 && topLine != null ? Math.max(0, topLine - h) : 0) + h;
 }
 /**

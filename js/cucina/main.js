@@ -11,6 +11,7 @@ import {
   applicaPreset, aggiungiParete, rimuoviParete,
   TIPI_MODULO_BASE, CATALOGO_MOBILI, LARGHEZZE_BASE, nomeTipo,
   infoTipo, altezzeTipo, campiMobile, descrizioneMobile, categoriaTipo, livelloDiMobile, frigoSottoAltillo,
+  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo,
   spazioLiberoParete, moduliDiParete,
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
@@ -23,12 +24,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261116o';
-import { renderPianta } from './pianta.js?v=20261116o';
-import { calcolaDistintaCucina } from './distinta.js?v=20261116o';
+} from './modello.js?v=20261116p';
+import { renderPianta } from './pianta.js?v=20261116p';
+import { calcolaDistintaCucina } from './distinta.js?v=20261116p';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261116o';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116o';
+import { agganciaTema } from '../tema.js?v=20261116p';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116p';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1196,7 +1197,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116o');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116p');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1778,6 +1779,7 @@ function disegna() {
 function aggiorna() {
   correggiLatoInterno(progetto);      // lato interno delle pareti sempre verso l'interno della forma
   riorientaMobili(progetto);          // ante sempre verso l'interno (a parete)
+  sincronizzaFrigo(progetto);         // costadi del frigo alti fino al mobile sopra (anche nella distinta)
   if (progetto.autoRegletta !== false) applicaRegletteAngolo(progetto);  // angolo cieco: apre il gap della regletta (solo se auto attiva)
   renderStepper();
   renderPannello();
@@ -1852,13 +1854,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116o');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116p');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116o'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116p'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -1884,36 +1886,47 @@ function htmlDistanzaFrigo(m) {
     </section>`;
   const attuale = scena3dMod && scena3dMod.distanzaAltilloFrigo ? scena3dMod.distanzaAltilloFrigo(progetto, m) : null;
   const val = m.distanzaFrigo_mm != null ? m.distanzaFrigo_mm : attuale;
+  const cost = costadiDelFrigo(progetto, m);
+  const hCost = cost.length ? Math.max(...cost.map((c) => c.altezza_mm || 0)) : null;
+  const cima = cimaMobileSopraFrigo(progetto, m);
   return `
     <section class="step3-pannello">
-      <h3>Distanza dal frigo</h3>
-      <div class="riga-3d" style="margin-bottom:6px">Spazio tra la cima del frigo e il mobile. Se lo alzi o lo abbassi, <strong>tutti i moduli alti</strong> vanno alla stessa altezza.</div>
+      <h3>Mobile sopra frigo · altezze</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Frigo <strong>${fr.larghezza_mm || 600} × ${fr.altezza_mm || 1850} × ${fr.profondita_mm || 650} mm</strong>. Se alzi o abbassi il mobile, <strong>costadi accanto e tutti i moduli alti</strong> vanno alla stessa altezza (anche nella lista dei pezzi).</div>
       <div class="ra-campi">
-        <label>Distanza (mm)<input id="dist-frigo" type="number" placeholder="es. 20" value="${val != null ? val : ''}" min="0" step="5" inputmode="numeric"></label>
+        <label>Distanza dal frigo (mm)<input id="dist-frigo" type="number" placeholder="es. 20" value="${val != null ? val : ''}" min="0" step="1" inputmode="numeric"></label>
+        ${cost.length ? `<label>Altezza costadi (mm)<input id="alt-costadi" type="number" value="${hCost}" min="500" step="1" inputmode="numeric"></label>` : ''}
       </div>
       <div class="opzioni-anta" style="margin-top:8px">
-        <button type="button" class="btn-oro" id="dist-frigo-ok">Modifica distanza dal frigo</button>
+        <button type="button" class="btn-oro" id="dist-frigo-ok">Muovi mobile sopra frigo</button>
         <button type="button" class="btn-ghost ${m.distanzaFrigo_mm == null ? 'attivo' : ''}" id="dist-frigo-auto">${m.distanzaFrigo_mm == null ? '✓ ' : ''}Automatica</button>
       </div>
       <div class="riga-3d" style="margin-top:6px">${m.distanzaFrigo_mm == null
-        ? 'Automatica: la cima è a filo con i costadi o le colonne accanto.'
-        : `Scelta a mano: ${m.distanzaFrigo_mm} mm. «Automatica» lo rimette a filo con i costadi.`}</div>
+        ? 'Automatica: la cima del mobile è a filo con i costadi o le colonne accanto.'
+        : `Dal frigo al mobile: <strong>${m.distanzaFrigo_mm} mm</strong> · cima a <strong>${cima} mm</strong> da terra${cost.length ? ` · ${cost.length === 1 ? 'costado' : `${cost.length} costadi`} da <strong>${hCost} mm</strong>` : ''}.`}</div>
     </section>`;
 }
 function agganciaDistanzaFrigo(root, m) {
   const inp = root.querySelector('#dist-frigo');
+  const inpC = root.querySelector('#alt-costadi');
   // distanza automatica attuale (la calcola la vista 3D, caricata se serve)
   if (inp && !inp.value) caricaScena3d().then((mod) => {
     const v = mod && mod.distanzaAltilloFrigo ? mod.distanzaAltilloFrigo(progetto, m) : null;
     if (v != null && inp.isConnected && !inp.value) inp.value = v;
   }).catch(() => {});
+  const fr = frigoSottoAltillo(progetto, m);
+  const hFr = fr ? (fr.altezza_mm || 1850) : 0, hA = m.altezza_mm || 350;
+  // scrivendo una misura, l'altra si aggiorna (costado = frigo + distanza + mobile)
+  inp?.addEventListener('input', () => { const d = Number(inp.value); if (inpC && Number.isFinite(d)) inpC.value = Math.round(hFr + d + hA); });
+  inpC?.addEventListener('input', () => { const h = Number(inpC.value); if (Number.isFinite(h)) inp.value = Math.round(h - hFr - hA); });
   const applica = () => {
     const v = Math.round(Number(String(inp.value).replace(',', '.')));
-    if (!Number.isFinite(v) || v < 0) { inp.focus(); return; }
+    if (!Number.isFinite(v) || v < 0) { alert((window.NGI18N ? window.NGI18N.t : (x) => x)('Il mobile non può entrare nel frigo: la distanza deve essere 0 o più (costadi almeno {0} mm).').replace('{0}', hFr + hA)); inp.focus(); return; }
     registraStoria(); m.distanzaFrigo_mm = v; aggiorna();
   };
   root.querySelector('#dist-frigo-ok')?.addEventListener('click', applica);
   inp?.addEventListener('keydown', (e) => { if (e.key === 'Enter') applica(); });
+  inpC?.addEventListener('keydown', (e) => { if (e.key === 'Enter') applica(); });
   root.querySelector('#dist-frigo-auto')?.addEventListener('click', () => {
     if (m.distanzaFrigo_mm == null) return;
     registraStoria(); delete m.distanzaFrigo_mm; aggiorna();
@@ -2072,7 +2085,15 @@ function confermaScelta() {
   registraStoria();
   if (mobId) {
     const m = trovaMobileLibero(progetto, mobId);
-    if (m) Object.assign(m, valori);
+    if (m) {
+      // mobile sopra frigo con la distanza scelta: cambiando la sua altezza la
+      // CIMA resta dov'è (costadi e pensili fermi), cambia lo spazio sul frigo
+      const cimaPrima = categoriaTipo(m.tipo) === 'altillo' ? cimaMobileSopraFrigo(progetto, m) : null;
+      Object.assign(m, valori);
+      const fr = cimaPrima != null ? frigoSottoAltillo(progetto, m) : null;
+      if (fr) m.distanzaFrigo_mm = Math.max(0, cimaPrima - (fr.altezza_mm || 1850) - (m.altezza_mm || 350));
+      sincronizzaFrigo(progetto, m);
+    }
     step2.mobSelId = mobId;
   } else {
     step2.mobSelId = aggiungiMobileLibero(progetto, tipoId, valori);

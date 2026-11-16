@@ -115,8 +115,9 @@ export const CATALOGO_MOBILI = [
     larghezze: [20], altezze: ALTEZZE_COSTADO, profondita: 620 },
   // FRIGO libero (elettrodomestico, a terra, niente zoccolo): di solito tra due
   // costadi alti, con il MOBILE SOPRA FRIGO in cima
+  // misura standard di un frigo combinato: 60 × 185 × 65 (profondità con la porta)
   { id: 'frigo',         nome: 'Frigo', categoria: 'frigo',
-    larghezze: [600, 700, 550], altezze: [1850, 1700, 1800, 2000], profondita: 600 },
+    larghezze: [600, 700], altezze: [1850, 2000, 1700], profondita: 650 },
   // Mobile sopra il frigo: la CIMA va a filo con la cosa alta accanto (costado,
   // colonna, pannello); l'altezza la scegli tu (es. 35 cm)
   // Misure standard: 60 di larghezza, 35 o 45 di altezza, profondo come i mobili
@@ -180,6 +181,7 @@ export function campiMobile(tipoId) {
     return [
       { campo: 'larghezza_mm', et: 'Larghezza (mm)', tipo: 'numero', min: 300, step: 10, opzioni: t.larghezze, default: 600 },
       { campo: 'altezza_mm',   et: 'Altezza (mm)', tipo: 'numero', min: 500, step: 10, opzioni: t.altezze, default: 1850 },
+      { campo: 'profondita_mm', et: 'Profondità con la porta (mm)', tipo: 'numero', min: 300, step: 10, opzioni: [650, 600], default: 650 },
     ];
   }
   if (t.categoria === 'altillo') {
@@ -228,7 +230,7 @@ export function descrizioneMobile(m) {
   if (cat === 'colonna') {
     return `${m.larghezza_mm}×${m.altezza_mm} · ${nomeVarianteColonna(m.variante)}`;
   }
-  if (cat === 'frigo') return `${m.larghezza_mm}×${m.altezza_mm}`;
+  if (cat === 'frigo') return `${m.larghezza_mm}×${m.altezza_mm} · p ${m.profondita_mm || 650}`;
   if (cat === 'altillo') {
     const na = anteDiMobile(m);
     return `${m.larghezza_mm}×${m.altezza_mm} · p ${m.profondita_mm || 600} · ${na === 1 ? `1 anta ${m.antaLato === 'sx' ? 'sx' : 'dx'}` : '2 ante'}`;
@@ -267,6 +269,7 @@ export function dimMobile(m) {
     return { w, d: m.latoB_mm || w };
   }
   if (cat === 'altillo') return { w: m.larghezza_mm || 600, d: m.profondita_mm || 600 };
+  if (cat === 'frigo') return { w: m.larghezza_mm || 600, d: m.profondita_mm || 650 };
   if (typeof m.tipo === 'string' && m.tipo.startsWith('ogg:')) return { w: m.larghezza_mm || 300, d: m.profondita_mm || profonditaTipo(m.tipo) };
   return { w: m.larghezza_mm, d: profonditaTipo(m.tipo) };
 }
@@ -287,6 +290,52 @@ export function frigoSottoAltillo(progetto, m) {
       && (!best || (o.altezza_mm || 1850) > (best.altezza_mm || 1850))) best = o;
   }
   return best;
+}
+
+/** Rettangolo in pianta (assi del mondo, rotazioni a 90°). */
+function boxPiantaR(o) {
+  const d = dimMobile(o), rr = ((Math.round((o.rot || 0) / 90) * 90) % 180 + 180) % 180;
+  const hx = (rr === 0 ? d.w : d.d) / 2, hy = (rr === 0 ? d.d : d.w) / 2;
+  return { x0: o.x - hx, x1: o.x + hx, y0: o.y - hy, y1: o.y + hy };
+}
+/** Costadi ALTI (a terra, profondi) attaccati ai fianchi del mobile sopra frigo. */
+export function costadiDelFrigo(progetto, altillo) {
+  const A = boxPiantaR(altillo);
+  return (progetto.mobiliLiberi || []).filter((o) => {
+    if (categoriaTipo(o.tipo) !== 'costado' || (o.profondita_mm || 620) < 500 || (o.altezza_mm || 0) < 1500) return false;
+    const B = boxPiantaR(o);
+    const gx = Math.max(B.x0 - A.x1, A.x0 - B.x1), gy = Math.max(B.y0 - A.y1, A.y0 - B.y1);
+    return (gx <= 60 && gy < -100) || (gy <= 60 && gx < -100);       // accanto, sulla stessa linea
+  });
+}
+/** Cima (mm da terra) del mobile sopra frigo con la distanza scelta a mano, o null. */
+export function cimaMobileSopraFrigo(progetto, a) {
+  if (!a || a.distanzaFrigo_mm == null) return null;
+  const fr = frigoSottoAltillo(progetto, a);
+  return fr ? (fr.altezza_mm || 1850) + Math.max(0, a.distanzaFrigo_mm) + (a.altezza_mm || 350) : null;
+}
+/**
+ * FRIGO + COSTADI + MOBILE SOPRA: tutto alla stessa altezza.
+ * Con la distanza dal frigo scelta a mano, i costadi attaccati al mobile sopra
+ * frigo diventano alti fino alla sua cima (la misura vera, anche nella lista
+ * dei pezzi: es. 2270). Se cambi a mano l'altezza di uno di questi costadi
+ * (`cambiato`), si sposta il mobile (la distanza dal frigo) e gli altri costadi.
+ */
+export function sincronizzaFrigo(progetto, cambiato = null) {
+  const mob = progetto.mobiliLiberi || [];
+  if (cambiato && categoriaTipo(cambiato.tipo) === 'costado' && cambiato.seguiFrigo != null) {
+    const a = mob.find((x) => x.id === cambiato.seguiFrigo);
+    const fr = a && frigoSottoAltillo(progetto, a);
+    if (a && fr) a.distanzaFrigo_mm = Math.max(0, (cambiato.altezza_mm || 0) - (fr.altezza_mm || 1850) - (a.altezza_mm || 350));
+  }
+  const legati = new Set();
+  for (const a of mob) {
+    if (categoriaTipo(a.tipo) !== 'altillo') continue;
+    const T = cimaMobileSopraFrigo(progetto, a);
+    if (T == null) continue;
+    for (const c of costadiDelFrigo(progetto, a)) { c.altezza_mm = Math.round(T); c.seguiFrigo = a.id; legati.add(c.id); }
+  }
+  for (const c of mob) if (c.seguiFrigo != null && !legati.has(c.id)) delete c.seguiFrigo;   // staccato: tiene la sua misura
 }
 
 /**

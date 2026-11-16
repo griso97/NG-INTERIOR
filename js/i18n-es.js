@@ -1399,4 +1399,11 @@ window.NG_I18N_ES = {
  "tutti i moduli alti": "todos los módulos altos",
  "vanno alla stessa altezza.": "van a la misma altura.",
  "Automatica: la cima è a filo con i costadi o le colonne accanto.": "Automática: la parte de arriba queda enrasada con los costados o las columnas de al lado.",
+ "Mobile sopra frigo · altezze": "Mueble sobre frigorífico · alturas",
+ "Distanza dal frigo (mm)": "Distancia al frigorífico (mm)",
+ "Altezza costadi (mm)": "Altura de los costados (mm)",
+ "Muovi mobile sopra frigo": "Mover mueble sobre frigorífico",
+ "Profondità con la porta (mm)": "Profundidad con la puerta (mm)",
+ "Automatica: la cima del mobile è a filo con i costadi o le colonne accanto.": "Automática: la parte de arriba del mueble queda enrasada con los costados o las columnas de al lado.",
+ "Il mobile non può entrare nel frigo: la distanza deve essere 0 o più (costadi almeno {0} mm).": "El mueble no puede entrar en el frigorífico: la distancia debe ser 0 o más (costados al menos {0} mm).",
 };
