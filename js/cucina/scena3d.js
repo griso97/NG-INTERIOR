@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261116y';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116y';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261116y';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116y';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116y';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116y';
+} from './modello.js?v=20261116z';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116z';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261116z';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116z';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116z';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116z';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116y';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116z';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -943,6 +943,7 @@ function barraManiglia(g, x, y, z, w, h, D, matFronte, matLati, ruota, sporg = S
 function formaManiglia() { return (_maniglia && _maniglia.texture && _maniglia.lunghezzaMm) ? (_maniglia.forma || 'barra') : 'barra'; }
 /** giu = il bordo dell'anta è SOTTO (pensili aperti dal basso): profilo/bordo girati. */
 function maniglia(g, x, y, z, orizz, lung, giu = false) {
+  if (_push) return;                      // PUSH: la porta si apre premendo, niente maniglia
   const def = _maniglia;
   // "La mia forma" (o maniglie salvate prima della scelta della forma): 3D dalle foto
   if (def && def.texture && def.lunghezzaMm && (def.forma === 'foto' || !def.formaV)) {
@@ -976,6 +977,13 @@ function maniglia(g, x, y, z, orizz, lung, giu = false) {
 // Il flag è impostato a ogni render da progetto.fingerPull.
 let _fingerPull = false;
 let _fpByCat = {};
+// PUSH (si preme e si apre): niente maniglia né gola, per categoria { base, pensile, colonna }
+let _push = false;
+let _pushByCat = {};
+function pushCat(cat) {
+  const key = cat === 'base' ? 'base' : cat === 'pensile' ? 'pensile' : (cat === 'colonna' || cat === 'altillo') ? 'colonna' : null;
+  return !!(key && _pushByCat && _pushByCat[key]);
+}
 // Finger-pull per categoria: progetto.fingerPull può essere un oggetto
 // { base, pensile, colonna } oppure (vecchio) un booleano = vale per tutto.
 function fpCat(fp, cat) {
@@ -1836,6 +1844,7 @@ function pensileAngoloFronte(g, w, h, d, matAnta) {
   // Maniglia verticale sul fronte diagonale
   const nx = Math.sin(Math.PI / 4), nz = Math.cos(Math.PI / 4);  // normale anta
   const man = new THREE.Mesh(new THREE.BoxGeometry(16, Math.min(300, (h - FUGA_H) * 0.45), 16), matManiglia);
+  man.visible = !_push;
   man.position.set(w * 0.16 + nx * 16 - 120 * nz, 0, d * 0.16 + nz * 16 + 120 * nx);
   g.add(man);
 }
@@ -1844,7 +1853,8 @@ function pensileAngoloFronte(g, w, h, d, matAnta) {
 function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
   if (cat === 'frigo') { frigoLibero(g, w, h, d, m && m.colore); return g; }
-  _fingerPull = fpCat(_fpByCat, cat);   // finger-pull per categoria del mobile
+  _push = pushCat(cat);                  // push: niente maniglia
+  _fingerPull = !_push && fpCat(_fpByCat, cat);   // finger-pull per categoria del mobile
   _maniglia = manigliaCat(cat);         // maniglia del catalogo per categoria
   // Colonna: il fianco si vede (sopra i pensili, di lato) → stesso materiale
   // delle ante della colonna, non il colore crema del corpo
@@ -1969,6 +1979,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   selId = selezionato;
   _lastProgetto = progetto;
   _fpByCat = progetto.fingerPull || {};
+  _pushByCat = progetto.push || {};
   _manByCat = progetto.maniglie || {};
   _stileForno = (progetto.finiture || {}).forno || 'inox';
   _progColonne = progetto;

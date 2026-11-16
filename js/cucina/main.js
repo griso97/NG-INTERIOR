@@ -24,12 +24,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261116y';
-import { renderPianta } from './pianta.js?v=20261116y';
-import { calcolaDistintaCucina } from './distinta.js?v=20261116y';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261116y';
-import { agganciaTema } from '../tema.js?v=20261116y';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116y';
+} from './modello.js?v=20261116z';
+import { renderPianta } from './pianta.js?v=20261116z';
+import { calcolaDistintaCucina } from './distinta.js?v=20261116z';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261116z';
+import { agganciaTema } from '../tema.js?v=20261116z';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116z';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1356,7 +1356,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116y');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116z');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1569,16 +1569,19 @@ function renderPannelloModificaMobile(m) {
     ${(() => {
       if (!(gruppoColore === 'base' || gruppoColore === 'pensile' || gruppoColore === 'colonna')) return '';
       const fp = progetto.fingerPull;
-      const on = fp === true || !!(fp && typeof fp === 'object' && fp[gruppoColore]);
+      const push = !!(progetto.push && progetto.push[gruppoColore]);
+      const on = !push && (fp === true || !!(fp && typeof fp === 'object' && fp[gruppoColore]));
+      const man = !on && !push;
       return `
     <section class="step3-pannello">
       <h3>Apertura · ${nomeGruppo}</h3>
-      <div class="riga-3d" style="margin-bottom:6px">Maniglia classica oppure gola <strong>finger-pull</strong> (senza maniglia). Vale per tutti i ${nomeGruppo}.</div>
+      <div class="riga-3d" style="margin-bottom:6px">Maniglia classica, gola <strong>finger-pull</strong> oppure <strong>push</strong> (si preme e si apre: niente maniglia; in distinta un push pull e una base per ogni porta). Vale per tutti i ${nomeGruppo}.</div>
       <div class="opzioni-anta">
-        <button type="button" class="btn-ghost opt-fp ${!on ? 'attivo' : ''}" data-fp="0">${!on ? '✓ ' : ''}Maniglia</button>
+        <button type="button" class="btn-ghost opt-fp ${man ? 'attivo' : ''}" data-fp="0">${man ? '✓ ' : ''}Maniglia</button>
         <button type="button" class="btn-ghost opt-fp ${on ? 'attivo' : ''}" data-fp="1">${on ? '✓ ' : ''}Finger-pull</button>
+        <button type="button" class="btn-ghost opt-fp ${push ? 'attivo' : ''}" data-fp="push">${push ? '✓ ' : ''}Push</button>
       </div>
-      ${!on ? (() => {
+      ${man ? (() => {
         const lista = (scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer('maniglie') : [];
         const sel = (progetto.maniglie || {})[gruppoColore] || 'maniglia-standard';
         return lista.length > 1 ? `
@@ -1712,6 +1715,7 @@ function renderPannelloModificaMobile(m) {
       progetto.fingerPull = { base: old, pensile: old, colonna: old };
     }
     progetto.fingerPull[gruppoColore] = b.dataset.fp === '1';
+    progetto.push = { ...(progetto.push || {}), [gruppoColore]: b.dataset.fp === 'push' };
     aggiorna();
   }));
   // Colonna: variante "parte alta" e altezza del vano aperto.
@@ -1826,7 +1830,7 @@ function mostraDistinta() {
         <thead><tr><th>Accessorio</th><th class="n">Qtà</th></tr></thead>
         <tbody>${accessori.map((a) => `<tr><td>${escHtml(a.nome)}</td><td class="n">${a.quantita}</td></tr>`).join('')}</tbody>
       </table>
-      <div class="riga-3d" style="margin-top:6px">Cerniere: 2 per porta (110°, anche la porta bassa delle colonne), 165° sulle porte del pensile angolo 63×63 e del Ciaflan, porta del frigo 4 se più alta di 1,10 m (se no 3). Maniglie: una per porta e frontale dove non c'è il finger-pull. Piedini: 4 per modulo a terra (6 oltre 90 cm), una grappa zoccolo per modulo, un angolo per ogni giro a 90° dello zoccolo. Un kit per appendere ogni pensile.</div>
+      <div class="riga-3d" style="margin-top:6px">Cerniere: 2 per porta (110°, anche la porta bassa delle colonne), 165° sulle porte del pensile angolo 63×63 e del Ciaflan, porta del frigo 4 se più alta di 1,10 m (se no 3). Maniglie: una per porta e frontale dove non c'è il finger-pull né il push. Push: un push pull e una base per ogni porta. Piedini: 4 per modulo a terra (6 oltre 90 cm), una grappa zoccolo per modulo, un angolo per ogni giro a 90° dello zoccolo. Un kit per appendere ogni pensile.</div>
     </div>` : '';
 
   corpo.innerHTML = sezModuli + sezPezzi + sezAcc + `
@@ -2021,13 +2025,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116y');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116z');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116y'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116z'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

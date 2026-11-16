@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte,
-} from './modello.js?v=20261116y';
+} from './modello.js?v=20261116z';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -348,7 +348,8 @@ export function calcolaDistintaCucina(progetto) {
   // finger-pull e maniglia scelti per gruppo (bassi / pensili / colonne)
   const grp = (cat) => (cat === 'pensile' ? 'pensile' : cat === 'colonna' ? 'colonna' : 'base');
   const fp = progetto.fingerPull;
-  const conFP = (cat) => fp === true || !!(fp && typeof fp === 'object' && fp[grp(cat)]);
+  const conPush = (cat) => !!(progetto.push && progetto.push[grp(cat === 'altillo' ? 'colonna' : cat)]);
+  const conFP = (cat) => !conPush(cat) && (fp === true || !!(fp && typeof fp === 'object' && fp[grp(cat)]));
   const nomeManiglia = (cat) => {
     const id = (progetto.maniglie || {})[grp(cat)];
     const def = id && typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === id);
@@ -381,8 +382,16 @@ export function calcolaDistintaCucina(progetto) {
   for (const p of raw) {
     if (!/^anta|^fronte cassetto/i.test(p.nome)) continue;
     const cat = categoriaTipo((perId.get(p.moduloId) || {}).tipo);
-    if (conFP(cat)) continue;
+    if (conFP(cat) || conPush(cat)) continue;
     aggiungi(`Maniglie · ${nomeManiglia(cat)}`, p.quantita);
+  }
+  // PUSH: per ogni porta un push pull e la sua base
+  for (const p of raw) {
+    if (!/^anta/i.test(p.nome)) continue;
+    const cat = categoriaTipo((perId.get(p.moduloId) || {}).tipo);
+    if (!conPush(cat)) continue;
+    aggiungi('Push pull', p.quantita);
+    aggiungi('Push pull · base', p.quantita);
   }
   // A TERRA: piedini, grappe dello zoccolo; PENSILI: kit per appenderli
   for (const m of mobili) {
@@ -397,7 +406,7 @@ export function calcolaDistintaCucina(progetto) {
   // la base angolo ha il suo angolo di zoccolo (interno) e non fa da fila a parte
   aggiungi('Angoli zoccolo 90°', angoliZoccolo(mobili.filter((m) => m.tipo !== 'base-angolo'))
     + mobili.filter((m) => m.tipo === 'base-angolo').length);
-  const ORDINE_ACC = ['Cerniere', 'Cassetti', 'Maniglie', 'Kit', 'Piedini', 'Grappe', 'Angoli', 'Griglia'];
+  const ORDINE_ACC = ['Cerniere', 'Cassetti', 'Maniglie', 'Push', 'Kit', 'Piedini', 'Grappe', 'Angoli', 'Griglia'];
   const pos = (n) => { const i = ORDINE_ACC.findIndex((k) => n.startsWith(k)); return i < 0 ? 99 : i; };
   const accessori = [...acc.entries()].map(([nome, quantita]) => ({ nome, quantita })).sort((x, y) => pos(x.nome) - pos(y.nome));
 
