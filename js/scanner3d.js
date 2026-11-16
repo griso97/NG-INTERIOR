@@ -98,10 +98,18 @@ export function contorno(M) {
       da = verso;
     }
     const a = Math.abs(area(anello));
+    if (M.conBuchi) (M._anelli = M._anelli || []).push(anello);
     if (a > aMax) { aMax = a; migliore = anello; }
   }
   if (!migliore || migliore.length < 8) return null;
   if (area(migliore) < 0) migliore.reverse();
+  if (M.conBuchi) {
+    // i BUCHI veri (lo spazio tra i montanti di un supporto, dentro un manico): gli altri anelli dentro
+    const buchi = [];
+    // (rifaccio il giro degli anelli: quelli già visti sono nell'ordine di prima)
+    M._anelli.forEach((an) => { if (an !== migliore && Math.abs(area(an)) > aMax * 0.004 && dentro(migliore, an[0][0], an[0][1])) buchi.push(liscia(ricampiona(an, 1), 3)); });
+    return { esterno: liscia(ricampiona(migliore, 1), 3), buchi };
+  }
   return liscia(ricampiona(migliore, 1), 3);
 }
 /** Punti a distanza costante lungo il contorno. */
@@ -585,4 +593,41 @@ function pezziSolidi(viste, davantiSx, W, D, H, fr, la, yMin, yMax, THREE, nSup 
     }
   }
   return out;
+}
+
+// ------------------------------------------------------------ sagoma estrusa ----
+/**
+ * SAGOMA CON SPESSORE: il ritaglio della foto diventa un solido spesso "prof" mm, con gli
+ * spigoli arrotondati e i vuoti veri lasciati vuoti (tra i montanti di un supporto, dentro un
+ * manico). Visto davanti è IDENTICO alla foto. Per oggetti piatti o composti (ceppo dei
+ * coltelli, tagliere, cornice) o quando c'è una sola foto dritta.
+ */
+export function sagomaEstrusa(src, larg, alt, prof, THREE) {
+  const M = maschera(src); if (!M) return null;
+  M.conBuchi = true;
+  const C = contorno(M); if (!C) return null;
+  const { esterno, buchi } = C;
+  const xs = esterno.map((p) => p[0]), ys = esterno.map((p) => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const sx = larg / Math.max(1e-6, x1 - x0), sy = alt / Math.max(1e-6, y1 - y0);
+  const semplice = (P, n) => ricampiona(P, Math.max(1, perimetro(P) / n));
+  const mm = (p) => new THREE.Vector2((p[0] - x0) * sx - larg / 2, alt - (p[1] - y0) * sy);
+  const forma = new THREE.Shape(semplice(esterno, 320).map(mm));
+  for (const b of buchi) forma.holes.push(new THREE.Path(semplice(b, 120).map(mm)));
+  const sm = Math.max(1, Math.min(prof * 0.12, 8));
+  const g = new THREE.ExtrudeGeometry(forma, { depth: Math.max(1, prof - 2 * sm), bevelEnabled: true, bevelThickness: sm, bevelSize: sm * 0.6, bevelOffset: -sm * 0.6, bevelSegments: 3, curveSegments: 4, steps: 1 });
+  g.translate(0, 0, -(prof - 2 * sm) / 2);
+  return g;
+}
+/** Quanto la sagoma è "piena" rispetto al suo involucro convesso (1 = forma semplice). */
+export function compattezza(src) {
+  const M = maschera(src, 400); if (!M) return 1;
+  const P = contorno(M); if (!P) return 1;
+  const pts = P.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const p of pts) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  const hull = lo.slice(0, -1).concat(up.slice(0, -1));
+  return Math.abs(area(P)) / Math.max(1e-6, Math.abs(area(hull)));
 }

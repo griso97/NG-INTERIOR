@@ -14,7 +14,7 @@
 // Assi (mm): x = larghezza (centro 0) · y = altezza (0 = appoggio) · z = profondità (+ = davanti)
 // =============================================================================
 import * as THREE from 'three';
-import { formaOggetto } from './scanner3d.js?v=20261118h';
+import { formaOggetto, sagomaEstrusa, compattezza } from './scanner3d.js?v=20261118h';
 import { edgeTable, triTable } from '../vendor/three/addons/objects/mc-tabelle.js';
 
 /** Distanza (chamfer 3-4, in pixel) di ogni pixel dal più vicino pixel "fuori" (m = 0). */
@@ -573,14 +573,32 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   W = Math.max(10, W); D = Math.max(10, D); H = Math.max(10, H);
   // foto da sopra di traverso: la giro (davanti in basso)
   if (foto.sopra) { const r = orientaSopra(foto.sopra, W, D); if (r) foto = { ...foto, sopra: r }; }
-  // davanti e lato al contrario (si vede dalle misure): li scambio da solo
-  let scambiate = false;
-  if (foto.fronte && foto.lato && vistaScambiata(foto.fronte, foto.lato, W, D, H)) {
-    foto = { ...foto, fronte: foto.lato, lato: foto.fronte, dietro: null };
-    scambiate = true;
-  }
+  // QUALE FOTO È QUALE, dalle proporzioni (le misure scritte sono vere):
+  //  - dritta davanti: larga/alta come larghezza × altezza
+  //  - dritta di lato: come profondità × altezza
+  //  - di TRE QUARTI (a 45°): non torna con nessuna delle due (si vedono due facce insieme):
+  //    non serve per la forma
+  const dritta = (V, l, a) => !!V && Math.abs(Math.log(V.aspetto / (l / a))) < 0.16;
+  const tipo = (src) => {
+    const V = vista(src); if (!V) return null;
+    const f = Math.abs(Math.log(V.aspetto / (W / H))), l = Math.abs(Math.log(V.aspetto / (D / H)));
+    return { src, f: f < 0.16 ? f : null, l: l < 0.16 ? l : null };
+  };
+  const qF = tipo(foto.fronte), qL = tipo(foto.lato);
+  let davanti = null, lato = null, scambiate = false;
+  // il davanti: la foto nella casella "davanti" se è dritta davanti, se no quella di lato se lo è
+  if (qF && qF.f != null && (!qL || qL.f == null || qF.f <= qL.f || qL.l != null)) davanti = qF.src;
+  else if (qL && qL.f != null) { davanti = qL.src; scambiate = true; }
+  // il lato: la foto (non usata come davanti) che è dritta di lato
+  for (const t of [qL, qF]) if (!lato && t && t.src !== davanti && t.l != null) lato = t.src;
+  // solo una foto dritta, ed è di LATO (es. impastatrice fotografata di fianco): la uso come davanti
+  let girata = false;
+  if (!davanti && lato) { davanti = lato; lato = null; [W, D] = [D, W]; girata = true; }
+  if (!davanti) davanti = foto.fronte;                       // nessuna dritta: uso quella che c'è
+  foto = { ...foto, fronte: davanti, lato, dietro: scambiate || girata ? null : foto.dietro };
   const F = vista(foto.fronte); if (!F) return null;
-  const S = vista(foto.lato), B = foto.dietro ? true : false;
+  const S = vista(foto.lato);
+  const B = foto.dietro ? true : false;
   // foto DA SOPRA: per la FORMA solo se è davvero dall'alto (proporzioni come larghezza × profondità);
   // le foto prodotto "da sopra" sono spesso di tre quarti e farebbero forme storte → solo per l'aspetto
   const Tv = vista(foto.sopra);
@@ -591,11 +609,24 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   const T = Tv && formaT && Math.abs(Math.log(formaT.aspetto / (W / D))) < 0.5 ? Tv : null;   // foto storte di tre quarti: solo per l'aspetto
   // FORMA A PEZZI (scanner3d.js): il CORPO liscio dai contorni senza pezzi, e i PEZZI
   // (leve, manopole, maniglie, piedini) come solidi a sé — niente fasce né anelli
-  const forma = formaOggetto({ fronte: foto.fronte, lato: foto.lato, sopra: T ? foto.sopra : null }, W, D, H, THREE);
-  if (!forma) return null;
-  const davantiSx = forma.davantiSx;
-  const vert = forma.corpo.vert.slice(), ind = forma.corpo.ind.slice();
-  for (const g of forma.pezzi3d) {
+  // OGGETTI PIATTI O COMPOSTI (ceppo dei coltelli con supporto, tagliere, impastatrice con la
+  // ciotola) o una sola foto dritta di un oggetto sottile: la SAGOMA della foto con il suo
+  // spessore vero, identica alla foto vista davanti
+  const estrusa = compattezza(foto.fronte) < 0.85 || (!S && D < W * 0.6);
+  let forma = null, davantiSx = S ? latoSporgente(S) === 'sx' : false;
+  const vert = [], ind = [], pezzi = [];
+  if (estrusa) {
+    const g = sagomaEstrusa(foto.fronte, W, H, D, THREE); if (!g) return null;
+    pezzi.push(g);
+  } else {
+    forma = formaOggetto({ fronte: foto.fronte, lato: foto.lato, sopra: T ? foto.sopra : null }, W, D, H, THREE);
+    if (!forma) return null;
+    davantiSx = forma.davantiSx;
+    for (const v of forma.corpo.vert) vert.push(v);
+    for (const v of forma.corpo.ind) ind.push(v);
+    pezzi.push(...forma.pezzi3d);
+  }
+  for (const g of pezzi) {
     const gg = g.index ? g : null; const pos = g.attributes.position, off = vert.length / 3;
     for (let i = 0; i < pos.count; i++) vert.push(pos.getX(i), pos.getY(i), pos.getZ(i));
     if (gg) for (let i = 0; i < gg.index.count; i++) ind.push(gg.index.getX(i) + off);
@@ -690,7 +721,7 @@ vec3 vFotoCol = vec3(0.0);`)
   mat.customProgramCacheKey = () => 'ogg-proiezione-v4';
   const mats = mat;
   const geo = gi;
-  return { geo, mats, W, D, H, colore: hex(F.media), scambiate };
+  return { geo, mats, W, D, H, colore: hex(F.media), scambiate, girata, estrusa };
 }
 
 // ------------------------------------------------------------------ in cucina
