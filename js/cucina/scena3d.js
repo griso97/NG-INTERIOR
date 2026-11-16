@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261116x';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116x';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261116x';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116x';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116x';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116x';
+} from './modello.js?v=20261116y';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116y';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261116y';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116y';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116y';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116y';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116x';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116y';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1433,16 +1433,18 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
   // porta bassa alta come i mobili bassi (70 o 80): tutta la parte bassa allineata
   const ab = _progColonne ? portaBassaColonna(_progColonne, m) : (m.altezzaBassa_mm || 700);
   const bottom = -h / 2;
+  // APERTURA: 'dx' = maniglia a destra (cerniere a sinistra, di partenza), 'sx' = a sinistra
+  const s = m && m.antaLato === 'sx' ? -1 : 1;
   const porta = (yB, segH) => {
     const cyc = yB + segH / 2;
     const ph = segH - FUGA_H;
     if (_fingerPull) {
-      const CW = 30;                                 // larghezza del canale (a dx)
-      pannello(g, -CW / 2, cyc, z, pw - CW, ph, matAnta || COL.anta);
-      canaleFingerPull(g, pw / 2 - CW / 2, cyc, z, ph, CW, false, matAnta);
+      const CW = 30;                                 // larghezza del canale (dal lato della maniglia)
+      pannello(g, -s * CW / 2, cyc, z, pw - CW, ph, matAnta || COL.anta);
+      canaleFingerPull(g, s * (pw / 2 - CW / 2), cyc, z, ph, CW, false, matAnta);
     } else {
       pannello(g, 0, cyc, z, pw, ph, matAnta || COL.anta);
-      maniglia(g, pw / 2 - 30, cyc, z, false, Math.min(260, ph * 0.4));
+      maniglia(g, s * (pw / 2 - 30), cyc, z, false, Math.min(260, ph * 0.4));
     }
   };
   porta(bottom, ab);                 // porta bassa

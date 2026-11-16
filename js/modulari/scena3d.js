@@ -9,9 +9,9 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261116x';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116x';
-import { creaResa, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116x';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261116y';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116y';
+import { creaResa, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116y';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.

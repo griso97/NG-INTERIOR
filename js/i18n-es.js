@@ -1452,4 +1452,6 @@ window.NG_I18N_ES = {
  "Cambia altezza": "Cambiar altura",
  "Questo pensile non è sotto il ponte.": "Este alto no está bajo el puente.",
  "Profondità come la colonna o il costado ai lati. Massimo 275 cm per pezzo: se la fila è più lunga si divide a metà (fra due moduli o a metà di un modulo, fra le ante).": "Profundidad como la columna o el costado de los lados. Máximo 275 cm por pieza: si la fila es más larga se divide por la mitad (entre dos módulos o a mitad de un módulo, entre las puertas).",
+ "Apertura porte colonna": "Apertura de las puertas de la columna",
+ "Da che lato si aprono le porte (dove sta la maniglia). Vale per tutte le porte di questa colonna.": "Hacia qué lado se abren las puertas (dónde está el tirador). Vale para todas las puertas de esta columna.",
 };

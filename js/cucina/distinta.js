@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte,
-} from './modello.js?v=20261116x';
+} from './modello.js?v=20261116y';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -179,8 +179,9 @@ function pezziDiModulo(progetto, m) {
     const ab = abC;
     const aw = round(L - 3);                        // larghezza anta (1 anta)
     const topDoor = restoAntaColonna(m, H - ab);
-    pz.push({ modulo: mod, nome: 'Anta bassa', larghezza: aw, altezza: round(ab - 2), spessore: SP, materiale: 'anta', quantita: 1 });
-    if (topDoor > 60) pz.push({ modulo: mod, nome: 'Anta alta', larghezza: aw, altezza: round(topDoor - 2), spessore: SP, materiale: 'anta', quantita: 1 });
+    const ap = ` (apertura ${m.antaLato === 'sx' ? 'sx' : 'dx'})`;
+    pz.push({ modulo: mod, nome: `Anta bassa${ap}`, larghezza: aw, altezza: round(ab - 2), spessore: SP, materiale: 'anta', quantita: 1 });
+    if (topDoor > 60) pz.push({ modulo: mod, nome: `Anta alta${ap}`, larghezza: aw, altezza: round(topDoor - 2), spessore: SP, materiale: 'anta', quantita: 1 });
   } else if (cat === 'costado') {
     // costado ALTO: alto come le ante del pensile vicino (70/72/90/92), come nel 3D
     let hC = H;

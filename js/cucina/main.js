@@ -24,12 +24,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261116x';
-import { renderPianta } from './pianta.js?v=20261116x';
-import { calcolaDistintaCucina } from './distinta.js?v=20261116x';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261116x';
-import { agganciaTema } from '../tema.js?v=20261116x';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116x';
+} from './modello.js?v=20261116y';
+import { renderPianta } from './pianta.js?v=20261116y';
+import { calcolaDistintaCucina } from './distinta.js?v=20261116y';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261116y';
+import { agganciaTema } from '../tema.js?v=20261116y';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116y';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -919,6 +919,7 @@ function attaccaEventiStep2() {
     agganciaBaseAngolo(pannello, mobSel);
     agganciaDistanzaFrigo(pannello, mobSel);
     agganciaColoreFrigo(pannello, mobSel);
+    agganciaAperturaColonna(pannello, mobSel);
     agganciaPensileSottoPonte(pannello, mobSel);
     // piano cottura / lavello anche sulla cassettiera (non solo sulla base con ante)
     document.getElementById('mob-placca')?.addEventListener('click', () => {
@@ -1355,7 +1356,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116x');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116y');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1466,6 +1467,7 @@ function renderPannelloModificaMobile(m) {
     </section>`;
     })() : ''}
     ${htmlColoreFrigo(m)}
+    ${htmlAperturaColonna(m)}
     ${htmlPensileSottoPonte(m)}
     ${htmlDistanzaFrigo(m)}
     ${puoAnte ? `
@@ -1621,6 +1623,7 @@ function renderPannelloModificaMobile(m) {
     </section>`;
   agganciaDistanzaFrigo(pannello, m);
   agganciaColoreFrigo(pannello, m);
+  agganciaAperturaColonna(pannello, m);
   agganciaPensileSottoPonte(pannello, m);
   pannello.querySelectorAll('.swatch[data-mat], .opt-piano[data-mat]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
@@ -2018,13 +2021,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116x');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116y');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116x'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116y'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2074,6 +2077,27 @@ function agganciaPensileSottoPonte(root, m) {
   root.querySelectorAll('.pens-ponte[data-ph]').forEach((b) => b.addEventListener('click', () => applica(b.dataset.ph)));
   root.querySelector('#pens-ponte-ok')?.addEventListener('click', () => applica(root.querySelector('#pens-ponte-h').value));
   root.querySelector('#pens-ponte-h')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') applica(e.target.value); });
+}
+
+/** COLONNA: apertura delle porte (maniglia a sinistra o a destra). */
+function htmlAperturaColonna(m) {
+  if (categoriaTipo(m.tipo) !== 'colonna') return '';
+  const lato = m.antaLato === 'sx' ? 'sx' : 'dx';
+  return `
+    <section class="step3-pannello">
+      <h3>Apertura porte colonna</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Da che lato si aprono le porte (dove sta la maniglia). Vale per tutte le porte di questa colonna.</div>
+      <div class="opzioni-anta">
+        <button type="button" class="btn-ghost opt-latocol ${lato === 'sx' ? 'attivo' : ''}" data-latocol="sx">${lato === 'sx' ? '✓ ' : ''}← Sinistra</button>
+        <button type="button" class="btn-ghost opt-latocol ${lato === 'dx' ? 'attivo' : ''}" data-latocol="dx">${lato === 'dx' ? '✓ ' : ''}Destra →</button>
+      </div>
+    </section>`;
+}
+function agganciaAperturaColonna(root, m) {
+  root.querySelectorAll('.opt-latocol[data-latocol]').forEach((b) => b.addEventListener('click', () => {
+    if ((m.antaLato === 'sx' ? 'sx' : 'dx') === b.dataset.latocol) return;
+    registraStoria(); m.antaLato = b.dataset.latocol; aggiorna();
+  }));
 }
 
 /** FRIGO: colore (bianco, nero, acciaio) e misure, a portata di tocco. */
@@ -2181,6 +2205,7 @@ function blocMobileSelezionato() {
       </div>
       ${htmlBaseAngolo(m)}
       ${htmlColoreFrigo(m)}
+      ${htmlAperturaColonna(m)}
       ${htmlPensileSottoPonte(m)}
       ${htmlDistanzaFrigo(m)}
       ${(m.tipo === 'base-ante' || m.tipo === 'base-cassetti') ? `
