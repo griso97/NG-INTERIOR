@@ -1638,16 +1638,26 @@ export function liberoPareti(progetto) {
       const hi = Math.min(L, tC + extU);
       // perp = mobile dell'ALTRO muro (girato di 90°): nell'angolo
       const perp = Math.abs(c * ux + s * uy) < 0.5;
-      if (hi > lo) intervalli.push([lo, hi, perp]);
+      const cost = categoriaTipo(m.tipo) === 'costado';
+      if (hi > lo) intervalli.push([lo, hi, perp, cost]);
     }
     intervalli.sort((a2, b2) => a2[0] - b2[0]);
     const blocchi = [];
     for (const iv of intervalli) {
       const ult = blocchi[blocchi.length - 1];
-      if (ult && iv[0] <= ult.hi) { if (iv[1] > ult.hi) { ult.hi = iv[1]; ult.perpHi = iv[2]; } }
-      else blocchi.push({ lo: iv[0], hi: iv[1], perpLo: iv[2], perpHi: iv[2] });
+      if (ult && iv[0] <= ult.hi) { if (iv[1] > ult.hi) { ult.hi = iv[1]; ult.perpHi = iv[2]; ult.costHi = iv[3]; } }
+      else blocchi.push({ lo: iv[0], hi: iv[1], perpLo: iv[2], perpHi: iv[2], costLo: iv[3], costHi: iv[3] });
     }
     let coperto = blocchi.reduce((t, k) => t + (k.hi - k.lo), 0);
+    // COSTADO che chiude la fila: lo spazio fra il costado e la fine del muro
+    // (es. l'angolo dietro la fila dell'altro muro) non si può riempire: non è libero.
+    let morto = 0;
+    if (blocchi.length) {
+      const primo = blocchi[0], ultimo = blocchi[blocchi.length - 1];
+      if (primo.costLo && primo.lo > 0) morto += primo.lo;
+      if (ultimo.costHi && ultimo.hi < L) morto += L - ultimo.hi;
+    }
+    coperto += morto;
     // REGLETTA D'ANGOLO: lo spazietto (3 cm) fra il mobile dell'angolo e la fila
     // di questo muro NON è libero: ci va la regletta. Non lo conto come spazio.
     let regletta = 0;
@@ -1661,7 +1671,7 @@ export function liberoPareti(progetto) {
     coperto += regletta;
     out.push({
       id: p.id, idx: i, lunghezza: Math.round(L),
-      coperto: Math.round(coperto), libero: Math.max(0, Math.round(L - coperto)), regletta: Math.round(regletta),
+      coperto: Math.round(coperto), libero: Math.max(0, Math.round(L - coperto)), regletta: Math.round(regletta), morto: Math.round(morto),
     });
   });
   return out;
