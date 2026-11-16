@@ -24,12 +24,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261117h';
-import { renderPianta } from './pianta.js?v=20261117h';
-import { calcolaDistintaCucina } from './distinta.js?v=20261117h';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261117h';
-import { agganciaTema } from '../tema.js?v=20261117h';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261117h';
+} from './modello.js?v=20261117i';
+import { renderPianta } from './pianta.js?v=20261117i';
+import { calcolaDistintaCucina } from './distinta.js?v=20261117i';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261117i';
+import { agganciaTema } from '../tema.js?v=20261117i';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261117i';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1359,7 +1359,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261117h');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261117i');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1411,7 +1411,11 @@ function renderPannelloModificaMobile(m) {
   const sinkCm = Math.max(30, Math.round(((m.larghezza_mm || 600) - 100) / 10));
   const gruppoColore = cat === 'pensile' ? 'pensile' : (cat === 'colonna' || cat === 'altillo') ? 'colonna'
     : cat === 'costado' ? 'costado' : isBase ? 'base' : null;
-  const nomeGruppo = { base: 'mobili bassi', pensile: 'pensili', colonna: 'colonne', costado: 'costadi' }[gruppoColore];
+  // CUCINA A PONTE: il modulo del ponte e i pensili sotto hanno i LORO colori (Colori del ponte)
+  const parteP = m.tipo === 'ponte' ? 'ponte' : (cat === 'pensile' && pontiSopra(progetto, m).length ? 'pensili' : null);
+  if (parteP && step2._selPonte !== m.id) { step2._selPonte = m.id; step2.parteColorePonte = parteP; }
+  const nomeGruppo = parteP === 'ponte' ? 'moduli del ponte' : parteP === 'pensili' ? 'pensili sotto il ponte'
+    : { base: 'mobili bassi', pensile: 'pensili', colonna: 'colonne', costado: 'costadi' }[gruppoColore];
   const materialiTutti = (scena3dMod && scena3dMod.MATERIALI) || [];
   // Palette "colore ante" filtrata: niente encimere (hanno la loro sezione).
   // Palette dal CATALOGO: con il finger-pull attivo per questo gruppo si vede
@@ -1425,7 +1429,8 @@ function renderPannelloModificaMobile(m) {
   // Ante: colore di tutto il gruppo, oppure SOLO di questo modulo (es. un armadio di stacco)
   const soloQuesto = gruppoColore && gruppoColore !== 'costado' && (step2.coloreSolo === m.id || !!m.coloreFronte);
   const colAttuale = costadoSingolo ? (m.colore || null)
-    : soloQuesto ? (m.coloreFronte || null) : (progetto.coloriFronti || {})[gruppoColore];
+    : soloQuesto ? (m.coloreFronte || null)
+      : parteP ? ((progetto.coloriPonte || {})[parteP] || null) : (progetto.coloriFronti || {})[gruppoColore];
   const encAttuale = (progetto.encimera || {}).materiale || null;
   pannello.innerHTML = `
     <section class="step3-pannello">
@@ -1644,6 +1649,7 @@ function renderPannelloModificaMobile(m) {
     registraStoria();
     if (costadoSingolo) { m.colore = b.dataset.mat; aggiorna(); return; }
     if (soloQuesto) { m.coloreFronte = b.dataset.mat; aggiorna(); return; }
+    if (parteP) { progetto.coloriPonte = { ...(progetto.coloriPonte || {}), [parteP]: b.dataset.mat }; aggiorna(); return; }
     if (!progetto.coloriFronti) progetto.coloriFronti = {};
     progetto.coloriFronti[gruppoColore] = b.dataset.mat;
     aggiorna();
@@ -2042,13 +2048,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261117h');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261117i');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261117h'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261117i'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

@@ -1486,4 +1486,6 @@ window.NG_I18N_ES = {
  "✓ Pannello": "✓ Panel",
  "Come i pensili": "Como los altos",
  "Come il ponte": "Como el puente",
+ "moduli del ponte": "módulos del puente",
+ "pensili sotto il ponte": "altos bajo el puente",
 };
