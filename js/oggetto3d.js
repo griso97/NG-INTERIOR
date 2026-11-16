@@ -145,7 +145,7 @@ function profilo(V) {
     // SMUSSATURA GRADUALE (gaussiana) invece di "raddrizzare" a scatti: le facce piatte
     // restano piatte, le curve restano curve e tra le due non restano gradini (che col
     // materiale lucido si vedevano come righe)
-    const R = Math.max(2, Math.round(n * 0.02)), sg = R / 2, ker = [];
+    const R = Math.max(2, Math.round(n * 0.012)), sg = R / 2, ker = [];
     for (let q = -R; q <= R; q++) ker.push(Math.exp(-(q * q) / (2 * sg * sg)));
     const lis = new Float32Array(n);
     for (let r = 0; r < n; r++) {
@@ -336,19 +336,15 @@ export function controllaMisure(foto, W, D, H) {
   if (!(W > 0 && D > 0 && H > 0) || !foto.fronte) return null;
   if (foto.fronte && foto.lato && vistaScambiata(foto.fronte, foto.lato, W, D, H)) foto = { ...foto, fronte: foto.lato, lato: foto.fronte };
   const sopra = foto.sopra ? (orientaSopra(foto.sopra, W, D) || foto.sopra) : null;
-  const corpo = (src) => { const V = vista(src); if (!V) return null; const p = profilo(V); return { V, p, larg: (p.mDx - p.mSx) * V.bw }; };
-  const F = corpo(foto.fronte), S = foto.lato ? corpo(foto.lato) : null, T = sopra ? corpo(sopra) : null;
-  if (!F) return null;
-  const rF = F.larg / F.V.bh;                                   // larghezza / altezza
-  const rS = S ? S.larg / S.V.bh : null;                        // profondità / altezza
-  let rT = null;                                                // profondità / larghezza
-  if (T) {
-    const { t0, t1 } = estremiCorpo(T.p);
-    rT = (T.V.bh * (t1 - t0)) / T.larg;
-  }
+  // proporzioni delle SAGOME ESATTE (tutta la foto, come la usa il 3D)
+  const Fv = vista(foto.fronte), Sv = foto.lato ? vista(foto.lato) : null, Tv = sopra ? vista(sopra) : null;
+  if (!Fv) return null;
+  const rF = Fv.aspetto;                                        // larghezza / altezza
+  const rS = Sv ? Sv.aspetto : null;                            // profondità / altezza
+  const rT = Tv ? 1 / Tv.aspetto : null;                        // profondità / larghezza
   const e = (a, b) => Math.log(a / b);
   const eF = e(W / H, rF), eS = rS ? e(D / H, rS) : null, eT = rT ? e(D / W, rT) : null;
-  const lim = 0.08;
+  const lim = 0.12;
   const fuori = (x) => x != null && Math.abs(x) > lim;
   // quale misura non torna: quella che spiega da sola gli scarti
   if (!fuori(eF) && (fuori(eS) || fuori(eT))) {                 // larghezza e altezza tornano → è la PROFONDITÀ
@@ -395,20 +391,20 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   // foto DA SOPRA: per la FORMA solo se è davvero dall'alto (proporzioni come larghezza × profondità);
   // le foto prodotto "da sopra" sono spesso di tre quarti e farebbero forme storte → solo per l'aspetto
   const Tv = vista(foto.sopra);
-  // CORPO nella foto da sopra: le righe a tutta larghezza (leve, manopole, cursori che sporgono restano fuori)
+  // la foto DA SOPRA dà la FORMA del contorno (ovale, tonda, squadrata…) del CORPO, senza
+  // le sporgenze (leva, cursore): il contorno si disegna dentro davanti × lato a ogni altezza,
+  // così davanti e lato restano ESATTI come le loro foto
   let corpoT = null;
-  if (Tv) {
-    const pp = profilo(Tv);
-    const { t0, t1 } = estremiCorpo(pp);
-    corpoT = { p: pp, t0, t1, aspetto: Tv.bw / Math.max(1, Tv.bh * (t1 - t0)) };
-  }
-  const T = Tv && Math.abs(Math.log(corpoT.aspetto / (W / D))) < 0.25 ? Tv : null;
-  // PROFILI riga per riga (davanti, lato, sopra) → volume con facce piatte
+  if (Tv) { const pp = profilo(Tv), e = estremiCorpo(pp); corpoT = { p: pp, t0: e.t0, t1: e.t1, aspetto: Tv.bw / Math.max(1, Tv.bh * (e.t1 - e.t0)) }; }
+  const T = Tv && Math.abs(Math.log(corpoT.aspetto / (W / D))) < 0.5 ? Tv : null;   // foto storte di tre quarti: solo per l'aspetto
+  // SAGOME ESATTE: ogni foto, portata ESATTAMENTE alle misure scritte, è quella faccia
+  // (davanti = larghezza × altezza, lato = profondità × altezza, sopra = larghezza × profondità).
+  // L'oggetto è quello che sta dentro TUTTE le sagome insieme. Dietro = davanti; l'altro lato = il lato specchiato.
   const pF = profilo(F);
   const pS = S ? profilo(S) : null, pT = T ? corpoT.p : null;
   // lato: il davanti è dove sporge qualcosa (maniglia); fascia e profondità della sporgenza
   let davantiSx = true, corpoF = 0, banda = null, man = null;
-  if (pS) {
+  if (pS && !pT) {
     const sporgeSx = [], sporgeDx = [];
     for (let k = 0; k <= 100; k++) { const v = k / 100; sporgeSx.push(pS.mSx - pS.sx(v)); sporgeDx.push(pS.dx(v) - pS.mDx); }
     const nSx = sporgeSx.filter((x) => x > 0.025).length, nDx = sporgeDx.filter((x) => x > 0.025).length;
@@ -427,6 +423,9 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
       const contigue = righe.length / ((banda[1] - banda[0]) * 100 + 1);
       if (!man || contigue < 0.7) { banda = null; man = null; corpoF = 0; }
     } else corpoF = 0;
+  } else if (pS) {
+    const ls = latoSporgente(S);                               // solo da che parte è il davanti nella foto di lato
+    if (ls) davantiSx = ls === 'sx';
   }
   const passo = Math.max(W, D, H) / 170;
   const NX = Math.max(16, Math.round(W / passo)), NY = Math.max(16, Math.round(H / passo)), NZ = Math.max(16, Math.round(D / passo));
@@ -453,9 +452,9 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
       let a = pS.sx(vy), b = pS.dx(vy);
       if (Number.isNaN(a) || Number.isNaN(b)) continue;
       if (!banda) {
-        // niente maniglia vera: della foto di lato conta solo il CORPO (leve e manopole che sporgono fuori)
-        const m0 = pS.mSx, m1 = pS.mDx, L = Math.max(1e-3, m1 - m0);
-        a = Math.max(0, (a - m0) / L); b = Math.min(1, (b - m0) / L);
+        // senza maniglia vera: leve e manopole piccole che sporgono nella foto di lato non
+        // diventano fasce larghe come tutto l'oggetto (la scala resta quella esatta)
+        a = Math.max(a, pS.mSx); b = Math.min(b, pS.mDx);
       }
       if (davantiSx) { zf = D / 2 - a * D; zb = D / 2 - b * D; } else { zf = D / 2 - (1 - b) * D; zb = D / 2 - (1 - a) * D; }
     }
@@ -469,18 +468,14 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
         const hx = (xr - xl) / 2, hz = (zfc - zb) / 2, cx = (xl + xr) / 2, cz = (zfc + zb) / 2;
         let dd;
         if (pT) {
-          // FORMA VERA DA SOPRA: a ogni altezza il contorno visto da sopra, largo e
-          // profondo come dicono le foto davanti e di lato a quell'altezza
-          const v = (zfc - z) / Math.max(1, zfc - zb);                 // 0 = davanti … 1 = dietro
-          const vT = corpoT.t0 + (1 - v) * (corpoT.t1 - corpoT.t0);  // nella foto da sopra: in alto = dietro, in basso = davanti (solo il corpo)
-          if (v < 0 || v > 1) dd = -Math.max(z - zfc, zb - z, passo);
+          // dentro DAVANTI e LATO esatti, con il CONTORNO DA SOPRA (del corpo) disegnato dentro
+          const v = (zf - z) / Math.max(1, zf - zb);                   // 0 = davanti … 1 = dietro, a questa altezza
+          if (v < 0 || v > 1) dd = -Math.max(z - zf, zb - z, passo);
           else {
+            const vT = corpoT.t0 + (1 - v) * (corpoT.t1 - corpoT.t0);  // nella foto da sopra: in alto = dietro
             const a = pT.sx(vT), b = pT.dx(vT);
             if (Number.isNaN(a) || Number.isNaN(b)) dd = -passo;
-            else {
-              const xa = xl + a * (xr - xl), xb = xl + b * (xr - xl);
-              dd = Math.min(x - xa, xb - x, z - zb, zfc - z);
-            }
+            else dd = Math.min(x - (xl + a * (xr - xl)), (xl + b * (xr - xl)) - x, z - zb, zf - z);
           }
         } else if (tonda) {
           const ex = (x - cx) / Math.max(1, hx), ez = (z - cz) / Math.max(1, hz);
@@ -591,10 +586,9 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
     aff[v * 3 + 2] = 1;                                                     // sopra: la foto dall'alto vale ovunque guardi in su
     uvB.set(uvDa(tB || tF, 1 - u, vy), v * 2);                     // dietro: la sua foto, se no il davanti specchiato
     // lato fotografato: la foto com'è; lato opposto: la stessa foto NON specchiata (scritte e loghi leggibili)
-    const us = davantiSx ? 1 - wz : wz;
-    const corpoS = (q) => (pS && !banda ? pS.mSx + q * (pS.mDx - pS.mSx) : q);
-    uvS.set(uvDa(tS, corpoS(us), vy), v * 2);
-    uvS2.set(uvDa(tS, corpoS(1 - us), vy), v * 2);
+    const us = davantiSx ? 1 - wz : wz;                             // la foto di lato esatta, su tutta la profondità
+    uvS.set(uvDa(tS, us, vy), v * 2);
+    uvS2.set(uvDa(tS, 1 - us, vy), v * 2);
     uvT.set(uvDa(tT, u, corpoT ? corpoT.t0 + wz * (corpoT.t1 - corpoT.t0) : wz), v * 2);
   }
   gi.setAttribute('uvF', new THREE.BufferAttribute(uvF, 2));
