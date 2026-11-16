@@ -1451,4 +1451,5 @@ window.NG_I18N_ES = {
  "Altezza pensile (mm)": "Altura del alto (mm)",
  "Cambia altezza": "Cambiar altura",
  "Questo pensile non è sotto il ponte.": "Este alto no está bajo el puente.",
+ "Profondità come la colonna o il costado ai lati. Massimo 275 cm per pezzo: se la fila è più lunga si divide a metà (fra due moduli o a metà di un modulo, fra le ante).": "Profundidad como la columna o el costado de los lados. Máximo 275 cm por pieza: si la fila es más larga se divide por la mitad (entre dos módulos o a mitad de un módulo, entre las puertas).",
 };

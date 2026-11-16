@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte,
-} from './modello.js?v=20261116w';
+} from './modello.js?v=20261116x';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -325,7 +325,7 @@ export function calcolaDistintaCucina(progetto) {
     const spP = spessorePannelloPonte(progetto), col = progetto.coloriFronti || {};
     for (const f of pannelliSottoPonte(progetto)) {
       const primo = (progetto.mobiliLiberi || []).find((o) => o.id === f.ids[0]);
-      raw.push({ nome: f.w > 2800 ? 'Pannello sotto ponte (oltre 2800: da giuntare)' : 'Pannello sotto ponte',
+      raw.push({ nome: f.pezzi > 1 ? `Pannello sotto ponte (pezzo ${f.pezzo} di ${f.pezzi})` : 'Pannello sotto ponte',
         larghezza: f.w, altezza: Math.round(f.d), spessore: spP, materiale: 'anta',
         materialeNome: nomeMateriale((primo && primo.coloreFronte) || col.colonna || col.pensile, 'Colore da scegliere'), quantita: 1 });
     }

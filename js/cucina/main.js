@@ -17,19 +17,19 @@ import {
   rimuoviModuloBase, rimuoviFascia,
   spostaModulo, problemiIngombri, problemiMobiliLiberi,
   ruotaPianta, specchiaPianta, inverteAngolo,
-  toggleParete, muroTolto, snap, liberoPareti, generaPensiliAuto, generaPonteAuto, spessorePannelloPonte, riorientaMobili,
+  toggleParete, muroTolto, snap, liberoPareti, generaPensiliAuto, generaPonteAuto, spessorePannelloPonte, spessoreAntePonte, pannelliSottoPonte, riorientaMobili,
   spaziTraMobili, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo, inserisciInAngolo, mettiNelVano,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro, rotazioneAutomatica, migraRotazioni,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261116w';
-import { renderPianta } from './pianta.js?v=20261116w';
-import { calcolaDistintaCucina } from './distinta.js?v=20261116w';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261116w';
-import { agganciaTema } from '../tema.js?v=20261116w';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116w';
+} from './modello.js?v=20261116x';
+import { renderPianta } from './pianta.js?v=20261116x';
+import { calcolaDistintaCucina } from './distinta.js?v=20261116x';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261116x';
+import { agganciaTema } from '../tema.js?v=20261116x';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116x';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -664,7 +664,20 @@ function renderPannelloModuli() {
       ${(progetto.pannelloPonte || {}).attivo !== false ? `
       <div class="ra-campi" style="margin-top:8px">
         <label>Spessore pannello (mm)<input id="pponte-sp" type="number" value="${spessorePannelloPonte(progetto)}" min="5" step="1" inputmode="numeric"></label>
-      </div>` : ''}
+      </div>
+      <div class="opzioni-anta" style="margin-top:6px">
+        <button type="button" class="btn-ghost ${Number((progetto.pannelloPonte || {}).spessore) > 0 ? '' : 'attivo'}" id="pponte-sp-auto">${Number((progetto.pannelloPonte || {}).spessore) > 0 ? '' : '✓ '}Come le ante (${spessoreAntePonte(progetto)} mm)</button>
+      </div>
+      <div class="riga-3d" style="margin-top:6px">${(() => {
+        const pz = pannelliSottoPonte(progetto);
+        if (!pz.length) return 'Profondità come la colonna o il costado ai lati. Massimo 275 cm per pezzo: se la fila è più lunga si divide a metà (fra due moduli o a metà di un modulo, fra le ante).';
+        const rif = { colonna: 'come le colonne', costado: 'come i costadi', pannello: 'come il pannello' }[pz[0].riferimento] || 'come il ponte';
+        return pz.filter((x) => x.pezzo === 1).map((f) => {
+          const pezzi = pz.filter((x) => x.ids === f.ids);
+          return `Fila da <strong>${f.lunghezzaFila / 10} cm</strong> · profondità <strong>${f.d / 10} cm</strong> (${rif})`
+            + (pezzi.length > 1 ? ` · divisa in <strong>${pezzi.length} pezzi</strong>: ${pezzi.map((x) => `${(x.w / 10).toLocaleString('it-IT')}`).join(' + ')} cm` : '');
+        }).join('<br>');
+      })()}</div>` : ''}
     </section>` : ''}
 
     ${livello === 'alto' ? `
@@ -842,6 +855,13 @@ function attaccaEventiStep2() {
     progetto.pannelloPonte = { ...(progetto.pannelloPonte || {}), attivo: b.dataset.pponte === 'si' };
     aggiorna();
   }));
+  document.getElementById('pponte-sp-auto')?.addEventListener('click', () => {
+    if (!(Number((progetto.pannelloPonte || {}).spessore) > 0)) return;
+    registraStoria();
+    const pp = { ...(progetto.pannelloPonte || {}), attivo: true }; delete pp.spessore;
+    progetto.pannelloPonte = pp;
+    aggiorna();
+  });
   document.getElementById('pponte-sp')?.addEventListener('change', (e) => {
     const v = Math.round(Number(e.target.value));
     if (!(v >= 5)) return;
@@ -1335,7 +1355,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116w');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116x');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1998,13 +2018,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116w');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116x');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116w'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116x'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

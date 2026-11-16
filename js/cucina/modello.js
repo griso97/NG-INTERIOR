@@ -1227,8 +1227,23 @@ export function generaPonteAuto(progetto, altezza, altezzaPensili = 0) {
 export function spessorePannelloPonte(progetto) {
   const p = progetto.pannelloPonte || {};
   if (p.attivo === false) return 0;
-  return Math.max(5, Math.round(Number(p.spessore) || 18));
+  if (Number(p.spessore) > 0) return Math.max(5, Math.round(Number(p.spessore)));   // scelto a mano
+  return spessoreAntePonte(progetto);
 }
+/**
+ * Spessore delle ANTE del ponte (dal catalogo: il materiale scelto per il
+ * ponte / le colonne; es. 19 se il pannello è da 19). Se il catalogo non lo
+ * dice, 18.
+ */
+export function spessoreAntePonte(progetto) {
+  const col = progetto.coloriFronti || {};
+  const ponte = (progetto.mobiliLiberi || []).find((m) => m.tipo === 'ponte' && m.coloreFronte);
+  const id = (ponte && ponte.coloreFronte) || col.colonna || col.pensile || null;
+  const def = id && typeof window !== 'undefined' ? (window.NG_MATERIALI || []).find((x) => x.id === id) : null;
+  const sp = def ? Number((def.info && def.info.spessore) || def.spessore) : NaN;
+  return sp >= 10 && sp <= 30 ? Math.round(sp) : 18;
+}
+export const PANNELLO_PONTE_MAX = 2750;   // lunghezza massima del pannello (mm)
 /**
  * PANNELLO SOTTO IL PONTE: un pannello orizzontale che copre il fondo dei
  * moduli del ponte (profondi 60), sopra i pensili piccoli, per tutta la fila.
@@ -1237,7 +1252,45 @@ export function spessorePannelloPonte(progetto) {
  */
 export function pannelliSottoPonte(progetto) {
   if (!spessorePannelloPonte(progetto)) return [];
-  return fileDelPonte(progetto);
+  const out = [];
+  const alti = (progetto.mobiliLiberi || []).filter((o) => { const c = categoriaTipo(o.tipo);
+    return c === 'colonna' || (c === 'costado' && (o.altezza_mm || 0) >= 1500) || (c === 'pannello' && (o.altezza_mm || 0) >= 1500); });
+  for (const f of fileDelPonte(progetto)) {
+    // PROFONDITÀ: come la colonna / il costado ai lati della fila (il più profondo); se non c'è, come il ponte
+    let dRif = 0, riferimento = null;
+    for (const o of alti) {
+      const lungo = o.x * f.ax + o.y * f.ay, fuori = o.x * f.fx + o.y * f.fy;
+      if (Math.abs(fuori - f.perp) > 400) continue;
+      const d = dimMobile(o), mezzo = (categoriaTipo(o.tipo) === 'costado' ? d.w : d.w) / 2;
+      const tocca = Math.abs(lungo - mezzo - f.a1) <= 60 || Math.abs(lungo + mezzo - f.a0) <= 60;
+      if (!tocca) continue;
+      const prof = categoriaTipo(o.tipo) === 'costado' ? (o.profondita_mm || 620) : categoriaTipo(o.tipo) === 'pannello' ? f.d : d.d;
+      if (prof > dRif) { dRif = prof; riferimento = categoriaTipo(o.tipo); }
+    }
+    const d = dRif || f.d;
+    // il pannello parte dalla SCHIENA del ponte (contro il muro) e va avanti per la sua profondità
+    const perp = f.perp - f.d / 2 + d / 2;
+    // PEZZI: al massimo 2750; si taglia vicino alla metà, fra due moduli o a metà di un modulo (fra le ante)
+    const L = f.a1 - f.a0, n = Math.max(1, Math.ceil(L / PANNELLO_PONTE_MAX));
+    const tagliPossibili = [];
+    for (const m of f.moduli) { tagliPossibili.push(m.a1); tagliPossibili.push((m.a0 + m.a1) / 2); }
+    const tagli = [];
+    let da = f.a0;
+    for (let k = 1; k < n; k++) {
+      const ideale = f.a0 + (L * k) / n;
+      const cand = tagliPossibili.filter((t) => t > da + 100 && t < f.a1 - 100 && t - da <= PANNELLO_PONTE_MAX)
+        .sort((p, q) => Math.abs(p - ideale) - Math.abs(q - ideale));
+      const t = cand.length ? cand[0] : Math.min(da + PANNELLO_PONTE_MAX, ideale);
+      tagli.push(t); da = t;
+    }
+    const bordi = [f.a0, ...tagli, f.a1];
+    for (let i = 0; i < bordi.length - 1; i++) {
+      const c = (bordi[i] + bordi[i + 1]) / 2;
+      out.push({ x: c * f.ax + perp * f.fx, y: c * f.ay + perp * f.fy, rot: f.rot, w: Math.round(bordi[i + 1] - bordi[i]), d: Math.round(d),
+        ids: f.ids, pezzo: i + 1, pezzi: bordi.length - 1, riferimento, lunghezzaFila: Math.round(L) });
+    }
+  }
+  return out;
 }
 /** File del ponte (moduli del ponte attaccati, stessa rotazione e linea). */
 export function fileDelPonte(progetto) {
@@ -1259,11 +1312,12 @@ export function fileDelPonte(progetto) {
     const chiudi = () => {
       if (!fila) return;
       const c = (fila.a0 + fila.a1) / 2;
-      out.push({ x: c * g.ax + g.perp * g.fx, y: c * g.ay + g.perp * g.fy, rot: g.rot, w: Math.round(fila.a1 - fila.a0), d: fila.d, ids: fila.ids });
+      out.push({ x: c * g.ax + g.perp * g.fx, y: c * g.ay + g.perp * g.fy, rot: g.rot, w: Math.round(fila.a1 - fila.a0), d: fila.d, ids: fila.ids,
+        ax: g.ax, ay: g.ay, fx: g.fx, fy: g.fy, perp: g.perp, a0: fila.a0, a1: fila.a1, moduli: fila.moduli });
     };
     for (const p of g.pezzi) {
-      if (fila && p.a0 - fila.a1 <= 5) { fila.a1 = Math.max(fila.a1, p.a1); fila.d = Math.max(fila.d, p.d); fila.ids.push(p.id); }
-      else { chiudi(); fila = { a0: p.a0, a1: p.a1, d: p.d, ids: [p.id] }; }
+      if (fila && p.a0 - fila.a1 <= 5) { fila.a1 = Math.max(fila.a1, p.a1); fila.d = Math.max(fila.d, p.d); fila.ids.push(p.id); fila.moduli.push(p); }
+      else { chiudi(); fila = { a0: p.a0, a1: p.a1, d: p.d, ids: [p.id], moduli: [p] }; }
     }
     chiudi();
   }
