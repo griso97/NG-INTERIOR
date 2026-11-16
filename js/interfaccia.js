@@ -6,7 +6,7 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer } from './materiali.js?v=20261116i';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch } from './materiali.js?v=20261116j';
 
 export function configDefault() {
   return {
@@ -790,13 +790,46 @@ function renderMateriali(config) {
         </div>
       </details>
     `;
-  }).join('');
+  }).join('') + cardManiglie(config);
+}
+
+/** Maniglie delle ante (catalogo, come in cucina): nessuna = ante lisce. */
+function cardManiglie(config) {
+  const lista = materialiPer('maniglie');
+  const sel = config.maniglia || 'nessuna';
+  const corr = lista.find((m) => m.id === sel);
+  const tessera = (m) => m
+    ? `<span class="man-tessera" style="background:${sfondoSwatch(m)}"></span>`
+    : '<span class="man-tessera man-nessuna">—</span>';
+  return `
+      <details class="mat-card" data-parte="maniglia">
+        <summary>
+          <span class="mat-parte">Maniglie</span>
+          <span class="mat-corrente">${tessera(corr)}<span>${corr ? corr.nome : 'Senza maniglia (ante lisce)'}</span></span>
+        </summary>
+        <div class="mat-grid">
+          <button type="button" class="mat-swatch ${sel === 'nessuna' ? 'sel' : ''}" data-man="nessuna" title="Senza maniglia">
+            ${tessera(null)}<span>Senza maniglia</span></button>
+          ${lista.map((m) => `
+            <button type="button" class="mat-swatch ${m.id === sel ? 'sel' : ''}" data-man="${m.id}" title="${m.nome}">
+              ${tessera(m)}<span>${m.nome}</span></button>`).join('')}
+        </div>
+      </details>`;
 }
 
 function attaccaEventiMateriali(contenitore, config, onChange) {
+  contenitore.querySelectorAll('.mat-swatch[data-man]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      config.maniglia = btn.dataset.man === 'nessuna' ? null : btn.dataset.man;
+      renderMateriali(config);
+      attaccaEventiMateriali(contenitore, config, onChange);
+      onChange(config);
+    });
+  });
   contenitore.querySelectorAll('.mat-card').forEach((card) => {
     const parteId = card.dataset.parte;
     const parte = PARTI.find((p) => p.id === parteId);
+    if (!parte) return;                              // card delle maniglie: eventi sopra
     card.querySelectorAll('.mat-swatch').forEach((btn) => {
       btn.addEventListener('click', () => {
         // Applica a tutte le chiavi associate (es. Struttura → carcassa+schiena)

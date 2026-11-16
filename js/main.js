@@ -5,21 +5,21 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261116i';
+import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261116j';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo, fotoRealisticaArmadio,
   iniziaSpostamentoRipiano, muoviSpostamentoRipiano, fineSpostamentoRipiano,
   toccoArmadio, ripianiCorrenti, posizioneNuovoRipiano, evidenziaRipiano,
-} from './scena3d.js?v=20261116i';
-import { SFONDI_LISTA } from './sfondi.js?v=20261116i';
-import { agganciaTema } from './tema.js?v=20261116i';
-import { renderPannello, configDefault } from './interfaccia.js?v=20261116i';
-import { renderDistinta } from './distinta.js?v=20261116i';
-import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261116i';
-import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261116i';
+} from './scena3d.js?v=20261116j';
+import { SFONDI_LISTA } from './sfondi.js?v=20261116j';
+import { agganciaTema } from './tema.js?v=20261116j';
+import { renderPannello, configDefault } from './interfaccia.js?v=20261116j';
+import { renderDistinta } from './distinta.js?v=20261116j';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261116j';
+import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261116j';
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js?v=20261116i';
+} from './storage.js?v=20261116j';
 
 // Config iniziale: ultima salvata, oppure default
 let config = caricaLocale() || configDefault();
@@ -114,7 +114,7 @@ function agganciaExport(distinta) {
   if (btnMod) btnMod.onclick = () => apriModelloExcel({ pezzi: pezziModello(), progetto: progettoNome });
   const btnFoto = document.getElementById('btn-foto-reale');
   if (btnFoto) btnFoto.onclick = async () => {
-    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261116i');
+    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261116j');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaArmadio(p), tela3d: document.getElementById('canvas3d'), nome: 'armadio' });
   };
   const btnImg = document.getElementById('btn-img');

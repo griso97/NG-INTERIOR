@@ -526,6 +526,13 @@ table.distinta td.qta {
   box-shadow: inset 0 0 0 1px var(--oro-chiaro);
 }
 .mat-swatch.sel span { color: var(--oro-chiaro); }
+/* tessera maniglia (colore/foto della maniglia, come le img dei materiali) */
+.mat-swatch .man-tessera, .mat-corrente .man-tessera {
+  display: block; width: 100%; aspect-ratio: 1 / 1; border-radius: 2px;
+  background-size: cover; background-position: center;
+}
+.mat-corrente .man-tessera { width: 28px; height: 28px; flex: 0 0 28px; }
+.man-tessera.man-nessuna { display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--testo-dim); background: var(--bg-3, #222); }
 
 /* Bottone fisso "Apri/Chiudi porte" per mobile */
 /* Selettore sfondo 3D: piccoli cerchi in alto a destra della vista */
