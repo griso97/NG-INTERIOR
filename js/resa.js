@@ -29,9 +29,15 @@ export function creaResa(opz) {
   const { renderer, scene, camera } = opz;
   const tel = eTelefono();
   const DPR = window.devicePixelRatio || 1;
-  // Nitidezza: sempre quella piena di prima (mentre si gira e da fermo).
+  // Nitidezza: sempre quella piena di prima mentre si gira.
   const DPR_MOTO = Math.min(DPR, tel ? 1.25 : 1.5);          // mentre si gira
-  const DPR_FERMO = Math.min(DPR, tel ? 3 : 2);                // fermo: nitido come una foto (tutti i pixel del telefono)
+  // Da fermo: telefono a tutti i suoi pixel; COMPUTER al doppio dei pixel dello
+  // schermo, poi rimpicciolito come una foto: bordi e ombre negli angoli puliti,
+  // niente linee zigrinate (le ombre di contatto da sole non sono levigate).
+  const PIX_FERMO = 8e6;
+  const areaCss = () => { const el = renderer.domElement; return Math.max(1, (el.clientWidth || el.width) * (el.clientHeight || el.height)); };
+  const dprFermo = () => tel ? Math.min(DPR, 3)
+    : Math.max(Math.min(DPR, 1.5), Math.min(2, Math.sqrt(PIX_FERMO / areaCss())));
   try { localStorage.removeItem('ng-3d-fluidita'); } catch (_) { /* niente */ }
   // COMPUTER, mentre si gira la vista: l'immagine resta SEMPRE nitida come
   // prima. Se la scheda grafica non sta al passo (lo misura da sola, e se lo
@@ -55,6 +61,8 @@ export function creaResa(opz) {
   try {
     const s = renderer.getDrawingBufferSize(new THREE.Vector2());
     ao = nuovoAO(s.x, s.y);
+    // computer, disegno da fermo (una volta sola): più campioni, ombre di contatto più lisce
+    if (!tel) { ao.updateGtaoMaterial({ samples: 32 }); ao.updatePdMaterial({ samples: 32, rings: 4 }); }
     quad = new FullScreenQuad(ao.blendMaterial);
     if (!tel) {
       aoMoto = nuovoAO(s.x, s.y);                             // le sue memorie: niente memoria rifatta a ogni giro
@@ -175,7 +183,7 @@ export function creaResa(opz) {
     motoPrec = false;
     // ferma da un attimo → una volta a piena qualità (col dito ancora giù aspetta di più)
     if (!nitido && ora - ultimoMoto > (giu.size ? 700 : 160)) {
-      dimensiona(DPR_FERMO); nitido = true; disegnaOra(false);
+      dimensiona(dprFermo()); nitido = true; disegnaOra(false);
       return;
     }
     // da ferma: ridisegno se è cambiato qualcosa o se lo scivolamento si vede
@@ -214,7 +222,7 @@ export function creaResa(opz) {
   }
 
   dimensiona(DPR_MOTO);
-  return { disegna, cambiato, tick, dimensiona: () => dimensiona(nitido ? DPR_FERMO : DPR_MOTO), foto, dispose };
+  return { disegna, cambiato, tick, dimensiona: () => dimensiona(nitido ? dprFermo() : DPR_MOTO), foto, dispose };
 }
 
 // -----------------------------------------------------------------------------
