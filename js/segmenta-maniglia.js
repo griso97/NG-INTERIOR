@@ -148,23 +148,38 @@ export function segmentaManiglia(img, zona = null, tol = 1, opz = {}) {
   if (opz.oggetto) {
     const L = new Float32Array(w * h);
     for (let i = 0; i < w * h; i++) L[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+    // BORDI su tutti e tre i colori (non solo la luce): un oggetto crema o avorio su bianco
+    // si stacca soprattutto nel colore (giallo/blu), quasi niente nella luminosità
     const G = new Float32Array(w * h), gv = [];
     for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
-      const i = y * w + x;
-      const gx = (L[i - w + 1] + 2 * L[i + 1] + L[i + w + 1]) - (L[i - w - 1] + 2 * L[i - 1] + L[i + w - 1]);
-      const gy = (L[i + w - 1] + 2 * L[i + w] + L[i + w + 1]) - (L[i - w - 1] + 2 * L[i - w] + L[i - w + 1]);
-      G[i] = Math.hypot(gx, gy) / 4; if ((i & 3) === 0) gv.push(G[i]);
+      const i = y * w + x; let gm = 0;
+      for (let q = 0; q < 3; q++) {
+        const c = (j) => d[j * 4 + q];
+        const gx = (c(i - w + 1) + 2 * c(i + 1) + c(i + w + 1)) - (c(i - w - 1) + 2 * c(i - 1) + c(i + w - 1));
+        const gy = (c(i + w - 1) + 2 * c(i + w) + c(i + w + 1)) - (c(i - w - 1) + 2 * c(i - w) + c(i - w + 1));
+        const g = Math.hypot(gx, gy) / 4; if (g > gm) gm = g;
+      }
+      G[i] = gm; if ((i & 3) === 0) gv.push(G[i]);
     }
-    // soglia dei bordi: sopra il "rumore" dello sfondo (mediana dei gradienti sul bordo della foto)
-    const gb = []; for (let x = 1; x < w - 1; x++) { gb.push(G[w + x], G[(h - 2) * w + x]); } for (let y = 1; y < h - 1; y++) { gb.push(G[y * w + 1], G[y * w + w - 2]); }
+    // soglia dei bordi: sopra il "rumore" dello sfondo, misurato un po' DENTRO il bordo della foto
+    // (molte foto prese da internet hanno una cornice o una riga grigia proprio sul bordo)
+    const gb = [], m4 = Math.min(6, Math.floor(Math.min(w, h) / 20));
+    for (let x = m4; x < w - m4; x++) { gb.push(G[m4 * w + x], G[(h - 1 - m4) * w + x]); }
+    for (let y = m4; y < h - m4; y++) { gb.push(G[y * w + m4], G[y * w + w - 1 - m4]); }
     gb.sort((a, b) => a - b);
-    const gT = Math.max(6, (gb[Math.floor(gb.length * 0.9)] || 0) * 2.5);
+    const gT = Math.max(5, (gb[Math.floor(gb.length * 0.75)] || 0) * 2.5);
+    // sfondo UNIFORME (foto prodotto su bianco): nell'oggetto basta poco colore di differenza
+    // (crema, avorio, acciaio chiaro). Sfondo con disegni (piastrelle, cucina): soglia normale
+    let rumoreBordo = 0;
+    { const dv = []; for (let x = m4; x < w - m4; x += 2) { dv.push(diff[m4 * w + x], diff[(h - 1 - m4) * w + x]); } for (let y = m4; y < h - m4; y += 2) { dv.push(diff[y * w + m4], diff[y * w + w - 1 - m4]); }
+      dv.sort((a, b) => a - b); rumoreBordo = dv[Math.floor(dv.length * 0.8)] || 0; }
+    const tOgg = rumoreBordo < 6 ? Math.min(t, 18) : t;
     // riempimento dal bordo della foto: tutto ciò che si raggiunge senza passare un muro è sfondo
     // muro = bordo netto (allargato di 1 px) oppure pixel chiaramente diverso dallo sfondo
     const muro = new Uint8Array(w * h);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const i = y * w + x;
-      if (m[i] || G[i] > gT) { muro[i] = 1; if (G[i] > gT) { if (x > 0) muro[i - 1] = 1; if (x < w - 1) muro[i + 1] = 1; if (y > 0) muro[i - w] = 1; if (y < h - 1) muro[i + w] = 1; } }
+      if (m[i] || diff[i] > tOgg || G[i] > gT) { muro[i] = 1; if (G[i] > gT) { if (x > 0) muro[i - 1] = 1; if (x < w - 1) muro[i + 1] = 1; if (y > 0) muro[i - w] = 1; if (y < h - 1) muro[i + w] = 1; } }
     }
     let sf = new Uint8Array(w * h);
     const st = new Int32Array(w * h); let sp = 0;
@@ -189,7 +204,7 @@ export function segmentaManiglia(img, zona = null, tol = 1, opz = {}) {
       for (let y = Math.max(0, Math.ceil(yOmbra)); y < h; y++) for (let x = 0; x < w; x++) {
         const i = y * w + x; if (sf[i]) continue;
         const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
-        if (Math.max(r, g, b) - Math.min(r, g, b) > 26) continue;          // ha colore: non è ombra
+        if (Math.max(r, g, b) - Math.min(r, g, b) > 16) continue;          // ha colore (anche crema/avorio): non è ombra
         const sb = sfondoIn(x, y), Lb = 0.299 * sb[0] + 0.587 * sb[1] + 0.114 * sb[2];
         Lsf[i] = Lb;
         if (L[i] <= Lb + 3 && L[i] > Lb * 0.36) cand[i] = 1;
@@ -245,7 +260,7 @@ export function segmentaManiglia(img, zona = null, tol = 1, opz = {}) {
     if (opz.debug) { opz.debug.w = w; opz.debug.h = h; opz.debug.dopoRiempimento = m.slice(); opz.debug.muro = muro.slice(); }
     for (let pass = 0; pass < 2; pass++) for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
       const i = y * w + x;
-      if (!m[i] || diff[i] > t) continue;
+      if (!m[i] || diff[i] > tOgg) continue;
       if (sf[i - 1] || sf[i + 1] || sf[i - w] || sf[i + w]) { m[i] = 0; sf[i] = 1; }
     }
   }

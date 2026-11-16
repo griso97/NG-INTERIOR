@@ -428,7 +428,18 @@ export function formaOggetto(foto, W, D, H, THREE = null) {
   let yMin = H - F.vMax, yMax = H - F.vMin;
   if (S) { yMin = Math.max(yMin, H - S.vMax); yMax = Math.min(yMax, H - S.vMin); }
   // forma vista da sopra: superellisse sul corpo della foto da sopra, se è davvero dall'alto
-  let nSup = 3.5;
+  // senza la foto da sopra: la forma vista da sopra si capisce dalla CIMA delle foto. Una cupola
+  // (bollitore) = corpo tondo; spalle strette (tostapane) = rettangolo con angoli tondi;
+  // spigoli vivi (microonde, frigo) = quasi squadrato
+  const cupola = (V) => {
+    if (!V) return null;
+    let mw = 0; for (let t = 0; t <= 200; t++) { const b = V.bordi(V.vMin + ((V.vMax - V.vMin) * t) / 200); if (b) mw = Math.max(mw, b[1] - b[0]); }
+    for (let t = 0; t <= 200; t++) { const b = V.bordi(V.vMin + ((V.vMax - V.vMin) * t) / 200); if (b && b[1] - b[0] >= mw * 0.9) return t / 200; }
+    return null;
+  };
+  const cF = cupola(F), cS = cupola(S), cc = [cF, cS].filter((v) => v != null);
+  const h90 = cc.length ? cc.reduce((a, b) => a + b, 0) / cc.length : 0.12;
+  let nSup = h90 > 0.22 ? 2.2 : h90 > 0.1 ? 3.5 : h90 > 0.05 ? 5 : 8;
   if (T) {
     const f = fitSuperellisse(T.corpoMm);
     if (Math.abs(Math.log((f.a / f.b) / (W / D))) < 0.5) nSup = f.n;
@@ -563,6 +574,36 @@ function pezziSolidi(viste, davantiSx, W, D, H, fr, la, yMin, yMax, THREE, nSup 
         const [inizio, fine] = pts[0].distanceTo(a0) < pts[0].distanceTo(b0) ? [a0, b0] : [b0, a0];
         const curva = new THREE.CatmullRomCurve3([inizio.clone().addScaledVector(dir, -r), ...pts, fine.clone().addScaledVector(dir, -r)]);
         aggiungi(new THREE.TubeGeometry(curva, 80, r, 16, false), new THREE.Matrix4());
+        continue;
+      }
+    }
+    // PEZZO LUNGO E SOTTILE (maniglia, gancio, barra, beccuccio): un tubo lungo la sua LINEA DI
+    // MEZZO, grosso come nella foto. La linea di mezzo: i due lati del pezzo, percorsi insieme
+    // dall'attacco alla punta, e il punto a metà tra loro.
+    if (!conCollo) {
+      const arco = x.q.arco, n = arco.length;
+      const lung = [0]; for (let k = 1; k < n; k++) lung.push(lung[k - 1] + Math.hypot(arco[k][0] - arco[k - 1][0], arco[k][1] - arco[k - 1][1]));
+      const Lp = lung[n - 1];
+      const aDist = (t) => { let k = 1; while (k < n - 1 && lung[k] < t) k++; const u = (t - lung[k - 1]) / Math.max(1e-6, lung[k] - lung[k - 1]); return [arco[k - 1][0] + (arco[k][0] - arco[k - 1][0]) * u, arco[k - 1][1] + (arco[k][1] - arco[k - 1][1]) * u]; };
+      const K = 40, centro = [], spess = [];
+      for (let k = 0; k <= K; k++) {
+        const t = (k / K) * (Lp / 2), a = aDist(t), b = aDist(Lp - t);
+        centro.push([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]); spess.push(Math.hypot(a[0] - b[0], a[1] - b[1]));
+      }
+      let lungC = 0; for (let k = 1; k <= K; k++) lungC += Math.hypot(centro[k][0] - centro[k - 1][0], centro[k][1] - centro[k - 1][1]);
+      const sp = spess.slice(Math.round(K * 0.2), Math.round(K * 0.85)).sort((p, q) => p - q);
+      const grosso = sp.length ? sp[sp.length >> 1] : f.c;
+      if (lungC > grosso * 2.6 && grosso > 1) {
+        const r = Math.max(2, Math.min(grosso / 2, largh ? largh / 2 : grosso / 2));
+        const pts = [];
+        for (let k = 0; k <= K; k += 2) pts.push(new THREE.Vector3(...x.ax.p(centro[k][0], centro[k][1], w)));
+        // l'attacco entra un po' nel corpo
+        pts[0].addScaledVector(dir, -r);
+        const curva = new THREE.CatmullRomCurve3(pts);
+        aggiungi(new THREE.TubeGeometry(curva, 80, r, 16, false), new THREE.Matrix4());
+        // punta chiusa (mezza sfera)
+        const fine = curva.getPoint(1);
+        aggiungi(new THREE.SphereGeometry(r, 16, 10), new THREE.Matrix4().makeTranslation(fine.x, fine.y, fine.z));
         continue;
       }
     }
