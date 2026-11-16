@@ -8,13 +8,13 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261117r';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261117r';
-import { anteprimaOggetto, riconosciViste, vistaScambiata, orientaSopra, ruotaCanvas } from './oggetto3d.js?v=20261117r';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261117r';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261117r';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261117r';
-import { agganciaTema } from './tema.js?v=20261117r';
+} from './catalogo.js?v=20261117x';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261117x';
+import { anteprimaOggetto, riconosciViste, vistaScambiata, orientaSopra, ruotaCanvas } from './oggetto3d.js?v=20261117x';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261117x';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261117x';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261117x';
+import { agganciaTema } from './tema.js?v=20261117x';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);

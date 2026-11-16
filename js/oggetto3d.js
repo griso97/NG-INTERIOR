@@ -142,8 +142,19 @@ function profilo(V) {
       fin.sort((p, q) => p - q); out[r] = fin[fin.length >> 1];
     }
     const m = mediana(out);
-    for (let r = 0; r < n; r++) if (!Number.isNaN(out[r]) && Math.abs(out[r] - m) < 0.018) out[r] = m;   // quasi dritto → dritto
-    return { v: out, m };
+    // SMUSSATURA GRADUALE (gaussiana) invece di "raddrizzare" a scatti: le facce piatte
+    // restano piatte, le curve restano curve e tra le due non restano gradini (che col
+    // materiale lucido si vedevano come righe)
+    const R = Math.max(2, Math.round(n * 0.02)), sg = R / 2, ker = [];
+    for (let q = -R; q <= R; q++) ker.push(Math.exp(-(q * q) / (2 * sg * sg)));
+    const lis = new Float32Array(n);
+    for (let r = 0; r < n; r++) {
+      if (Number.isNaN(out[r])) { lis[r] = NaN; continue; }
+      let t = 0, wsum = 0;
+      for (let q = -R; q <= R; q++) { const x = out[r + q]; if (r + q < 0 || r + q >= n || Number.isNaN(x)) continue; t += x * ker[q + R]; wsum += ker[q + R]; }
+      lis[r] = t / wsum;
+    }
+    return { v: lis, m };
   };
   const fl = filtra(L), fr = filtra(R);
   const at = (arr, v) => {                                 // valore alla riga v (0..1), interpolato
@@ -307,9 +318,17 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   let corpoT = null;
   if (Tv) {
     const pp = profilo(Tv), mw = pp.mDx - pp.mSx;
-    let t0 = 0, t1 = 1;
-    while (t0 < 0.45 && (pp.dx(t0) - pp.sx(t0)) < mw * 0.6) t0 += 0.002;
-    while (t1 > 0.55 && (pp.dx(t1) - pp.sx(t1)) < mw * 0.6) t1 -= 0.002;
+    const larg = (t) => pp.dx(t) - pp.sx(t);
+    // sporgenza = un pezzo STRETTO in fondo che poi si allarga di colpo (leva, manopola);
+    // le estremità arrotondate (si stringono piano piano) restano parte del corpo
+    const finePezzo = (da, passo) => {
+      let t0 = da; while (Math.abs(t0 - da) < 0.3 && larg(t0) < mw * 0.15) t0 += passo;   // gambi sottilissimi (pomelli, perni): mai corpo
+      let t = t0; while (Math.abs(t - da) < 0.4 && larg(t) < mw * 0.3) t += passo;
+      if (Math.abs(t - t0) < 0.01) return t0;                        // niente pezzo stretto
+      const dopo = larg(t + passo * 5);
+      return dopo > mw * 0.6 ? t : t0;                               // si allarga di colpo: era una sporgenza
+    };
+    const t0 = finePezzo(0, 0.002), t1 = finePezzo(1, -0.002);
     corpoT = { p: pp, t0, t1, aspetto: Tv.bw / Math.max(1, Tv.bh * (t1 - t0)) };
   }
   const T = Tv && Math.abs(Math.log(corpoT.aspetto / (W / D))) < 0.25 ? Tv : null;
@@ -410,6 +429,21 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
       }
     }
   }
+  // SUPERFICIE LISCIA: il volume si ammorbidisce nelle tre direzioni (filtro 1-2-1, due
+  // passate): spariscono i gradini fila per fila e le righe verticali, che col materiale
+  // lucido si vedevano come strisce di luce
+  {
+    const tmp = new Float32Array(f.length);
+    const passa = (dx, dy, dz) => {
+      const st = dx + dy * GX + dz * GX * GY;
+      for (let k = 1; k < GZ - 1; k++) for (let j = 1; j < GY - 1; j++) {
+        let q = id(1, j, k);
+        for (let i = 1; i < GX - 1; i++, q++) tmp[q] = 0.25 * f[q - st] + 0.5 * f[q] + 0.25 * f[q + st];
+      }
+      for (let k = 1; k < GZ - 1; k++) for (let j = 1; j < GY - 1; j++) { let q = id(1, j, k); for (let i = 1; i < GX - 1; i++, q++) f[q] = tmp[q]; }
+    };
+    for (let it = 0; it < 3; it++) { passa(1, 0, 0); passa(0, 1, 0); passa(0, 0, 1); }
+  }
   // sopra e sotto: chiusura morbida (prima e ultima fila)
   for (let k = 1; k <= NZ; k++) for (let i = 1; i <= NX; i++) {
     f[id(i, 1, k)] = Math.min(f[id(i, 1, k)], 0.75); f[id(i, NY, k)] = Math.min(f[id(i, NY, k)], 0.75);
@@ -454,7 +488,7 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
       }
       for (let i = 0; i < vert.length; i++) vert[i] = nuovo[i];
     };
-    for (let it = 0; it < 4; it++) { passoT(0.5); passoT(-0.53); }
+    for (let it = 0; it < 6; it++) { passoT(0.5); passoT(-0.53); }
   }
   const gi = new THREE.BufferGeometry();
   gi.setAttribute('position', new THREE.Float32BufferAttribute(vert, 3));
@@ -472,11 +506,18 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   const tT = Tv ? texturaVista(foto.sopra) : null;
   const uvDa = (t, u, v) => (t ? [t.bx0 + Math.min(1, Math.max(0, u)) * t.bw, 1 - (t.by0 + Math.min(1, Math.max(0, v)) * t.bh)] : [0, 0]);
   const P = gi.attributes.position, nV = P.count;
+  // AFFIDABILITÀ di ogni foto in quel punto: vicino al bordo della foto (dove la superficie
+  // gira e la foto si "stira") conta meno → niente righe tirate sulle parti curve
+  const aff = new Float32Array(nV * 3);
+  const liscia = (t) => { const q = Math.max(0, Math.min(1, t)); return q * q * (3 - 2 * q); };
   const uvF = new Float32Array(nV * 2), uvB = new Float32Array(nV * 2), uvS = new Float32Array(nV * 2), uvS2 = new Float32Array(nV * 2), uvT = new Float32Array(nV * 2);
   for (let v = 0; v < nV; v++) {
     const x = P.getX(v), y = P.getY(v), z = P.getZ(v);
     const u = (x + W / 2) / W, vy = 1 - y / H, wz = (z + D / 2) / D;
     uvF.set(uvDa(tF, u, vy), v * 2);
+    aff[v * 3] = 0.08 + 0.92 * liscia(Math.min(u, 1 - u) / 0.14);            // davanti / dietro: bordi sinistro e destro
+    aff[v * 3 + 1] = 0.08 + 0.92 * liscia(Math.min(wz, 1 - wz) / 0.14);      // lati: bordi davanti e dietro
+    aff[v * 3 + 2] = 0.08 + 0.92 * liscia(Math.min(u, 1 - u, wz, 1 - wz) / 0.12);   // sopra
     uvB.set(uvDa(tB || tF, 1 - u, vy), v * 2);                     // dietro: la sua foto, se no il davanti specchiato
     // lato fotografato: la foto com'è; lato opposto: la stessa foto NON specchiata (scritte e loghi leggibili)
     const us = davantiSx ? 1 - wz : wz;
@@ -489,6 +530,7 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   gi.setAttribute('uvB', new THREE.BufferAttribute(uvB, 2));
   gi.setAttribute('uvS', new THREE.BufferAttribute(uvS, 2));
   gi.setAttribute('uvS2', new THREE.BufferAttribute(uvS2, 2));
+  gi.setAttribute('affid', new THREE.BufferAttribute(aff, 3));
   gi.setAttribute('uvT', new THREE.BufferAttribute(uvT, 2));
   const cimaCol = (() => { const l = []; for (let u = 0.15; u <= 0.85; u += 0.05) for (let v = 0.005; v < 0.05; v += 0.01) { const c = F.col(u, v); if (c) l.push(c); } return l.length ? [0, 1, 2].map((q) => l.map((c) => c[q]).sort((a, b) => a - b)[l.length >> 1]) : F.media; })();
   const lin = (c) => new THREE.Color().setRGB(...c.map((x) => Math.pow(x / 255, 2.2)));
@@ -508,28 +550,32 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', `#include <common>
-attribute vec2 uvF; attribute vec2 uvB; attribute vec2 uvS; attribute vec2 uvS2; attribute vec2 uvT;
-varying vec2 vUvF; varying vec2 vUvB; varying vec2 vUvS; varying vec2 vUvS2; varying vec2 vUvT; varying vec3 vObjN;`)
+attribute vec2 uvF; attribute vec2 uvB; attribute vec2 uvS; attribute vec2 uvS2; attribute vec2 uvT; attribute vec3 affid;
+varying vec2 vUvF; varying vec2 vUvB; varying vec2 vUvS; varying vec2 vUvS2; varying vec2 vUvT; varying vec3 vObjN; varying vec3 vAff;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-vUvF = uvF; vUvB = uvB; vUvS = uvS; vUvS2 = uvS2; vUvT = uvT; vObjN = normal;`);
+vUvF = uvF; vUvB = uvB; vUvS = uvS; vUvS2 = uvS2; vUvT = uvT; vObjN = normal; vAff = affid;`);
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
 uniform sampler2D oF; uniform sampler2D oB; uniform sampler2D oS; uniform sampler2D oT;
 uniform float haS; uniform float haT; uniform float latoFoto; uniform vec3 cS; uniform vec3 cT; uniform vec3 cU;
-varying vec2 vUvF; varying vec2 vUvB; varying vec2 vUvS; varying vec2 vUvS2; varying vec2 vUvT; varying vec3 vObjN;`)
+varying vec2 vUvF; varying vec2 vUvB; varying vec2 vUvS; varying vec2 vUvS2; varying vec2 vUvT; varying vec3 vObjN; varying vec3 vAff;
+vec3 vFotoCol = vec3(0.0);`)
       .replace('#include <map_fragment>', `
 {
   vec3 n = normalize(vObjN), a = abs(n);
-  float k = 5.0;
-  float wF = n.z > 0.0 ? pow(a.z, k) : 0.0, wB = n.z < 0.0 ? pow(a.z, k) : 0.0;
-  float wS = pow(a.x, k), wT = n.y > 0.0 ? pow(a.y, k) : 0.0, wU = n.y < 0.0 ? pow(a.y, k) : 0.0;
+  float k = 6.0;
+  float wF = n.z > 0.0 ? pow(a.z, k) * vAff.x : 0.0, wB = n.z < 0.0 ? pow(a.z, k) * vAff.x : 0.0;
+  float wS = pow(a.x, k) * vAff.y, wT = n.y > 0.0 ? pow(a.y, k) * vAff.z : 0.0, wU = n.y < 0.0 ? pow(a.y, k) : 0.0;
   float tot = max(1e-4, wF + wB + wS + wT + wU);
   vec3 c = texture2D(oF, vUvF).rgb * wF + texture2D(oB, vUvB).rgb * wB
     + mix(cS, texture2D(oS, n.x * latoFoto > 0.0 ? vUvS : vUvS2).rgb, haS) * wS + mix(cT, texture2D(oT, vUvT).rgb, haT) * wT + cU * wU;
   diffuseColor.rgb *= c / tot;
-}`);
+  vFotoCol = c / tot;
+}`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+  totalEmissiveRadiance += vFotoCol * 0.22;      // la foto resta luminosa come è (non più scura e spenta)`);
   };
-  mat.customProgramCacheKey = () => 'ogg-proiezione-v2';
+  mat.customProgramCacheKey = () => 'ogg-proiezione-v4';
   const mats = mat;
   const geo = gi;
   return { geo, mats, W, D, H, colore: hex(F.media), scambiate };
