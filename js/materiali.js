@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118n';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118o';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -119,10 +119,11 @@ export const MATERIALI = [
   // ---- Encimere / piani di lavoro ----
   // Ogni encimera porta anche il proprio spessore (mm): viene applicato al
   // top della cucina quando questa encimera e' selezionata.
+  // foto della lastra intera: 3000 × 1400 mm (la crepa grande si vede una volta per lastra)
   { id: 'compacto-negro', nome: 'Compacto negro', categoria: 'encimera',
     thumb: 'materials/compacto-negro-thumb.jpg',
-    texture: 'materials/compacto-negro.jpg', colore: 0x1a1a1a,
-    spessore: 12 },
+    texture: 'materials/compacto-negro.jpg', colore: 0x212121,
+    campione: { wMm: 3000, hMm: 1400 }, spessore: 12 },
   { id: 'compacto-bernini', nome: 'Compacto Bernini', categoria: 'encimera',
     thumb: 'materials/compacto-bernini-thumb.jpg',
     texture: 'materials/compacto-bernini.jpg', colore: 0xece7dd,
@@ -205,7 +206,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118n');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118o');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }

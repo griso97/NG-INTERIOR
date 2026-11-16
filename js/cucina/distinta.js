@@ -12,8 +12,8 @@
 // =============================================================================
 
 import {
-  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura,
-} from './modello.js?v=20261118n';
+  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura,
+} from './modello.js?v=20261118o';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -417,8 +417,8 @@ export function calcolaDistintaCucina(progetto) {
     aggiungi('Push pull', p.quantita);
     aggiungi('Push pull · base', p.quantita);
   }
-  // COLONNA SU MISURA: 4 reggipiani per ogni ripiano
-  for (const m of mobili) if (m.tipo === 'colonna-misura' && m.ripiani > 0) aggiungi('Reggipiani', 4 * m.ripiani);
+  // COLONNA SU MISURA: 4 portaripiani per ogni ripiano (4 ripiani → 16)
+  for (const m of mobili) if (m.tipo === 'colonna-misura') aggiungi('Portaripiani', 4 * ripianiColonnaMisura(m));
   // A TERRA: piedini, grappe dello zoccolo; PENSILI: kit per appenderli
   for (const m of mobili) {
     const cat = categoriaTipo(m.tipo), L = dimMobile(m).w;

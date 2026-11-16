@@ -61,9 +61,11 @@ export const PROF_STRUTTURA_MISURA = 580, SP_STRUTTURA_MISURA = 18, SP_SCHIENA_M
  *  - fianchi: altezza H × (P − schiena)                              ×2
  *  - top e fondo: (L − 2 × spessore) × (P − schiena)                 ×2
  *  - schiena da 10 mm avvitata dietro: (L − 2) × (H − 2)             ×1
- *  - ripiani (se ci sono): (L − 2 × spessore) × (P − schiena)        ×n
+ *  - ripiani (4 di default): (L − 2 × spessore) × (P − schiena)       ×n  (+ 4 portaripiani l'uno)
  * Es. 2300 × 400, P 580: fianchi 2300×570, top/fondo 364×570, schiena 398×2298.
  */
+/** Ripiani della colonna su misura: quelli scelti, 4 se non è stato scelto niente. */
+export function ripianiColonnaMisura(m) { return m.ripiani != null ? Number(m.ripiani) || 0 : 4; }
 export function pezziColonnaMisura(m) {
   const L = m.larghezza_mm || 600, H = m.altezza_mm || 2200;
   const P = m.profStruttura_mm || PROF_STRUTTURA_MISURA, sp = m.spStruttura_mm || SP_STRUTTURA_MISURA, sS = SP_SCHIENA_MISURA;
@@ -73,7 +75,8 @@ export function pezziColonnaMisura(m) {
     { nome: 'Top / Fondo (colonna su misura)', larghezza: interno, altezza: prof, spessore: sp, quantita: 2 },
     { nome: 'Schiena (colonna su misura)', larghezza: L - 2, altezza: H - 2, spessore: sS, quantita: 1 },
   ];
-  if ((m.ripiani || 0) > 0) pz.push({ nome: 'Ripiano (colonna su misura)', larghezza: interno, altezza: prof, spessore: sp, quantita: m.ripiani });
+  const nRip = ripianiColonnaMisura(m);
+  if (nRip > 0) pz.push({ nome: 'Ripiano (colonna su misura)', larghezza: interno, altezza: prof, spessore: sp, quantita: nRip });
   return pz;
 }
 // Costadi (fianchi di finitura): altezze standard, tutte in profondità 600
@@ -239,7 +242,7 @@ export function campiMobile(tipoId) {
       { campo: 'spStruttura_mm',  et: 'Spessore struttura (mm)', tipo: 'numero', min: 8, step: 1, opzioni: [16, 18, 19], default: SP_STRUTTURA_MISURA },
       { campo: 'struttura',       et: 'Materiale della struttura (fianchi, top, fondo, schiena)',
         opzioni: [{ v: 'ante', l: 'Come le ante della colonna' }, { v: 'bianco', l: 'Melaminico bianco' }], default: 'ante' },
-      { campo: 'ripiani',         et: 'Ripiani interni', opzioni: [0, 1, 2, 3, 4, 5, 6], default: 0 },
+      { campo: 'ripiani',         et: 'Ripiani interni (4 portaripiani ciascuno)', opzioni: [0, 1, 2, 3, 4, 5, 6], default: 4 },
       { campo: 'altezzaBassa_mm', et: 'Porta bassa (mm) — con i mobili bassi si allinea da sola', opzioni: ALTEZZE_BASE, default: ALTEZZE_BASE[0] },
       { campo: 'variante',        et: 'Parte alta', opzioni: VARIANTI_COLONNA.map((v) => ({ v: v.id, l: v.nome })), default: 'porta' },
       { campo: 'altezzaVano_mm',  et: 'Altezza vano aperto (mm) — solo con "Vano aperto"',
