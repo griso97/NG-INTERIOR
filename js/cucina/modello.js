@@ -1237,6 +1237,10 @@ export function spessorePannelloPonte(progetto) {
  */
 export function pannelliSottoPonte(progetto) {
   if (!spessorePannelloPonte(progetto)) return [];
+  return fileDelPonte(progetto);
+}
+/** File del ponte (moduli del ponte attaccati, stessa rotazione e linea). */
+export function fileDelPonte(progetto) {
   const ponti = (progetto.mobiliLiberi || []).filter((m) => m.tipo === 'ponte');
   const gruppi = [];
   for (const m of ponti) {
@@ -1264,6 +1268,45 @@ export function pannelliSottoPonte(progetto) {
     chiudi();
   }
   return out;
+}
+/** Moduli del PONTE sopra un mobile (in pianta si sovrappongono). */
+export function pontiSopra(progetto, m) {
+  const A = boxPiantaR(m);
+  return (progetto.mobiliLiberi || []).filter((o) => {
+    if (o.tipo !== 'ponte' || o.id === m.id) return false;
+    const B = boxPiantaR(o);
+    return Math.max(B.x0 - A.x1, A.x0 - B.x1) < -20 && Math.max(B.y0 - A.y1, A.y0 - B.y1) < -20;
+  });
+}
+/**
+ * PENSILE SOTTO IL PONTE: cambia la sua altezza e quella dei pensili sotto
+ * la stessa fila di ponte; il PONTE sopra si adatta (diventa più basso o più
+ * alto della stessa misura), così cima e spazio sul piano restano uguali.
+ * Ritorna { ok, errore }.
+ */
+export function cambiaPensileSottoPonte(progetto, pensile, nuovaH) {
+  const sopra = pontiSopra(progetto, pensile);
+  if (!sopra.length) return { ok: false, errore: 'Questo pensile non è sotto il ponte.' };
+  const fila = fileDelPonte(progetto).find((f) => f.ids.includes(sopra[0].id));
+  const ponti = (fila ? fila.ids : [sopra[0].id]).map((id) => trovaMobileLibero(progetto, id)).filter(Boolean);
+  const coppie = [];
+  for (const pt of ponti) {
+    for (const pe of (progetto.mobiliLiberi || [])) {
+      if (categoriaTipo(pe.tipo) !== 'pensile') continue;
+      if (pontiSopra(progetto, pe).some((x) => x.id === pt.id)) coppie.push([pt, pe]);
+    }
+  }
+  if (!coppie.length) coppie.push([sopra[0], pensile]);
+  for (const [pt, pe] of coppie) {
+    const hp = (pt.altezza_mm || 360) - (nuovaH - (pe.altezza_mm || 700));
+    if (hp < 100) return { ok: false, errore: `Il ponte sopra diventerebbe ${Math.round(hp / 10)} cm: troppo basso. Scegli un pensile più basso.` };
+  }
+  const fatti = new Set();
+  for (const [pt, pe] of coppie) {
+    if (!fatti.has(pt.id)) { pt.altezza_mm = Math.round((pt.altezza_mm || 360) - (nuovaH - (pe.altezza_mm || 700))); fatti.add(pt.id); }
+  }
+  for (const [, pe] of coppie) pe.altezza_mm = Math.round(nuovaH);
+  return { ok: true };
 }
 export function ruotaMobileLibero(progetto, id) {
   const m = trovaMobileLibero(progetto, id);

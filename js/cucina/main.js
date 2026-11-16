@@ -11,7 +11,7 @@ import {
   applicaPreset, aggiungiParete, rimuoviParete,
   TIPI_MODULO_BASE, CATALOGO_MOBILI, LARGHEZZE_BASE, nomeTipo,
   infoTipo, altezzeTipo, campiMobile, descrizioneMobile, categoriaTipo, livelloDiMobile, frigoSottoAltillo,
-  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, COLORI_FRIGO,
+  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, COLORI_FRIGO, pontiSopra, cambiaPensileSottoPonte,
   spazioLiberoParete, moduliDiParete,
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
@@ -24,12 +24,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261116v';
-import { renderPianta } from './pianta.js?v=20261116v';
-import { calcolaDistintaCucina } from './distinta.js?v=20261116v';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261116v';
-import { agganciaTema } from '../tema.js?v=20261116v';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116v';
+} from './modello.js?v=20261116w';
+import { renderPianta } from './pianta.js?v=20261116w';
+import { calcolaDistintaCucina } from './distinta.js?v=20261116w';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261116w';
+import { agganciaTema } from '../tema.js?v=20261116w';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116w';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -899,6 +899,7 @@ function attaccaEventiStep2() {
     agganciaBaseAngolo(pannello, mobSel);
     agganciaDistanzaFrigo(pannello, mobSel);
     agganciaColoreFrigo(pannello, mobSel);
+    agganciaPensileSottoPonte(pannello, mobSel);
     // piano cottura / lavello anche sulla cassettiera (non solo sulla base con ante)
     document.getElementById('mob-placca')?.addEventListener('click', () => {
       registraStoria(); mobSel.placca = !mobSel.placca; if (mobSel.placca) mobSel.lavello = false; aggiorna();
@@ -1334,7 +1335,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116v');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116w');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1445,6 +1446,7 @@ function renderPannelloModificaMobile(m) {
     </section>`;
     })() : ''}
     ${htmlColoreFrigo(m)}
+    ${htmlPensileSottoPonte(m)}
     ${htmlDistanzaFrigo(m)}
     ${puoAnte ? `
     <section class="step3-pannello">
@@ -1599,6 +1601,7 @@ function renderPannelloModificaMobile(m) {
     </section>`;
   agganciaDistanzaFrigo(pannello, m);
   agganciaColoreFrigo(pannello, m);
+  agganciaPensileSottoPonte(pannello, m);
   pannello.querySelectorAll('.swatch[data-mat], .opt-piano[data-mat]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     if (costadoSingolo) { m.colore = b.dataset.mat; aggiorna(); return; }
@@ -1995,13 +1998,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116v');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116w');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116v'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116w'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2017,6 +2020,42 @@ caricaMateriali().then((m) => {
  * scende, e TUTTI i moduli alti (pensili, altri mobili sopra frigo) vanno alla
  * sua stessa cima. "Automatica" = a filo con i costadi / le colonne accanto.
  */
+/**
+ * PENSILE SOTTO IL PONTE: altezza a scelta (30…90 o a mano); il ponte sopra si
+ * adatta, così la cima e lo spazio sul piano restano uguali. Vale per la fila.
+ */
+function htmlPensileSottoPonte(m) {
+  if (categoriaTipo(m.tipo) !== 'pensile') return '';
+  const sopra = pontiSopra(progetto, m);
+  if (!sopra.length) return '';
+  const h = m.altezza_mm || 700, hp = sopra[0].altezza_mm || 360;
+  return `
+    <section class="step3-pannello">
+      <h3>Pensile sotto il ponte</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Pensile <strong>${h / 10} cm</strong> · ponte sopra <strong>${(hp / 10).toLocaleString('it-IT')} cm</strong>. Cambiando il pensile, il <strong>ponte si adatta</strong> (stessa altezza totale, stesso spazio sul piano). Vale per tutta la fila del ponte.</div>
+      <div class="orienta-row" style="flex-wrap:wrap">
+        ${[300, 400, 500, 600, 700, 800, 900].map((v) => `<button type="button" class="btn-ghost pens-ponte ${v === h ? 'attivo' : ''}" data-ph="${v}">${v === h ? '✓ ' : ''}${v / 10}</button>`).join('')}
+      </div>
+      <div class="ra-campi" style="margin-top:8px">
+        <label>Altezza pensile (mm)<input id="pens-ponte-h" type="number" value="${h}" min="100" step="1" inputmode="numeric"></label>
+      </div>
+      <button type="button" id="pens-ponte-ok" class="btn-oro" style="width:100%;margin-top:6px">Cambia altezza</button>
+    </section>`;
+}
+function agganciaPensileSottoPonte(root, m) {
+  const applica = (v) => {
+    v = Math.round(Number(v));
+    if (!(v >= 100) || v === (m.altezza_mm || 700)) return;
+    registraStoria();
+    const r = cambiaPensileSottoPonte(progetto, m, v);
+    if (!r.ok) { storiaPast.pop(); alert((window.NGI18N ? window.NGI18N.t : (x) => x)(r.errore)); return; }
+    aggiorna();
+  };
+  root.querySelectorAll('.pens-ponte[data-ph]').forEach((b) => b.addEventListener('click', () => applica(b.dataset.ph)));
+  root.querySelector('#pens-ponte-ok')?.addEventListener('click', () => applica(root.querySelector('#pens-ponte-h').value));
+  root.querySelector('#pens-ponte-h')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') applica(e.target.value); });
+}
+
 /** FRIGO: colore (bianco, nero, acciaio) e misure, a portata di tocco. */
 function htmlColoreFrigo(m) {
   if (categoriaTipo(m.tipo) !== 'frigo') return '';
@@ -2122,6 +2161,7 @@ function blocMobileSelezionato() {
       </div>
       ${htmlBaseAngolo(m)}
       ${htmlColoreFrigo(m)}
+      ${htmlPensileSottoPonte(m)}
       ${htmlDistanzaFrigo(m)}
       ${(m.tipo === 'base-ante' || m.tipo === 'base-cassetti') ? `
       <div class="mob-azioni-grid" style="margin-top:8px">
