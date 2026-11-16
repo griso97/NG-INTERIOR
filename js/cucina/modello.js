@@ -596,6 +596,31 @@ export function rangeVerticale(m) {
   const h = m.altezza_mm || (cat === 'colonna' ? 2200 : 700);
   return [0, h];
 }
+/**
+ * La COLONNA prende il posto dei pensili / del ponte: mentre la metti non la
+ * respingono (i pezzi alti che restano dentro la colonna si tolgono da soli).
+ */
+function nonUrta(m, o) {
+  return categoriaTipo(m.tipo) === 'colonna' && livelloDiMobile(o) === 'alto';
+}
+/** Toglie pensili e pezzi del ponte rimasti DENTRO una colonna. Ritorna quanti. */
+export function togliAltiDentroColonne(progetto) {
+  const mob = progetto.mobiliLiberi || [];
+  const col = mob.filter((o) => categoriaTipo(o.tipo) === 'colonna');
+  if (!col.length) return 0;
+  const via = new Set();
+  for (const a of mob) {
+    const c = categoriaTipo(a.tipo);
+    if (c !== 'pensile' && a.tipo !== 'ponte') continue;
+    const A = aabb(a, a.x, a.y);
+    for (const k of col) {
+      const B = aabb(k, k.x, k.y);
+      if ((A.hx + B.hx) - Math.abs(a.x - k.x) > 50 && (A.hy + B.hy) - Math.abs(a.y - k.y) > 50) { via.add(a.id); break; }
+    }
+  }
+  if (via.size) progetto.mobiliLiberi = mob.filter((o) => !via.has(o.id));
+  return via.size;
+}
 function rangeSovrappone(a, b) { return a[0] < b[1] - 1 && b[0] < a[1] - 1; }
 function aabb(m, x, y) {
   const d = dimMobile(m);
@@ -642,6 +667,7 @@ export function respingiDaMobili(progetto, m, x, y) {
   for (const o of (progetto.mobiliLiberi || [])) {
     if (o.id === m.id) continue;
     if (categoriaTipo(o.tipo) === 'oggetto') continue;   // l'arredo non respinge i mobili
+    if (nonUrta(m, o)) continue;                          // la colonna prende il posto dei pensili
     if (!rangeSovrappone(rv, rangeVerticale(o))) continue;
     const A = aabb(m, x, y), B = aabb(o, o.x, o.y);
     if (u) {
@@ -921,6 +947,7 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
   for (const o of (progetto.mobiliLiberi || [])) {
     if (o.id === m.id) continue;
     if (categoriaTipo(o.tipo) === 'oggetto') continue;   // niente aggancio magnetico all'arredo
+    if (nonUrta(m, o)) continue;
     if (!rangeSovrappone(rv, rangeVerticale(o))) continue;
     const B = aabb(o, o.x, o.y);
     const eUo = B.hx * Math.abs(ux) + B.hy * Math.abs(uy);
@@ -1036,7 +1063,7 @@ export function posizionaVincolata(progetto, m, x, y, libera = false) {
 function sovrapposto(progetto, m, x, y) {
   const rv = rangeVerticale(m), A = aabb(m, x, y), out = [];
   for (const o of (progetto.mobiliLiberi || [])) {
-    if (o.id === m.id || categoriaTipo(o.tipo) === 'oggetto') continue;
+    if (o.id === m.id || categoriaTipo(o.tipo) === 'oggetto' || nonUrta(m, o)) continue;
     if (!rangeSovrappone(rv, rangeVerticale(o))) continue;
     const B = aabb(o, o.x, o.y);
     if ((A.hx + B.hx) - Math.abs(x - o.x) > 2 && (A.hy + B.hy) - Math.abs(y - o.y) > 2) out.push(o);

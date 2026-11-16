@@ -11,7 +11,7 @@ import {
   applicaPreset, aggiungiParete, rimuoviParete,
   TIPI_MODULO_BASE, CATALOGO_MOBILI, LARGHEZZE_BASE, nomeTipo,
   infoTipo, altezzeTipo, campiMobile, descrizioneMobile, categoriaTipo, livelloDiMobile, frigoSottoAltillo,
-  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, COLORI_FRIGO, pontiSopra, cambiaPensileSottoPonte,
+  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, togliAltiDentroColonne, COLORI_FRIGO, pontiSopra, cambiaPensileSottoPonte,
   spazioLiberoParete, moduliDiParete,
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
@@ -24,12 +24,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261117b';
-import { renderPianta } from './pianta.js?v=20261117b';
-import { calcolaDistintaCucina } from './distinta.js?v=20261117b';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261117b';
-import { agganciaTema } from '../tema.js?v=20261117b';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261117b';
+} from './modello.js?v=20261117c';
+import { renderPianta } from './pianta.js?v=20261117c';
+import { calcolaDistintaCucina } from './distinta.js?v=20261117c';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261117c';
+import { agganciaTema } from '../tema.js?v=20261117c';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261117c';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1359,7 +1359,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261117b');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261117c');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1965,6 +1965,7 @@ function aggiorna() {
   correggiLatoInterno(progetto);      // lato interno delle pareti sempre verso l'interno della forma
   riorientaMobili(progetto);          // ante sempre verso l'interno (a parete)
   sincronizzaFrigo(progetto);         // costadi del frigo alti fino al mobile sopra (anche nella distinta)
+  togliAltiDentroColonne(progetto);   // pensili / ponte rimasti dentro una colonna: la colonna prende il loro posto
   if (progetto.autoRegletta !== false) applicaRegletteAngolo(progetto);  // angolo cieco: apre il gap della regletta (solo se auto attiva)
   renderStepper();
   renderPannello();
@@ -2041,13 +2042,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261117b');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261117c');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261117b'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261117c'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
