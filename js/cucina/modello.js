@@ -54,6 +54,28 @@ export const LARGHEZZE_BASE = [300, 400, 500, 600, 700, 800, 900, 1000];
 export const ALTEZZE_BASE = [700, 800];          // armadi bassi
 export const ALTEZZE_PENSILE = [700, 900];       // armadi sopra
 export const ALTEZZE_COLONNA = [2200, 2300];     // colonne, altezza totale
+// COLONNA SU MISURA (montaggio 2): profondità struttura finita e spessori di default
+export const PROF_STRUTTURA_MISURA = 580, SP_STRUTTURA_MISURA = 18, SP_SCHIENA_MISURA = 10;
+/**
+ * PEZZI della COLONNA SU MISURA, montaggio 2 (fianchi interi, top e fondo fra i fianchi):
+ *  - fianchi: altezza H × (P − schiena)                              ×2
+ *  - top e fondo: (L − 2 × spessore) × (P − schiena)                 ×2
+ *  - schiena da 10 mm avvitata dietro: (L − 2) × (H − 2)             ×1
+ *  - ripiani (se ci sono): (L − 2 × spessore) × (P − schiena)        ×n
+ * Es. 2300 × 400, P 580: fianchi 2300×570, top/fondo 364×570, schiena 398×2298.
+ */
+export function pezziColonnaMisura(m) {
+  const L = m.larghezza_mm || 600, H = m.altezza_mm || 2200;
+  const P = m.profStruttura_mm || PROF_STRUTTURA_MISURA, sp = m.spStruttura_mm || SP_STRUTTURA_MISURA, sS = SP_SCHIENA_MISURA;
+  const prof = P - sS, interno = L - 2 * sp;
+  const pz = [
+    { nome: 'Fianco (colonna su misura)', larghezza: prof, altezza: H, spessore: sp, quantita: 2 },
+    { nome: 'Top / Fondo (colonna su misura)', larghezza: interno, altezza: prof, spessore: sp, quantita: 2 },
+    { nome: 'Schiena (colonna su misura)', larghezza: L - 2, altezza: H - 2, spessore: sS, quantita: 1 },
+  ];
+  if ((m.ripiani || 0) > 0) pz.push({ nome: 'Ripiano (colonna su misura)', larghezza: interno, altezza: prof, spessore: sp, quantita: m.ripiani });
+  return pz;
+}
 // Costadi (fianchi di finitura): altezze standard, tutte in profondità 600
 export const ALTEZZE_COSTADO = [720, 850, 900, 920, 2200, 2300, 2350, 2450];
 
@@ -99,6 +121,10 @@ export const CATALOGO_MOBILI = [
     larghezze: [630], altezze: ALTEZZE_PENSILE, profondita: 630 },
   { id: 'colonna',       nome: 'Colonna', categoria: 'colonna',
     larghezze: [600], altezze: ALTEZZE_COLONNA, profondita: 600 },
+  // COLONNA SU MISURA: la costruiamo NOI con i pezzi (montaggio 2: fianchi interi, top e fondo
+  // fra i fianchi, schiena da 10 mm dietro). Larghezza, altezza e profondità libere; 4 piedini.
+  { id: 'colonna-misura', nome: 'Colonna su misura', categoria: 'colonna',
+    larghezze: [300, 400, 450, 500, 600], altezze: ALTEZZE_COLONNA, profondita: 600 },
   { id: 'regletta',      nome: 'Regletta a L', categoria: 'regletta',
     larghezze: [30], altezze: ALTEZZE_BASE, profondita: 30 },
   // Pannelli su misura (spessore fisso 18 mm, come le ante):
@@ -205,6 +231,21 @@ export function campiMobile(tipoId) {
       { campo: 'profondita_mm', et: 'Profondità con le ante (mm)', tipo: 'numero', min: 200, step: 10, opzioni: [PROFONDITA_BASE], default: PROFONDITA_BASE },
     ];
   }
+  if (tipoId === 'colonna-misura') {
+    return [
+      { campo: 'larghezza_mm',    et: 'Larghezza (mm)', tipo: 'numero', min: 150, step: 1, opzioni: [300, 400, 450, 500, 600], default: 600 },
+      { campo: 'altezza_mm',      et: 'Altezza struttura = altezza dei fianchi (mm), senza i piedini', tipo: 'numero', min: 400, step: 1, opzioni: [2000, 2100, 2200, 2300, 2400], default: 2200 },
+      { campo: 'profStruttura_mm', et: 'Profondità struttura finita, schiena compresa (mm)', tipo: 'numero', min: 150, step: 1, opzioni: [580, 560, 350], default: PROF_STRUTTURA_MISURA },
+      { campo: 'spStruttura_mm',  et: 'Spessore struttura (mm)', tipo: 'numero', min: 8, step: 1, opzioni: [16, 18, 19], default: SP_STRUTTURA_MISURA },
+      { campo: 'struttura',       et: 'Materiale della struttura (fianchi, top, fondo, schiena)',
+        opzioni: [{ v: 'ante', l: 'Come le ante della colonna' }, { v: 'bianco', l: 'Melaminico bianco' }], default: 'ante' },
+      { campo: 'ripiani',         et: 'Ripiani interni', opzioni: [0, 1, 2, 3, 4, 5, 6], default: 0 },
+      { campo: 'altezzaBassa_mm', et: 'Porta bassa (mm) — con i mobili bassi si allinea da sola', opzioni: ALTEZZE_BASE, default: ALTEZZE_BASE[0] },
+      { campo: 'variante',        et: 'Parte alta', opzioni: VARIANTI_COLONNA.map((v) => ({ v: v.id, l: v.nome })), default: 'porta' },
+      { campo: 'altezzaVano_mm',  et: 'Altezza vano aperto (mm) — solo con "Vano aperto"',
+        tipo: 'numero', default: 600, min: 100, step: 10, opzioni: [400, 500, 600, 700] },
+    ];
+  }
   if (t.categoria === 'colonna') {
     return [
       { campo: 'altezza_mm',      et: 'Altezza totale (mm)', opzioni: ALTEZZE_COLONNA, default: ALTEZZE_COLONNA[0] },
@@ -240,6 +281,9 @@ export function descrizioneMobile(m) {
   }
   if (cat === 'costado') {
     return `${m.altezza_mm}×${m.profondita_mm} · sp ${m.spessore_mm}`;
+  }
+  if (m.tipo === 'colonna-misura') {
+    return `${m.larghezza_mm}×${m.altezza_mm} · p ${m.profStruttura_mm || PROF_STRUTTURA_MISURA} · ${nomeVarianteColonna(m.variante)}`;
   }
   if (cat === 'colonna') {
     return `${m.larghezza_mm}×${m.altezza_mm} · ${nomeVarianteColonna(m.variante)}`;
@@ -283,6 +327,8 @@ export function dimMobile(m) {
     return { w, d: m.latoB_mm || w };
   }
   if (cat === 'altillo') return { w: m.larghezza_mm || 600, d: m.profondita_mm || 600 };
+  // colonna su misura: in pianta struttura + anta (18) + fuga (2) → 580 → 600 come le colonne
+  if (m.tipo === 'colonna-misura') return { w: m.larghezza_mm || 600, d: (m.profStruttura_mm || PROF_STRUTTURA_MISURA) + 20 };
   if (cat === 'frigo') return { w: m.larghezza_mm || 600, d: m.profondita_mm || 660 };
   if (typeof m.tipo === 'string' && m.tipo.startsWith('ogg:')) return { w: m.larghezza_mm || 300, d: m.profondita_mm || profonditaTipo(m.tipo) };
   return { w: m.larghezza_mm, d: profonditaTipo(m.tipo) };

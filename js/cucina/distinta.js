@@ -12,8 +12,8 @@
 // =============================================================================
 
 import {
-  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo,
-} from './modello.js?v=20261118m';
+  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura,
+} from './modello.js?v=20261118n';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -191,6 +191,13 @@ function pezziDiModulo(progetto, m) {
     };
     porta('bassa', 'Anta bassa', round(ab - 2));
     if (topDoor > 60) porta('alta', 'Anta alta', round(topDoor - 2));
+    // COLONNA SU MISURA: la struttura la facciamo noi → tutti i pezzi (montaggio 2)
+    if (m.tipo === 'colonna-misura') {
+      for (const p of pezziColonnaMisura(m)) {
+        pz.push({ modulo: mod, ...p, materiale: 'carcassa', struttura: true,
+          ...(m.struttura === 'bianco' ? { materialeNome: 'Melaminico bianco' } : {}) });
+      }
+    }
   } else if (cat === 'costado') {
     // costado ALTO: alto come le ante del pensile vicino (70/72/90/92), come nel 3D
     let hC = H;
@@ -251,9 +258,10 @@ function pezziDiModulo(progetto, m) {
 
 // Gruppi SEPARATI della lista pezzi: porte, frontali, parti dei cassetti,
 // costadi, reglette, pannelli, zoccoli.
-const ORDINE_GRUPPI = ['Porte', 'Frontali cassetto', 'Cassetti (fondo e trasera)', 'Costadi',
+const ORDINE_GRUPPI = ['Strutture su misura', 'Porte', 'Frontali cassetto', 'Cassetti (fondo e trasera)', 'Costadi',
   'Reglette', 'Pannelli', 'Zoccoli', 'Varie'];
 function gruppoPezzo(p) {
+  if (p.struttura) return 'Strutture su misura';            // fianchi, top/fondo, schiena, ripiani della colonna su misura
   const n = String(p.nome).toLowerCase();
   if (n.includes('regletta')) return 'Reglette';
   if (n.includes('costado')) return 'Costadi';
@@ -310,7 +318,7 @@ export function calcolaDistintaCucina(progetto) {
   // 1) LISTA MODULI DA ORDINARE, per gruppo (colonne, alti, bassi, elettrodomestici).
   const modMap = new Map();
   for (const m of mobili) {
-    const gruppo = gruppoModulo(categoriaTipo(m.tipo));
+    const gruppo = m.tipo === 'colonna-misura' ? null : gruppoModulo(categoriaTipo(m.tipo));   // su misura: la facciamo noi
     if (!gruppo) continue;
     const L = dimMobile(m).w;
     const misura = m.altezza_mm ? `${m.altezza_mm}×${L}` : `${L}`;
@@ -409,6 +417,8 @@ export function calcolaDistintaCucina(progetto) {
     aggiungi('Push pull', p.quantita);
     aggiungi('Push pull · base', p.quantita);
   }
+  // COLONNA SU MISURA: 4 reggipiani per ogni ripiano
+  for (const m of mobili) if (m.tipo === 'colonna-misura' && m.ripiani > 0) aggiungi('Reggipiani', 4 * m.ripiani);
   // A TERRA: piedini, grappe dello zoccolo; PENSILI: kit per appenderli
   for (const m of mobili) {
     const cat = categoriaTipo(m.tipo), L = dimMobile(m).w;

@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118m';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118n';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -75,6 +75,10 @@ export const MATERIALI = [
     thumb: 'materials/sm-nuvola-01-thumb.jpg',
     texture: 'materials/sm-nuvola-01.jpg', colore: 0xf0ece2,
     campione: { wMm: 1240, hMm: 2750 }, marmo: true, nota: 'Alvic Zenit Nuvola 01 Supermate' },
+  { id: 'sm-nuvola-03', nome: 'SM Nuvola 03', categoria: 'legno',
+    thumb: 'materials/sm-nuvola-03-thumb.jpg',
+    texture: 'materials/sm-nuvola-03.jpg', colore: 0xe9ebeb,
+    campione: { wMm: 1240, hMm: 2750 }, marmo: true, nota: 'Alvic Zenit Nuvola 03 Supermate' },
   // ---- Tinte solide (matte e lucide) ----
   // OPACHI: superficie totalmente matte, tono un filo "schiarito/polveroso"
   // così lo stacco con il lucido è netto anche senza riflessi.
@@ -201,7 +205,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118m');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118n');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
