@@ -16,6 +16,74 @@
 import * as THREE from 'three';
 import { edgeTable, triTable } from '../vendor/three/addons/objects/mc-tabelle.js';
 
+/** Distanza (chamfer 3-4, in pixel) di ogni pixel dal più vicino pixel "fuori" (m = 0). */
+function distanza(m, w, h) {
+  const INF = 1e9, d = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) d[i] = m[i] ? INF : 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x; if (!d[i]) continue; let v = d[i];
+    if (x > 0) v = Math.min(v, d[i - 1] + 3); else v = Math.min(v, 3);
+    if (y > 0) { v = Math.min(v, d[i - w] + 3); if (x > 0) v = Math.min(v, d[i - w - 1] + 4); if (x < w - 1) v = Math.min(v, d[i - w + 1] + 4); } else v = Math.min(v, 3);
+    d[i] = v;
+  }
+  for (let y = h - 1; y >= 0; y--) for (let x = w - 1; x >= 0; x--) {
+    const i = y * w + x; if (!d[i]) continue; let v = d[i];
+    if (x < w - 1) v = Math.min(v, d[i + 1] + 3); else v = Math.min(v, 3);
+    if (y < h - 1) { v = Math.min(v, d[i + w] + 3); if (x < w - 1) v = Math.min(v, d[i + w + 1] + 4); if (x > 0) v = Math.min(v, d[i + w - 1] + 4); } else v = Math.min(v, 3);
+    d[i] = v;
+  }
+  for (let i = 0; i < w * h; i++) d[i] /= 3;
+  return d;
+}
+/** Pezzi connessi (4-vicini) di una maschera 0/1: etichette e aree. */
+function pezzi(m, w, h) {
+  const lab = new Int32Array(w * h).fill(-1), aree = [], st = new Int32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    if (!m[i] || lab[i] >= 0) continue;
+    const n = aree.length; let sp = 0, a = 0; st[sp++] = i; lab[i] = n;
+    while (sp) {
+      const j = st[--sp], x = j % w; a++;
+      for (const q of [x > 0 ? j - 1 : -1, x < w - 1 ? j + 1 : -1, j - w, j + w]) if (q >= 0 && q < w * h && m[q] && lab[q] < 0) { lab[q] = n; st[sp++] = q; }
+    }
+    aree.push(a);
+  }
+  return { lab, aree };
+}
+/**
+ * CORPO della sagoma: si passa una "gomma tonda" di raggio r lungo il bordo (apertura).
+ * Tutto quello che è più sottile di 2r — asticella e pallina della leva, manopoline,
+ * piedini — esce dalla FORMA; il corpo resta. Gli spigoli veri del corpo (che la gomma
+ * arrotonda appena) tornano com'erano. La foto resta intera: quei pezzi si vedono comunque.
+ */
+function corpoSagoma(A, w, h, r) {
+  const N = w * h, m = new Uint8Array(N);
+  for (let i = 0; i < N; i++) m[i] = A[i] > 0.5 ? 1 : 0;
+  const dIn = distanza(m, w, h);                                      // erosione: resta dove ci sta la gomma
+  const fuoriEr = new Uint8Array(N); for (let i = 0; i < N; i++) fuoriEr[i] = dIn[i] > r ? 0 : 1;
+  const dEr = distanza(fuoriEr, w, h);                                // dilatazione: la gomma ripassata dentro
+  const ap = new Uint8Array(N); for (let i = 0; i < N; i++) ap[i] = m[i] && dEr[i] <= r + 0.5 ? 1 : 0;
+  // solo il pezzo più grande (una pallina grossa resterebbe staccata dal corpo)
+  const pa = pezzi(ap, w, h);
+  if (!pa.aree.length) return Float32Array.from(m);
+  const big = pa.aree.indexOf(Math.max(...pa.aree));
+  for (let i = 0; i < N; i++) ap[i] = pa.lab[i] === big ? 1 : 0;
+  // quello che la gomma ha tolto: se sporge poco dal corpo (meno di 0,6 r) è uno spigolo
+  // vero → torna; se sporge di più è una leva, una pallina, un piedino → resta fuori
+  const nonAp = new Uint8Array(N); for (let i = 0; i < N; i++) nonAp[i] = ap[i] ? 0 : 1;
+  const dAp = distanza(nonAp, w, h);                                  // quanto un pixel sta fuori dal corpo
+  const tolto = new Uint8Array(N); for (let i = 0; i < N; i++) tolto[i] = m[i] && !ap[i] ? 1 : 0;
+  const pt = pezzi(tolto, w, h), sporge = pt.aree.map(() => 0), aTerra = pt.aree.map(() => false);
+  let yFondo = 0; for (let i = 0; i < N; i++) if (m[i]) yFondo = (i / w) | 0;
+  for (let i = 0; i < N; i++) { const c = pt.lab[i]; if (c < 0) continue; if (dAp[i] > sporge[c]) sporge[c] = dAp[i]; if (((i / w) | 0) >= yFondo - 1) aTerra[c] = true; }
+  const out = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const c = pt.lab[i];
+    // i PIEDINI (toccano il piano): via solo la parte che sporge, lo spigolo della base sopra resta
+    out[i] = ap[i] || (c >= 0 && (sporge[c] <= r * 0.6 || (aTerra[c] && dAp[i] <= r * 0.6))) ? 1 : 0;
+  }
+  return out;
+}
+
 /** Analisi di una foto isolata: sagoma (alfa), colori, contorno, simmetria, dettaglio. */
 function vista(src) {
   if (!src) return null;
@@ -34,6 +102,8 @@ function vista(src) {
   if (x1 < 0) return null;
   const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
   const V = { src, w, h, A, d, x0, y0, bw, bh, flipU: false };
+  // per la FORMA: il corpo senza i pezzi sottili (gomma ~3,5% del lato lungo dell'oggetto)
+  V.Ac = corpoSagoma(A, w, h, Math.max(2, Math.round(Math.max(bw, bh) * 0.035)));
   V.aspetto = bw / bh;
   const X = (u) => x0 + (V.flipU ? 1 - u : u) * (bw - 1), Y = (v) => y0 + v * (bh - 1);
   V.alfa = (u, v) => {                                     // bilineare, 0 fuori dal contorno
@@ -119,19 +189,73 @@ export function riconosciViste(foto) {
  * sinistro e destro (u 0..1, con la frazione di pixel), ripulito: filtro mediano
  * e, dove il bordo è quasi dritto, raddrizzato del tutto (facce piatte, niente gradini).
  */
+/**
+ * CURVA LISCIA (smoother di Whittaker): la curva più vicina ai punti che però non può
+ * piegarsi di colpo (penalità sulla curvatura, peso lambda). I punti NaN non contano
+ * e restano NaN. Sistema a banda risolto con Cholesky: veloce anche con 1000 punti.
+ */
+function curvaLiscia(y, lambda, pesi = null) {
+  const n = y.length;
+  if (n < 5) return Float32Array.from(y);
+  const d0 = new Float64Array(n), d1 = new Float64Array(n), d2 = new Float64Array(n), b = new Float64Array(n);
+  for (let i = 0; i < n; i++) { const ok = !Number.isNaN(y[i]); d0[i] = ok ? (pesi ? pesi[i] : 1) : 0; b[i] = ok ? d0[i] * y[i] : 0; }
+  const c = [1, -2, 1];
+  for (let k = 0; k < n - 2; k++) for (let a = 0; a < 3; a++) for (let q = a; q < 3; q++) {
+    const v = lambda * c[a] * c[q], i = k + a;
+    if (q === a) d0[i] += v; else if (q === a + 1) d1[i] += v; else d2[i] += v;
+  }
+  const e = new Float64Array(n), f = new Float64Array(n), g = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    e[i] = i >= 2 ? d2[i - 2] / g[i - 2] : 0;
+    f[i] = i >= 1 ? (d1[i - 1] - (i >= 2 ? e[i] * f[i - 1] : 0)) / g[i - 1] : 0;
+    g[i] = Math.sqrt(Math.max(1e-12, d0[i] - e[i] * e[i] - f[i] * f[i]));
+  }
+  const z = new Float64Array(n), x = new Float64Array(n);
+  for (let i = 0; i < n; i++) z[i] = (b[i] - (i >= 2 ? e[i] * z[i - 2] : 0) - (i >= 1 ? f[i] * z[i - 1] : 0)) / g[i];
+  for (let i = n - 1; i >= 0; i--) x[i] = (z[i] - (i + 1 < n ? f[i + 1] * x[i + 1] : 0) - (i + 2 < n ? e[i + 2] * x[i + 2] : 0)) / g[i];
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) out[i] = Number.isNaN(y[i]) ? NaN : x[i];
+  return out;
+}
+
 function profilo(V) {
-  const { w, A, x0, y0, bw, bh } = V;
+  const { w, x0, y0, bw, bh } = V;
   const n = bh, L = new Float32Array(n).fill(NaN), R = new Float32Array(n).fill(NaN);
-  for (let r = 0; r < n; r++) {
+  // bordo sinistro e destro di una riga della maschera, al pixel con la frazione (dove l'alfa passa 0.5)
+  const bordi = (A, r) => {
     const y = y0 + r, base = y * w;
     let l = -1, rr = -1;
     for (let x = x0; x < x0 + bw; x++) if (A[base + x] > 0.5) { if (l < 0) l = x; rr = x; }
-    if (l < 0) continue;
-    // bordo al pixel con la frazione (dove l'alfa passa 0.5)
+    if (l < 0) return null;
     const al = l > 0 ? A[base + l - 1] : 0, ar = rr < w - 1 ? A[base + rr + 1] : 0;
     const fl = l - Math.max(0, Math.min(1, (A[base + l] - 0.5) / Math.max(0.01, A[base + l] - al))) + 0.5;
     const fr = rr + Math.max(0, Math.min(1, (A[base + rr] - 0.5) / Math.max(0.01, A[base + rr] - ar))) - 0.5;
-    L[r] = (fl - x0) / Math.max(1, bw - 1); R[r] = (fr - x0) / Math.max(1, bw - 1);
+    return [(fl - x0) / Math.max(1, bw - 1), (fr - x0) / Math.max(1, bw - 1)];
+  };
+  // la FORMA si legge dal CORPO (senza leve, palline, piedini)
+  const C = V.Ac || V.A;
+  let mwC = 0;
+  for (let r = 0; r < n; r++) { const b = bordi(C, r); if (b) { L[r] = b[0]; R[r] = b[1]; mwC = Math.max(mwC, b[1] - b[0]); } }
+  // SOTTO il corpo: se ci sono i PIEDINI (pezzi separati sulla stessa riga) il corpo scende
+  // dritto fino al piano d'appoggio, largo come la sua base; se il fondo rientra in un pezzo
+  // unico (fondo tondo) segue la sagoma vera della foto, mai più largo della base
+  if (V.Ac) {
+    const pezziRiga = (A, r) => {                          // quanti pezzi (separati da ≥ 3 px vuoti) ha la riga
+      const base = (y0 + r) * w; let k = 0, vuoto = 99;
+      for (let x = x0; x < x0 + bw; x++) { if (A[base + x] > 0.5) { if (vuoto >= 3) k++; vuoto = 0; } else vuoto++; }
+      return k;
+    };
+    let rb = -1;
+    for (let r = n - 1; r >= 0; r--) if (!Number.isNaN(L[r]) && R[r] - L[r] >= mwC * 0.5 && pezziRiga(C, r) === 1) { rb = r; break; }
+    let piedini = false;
+    if (rb >= 0) for (let r = rb + 1; r < n; r++) {
+      if (!piedini && pezziRiga(V.A, r) > 1) piedini = true;
+      if (piedini) { L[r] = L[rb]; R[r] = R[rb]; continue; }
+      const b = bordi(V.A, r);
+      if (!b) { L[r] = R[r] = NaN; continue; }
+      L[r] = Math.max(b[0], L[rb]); R[r] = Math.min(b[1], R[rb]);
+      if (R[r] - L[r] < 0.01) { L[r] = R[r] = NaN; }
+    }
   }
   const mediana = (arr) => { const t = [...arr].filter((x) => !Number.isNaN(x)).sort((p, q) => p - q); return t.length ? t[t.length >> 1] : NaN; };
   const filtra = (arr) => {
@@ -143,17 +267,24 @@ function profilo(V) {
       fin.sort((p, q) => p - q); out[r] = fin[fin.length >> 1];
     }
     const m = mediana(out);
-    // SMUSSATURA GRADUALE (gaussiana) invece di "raddrizzare" a scatti: le facce piatte
-    // restano piatte, le curve restano curve e tra le due non restano gradini (che col
-    // materiale lucido si vedevano come righe)
-    const R = Math.max(2, Math.round(n * 0.03)), sg = R / 2, ker = [];
-    for (let q = -R; q <= R; q++) ker.push(Math.exp(-(q * q) / (2 * sg * sg)));
-    const lis = new Float32Array(n);
-    for (let r = 0; r < n; r++) {
-      if (Number.isNaN(out[r])) { lis[r] = NaN; continue; }
-      let t = 0, wsum = 0;
-      for (let q = -R; q <= R; q++) { const x = out[r + q]; if (r + q < 0 || r + q >= n || Number.isNaN(x)) continue; t += x * ker[q + R]; wsum += ker[q + R]; }
-      lis[r] = t / wsum;
+    // CURVA LISCIA (come la disegnerebbe un modellatore): passa sul bordo della foto ma non
+    // può fare onde più corte di ~10% dell'altezza → spalle tonde e lati dritti restano,
+    // i "dentini" e le ondine del ritaglio (che col lucido diventavano strisce) no
+    const lam = Math.pow((n * 0.10) / (2 * Math.PI), 4);
+    let lis = curvaLiscia(out, lam);
+    // ROBUSTA: i pezzetti corti che escono o rientrano dal contorno (manopola, clip, gradino
+    // tra corpo e base) non sono la forma del corpo: si ignorano e la curva ci passa sopra dritta.
+    // Distanza misurata di traverso alla curva (in pixel), così le spalle tonde restano.
+    const pesi = new Float32Array(n);
+    for (let it = 0; it < 6; it++) {
+      for (let r = 0; r < n; r++) {
+        if (Number.isNaN(out[r])) { pesi[r] = 0; continue; }
+        const r0 = Math.max(0, r - 1), r1 = Math.min(n - 1, r + 1);
+        const pend = ((lis[r1] - lis[r0]) / Math.max(1, r1 - r0)) * bw;      // pixel di x per pixel di y
+        const dist = (Math.abs(out[r] - lis[r]) * bw) / Math.sqrt(1 + pend * pend);
+        pesi[r] = dist > 2 ? 0.01 : 1;
+      }
+      lis = curvaLiscia(out, lam, pesi);
     }
     return { v: lis, m };
   };
@@ -328,6 +459,63 @@ function estremiCorpo(p) {
   return { t0: lato(-1), t1: lato(1) };
 }
 /**
+ * FORMA VISTA DA SOPRA: la curva ideale che sta meglio sul contorno del CORPO nella foto da
+ * sopra — una superellisse: 2 = ovale, 3-4 = rettangolo con angoli molto tondi, 8+ = quasi
+ * squadrato. I punti del contorno che non stanno sulla curva (leva, pallina, manopola,
+ * blocchi attaccati) si scartano da soli (si tiene il 65% che sta meglio).
+ * Ritorna { n, aspetto (larghezza/profondità), cx, cy, a, b (frazioni della foto) } o null.
+ */
+function formaDaSopra(V) {
+  const { w, h } = V, A = V.Ac || V.A;
+  const tutti = [];
+  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+    const i = y * w + x;
+    if (A[i] > 0.5 && (A[i - 1] <= 0.5 || A[i + 1] <= 0.5 || A[i - w] <= 0.5 || A[i + w] <= 0.5)) tutti.push([x, y]);
+  }
+  if (tutti.length < 40) return null;
+  const passo = Math.max(1, Math.floor(tutti.length / 700)), P = tutti.filter((_, k) => k % passo === 0);
+  // partenza: il corpo secondo le righe (senza le sporgenze alle estremità)
+  const pp = profilo(V), e = estremiCorpo(pp);
+  let mw = 0, sc = 0, nn = 0;
+  for (let k = 0; k <= 50; k++) { const v = e.t0 + (e.t1 - e.t0) * k / 50, a = pp.sx(v), b = pp.dx(v); if (Number.isNaN(a) || Number.isNaN(b)) continue; mw = Math.max(mw, b - a); sc += (a + b) / 2; nn++; }
+  if (!nn) return null;
+  const start = [V.x0 + (sc / nn) * (V.bw - 1), V.y0 + ((e.t0 + e.t1) / 2) * (V.bh - 1), Math.max(4, mw * (V.bw - 1) / 2), Math.max(4, (e.t1 - e.t0) * (V.bh - 1) / 2), Math.log(4)];
+  const res = new Float64Array(P.length);
+  const costo = ([cx, cy, a, b, ln]) => {
+    if (a < 3 || b < 3 || ln < Math.log(1.6) || ln > Math.log(30)) return 1e12;
+    const n = Math.exp(ln);
+    for (let k = 0; k < P.length; k++) {
+      const dx = Math.abs(P[k][0] - cx), dy = Math.abs(P[k][1] - cy), rho = Math.hypot(dx, dy);
+      if (rho < 1e-6) { res[k] = Math.min(a, b); continue; }
+      const F = Math.pow(dx / a, n) + Math.pow(dy / b, n);
+      res[k] = Math.abs(rho * (1 - Math.pow(F, -1 / n)));                 // distanza lungo il raggio dalla curva
+    }
+    const ord = Array.from(res).sort((p, q) => p - q), kk = Math.floor(ord.length * 0.65);
+    let sq = 0; for (let k = 0; k < kk; k++) sq += ord[k] * ord[k];
+    return sq / kk;
+  };
+  // Nelder–Mead (5 numeri: centro, semiassi, esponente)
+  const passi = [start[2] * 0.1, start[3] * 0.1, start[2] * 0.1, start[3] * 0.1, 0.4];
+  let S = [start, ...passi.map((d, j) => { const q = start.slice(); q[j] += d; return q; })].map((x) => ({ x, f: costo(x) }));
+  for (let it = 0; it < 400; it++) {
+    S.sort((p, q) => p.f - q.f);
+    const c = [0, 1, 2, 3, 4].map((j) => S.slice(0, 5).reduce((t, p) => t + p.x[j], 0) / 5);
+    const pt = (t) => c.map((v, j) => v + t * (S[5].x[j] - v));
+    const r = pt(-1), fr = costo(r);
+    if (fr < S[0].f) { const e2 = pt(-2), fe = costo(e2); S[5] = fe < fr ? { x: e2, f: fe } : { x: r, f: fr }; }
+    else if (fr < S[4].f) S[5] = { x: r, f: fr };
+    else {
+      const k = pt(0.5), fk = costo(k);
+      if (fk < S[5].f) S[5] = { x: k, f: fk };
+      else S = S.map((p, i) => (i ? (() => { const x = p.x.map((v, j) => S[0].x[j] + 0.5 * (v - S[0].x[j])); return { x, f: costo(x) }; })() : p));
+    }
+  }
+  S.sort((p, q) => p.f - q.f);
+  const [cx, cy, a, b, ln] = S[0].x;
+  if (!(S[0].f < 1e11)) return null;
+  return { n: Math.max(2, Math.min(16, Math.exp(ln))), aspetto: a / b, cx: cx / w, cy: cy / h, a: a / w, b: b / h };
+}
+/**
  * LE MISURE TORNANO CON LE FOTO? Le proporzioni del CORPO in ogni foto (leve e
  * manopole escluse) dicono quanto devono stare larghezza, profondità e altezza
  * tra loro. Se una misura scritta non torna (oltre ~8%), ritorna
@@ -395,17 +583,16 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   // la foto DA SOPRA dà la FORMA del contorno (ovale, tonda, squadrata…) del CORPO, senza
   // le sporgenze (leva, cursore): il contorno si disegna dentro davanti × lato a ogni altezza,
   // così davanti e lato restano ESATTI come le loro foto
-  let corpoT = null;
-  if (Tv) { const pp = profilo(Tv), e = estremiCorpo(pp); corpoT = { p: pp, t0: e.t0, t1: e.t1, aspetto: Tv.bw / Math.max(1, Tv.bh * (e.t1 - e.t0)) }; }
-  const T = Tv && Math.abs(Math.log(corpoT.aspetto / (W / D))) < 0.5 ? Tv : null;   // foto storte di tre quarti: solo per l'aspetto
+  const formaT = Tv ? formaDaSopra(Tv) : null;
+  const T = Tv && formaT && Math.abs(Math.log(formaT.aspetto / (W / D))) < 0.5 ? Tv : null;   // foto storte di tre quarti: solo per l'aspetto
   // SAGOME ESATTE: ogni foto, portata ESATTAMENTE alle misure scritte, è quella faccia
   // (davanti = larghezza × altezza, lato = profondità × altezza, sopra = larghezza × profondità).
   // L'oggetto è quello che sta dentro TUTTE le sagome insieme. Dietro = davanti; l'altro lato = il lato specchiato.
   const pF = profilo(F);
-  const pS = S ? profilo(S) : null, pT = T ? corpoT.p : null;
+  const pS = S ? profilo(S) : null;
   // lato: il davanti è dove sporge qualcosa (maniglia); fascia e profondità della sporgenza
   let davantiSx = true, corpoF = 0, banda = null, man = null;
-  if (pS && !pT) {
+  if (pS && !T) {
     const sporgeSx = [], sporgeDx = [];
     for (let k = 0; k <= 100; k++) { const v = k / 100; sporgeSx.push(pS.mSx - pS.sx(v)); sporgeDx.push(pS.dx(v) - pS.mDx); }
     const nSx = sporgeSx.filter((x) => x > 0.025).length, nDx = sporgeDx.filter((x) => x > 0.025).length;
@@ -438,7 +625,8 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   }
   // rettangolo arrotondato → superellisse (n alto = squadrato, 2 = ovale)
   const kR = Math.min(1, rr / (Math.min(W, D) / 2));
-  const nSup = tonda ? 2 : Math.max(2, Math.min(24, 2 / Math.pow(Math.max(0.06, kR), 0.8)));
+  // con la foto da sopra: la forma è quella trovata sul suo contorno (ovale, rettangolo tondo, quadrato)
+  const nSup = T ? formaT.n : tonda ? 2 : Math.max(2, Math.min(24, 2 / Math.pow(Math.max(0.06, kR), 0.8)));
   const zCorpo = D / 2 - corpoF * D;                       // faccia davanti del corpo (oltre: solo la maniglia)
 
   // SUPERFICIE A FETTE (come i modellatori 3D): a ogni altezza una curva chiusa e continua,
@@ -446,25 +634,8 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   // del contorno da sopra; le fette si uniscono in una pelle unica e liscia
   const M = 160, NYr = 150;
   const ANG = Array.from({ length: M }, (_, q) => (q / M) * Math.PI * 2);
-  const raggio = (poly, cx, cz, c, sn) => {                // dove il raggio dal centro esce dal contorno
-    let best = -1;
-    for (let q = 0; q < poly.length; q++) {
-      const [x1, z1] = poly[q], [x2, z2] = poly[(q + 1) % poly.length];
-      const ex = x2 - x1, ez = z2 - z1, den = c * ez - sn * ex;
-      if (Math.abs(den) < 1e-9) continue;
-      const t = ((x1 - cx) * ez - (z1 - cz) * ex) / den, u = ((x1 - cx) * sn - (z1 - cz) * c) / den;
-      if (t > 0 && u >= -1e-6 && u <= 1 + 1e-6 && t > best) best = t;
-    }
-    return best > 0 ? [cx + c * best, cz + sn * best] : null;
-  };
   const sezione = (xl, xr, zb, zf) => {
     const cx = (xl + xr) / 2, cz = (zb + zf) / 2, hx = Math.max(0.5, (xr - xl) / 2), hz = Math.max(0.5, (zf - zb) / 2);
-    if (pT) {
-      const poly = [], K = 100;
-      for (let q = 0; q <= K; q++) { const v = q / K, vT = corpoT.t0 + (1 - v) * (corpoT.t1 - corpoT.t0), b = pT.dx(vT); if (!Number.isNaN(b)) poly.push([xl + b * (xr - xl), zf - v * (zf - zb)]); }
-      for (let q = K; q >= 0; q--) { const v = q / K, vT = corpoT.t0 + (1 - v) * (corpoT.t1 - corpoT.t0), a = pT.sx(vT); if (!Number.isNaN(a)) poly.push([xl + a * (xr - xl), zf - v * (zf - zb)]); }
-      if (poly.length > 8) return ANG.map((th) => raggio(poly, cx, cz, Math.cos(th), Math.sin(th)) || [cx + hx * Math.cos(th), cz + hz * Math.sin(th)]);
-    }
     return ANG.map((th) => { const c = Math.cos(th), sn = Math.sin(th); return [cx + hx * Math.sign(c) * Math.pow(Math.abs(c), 2 / nSup), cz + hz * Math.sign(sn) * Math.pow(Math.abs(sn), 2 / nSup)]; });
   };
   const anelli = [];
@@ -476,7 +647,6 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
     if (pS) {
       let a = pS.sx(vy), b = pS.dx(vy);
       if (Number.isNaN(a) || Number.isNaN(b)) continue;
-      if (!banda) { a = Math.max(a, pS.mSx); b = Math.min(b, pS.mDx); }   // leve e manopole piccole: fuori dalla forma
       if (davantiSx) { zf = D / 2 - a * D; zb = D / 2 - b * D; } else { zf = D / 2 - (1 - b) * D; zb = D / 2 - (1 - a) * D; }
     }
     zf = Math.min(zf, zCorpo);
@@ -551,7 +721,9 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
     const us = davantiSx ? 1 - wz : wz;                             // la foto di lato esatta, su tutta la profondità
     uvS.set(uvDa(tS, us, vy), v * 2);
     uvS2.set(uvDa(tS, 1 - us, vy), v * 2);
-    uvT.set(uvDa(tT, u, corpoT ? corpoT.t0 + wz * (corpoT.t1 - corpoT.t0) : wz), v * 2);
+    // sopra: il corpo trovato nella foto da sopra (senza leve e blocchi attaccati) va su larghezza × profondità
+    if (T) uvT.set([Math.min(1, Math.max(0, formaT.cx + (u - 0.5) * 2 * formaT.a)), 1 - Math.min(1, Math.max(0, formaT.cy + (wz - 0.5) * 2 * formaT.b))], v * 2);
+    else uvT.set(uvDa(tT, u, wz), v * 2);
   }
   gi.setAttribute('uvF', new THREE.BufferAttribute(uvF, 2));
   gi.setAttribute('uvB', new THREE.BufferAttribute(uvB, 2));
@@ -670,3 +842,4 @@ export async function anteprimaOggetto(box, foto, W, D, H, pianta) {
   giro();
   return () => { vivo = false; ctr.dispose(); r.dispose(); };
 }
+export { vista as _vistaProva, profilo as _profiloProva, estremiCorpo as _estremiProva };

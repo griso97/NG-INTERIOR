@@ -159,20 +159,86 @@ export function segmentaManiglia(img, zona = null, tol = 1, opz = {}) {
     const gb = []; for (let x = 1; x < w - 1; x++) { gb.push(G[w + x], G[(h - 2) * w + x]); } for (let y = 1; y < h - 1; y++) { gb.push(G[y * w + 1], G[y * w + w - 2]); }
     gb.sort((a, b) => a - b);
     const gT = Math.max(6, (gb[Math.floor(gb.length * 0.9)] || 0) * 2.5);
+    // riempimento dal bordo della foto: tutto ciò che si raggiunge senza passare un muro è sfondo
     // muro = bordo netto (allargato di 1 px) oppure pixel chiaramente diverso dallo sfondo
     const muro = new Uint8Array(w * h);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const i = y * w + x;
       if (m[i] || G[i] > gT) { muro[i] = 1; if (G[i] > gT) { if (x > 0) muro[i - 1] = 1; if (x < w - 1) muro[i + 1] = 1; if (y > 0) muro[i - w] = 1; if (y < h - 1) muro[i + w] = 1; } }
     }
-    // riempimento dal bordo della foto: tutto ciò che si raggiunge senza passare un muro è sfondo
-    const sf = new Uint8Array(w * h), st = new Int32Array(w * h); let sp = 0;
+    let sf = new Uint8Array(w * h);
+    const st = new Int32Array(w * h); let sp = 0;
     const semina = (i) => { if (!muro[i] && !sf[i]) { sf[i] = 1; st[sp++] = i; } };
     for (let x = 0; x < w; x++) { semina(x); semina((h - 1) * w + x); }
     for (let y = 0; y < h; y++) { semina(y * w); semina(y * w + w - 1); }
     while (sp) {
       const j = st[--sp], x = j % w, y = (j / w) | 0;
       if (x > 0) semina(j - 1); if (x < w - 1) semina(j + 1); if (y > 0) semina(j - w); if (y < h - 1) semina(j + w);
+    }
+    // OMBRA SOTTO L'OGGETTO (sul piano d'appoggio): grigio quasi senza colore, più scuro dello
+    // sfondo ma non nero. Si riconosce da come è fatta: partendo dallo sfondo verso l'oggetto
+    // diventa SOLO più scura, e a poco a poco (sfumata). Il cromo o il bianco dell'oggetto
+    // accanto all'ombra sono più chiari, e i suoi bordi sono netti: lì l'ombra finisce.
+    // Solo nella metà bassa dell'oggetto (l'ombra sta sul piano, sotto).
+    {
+      let ym0 = h, ym1 = -1;
+      for (let i = 0; i < w * h; i++) if (!sf[i]) { const y = (i / w) | 0; if (y < ym0) ym0 = y; if (y > ym1) ym1 = y; }
+      const yOmbra = ym1 > ym0 ? ym0 + (ym1 - ym0) * 0.55 : h;
+      const passo = Math.max(20, gT * 3);                                  // salto massimo da un pixel al vicino
+      const cand = new Uint8Array(w * h), Lsf = new Float32Array(w * h);
+      for (let y = Math.max(0, Math.ceil(yOmbra)); y < h; y++) for (let x = 0; x < w; x++) {
+        const i = y * w + x; if (sf[i]) continue;
+        const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
+        if (Math.max(r, g, b) - Math.min(r, g, b) > 26) continue;          // ha colore: non è ombra
+        const sb = sfondoIn(x, y), Lb = 0.299 * sb[0] + 0.587 * sb[1] + 0.114 * sb[2];
+        Lsf[i] = Lb;
+        if (L[i] <= Lb + 3 && L[i] > Lb * 0.36) cand[i] = 1;
+      }
+      // nella parte CHIARA dell'ombra (il bordo sfumato) si deve scurire a ogni passo: un grigio
+      // chiaro che resta uguale (cromo, bianco, acciaio chiaro) è oggetto. Nel nucleo scuro può restare uguale.
+      const NUCLEO = 0.6;
+      const scendi = (semi, dentro, verso) => {                            // verso +1: sempre più scuro, -1: sempre più chiaro
+        const preso = new Uint8Array(w * h), piatti = new Uint8Array(w * h); sp = 0;
+        for (let i = 0; i < w * h; i++) if (semi[i]) { preso[i] = 1; st[sp++] = i; }
+        while (sp) {
+          const j = st[--sp], x = j % w, y = (j / w) | 0;
+          for (const q of [x > 0 ? j - 1 : -1, x < w - 1 ? j + 1 : -1, y > 0 ? j - w : -1, y < h - 1 ? j + w : -1]) {
+            if (q < 0 || preso[q] || !dentro[q]) continue;
+            const dL = (L[j] - L[q]) * verso;                              // > 0: nel verso giusto
+            if (dL < -4 || dL > passo) continue;                           // verso sbagliato, o salto netto: non è ombra
+            let pq = 0;
+            if (Math.max(L[q], L[j]) > Lsf[q] * NUCLEO && dL < 2) { pq = piatti[j] + 1; if (pq > 2) continue; }
+            piatti[q] = pq; preso[q] = 1; st[sp++] = q;
+          }
+        }
+        return preso;
+      };
+      // 1) dallo sfondo verso l'oggetto, sempre più scuro
+      const daSfondo = scendi(sf, cand, 1);
+      // 2) ombra vera = sta su una "rampa" tra un NUCLEO davvero scuro e lo sfondo: dai nuclei
+      //    verso fuori, sempre più chiaro (il cromo chiaro accanto all'ombra resta oggetto)
+      const nuovo = new Uint8Array(w * h), nuclei = new Uint8Array(w * h);
+      for (let i = 0; i < w * h; i++) if (daSfondo[i] && !sf[i]) { nuovo[i] = 1; if (L[i] < Lsf[i] * NUCLEO) nuclei[i] = 1; }
+      // un nucleo d'ombra sta SUL PIANO: in basso (ultimo quinto dell'oggetto) e sotto di lui, nella
+      // stessa colonna, c'è solo ombra e sfondo. I pezzetti scuri DENTRO l'oggetto (numeri di una
+      // manopola, riflessi sul cromo) sono più in alto o hanno oggetto sotto: non sono ombra
+      {
+        const yNucleo = ym0 + (ym1 - ym0) * 0.78;
+        for (let x = 0; x < w; x++) {
+          let solido = false;
+          for (let y = h - 1; y >= 0; y--) {
+            const i = y * w + x;
+            if (nuclei[i] && (solido || y < yNucleo)) nuclei[i] = 0;
+            if (!sf[i] && !nuovo[i]) solido = true;
+          }
+        }
+      }
+      const om = scendi(nuclei, nuovo, -1);
+      const sfO = sf.slice(); let presi = 0;
+      for (let i = 0; i < w * h; i++) if (om[i] && nuovo[i]) { sfO[i] = 1; presi++; }
+      // sicurezza: se "l'ombra" si mangia un bel pezzo dell'oggetto, non era ombra
+      let ogg = 0; for (let i = 0; i < w * h; i++) if (!sf[i]) ogg++;
+      if (presi < ogg * 0.22) sf = sfO;
     }
     // i bordi netti che toccano lo sfondo raggiunto ma sono "quasi sfondo" (ombre leggere sul foglio) tornano sfondo
     for (let i = 0; i < w * h; i++) m[i] = sf[i] ? 0 : 1;
