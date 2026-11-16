@@ -5,7 +5,7 @@
 // riepilogo in fondo. Niente logica di calcolo qui dentro.
 // =============================================================================
 
-import { trovaMateriale } from './materiali.js?v=20261117k';
+import { trovaMateriale } from './materiali.js?v=20261117l';
 
 /**
  * Risale dalla categoria + posizione del pezzo al materiale scelto

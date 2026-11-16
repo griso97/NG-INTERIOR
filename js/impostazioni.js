@@ -8,13 +8,13 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261117k';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261117k';
-import { anteprimaOggetto, riconosciViste, vistaScambiata } from './oggetto3d.js?v=20261117k';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261117k';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261117k';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261117k';
-import { agganciaTema } from './tema.js?v=20261117k';
+} from './catalogo.js?v=20261117l';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261117l';
+import { anteprimaOggetto, riconosciViste, vistaScambiata } from './oggetto3d.js?v=20261117l';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261117l';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261117l';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261117l';
+import { agganciaTema } from './tema.js?v=20261117l';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -971,7 +971,12 @@ function apriSchedaOggetto(p) {
     const vecchie = { ...imgs }, vecchiCol = { ...colori };
     for (const k of VISTE_OGG.map((x) => x.id)) { delete imgs[k]; delete colori[k]; }
     for (const [dest, orig] of Object.entries(r.mappa)) { imgs[dest] = vecchie[orig]; colori[dest] = vecchiCol[orig]; }
-    for (const k of Object.keys(vecchie)) if (!Object.values(r.mappa).includes(k) && !imgs[k]) { imgs[k] = vecchie[k]; colori[k] = vecchiCol[k]; }
+    // nessuna foto si perde: quelle non riconosciute vanno in una casella libera
+    for (const k of Object.keys(vecchie)) {
+      if (!vecchie[k] || Object.values(imgs).includes(vecchie[k])) continue;
+      const libera = imgs[k] ? VISTE_OGG.map((x) => x.id).find((q) => !imgs[q]) : k;
+      if (libera) { imgs[libera] = vecchie[k]; colori[libera] = vecchiCol[k]; }
+    }
     for (const k of VISTE_OGG.map((x) => x.id)) if (vecchie[k] !== imgs[k]) cambiate.add(k);
     const frasi = Object.entries(r.cambi).map(([dest, orig]) => `${tr('la foto messa in')} «${tr(NOMI_VISTA[orig])}» ${tr('è')} «${tr(NOMI_VISTA[dest])}»`);
     avviso(`✓ ${tr('Ho riconosciuto le viste')}: ${frasi.join('; ')}. ${tr('Se è sbagliato, correggi con «Questa foto è».')}`);
@@ -988,7 +993,8 @@ function apriSchedaOggetto(p) {
     corpo.querySelector(`[data-vista="${v}"]`).addEventListener('change', async (e) => {
       const f = e.target.files && e.target.files[0]; if (!f) return;
       corpo.querySelector('#f-err').hidden = true;
-      if (await carica(f, v)) { riconosci(); mostraTutte(); anteprima(); }
+      // la foto resta nella casella dove l'hai messa (prima il riconoscimento poteva spostarla e far sparire un'altra foto)
+      if (await carica(f, v)) { mostraTutte(); anteprima(); }
       e.target.value = '';
     });
     corpo.querySelector(`[data-togli="${v}"]`).addEventListener('click', () => {

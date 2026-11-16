@@ -259,7 +259,11 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
     scambiate = true;
   }
   const F = vista(foto.fronte); if (!F) return null;
-  const S = vista(foto.lato), T = vista(foto.sopra), B = foto.dietro ? true : false;
+  const S = vista(foto.lato), B = foto.dietro ? true : false;
+  // foto DA SOPRA: per la FORMA solo se è davvero dall'alto (proporzioni come larghezza × profondità);
+  // le foto prodotto "da sopra" sono spesso di tre quarti e farebbero forme storte → solo per l'aspetto
+  const Tv = vista(foto.sopra);
+  const T = Tv && Math.abs(Math.log(Tv.aspetto / (W / D))) < 0.22 ? Tv : null;
   // PROFILI riga per riga (davanti, lato, sopra) → volume con facce piatte
   const pF = profilo(F);
   const pS = S ? profilo(S) : null, pT = T ? profilo(T) : null;
@@ -278,7 +282,7 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
       if (!T) man = trovaManiglia(F, banda[0], banda[1]) || { a: 0.4, b: 0.6 };
     } else corpoF = 0;
   }
-  const passo = Math.max(W, D, H) / 120;
+  const passo = Math.max(W, D, H) / 150;
   const NX = Math.max(16, Math.round(W / passo)), NY = Math.max(16, Math.round(H / passo)), NZ = Math.max(16, Math.round(D / passo));
   const GX = NX + 2, GY = NY + 2, GZ = NZ + 2;
   const id = (i, j, k) => (k * GY + j) * GX + i;
@@ -378,7 +382,7 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
       }
       for (let i = 0; i < vert.length; i++) vert[i] = nuovo[i];
     };
-    for (let it = 0; it < 2; it++) { passoT(0.5); passoT(-0.53); }
+    for (let it = 0; it < 4; it++) { passoT(0.5); passoT(-0.53); }
   }
   const gi = new THREE.BufferGeometry();
   gi.setAttribute('position', new THREE.Float32BufferAttribute(vert, 3));
@@ -387,50 +391,69 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   const N0 = gi.attributes.normal, P0 = gi.attributes.position;
   let segno = 0; for (let v = 0; v < P0.count; v += 7) segno += N0.getX(v) * P0.getX(v) + N0.getY(v) * (P0.getY(v) - H / 2) + N0.getZ(v) * P0.getZ(v);
   if (segno < 0) { for (let q = 0; q < ind.length; q += 3) { const t = ind[q + 1]; ind[q + 1] = ind[q + 2]; ind[q + 2] = t; } gi.setIndex(ind); gi.computeVertexNormals(); }
-  // MATERIALI: le foto (alta risoluzione) e colori pieni dove manca la foto
+  // ASPETTO REALISTICO: ogni punto MESCOLA le foto che lo guardano (davanti,
+  // dietro, lati, sopra) secondo da che parte è rivolto, con passaggi morbidi
+  // (niente "toppe" né spigoli di foto), e un materiale lucido con i riflessi.
   const tF = texturaVista(foto.fronte);
   const tB = B ? texturaVista(foto.dietro) : null;
   const tS = S ? texturaVista(foto.lato) : null;
-  const tT = T ? texturaVista(foto.sopra) : null;
-  const mat = (t, col) => (t ? new THREE.MeshStandardMaterial({ map: t.tex, roughness: 0.55, metalness: 0.08, envMapIntensity: 0.5 })
-    : new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(...col.map((x) => Math.pow(x / 255, 2.2))), roughness: 0.55, metalness: 0.08, envMapIntensity: 0.5 }));
-  // colore della cima senza foto da sopra: le righe in alto della foto davanti
-  const cimaCol = (() => { const l = []; for (let u = 0.15; u <= 0.85; u += 0.05) for (let v = 0.005; v < 0.05; v += 0.01) { const c = F.col(u, v); if (c) l.push(c); } return l.length ? [0, 1, 2].map((q) => l.map((c) => c[q]).sort((a, b) => a - b)[l.length >> 1]) : F.media; })();
-  const corpoCol = S ? S.media : F.media;
-  const mats = [mat(tF, F.media), mat(tB, corpoCol), mat(tS, corpoCol), mat(tT, cimaCol), mat(null, F.media.map((x) => x * 0.55))];
-  // UV per ogni faccia, dalla foto che la guarda (0 davanti, 1 dietro, 2 lati, 3 sopra, 4 sotto)
+  const tT = Tv ? texturaVista(foto.sopra) : null;
   const uvDa = (t, u, v) => (t ? [t.bx0 + Math.min(1, Math.max(0, u)) * t.bw, 1 - (t.by0 + Math.min(1, Math.max(0, v)) * t.bh)] : [0, 0]);
-  const gruppi = [[], [], [], [], []];
-  for (let q = 0; q < ind.length; q += 3) {
-    let nx = 0, ny = 0, nz = 0;
-    for (let r = 0; r < 3; r++) { nx += N0.getX(ind[q + r]); ny += N0.getY(ind[q + r]); nz += N0.getZ(ind[q + r]); }
-    const ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
-    const vista3 = az >= ax && az >= ay * 0.9 ? (nz > 0 ? 0 : 1) : ax >= ay ? 2 : (ny > 0 ? 3 : 4);
-    gruppi[vista3].push(q);
+  const P = gi.attributes.position, nV = P.count;
+  const uvF = new Float32Array(nV * 2), uvB = new Float32Array(nV * 2), uvS = new Float32Array(nV * 2), uvT = new Float32Array(nV * 2);
+  for (let v = 0; v < nV; v++) {
+    const x = P.getX(v), y = P.getY(v), z = P.getZ(v);
+    const u = (x + W / 2) / W, vy = 1 - y / H, wz = (z + D / 2) / D;
+    uvF.set(uvDa(tF, u, vy), v * 2);
+    uvB.set(uvDa(tB || tF, 1 - u, vy), v * 2);                     // dietro: la sua foto, se no il davanti specchiato
+    uvS.set(uvDa(tS, davantiSx ? 1 - wz : wz, vy), v * 2);
+    uvT.set(uvDa(tT, u, wz), v * 2);
   }
-  const posA = [], nrmA = [], uvA = [];
-  const geo = new THREE.BufferGeometry();
-  let inizio = 0;
-  gruppi.forEach((lista, m) => {
-    for (const q of lista) for (let r = 0; r < 3; r++) {
-      const vi = ind[q + r], x = P0.getX(vi), y = P0.getY(vi), z = P0.getZ(vi);
-      posA.push(x, y, z); nrmA.push(N0.getX(vi), N0.getY(vi), N0.getZ(vi));
-      const u = (x + W / 2) / W, vy = 1 - y / H, wz = (z + D / 2) / D;
-      let uv;
-      if (m === 0) uv = uvDa(tF, u, vy);
-      else if (m === 1) uv = uvDa(tB, 1 - u, vy);                              // dietro: vista da dietro (specchiata)
-      else if (m === 2) uv = uvDa(tS, davantiSx ? 1 - wz : wz, vy);          // i due lati: la stessa foto, specchiata
-      else if (m === 3) uv = uvDa(tT, u, wz);
-      else uv = [0, 0];
-      uvA.push(uv[0], uv[1]);
-    }
-    if (lista.length) geo.addGroup(inizio, lista.length * 3, m);
-    inizio += lista.length * 3;
-  });
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
-  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrmA, 3));
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvA, 2));
-  gi.dispose();
+  gi.setAttribute('uvF', new THREE.BufferAttribute(uvF, 2));
+  gi.setAttribute('uvB', new THREE.BufferAttribute(uvB, 2));
+  gi.setAttribute('uvS', new THREE.BufferAttribute(uvS, 2));
+  gi.setAttribute('uvT', new THREE.BufferAttribute(uvT, 2));
+  const cimaCol = (() => { const l = []; for (let u = 0.15; u <= 0.85; u += 0.05) for (let v = 0.005; v < 0.05; v += 0.01) { const c = F.col(u, v); if (c) l.push(c); } return l.length ? [0, 1, 2].map((q) => l.map((c) => c[q]).sort((a, b) => a - b)[l.length >> 1]) : F.media; })();
+  const lin = (c) => new THREE.Color().setRGB(...c.map((x) => Math.pow(x / 255, 2.2)));
+  const corpoCol = S ? S.media : F.media;
+  // lucido o opaco? dai riflessi nella foto davanti (tanti punti molto chiari su un colore scuro = lucido)
+  const Lm = 0.299 * F.media[0] + 0.587 * F.media[1] + 0.114 * F.media[2];
+  const lucido = Lm < 150 ? 0.28 : 0.4;
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: lucido, metalness: 0.05, envMapIntensity: 1.0 });
+  const vuota = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); vuota.needsUpdate = true;
+  const U = {
+    oF: { value: tF.tex }, oB: { value: (tB || tF).tex }, oS: { value: tS ? tS.tex : vuota }, oT: { value: tT ? tT.tex : vuota },
+    haS: { value: tS ? 1 : 0 }, haT: { value: tT ? 1 : 0 },
+    cS: { value: lin(corpoCol) }, cT: { value: lin(cimaCol) }, cU: { value: lin(F.media.map((x) => x * 0.55)) },
+  };
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, U);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', `#include <common>
+attribute vec2 uvF; attribute vec2 uvB; attribute vec2 uvS; attribute vec2 uvT;
+varying vec2 vUvF; varying vec2 vUvB; varying vec2 vUvS; varying vec2 vUvT; varying vec3 vObjN;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+vUvF = uvF; vUvB = uvB; vUvS = uvS; vUvT = uvT; vObjN = normal;`);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+uniform sampler2D oF; uniform sampler2D oB; uniform sampler2D oS; uniform sampler2D oT;
+uniform float haS; uniform float haT; uniform vec3 cS; uniform vec3 cT; uniform vec3 cU;
+varying vec2 vUvF; varying vec2 vUvB; varying vec2 vUvS; varying vec2 vUvT; varying vec3 vObjN;`)
+      .replace('#include <map_fragment>', `
+{
+  vec3 n = normalize(vObjN), a = abs(n);
+  float k = 5.0;
+  float wF = n.z > 0.0 ? pow(a.z, k) : 0.0, wB = n.z < 0.0 ? pow(a.z, k) : 0.0;
+  float wS = pow(a.x, k), wT = n.y > 0.0 ? pow(a.y, k) : 0.0, wU = n.y < 0.0 ? pow(a.y, k) : 0.0;
+  float tot = max(1e-4, wF + wB + wS + wT + wU);
+  vec3 c = texture2D(oF, vUvF).rgb * wF + texture2D(oB, vUvB).rgb * wB
+    + mix(cS, texture2D(oS, vUvS).rgb, haS) * wS + mix(cT, texture2D(oT, vUvT).rgb, haT) * wT + cU * wU;
+  diffuseColor.rgb *= c / tot;
+}`);
+  };
+  mat.customProgramCacheKey = () => 'ogg-proiezione-v1';
+  const mats = mat;
+  const geo = gi;
   return { geo, mats, W, D, H, colore: hex(F.media), scambiate };
 }
 
@@ -477,7 +500,12 @@ export async function anteprimaOggetto(box, foto, W, D, H, pianta) {
   sc.add(new THREE.HemisphereLight(0xffffff, 0xb8b2a6, 1.9));
   const dl = new THREE.DirectionalLight(0xffffff, 1.1); dl.position.set(1, 2, 3); sc.add(dl);
   const pm = new THREE.PMREMGenerator(r);
-  const env = new THREE.Scene(); env.background = new THREE.Color(0xd8d4cc);
+  const env = new THREE.Scene(); env.background = new THREE.Color(0x8d8a84);
+  // pannelli di luce (come finestre e lampade): danno i riflessi veri sulle superfici lucide
+  for (const [x, y, z, w, h] of [[0, 6, 0, 8, 8], [-7, 2, 3, 2, 5], [7, 3, -2, 3, 4], [0, 2, 8, 6, 2]]) {
+    const pl = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
+    pl.position.set(x, y, z); pl.lookAt(0, 0, 0); env.add(pl);
+  }
   sc.environment = pm.fromScene(env, 0.04).texture;
   sc.add(new THREE.Mesh(res.geo, res.mats));
   const piano = new THREE.Mesh(new THREE.BoxGeometry(W * 1.6 + 200, 20, D * 1.6 + 200), new THREE.MeshStandardMaterial({ color: 0xcfc9bd, roughness: 0.7 }));
