@@ -8,13 +8,13 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261117x';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261117x';
-import { anteprimaOggetto, riconosciViste, vistaScambiata, orientaSopra, ruotaCanvas } from './oggetto3d.js?v=20261117x';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261117x';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261117x';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261117x';
-import { agganciaTema } from './tema.js?v=20261117x';
+} from './catalogo.js?v=20261117y';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261117y';
+import { anteprimaOggetto, riconosciViste, vistaScambiata, orientaSopra, ruotaCanvas, controllaMisure } from './oggetto3d.js?v=20261117y';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261117y';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261117y';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261117y';
+import { agganciaTema } from './tema.js?v=20261117y';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -910,6 +910,7 @@ function apriSchedaOggetto(p) {
           <label>Altezza<input type="number" min="1" step="0.1" id="o-h" value="${esc(o.h)}" placeholder="es. 31"></label>
         </div>
         <div class="imp-aiuto">Le trovi nella scheda del prodotto (la profondità con la maniglia). Il 3D esce in scala vera.</div>
+        <div id="o-misure-msg" class="imp-auto-msg" hidden></div>
       </fieldset>
       <fieldset class="imp-misura" id="o-pianta-box">
         <legend>Forma vista da sopra</legend>
@@ -961,6 +962,18 @@ function apriSchedaOggetto(p) {
         scambia('lato', 'fronte'); mostraTutte();
         avviso(tr('Ho scambiato davanti e lato: dalle misure, il davanti è la foto larga come la larghezza e il lato quella larga come la profondità.'));
       }
+      // LE MISURE TORNANO CON LE FOTO? se una non torna, dico quanto dovrebbe essere (con il pulsante per usarla)
+      const mm = corpo.querySelector('#o-misure-msg');
+      const c = controllaMisure(imgs, W, D, H);
+      if (c && mm) {
+        const nomi = { w: 'la larghezza', d: 'la profondità', h: "l'altezza" }, ids = { w: '#o-w', d: '#o-d', h: '#o-h' };
+        const cm = (v) => (Math.round(v / 5) / 2).toLocaleString('it-IT');
+        const scritto = { w: W, d: D, h: H }[c.campo];
+        mm.innerHTML = `📏 ${tr('Dalle foto')} ${tr(nomi[c.campo])} ${tr('dovrebbe essere circa')} <strong>${cm(c.mm)} cm</strong> (${tr('hai scritto')} ${cm(scritto)}): ${tr(c.scarto > 1 ? "con la tua misura l'oggetto viene schiacciato." : "con la tua misura l'oggetto viene allungato.")} ${tr('Controlla la scheda del prodotto.')}
+          <button type="button" class="btn-oro btn-mini" id="o-usa-misura" style="margin-top:6px">${tr('Usa')} ${cm(c.mm)} cm</button>`;
+        mm.hidden = false;
+        mm.querySelector('#o-usa-misura').addEventListener('click', () => { corpo.querySelector(ids[c.campo]).value = cm(c.mm).replace(',', '.'); anteprima(); });
+      } else if (mm) mm.hidden = true;
       _chiudiAntOgg = await anteprimaOggetto(box, imgs, W, D, H, pianta);
     }, 250);
   };

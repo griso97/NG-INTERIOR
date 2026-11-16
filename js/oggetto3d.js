@@ -287,6 +287,48 @@ export function orientaSopra(src, W, D) {
   return ruotaCanvas(src, lato === 'sx' ? -1 : 1);                // il lato del davanti va in basso
 }
 /**
+ * LE MISURE TORNANO CON LE FOTO? Le proporzioni del CORPO in ogni foto (leve e
+ * manopole escluse) dicono quanto devono stare larghezza, profondità e altezza
+ * tra loro. Se una misura scritta non torna (oltre ~8%), ritorna
+ * { campo: 'w'|'d'|'h', mm: valore secondo le foto, scarto } — se no null.
+ */
+export function controllaMisure(foto, W, D, H) {
+  if (!(W > 0 && D > 0 && H > 0) || !foto.fronte) return null;
+  if (foto.fronte && foto.lato && vistaScambiata(foto.fronte, foto.lato, W, D, H)) foto = { ...foto, fronte: foto.lato, lato: foto.fronte };
+  const sopra = foto.sopra ? (orientaSopra(foto.sopra, W, D) || foto.sopra) : null;
+  const corpo = (src) => { const V = vista(src); if (!V) return null; const p = profilo(V); return { V, p, larg: (p.mDx - p.mSx) * V.bw }; };
+  const F = corpo(foto.fronte), S = foto.lato ? corpo(foto.lato) : null, T = sopra ? corpo(sopra) : null;
+  if (!F) return null;
+  const rF = F.larg / F.V.bh;                                   // larghezza / altezza
+  const rS = S ? S.larg / S.V.bh : null;                        // profondità / altezza
+  let rT = null;                                                // profondità / larghezza
+  if (T) {
+    const mw = T.p.mDx - T.p.mSx, larg = (t) => T.p.dx(t) - T.p.sx(t);
+    let t0 = 0, t1 = 1; while (t0 < 0.3 && larg(t0) < mw * 0.15) t0 += 0.002; while (t1 > 0.7 && larg(t1) < mw * 0.15) t1 -= 0.002;
+    rT = (T.V.bh * (t1 - t0)) / T.larg;
+  }
+  const e = (a, b) => Math.log(a / b);
+  const eF = e(W / H, rF), eS = rS ? e(D / H, rS) : null, eT = rT ? e(D / W, rT) : null;
+  const lim = 0.08;
+  const fuori = (x) => x != null && Math.abs(x) > lim;
+  // quale misura non torna: quella che spiega da sola gli scarti
+  if (!fuori(eF) && (fuori(eS) || fuori(eT))) {                 // larghezza e altezza tornano → è la PROFONDITÀ
+    const st = [rS ? H * rS : null, rT ? W * rT : null].filter(Boolean);
+    const mm = st.reduce((a, b) => a + b, 0) / st.length;
+    return Math.abs(Math.log(mm / D)) > lim ? { campo: 'd', mm: Math.round(mm), scarto: mm / D } : null;
+  }
+  if (fuori(eF) && eT != null && fuori(eT) && Math.sign(eF) === -Math.sign(eT) && !fuori(eS)) {   // è la LARGHEZZA
+    const mm = (H * rF + D / rT) / 2;
+    return { campo: 'w', mm: Math.round(mm), scarto: mm / W };
+  }
+  if (fuori(eF) && (eS == null || (fuori(eS) && Math.sign(eF) === Math.sign(eS)))) {             // è l'ALTEZZA
+    const st = [W / rF, rS ? D / rS : null].filter(Boolean);
+    const mm = st.reduce((a, b) => a + b, 0) / st.length;
+    return { campo: 'h', mm: Math.round(mm), scarto: mm / H };
+  }
+  return null;
+}
+/**
  * Raggio (mm) degli spigoli in alto della sagoma: quanto la sagoma si stringe
  * in cima (es. tostapane bombato ~4 cm, scatola squadrata ~0).
  */
