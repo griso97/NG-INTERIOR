@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261116p';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116p';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261116p';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116p';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116p';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116p';
+} from './modello.js?v=20261116q';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116q';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261116q';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116q';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116q';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116q';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116p';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116q';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1469,29 +1469,47 @@ function lavastoviglieFronte(g, w, h, d) {
  * FRIGO LIBERO (combinato): corpo bianco laccato, porta frigo in alto e porta
  * congelatore in basso, con la fuga in mezzo e le maniglie incassate sul lato.
  */
-const matFrigo = new THREE.MeshStandardMaterial({ color: 0xf1f1ee, roughness: 0.32, metalness: 0.05, envMapIntensity: 0.8 });
-const matFrigoFuga = new THREE.MeshStandardMaterial({ color: 0x8d8f93, roughness: 0.6, metalness: 0.2 });
-function frigoLibero(g, w, h, d) {
+// COLORI DEL FRIGO: bianco, nero (cristallo/acciaio nero) e acciaio inox spazzolato
+const COLORI_FRIGO = {
+  bianco:  { porta: new THREE.MeshStandardMaterial({ color: 0xf2f2ef, roughness: 0.28, metalness: 0.04, envMapIntensity: 0.8 }),
+             fianco: new THREE.MeshStandardMaterial({ color: 0xeaeae6, roughness: 0.4, metalness: 0.04 }),
+             maniglia: new THREE.MeshStandardMaterial({ color: 0xc9cbcf, roughness: 0.3, metalness: 0.8 }) },
+  nero:    { porta: new THREE.MeshPhysicalMaterial({ color: 0x232427, roughness: 0.22, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.1, envMapIntensity: 1.4 }),
+             fianco: new THREE.MeshStandardMaterial({ color: 0x2b2c30, roughness: 0.45, metalness: 0.25 }),
+             maniglia: new THREE.MeshStandardMaterial({ color: 0x6d6f74, roughness: 0.3, metalness: 0.85 }),
+             fuga: new THREE.MeshBasicMaterial({ color: 0x050505 }) },
+  acciaio: { porta: matElInox,
+             fianco: new THREE.MeshStandardMaterial({ color: 0xb9bcc0, roughness: 0.35, metalness: 0.6 }),
+             maniglia: new THREE.MeshStandardMaterial({ color: 0xd9dbde, roughness: 0.25, metalness: 0.9 }) },
+};
+const matFrigoFuga = new THREE.MeshStandardMaterial({ color: 0x3a3b3e, roughness: 0.7, metalness: 0.1 });
+/**
+ * FRIGO LIBERO MODERNO (combinato): porte piatte, frigo in alto e congelatore
+ * in basso con la fuga in mezzo, maniglie verticali sottili sul bordo.
+ * colore: 'bianco' | 'nero' | 'acciaio'.
+ */
+function frigoLibero(g, w, h, d, colore) {
+  const C = COLORI_FRIGO[colore] || COLORI_FRIGO.bianco;
   const box = (bw, bh, bd, x, y, z, mat) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(2, bw), Math.max(2, bh), Math.max(2, bd)), mat);
     m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
   };
-  const sp = 40;                                          // spessore delle porte
-  box(w - 4, h - 4, d - sp, 0, 0, -sp / 2, matFrigo);      // corpo (dietro le porte)
-  const hCong = Math.round(Math.min(800, h * 0.38));      // congelatore in basso
-  const fuga = 8, y0 = -h / 2;
+  const sp = 45;                                          // spessore delle porte
+  box(w - 4, h - 4, d - sp, 0, 0, -sp / 2, C.fianco);      // corpo (dietro le porte)
+  const hCong = Math.round(Math.min(800, h * 0.36));      // congelatore in basso
+  const fuga = colore === 'nero' ? 10 : 6, y0 = -h / 2;
   const zP = d / 2 - sp / 2;
-  // porta congelatore
-  box(w - 6, hCong - fuga, sp, 0, y0 + (hCong - fuga) / 2 + 2, zP, matFrigo);
-  // porta frigo
+  box(w - 4, hCong - fuga, sp, 0, y0 + (hCong - fuga) / 2 + 2, zP, C.porta);   // porta congelatore
   const hFr = h - hCong - 4;
-  box(w - 6, hFr, sp, 0, y0 + hCong + hFr / 2, zP, matFrigo);
-  // fuga tra le porte (si vede scura)
-  box(w - 10, fuga, 4, 0, y0 + hCong - fuga / 2, d / 2 - sp - 1, matFrigoFuga);
-  // maniglie incassate: listello verticale sul bordo destro di ogni porta
-  const xM = w / 2 - 24;
-  box(12, Math.min(260, hFr * 0.3), 8, xM, y0 + hCong + 30 + Math.min(260, hFr * 0.3) / 2, d / 2 + 2, matFrigoFuga);
-  box(12, Math.min(220, hCong * 0.35), 8, xM, y0 + hCong - fuga - 30 - Math.min(220, hCong * 0.35) / 2, d / 2 + 2, matFrigoFuga);
+  box(w - 4, hFr, sp, 0, y0 + hCong + hFr / 2, zP, C.porta);                   // porta frigo
+  box(w - 8, fuga, 4, 0, y0 + hCong - fuga / 2, d / 2 - sp - 1, C.fuga || matFrigoFuga);  // fuga tra le porte
+  // maniglie: barra verticale sottile sul bordo destro, staccata dalla porta
+  const xM = w / 2 - 30, lF = Math.min(420, hFr * 0.32), lC = Math.min(300, (hCong - fuga) * 0.45);
+  box(14, lF, 16, xM, y0 + hCong + 40 + lF / 2, d / 2 + 14, C.maniglia);
+  box(14, lC, 16, xM, y0 + hCong - fuga - 40 - lC / 2, d / 2 + 14, C.maniglia);
+  for (const [yc, l] of [[y0 + hCong + 40 + lF / 2, lF], [y0 + hCong - fuga - 40 - lC / 2, lC]]) {
+    for (const k of [-1, 1]) box(10, 10, 14, xM, yc + k * (l / 2 - 12), d / 2 + 4, C.maniglia);   // piedini
+  }
 }
 
 /**
@@ -1757,7 +1775,7 @@ function pensileAngoloFronte(g, w, h, d, matAnta) {
 /** Costruisce il mobile completo centrato nell'origine (corpo + fronti). */
 function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
-  if (cat === 'frigo') { frigoLibero(g, w, h, d); return g; }
+  if (cat === 'frigo') { frigoLibero(g, w, h, d, m && m.colore); return g; }
   _fingerPull = fpCat(_fpByCat, cat);   // finger-pull per categoria del mobile
   _maniglia = manigliaCat(cat);         // maniglia del catalogo per categoria
   // Colonna: il fianco si vede (sopra i pensili, di lato) → stesso materiale

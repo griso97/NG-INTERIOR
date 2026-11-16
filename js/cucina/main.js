@@ -11,7 +11,7 @@ import {
   applicaPreset, aggiungiParete, rimuoviParete,
   TIPI_MODULO_BASE, CATALOGO_MOBILI, LARGHEZZE_BASE, nomeTipo,
   infoTipo, altezzeTipo, campiMobile, descrizioneMobile, categoriaTipo, livelloDiMobile, frigoSottoAltillo,
-  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo,
+  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, COLORI_FRIGO,
   spazioLiberoParete, moduliDiParete,
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
@@ -24,12 +24,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261116p';
-import { renderPianta } from './pianta.js?v=20261116p';
-import { calcolaDistintaCucina } from './distinta.js?v=20261116p';
+} from './modello.js?v=20261116q';
+import { renderPianta } from './pianta.js?v=20261116q';
+import { calcolaDistintaCucina } from './distinta.js?v=20261116q';
 import { salvaProgetto, caricaProgetto, resetProgetto } from './storage.js?v=20261111x';
-import { agganciaTema } from '../tema.js?v=20261116p';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116p';
+import { agganciaTema } from '../tema.js?v=20261116q';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116q';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -762,6 +762,7 @@ function attaccaEventiStep2() {
   if (mobSel) {
     agganciaBaseAngolo(pannello, mobSel);
     agganciaDistanzaFrigo(pannello, mobSel);
+    agganciaColoreFrigo(pannello, mobSel);
     // piano cottura / lavello anche sulla cassettiera (non solo sulla base con ante)
     document.getElementById('mob-placca')?.addEventListener('click', () => {
       registraStoria(); mobSel.placca = !mobSel.placca; if (mobSel.placca) mobSel.lavello = false; aggiorna();
@@ -1197,7 +1198,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116p');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116q');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1307,6 +1308,7 @@ function renderPannelloModificaMobile(m) {
       <div class="riga-3d" style="margin-top:8px">Frontali (dall'alto): <strong>${alt.join(' · ')} mm</strong></div>
     </section>`;
     })() : ''}
+    ${htmlColoreFrigo(m)}
     ${htmlDistanzaFrigo(m)}
     ${puoAnte ? `
     <section class="step3-pannello">
@@ -1460,6 +1462,7 @@ function renderPannelloModificaMobile(m) {
       <button id="s3-indietro" class="btn-ghost" type="button" style="flex:1">← Moduli alti</button>
     </section>`;
   agganciaDistanzaFrigo(pannello, m);
+  agganciaColoreFrigo(pannello, m);
   pannello.querySelectorAll('.swatch[data-mat], .opt-piano[data-mat]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     if (costadoSingolo) { m.colore = b.dataset.mat; aggiorna(); return; }
@@ -1854,13 +1857,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116p');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116q');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116p'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116q'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -1876,6 +1879,27 @@ caricaMateriali().then((m) => {
  * scende, e TUTTI i moduli alti (pensili, altri mobili sopra frigo) vanno alla
  * sua stessa cima. "Automatica" = a filo con i costadi / le colonne accanto.
  */
+/** FRIGO: colore (bianco, nero, acciaio) e misure, a portata di tocco. */
+function htmlColoreFrigo(m) {
+  if (categoriaTipo(m.tipo) !== 'frigo') return '';
+  const sel = m.colore || 'bianco';
+  return `
+    <section class="step3-pannello">
+      <h3>Frigo</h3>
+      <div class="riga-3d" style="margin-bottom:6px"><strong>${m.larghezza_mm || 600} × ${m.altezza_mm || 1860} × ${m.profondita_mm || 660} mm</strong> (larghezza × altezza × profondità). L'altezza cambia da frigo a frigo: con «Cambia misura» scrivi quella del tuo.</div>
+      <div class="opzioni-anta">
+        ${COLORI_FRIGO.map((c) => `<button type="button" class="btn-ghost opt-frigo ${c.id === sel ? 'attivo' : ''}" data-frigo="${c.id}" style="display:flex;align-items:center;gap:8px;justify-content:center">
+          <span style="width:18px;height:18px;border-radius:3px;border:1px solid #777;background:${c.css}"></span>${c.id === sel ? '✓ ' : ''}${c.nome}</button>`).join('')}
+      </div>
+    </section>`;
+}
+function agganciaColoreFrigo(root, m) {
+  root.querySelectorAll('.opt-frigo[data-frigo]').forEach((b) => b.addEventListener('click', () => {
+    if ((m.colore || 'bianco') === b.dataset.frigo) return;
+    registraStoria(); m.colore = b.dataset.frigo; aggiorna();
+  }));
+}
+
 function htmlDistanzaFrigo(m) {
   if (categoriaTipo(m.tipo) !== 'altillo') return '';
   const fr = frigoSottoAltillo(progetto, m);
@@ -1892,7 +1916,7 @@ function htmlDistanzaFrigo(m) {
   return `
     <section class="step3-pannello">
       <h3>Mobile sopra frigo · altezze</h3>
-      <div class="riga-3d" style="margin-bottom:6px">Frigo <strong>${fr.larghezza_mm || 600} × ${fr.altezza_mm || 1850} × ${fr.profondita_mm || 650} mm</strong>. Se alzi o abbassi il mobile, <strong>costadi accanto e tutti i moduli alti</strong> vanno alla stessa altezza (anche nella lista dei pezzi).</div>
+      <div class="riga-3d" style="margin-bottom:6px">Frigo <strong>${fr.larghezza_mm || 600} × ${fr.altezza_mm || 1850} × ${fr.profondita_mm || 660} mm</strong>. Se alzi o abbassi il mobile, <strong>costadi accanto e tutti i moduli alti</strong> vanno alla stessa altezza (anche nella lista dei pezzi).</div>
       <div class="ra-campi">
         <label>Distanza dal frigo (mm)<input id="dist-frigo" type="number" placeholder="es. 20" value="${val != null ? val : ''}" min="0" step="1" inputmode="numeric"></label>
         ${cost.length ? `<label>Altezza costadi (mm)<input id="alt-costadi" type="number" value="${hCost}" min="500" step="1" inputmode="numeric"></label>` : ''}
@@ -1959,6 +1983,7 @@ function blocMobileSelezionato() {
         <button id="mob-elimina" class="btn-ghost" type="button">Elimina</button>
       </div>
       ${htmlBaseAngolo(m)}
+      ${htmlColoreFrigo(m)}
       ${htmlDistanzaFrigo(m)}
       ${(m.tipo === 'base-ante' || m.tipo === 'base-cassetti') ? `
       <div class="mob-azioni-grid" style="margin-top:8px">

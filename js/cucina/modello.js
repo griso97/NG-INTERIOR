@@ -115,9 +115,10 @@ export const CATALOGO_MOBILI = [
     larghezze: [20], altezze: ALTEZZE_COSTADO, profondita: 620 },
   // FRIGO libero (elettrodomestico, a terra, niente zoccolo): di solito tra due
   // costadi alti, con il MOBILE SOPRA FRIGO in cima
-  // misura standard di un frigo combinato: 60 × 185 × 65 (profondità con la porta)
+  // misura standard di un frigo combinato: 60 di larghezza (standard); altezze
+  // più comuni 186 (es. Balay) e 203 (es. Bosch KGN39), 176; profondo ~66 con la porta
   { id: 'frigo',         nome: 'Frigo', categoria: 'frigo',
-    larghezze: [600, 700], altezze: [1850, 2000, 1700], profondita: 650 },
+    larghezze: [600, 700], altezze: [1860, 2030, 1760], profondita: 660 },
   // Mobile sopra il frigo: la CIMA va a filo con la cosa alta accanto (costado,
   // colonna, pannello); l'altezza la scegli tu (es. 35 cm)
   // Misure standard: 60 di larghezza, 35 o 45 di altezza, profondo come i mobili
@@ -128,6 +129,14 @@ export const CATALOGO_MOBILI = [
   { id: 'sgabello',      nome: 'Sgabello bar', categoria: 'oggetto',
     larghezze: [527], altezze: [880], profondita: 430 },
 ];
+
+// Colori del frigo libero
+export const COLORI_FRIGO = [
+  { id: 'bianco', nome: 'Bianco', css: '#f2f2ef' },
+  { id: 'nero', nome: 'Nero', css: '#161618' },
+  { id: 'acciaio', nome: 'Acciaio inox', css: 'linear-gradient(135deg,#e1e3e6,#a4a8ad 55%,#cfd2d5)' },
+];
+export function nomeColoreFrigo(id) { return (COLORI_FRIGO.find((c) => c.id === id) || COLORI_FRIGO[0]).nome; }
 
 // Colonne (armadi a tutta altezza)
 export const H_VANO_FORNO = 600;                 // vano forno da incasso (modificabile)
@@ -180,8 +189,9 @@ export function campiMobile(tipoId) {
   if (t.categoria === 'frigo') {
     return [
       { campo: 'larghezza_mm', et: 'Larghezza (mm)', tipo: 'numero', min: 300, step: 10, opzioni: t.larghezze, default: 600 },
-      { campo: 'altezza_mm',   et: 'Altezza (mm)', tipo: 'numero', min: 500, step: 10, opzioni: t.altezze, default: 1850 },
-      { campo: 'profondita_mm', et: 'Profondità con la porta (mm)', tipo: 'numero', min: 300, step: 10, opzioni: [650, 600], default: 650 },
+      { campo: 'altezza_mm',   et: 'Altezza (mm)', tipo: 'numero', min: 500, step: 1, opzioni: t.altezze, default: 1860 },
+      { campo: 'profondita_mm', et: 'Profondità con la porta (mm)', tipo: 'numero', min: 300, step: 1, opzioni: [660, 665, 600], default: 660 },
+      { campo: 'colore', et: 'Colore', opzioni: COLORI_FRIGO.map((c) => ({ v: c.id, l: c.nome })), default: 'bianco' },
     ];
   }
   if (t.categoria === 'altillo') {
@@ -230,7 +240,7 @@ export function descrizioneMobile(m) {
   if (cat === 'colonna') {
     return `${m.larghezza_mm}×${m.altezza_mm} · ${nomeVarianteColonna(m.variante)}`;
   }
-  if (cat === 'frigo') return `${m.larghezza_mm}×${m.altezza_mm} · p ${m.profondita_mm || 650}`;
+  if (cat === 'frigo') return `${m.larghezza_mm}×${m.altezza_mm} · p ${m.profondita_mm || 660} · ${nomeColoreFrigo(m.colore)}`;
   if (cat === 'altillo') {
     const na = anteDiMobile(m);
     return `${m.larghezza_mm}×${m.altezza_mm} · p ${m.profondita_mm || 600} · ${na === 1 ? `1 anta ${m.antaLato === 'sx' ? 'sx' : 'dx'}` : '2 ante'}`;
@@ -269,7 +279,7 @@ export function dimMobile(m) {
     return { w, d: m.latoB_mm || w };
   }
   if (cat === 'altillo') return { w: m.larghezza_mm || 600, d: m.profondita_mm || 600 };
-  if (cat === 'frigo') return { w: m.larghezza_mm || 600, d: m.profondita_mm || 650 };
+  if (cat === 'frigo') return { w: m.larghezza_mm || 600, d: m.profondita_mm || 660 };
   if (typeof m.tipo === 'string' && m.tipo.startsWith('ogg:')) return { w: m.larghezza_mm || 300, d: m.profondita_mm || profonditaTipo(m.tipo) };
   return { w: m.larghezza_mm, d: profonditaTipo(m.tipo) };
 }
