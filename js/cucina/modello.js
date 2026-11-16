@@ -1179,9 +1179,9 @@ export function generaPensiliAuto(progetto, altezzaPensile) {
  * Sostituisce il ponte che c'era. Ritorna quanti moduli ha creato (0 = non ci
  * sono basi fra due mobili alti sulla stessa fila).
  */
-export function generaPonteAuto(progetto, altezza) {
+export function generaPonteAuto(progetto, altezza, altezzaPensili = 0) {
   const mob = (progetto.mobiliLiberi || []);
-  progetto.mobiliLiberi = mob.filter((m) => m.tipo !== 'ponte');
+  progetto.mobiliLiberi = mob.filter((m) => m.tipo !== 'ponte' && !m.sottoPonte);
   let nextId = Math.max(0, ...progetto.mobiliLiberi.map((m) => m.id)) + 1;
   const alto = (o) => { const c = categoriaTipo(o.tipo);
     return c === 'colonna' || c === 'frigo' || (c === 'costado' && (o.profondita_mm || 620) >= 500 && (o.altezza_mm || 0) >= 1500)
@@ -1207,9 +1207,21 @@ export function generaPonteAuto(progetto, altezza) {
     if (b.antaLato != null) p.antaLato = b.antaLato;
     if (b.ante != null) p.ante = b.ante;
     nuovi.push(p);
+    // PENSILI SOTTO IL PONTE (profondi 35, larghi come la base, contro il muro)
+    if (altezzaPensili > 0) {
+      // via il pensile che c'era sopra questa base: lo sostituisce quello sotto il ponte
+      progetto.mobiliLiberi = progetto.mobiliLiberi.filter((o) => !(categoriaTipo(o.tipo) === 'pensile' && o.sopraBase === b.id));
+      const OFF = (PROFONDITA_BASE - PROFONDITA_PENSILE) / 2;
+      const pens = { id: nextId++, tipo: 'pensile', larghezza_mm: w, altezza_mm: altezzaPensili,
+        x: Math.round(b.x - fx * OFF), y: Math.round(b.y - fy * OFF), rot: b.rot || 0,
+        fuoriMisura: !LARGHEZZE_BASE.includes(w), sopraBase: b.id, sottoPonte: true };
+      if (b.antaLato != null) pens.antaLato = b.antaLato;
+      if (b.ante != null) pens.ante = b.ante;
+      nuovi.push(pens);
+    }
   }
   progetto.mobiliLiberi.push(...nuovi);
-  return nuovi.length;
+  return nuovi.filter((x) => x.tipo === 'ponte').length;
 }
 /** Spessore del PANNELLO SOTTO IL PONTE (0 = niente pannello). */
 export function spessorePannelloPonte(progetto) {

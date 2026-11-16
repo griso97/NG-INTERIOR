@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261116t';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116t';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261116t';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116t';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116t';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116t';
+} from './modello.js?v=20261116u';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116u';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261116u';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116u';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116u';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116u';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116t';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116u';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -141,6 +141,25 @@ function quoteAlte(progetto) {
   const scelta = cimaDaDistanzaFrigo(progetto);
   const cimaAlta = scelta != null ? scelta : (topLine != null ? topLine : quotaAltaPannelli(progetto));
   return { topLine, cimaAlta, scelta };
+}
+/**
+ * CUCINA A PONTE: spazio libero (mm) tra il piano di lavoro e il fondo dei
+ * pensili sotto il ponte (il più piccolo), o null se non ci sono.
+ */
+export function spazioSottoPonte(progetto) {
+  const q = quoteAlte(progetto);
+  let min = null;
+  for (const p of (progetto.mobiliLiberi || [])) {
+    if (categoriaTipo(p.tipo) !== 'pensile') continue;
+    const fondo = fondoPonteSopra(progetto, p, q);
+    if (fondo == null) continue;
+    const base = (progetto.mobiliLiberi || []).find((o) => ['base', 'lavastoviglie', 'lavatrice'].includes(categoriaTipo(o.tipo)) && siSovrappongono(o, p));
+    if (!base) continue;
+    const hb = base.altezza_mm || 700;
+    const spazio = Math.round(fondo - (p.altezza_mm || 700) - (zoccoloPerAltezza(hb) + hb + _spTop));
+    min = min == null ? spazio : Math.min(min, spazio);
+  }
+  return min;
 }
 /** Spazio (mm) tra il frigo e il mobile sopra frigo, come nel 3D; null se sotto non c'è un frigo. */
 export function distanzaAltilloFrigo(progetto, m) {

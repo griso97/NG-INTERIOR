@@ -1440,4 +1440,9 @@ window.NG_I18N_ES = {
  "Caricare questa cucina nella cucina a ponte? Il progetto a ponte aperto ora verrà sostituito; la cucina normale salvata resta com'è.": "¿Cargar esta cocina en la cocina con puente? El proyecto con puente abierto ahora se sustituirá; la cocina normal guardada se queda como está.",
  "Prendere la cucina normale aperta ora e trasformarla in cucina a ponte? Il progetto a ponte aperto ora verrà sostituito; la cucina normale resta com'è.": "¿Coger la cocina normal abierta ahora y transformarla en cocina con puente? El proyecto con puente abierto ahora se sustituirá; la cocina normal se queda como está.",
  "Torna alla scelta della cucina": "Volver a la elección de la cocina",
+ "Altezza del ponte (cm)": "Altura del puente (cm)",
+ "Pensili sotto il ponte (cm)": "Altos bajo el puente (cm)",
+ "Nessuno": "Ninguno",
+ "✓ Nessuno": "✓ Ninguno",
+ "🌉 Crea il ponte": "🌉 Crear el puente",
 };
