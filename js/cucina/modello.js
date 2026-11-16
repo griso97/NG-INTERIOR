@@ -1636,19 +1636,32 @@ export function liberoPareti(progetto) {
       if (dC + extN < -80) continue;                // dal lato sbagliato (fuori)
       const lo = Math.max(0, tC - extU);
       const hi = Math.min(L, tC + extU);
-      if (hi > lo) intervalli.push([lo, hi]);
+      // perp = mobile dell'ALTRO muro (girato di 90°): nell'angolo
+      const perp = Math.abs(c * ux + s * uy) < 0.5;
+      if (hi > lo) intervalli.push([lo, hi, perp]);
     }
     intervalli.sort((a2, b2) => a2[0] - b2[0]);
-    let coperto = 0, cur = null;
+    const blocchi = [];
     for (const iv of intervalli) {
-      if (!cur) cur = [...iv];
-      else if (iv[0] <= cur[1]) cur[1] = Math.max(cur[1], iv[1]);
-      else { coperto += cur[1] - cur[0]; cur = [...iv]; }
+      const ult = blocchi[blocchi.length - 1];
+      if (ult && iv[0] <= ult.hi) { if (iv[1] > ult.hi) { ult.hi = iv[1]; ult.perpHi = iv[2]; } }
+      else blocchi.push({ lo: iv[0], hi: iv[1], perpLo: iv[2], perpHi: iv[2] });
     }
-    if (cur) coperto += cur[1] - cur[0];
+    let coperto = blocchi.reduce((t, k) => t + (k.hi - k.lo), 0);
+    // REGLETTA D'ANGOLO: lo spazietto (3 cm) fra il mobile dell'angolo e la fila
+    // di questo muro NON è libero: ci va la regletta. Non lo conto come spazio.
+    let regletta = 0;
+    if (progetto.autoRegletta !== false) {
+      const rb = ((progetto.reglettaAngolo && progetto.reglettaAngolo.base) || 30) + 5;
+      for (let k = 0; k < blocchi.length - 1; k++) {
+        const g = blocchi[k + 1].lo - blocchi[k].hi;
+        if (g > 0 && g <= rb && (blocchi[k].perpHi || blocchi[k + 1].perpLo)) regletta += g;
+      }
+    }
+    coperto += regletta;
     out.push({
       id: p.id, idx: i, lunghezza: Math.round(L),
-      coperto: Math.round(coperto), libero: Math.max(0, Math.round(L - coperto)),
+      coperto: Math.round(coperto), libero: Math.max(0, Math.round(L - coperto)), regletta: Math.round(regletta),
     });
   });
   return out;

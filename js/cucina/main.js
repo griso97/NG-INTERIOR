@@ -24,12 +24,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261117d';
-import { renderPianta } from './pianta.js?v=20261117d';
-import { calcolaDistintaCucina } from './distinta.js?v=20261117d';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261117d';
-import { agganciaTema } from '../tema.js?v=20261117d';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261117d';
+} from './modello.js?v=20261117e';
+import { renderPianta } from './pianta.js?v=20261117e';
+import { calcolaDistintaCucina } from './distinta.js?v=20261117e';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261117e';
+import { agganciaTema } from '../tema.js?v=20261117e';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261117e';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1019,7 +1019,7 @@ function renderRiepilogoModuli() {
       const info = lib.find((x) => x.id === p.id);
       const liberoCm = info ? Math.round(info.libero / 10) : Math.round(p.lunghezza_mm / 10);
       return `<div class="riep-riga"><span>Parete ${i + 1} (${Math.round(p.lunghezza_mm / 10)} cm)</span>
-        <strong class="${liberoCm === 0 ? 'ok' : ''}">${liberoCm === 0 ? '✓ pieno' : `${liberoCm} liberi`}</strong></div>`;
+        <strong class="${liberoCm === 0 ? 'ok' : ''}">${liberoCm === 0 ? '✓ pieno' : `${liberoCm} liberi`}${info && info.regletta ? ` <small style="opacity:.75">(+${(info.regletta / 10).toLocaleString('it-IT')} regletta)</small>` : ''}</strong></div>`;
     }).join('')}
 
     <h3 style="margin-top:20px">Moduli</h3>
@@ -1359,7 +1359,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261117d');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261117e');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2042,13 +2042,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261117d');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261117e');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261117d'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261117e'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
