@@ -1371,6 +1371,35 @@ export function fileDelPonte(progetto) {
   return out;
 }
 /** Moduli del PONTE sopra un mobile (in pianta si sovrappongono). */
+/**
+ * PORTE: le scelte (finger-pull, push, maniglia) valgono per gruppo: bassi, pensili, colonne.
+ * Il PONTE e i PENSILI SOTTO IL PONTE hanno scelte PROPRIE ('ponte', 'pensiliPonte'):
+ * finché non si sceglie niente, il ponte fa come le colonne e i pensili sotto come i pensili.
+ */
+export function gruppoPorte(progetto, m) {
+  const cat = categoriaTipo(m.tipo);
+  if (m.tipo === 'ponte') return { proprio: 'ponte', segue: 'colonna' };
+  if (cat === 'pensile') return { proprio: pontiSopra(progetto, m).length ? 'pensiliPonte' : null, segue: 'pensile' };
+  if (cat === 'colonna' || cat === 'altillo') return { proprio: null, segue: 'colonna' };
+  if (cat === 'base') return { proprio: null, segue: 'base' };
+  return { proprio: null, segue: null };
+}
+/** Scelte delle porte per un gruppo ('ponte' / 'pensiliPonte' con il gruppo che seguono). */
+export function sceltePorteGruppo(progetto, proprio, segue) {
+  const fp = progetto.fingerPull, fpO = fp && typeof fp === 'object' ? fp : {};
+  const pu = progetto.push || {}, ma = progetto.maniglie || {};
+  return {
+    fp: proprio && fpO[proprio] != null ? !!fpO[proprio] : !!(segue && (fp === true || fpO[segue])),
+    push: proprio && pu[proprio] != null ? !!pu[proprio] : !!(segue && pu[segue]),
+    maniglia: (proprio && ma[proprio]) || (segue && ma[segue]) || null,
+    proprie: !!proprio && (fpO[proprio] != null || pu[proprio] != null || ma[proprio] != null),
+  };
+}
+/** Scelte delle porte di UN mobile: { fp, push, maniglia (id o null) }. */
+export function sceltePorte(progetto, m) {
+  const { proprio, segue } = gruppoPorte(progetto, m);
+  return sceltePorteGruppo(progetto, proprio, segue);
+}
 export function pontiSopra(progetto, m) {
   const A = boxPiantaR(m);
   return (progetto.mobiliLiberi || []).filter((o) => {

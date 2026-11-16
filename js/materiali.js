@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118l';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118m';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -201,7 +201,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118l');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118m');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -390,14 +390,14 @@ function coloreFoto(m, rif = LUCE_FOTO) {
         float f = dot(totalDiffuse, wl) / max(dot(diffuseColor.rgb, wl), 1e-4) / ngLuceRif;
         // LUCE IN PIÙ (es. LED sotto i pensili): dove arriva, tinge la foto del SUO colore
         // (caldo/neutro/freddo). La luce normale della stanza non cambia la tinta della foto.
-        vec3 tinta = mix(vec3(1.0), ngTintaLed, clamp((f - 1.0) * 1.5, 0.0, 1.0));
+        vec3 tinta = mix(vec3(1.0), ngTintaLed, 0.6 * clamp((f - 1.0) * 1.5, 0.0, 1.0));   // 0.6: colore vero ma morbido (caldo ≠ arancione)
         // luce in più (es. LED): schiarisce ma non "brucia" la foto
         if (f > 1.0) f = 1.0 + 0.45 * (1.0 - exp(-(f - 1.0) * 1.6));
         outgoingLight = diffuseColor.rgb * mix(1.0, f, ${CONTRASTO_FOTO.toFixed(2)}) * tinta + totalEmissiveRadiance + totalSpecular * ngSpec;
       }
       #include <opaque_fragment>`);
     };
-    m.customProgramCacheKey = () => 'ng-foto2' + (m.userData.ngSpec ? '-l' : '');
+    m.customProgramCacheKey = () => 'ng-foto3' + (m.userData.ngSpec ? '-l' : '');
   }
   m.needsUpdate = true;
 }

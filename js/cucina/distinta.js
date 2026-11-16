@@ -12,8 +12,8 @@
 // =============================================================================
 
 import {
-  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra,
-} from './modello.js?v=20261118l';
+  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo,
+} from './modello.js?v=20261118m';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -358,16 +358,15 @@ export function calcolaDistintaCucina(progetto) {
   const acc = new Map();
   const aggiungi = (nome, q) => { if (q > 0) acc.set(nome, (acc.get(nome) || 0) + q); };
   const perId = new Map(mobili.map((m) => [m.id, m]));
-  // finger-pull e maniglia scelti per gruppo (bassi / pensili / colonne)
-  const grp = (cat) => (cat === 'pensile' ? 'pensile' : cat === 'colonna' ? 'colonna' : 'base');
-  const fp = progetto.fingerPull;
-  const conPush = (cat) => !!(progetto.push && progetto.push[grp(cat === 'altillo' ? 'colonna' : cat)]);
-  const conFP = (cat) => fp === true || !!(fp && typeof fp === 'object' && fp[grp(cat === 'altillo' ? 'colonna' : cat)]);
-  // per ogni pezzo: le scelte della porta (le colonne le hanno porta per porta), se no quelle del gruppo
-  const fpDi = (p, cat) => (p.fp != null ? p.fp : conFP(cat));
-  const pushDi = (p, cat) => (p.push != null ? p.push : conPush(cat));
-  const nomeManiglia = (cat) => {
-    const id = (progetto.maniglie || {})[grp(cat)];
+  // finger-pull, push e maniglia: per gruppo (bassi / pensili / colonne / ponte / pensili sotto il ponte)
+  // (il ponte e i pensili sotto il ponte possono avere scelte loro: sceltePorte)
+  const scelte = new Map(mobili.map((m) => [m.id, sceltePorte(progetto, m)]));
+  const scelteDi = (p) => scelte.get(p.moduloId) || sceltePorteGruppo(progetto, null, 'base');
+  // per ogni pezzo: le scelte della porta (le colonne le hanno porta per porta), se no quelle del mobile
+  const fpDi = (p) => (p.fp != null ? p.fp : scelteDi(p).fp);
+  const pushDi = (p) => (p.push != null ? p.push : scelteDi(p).push);
+  const nomeManiglia = (p) => {
+    const id = scelteDi(p).maniglia;
     const def = id && typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === id);
     return def ? def.nome : 'standard';
   };
@@ -399,16 +398,14 @@ export function calcolaDistintaCucina(progetto) {
   // MANIGLIE: una per porta e per frontale, dove non c'è il finger-pull
   for (const p of raw) {
     if (!/^anta|^fronte cassetto/i.test(p.nome)) continue;
-    const cat = categoriaTipo((perId.get(p.moduloId) || {}).tipo);
     const cassetto = /^fronte cassetto/i.test(p.nome);           // i cassetti non hanno mai il push
-    if (fpDi(p, cat) || (!cassetto && pushDi(p, cat))) continue;
-    aggiungi(`Maniglie · ${nomeManiglia(cat)}`, p.quantita);
+    if (fpDi(p) || (!cassetto && pushDi(p))) continue;
+    aggiungi(`Maniglie · ${nomeManiglia(p)}`, p.quantita);
   }
   // PUSH: per ogni porta un push pull e la sua base
   for (const p of raw) {
     if (!/^anta/i.test(p.nome)) continue;
-    const cat = categoriaTipo((perId.get(p.moduloId) || {}).tipo);
-    if (!pushDi(p, cat)) continue;
+    if (!pushDi(p)) continue;
     aggiungi('Push pull', p.quantita);
     aggiungi('Push pull · base', p.quantita);
   }

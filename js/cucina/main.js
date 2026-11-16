@@ -11,7 +11,7 @@ import {
   applicaPreset, aggiungiParete, rimuoviParete,
   TIPI_MODULO_BASE, CATALOGO_MOBILI, LARGHEZZE_BASE, nomeTipo,
   infoTipo, altezzeTipo, campiMobile, descrizioneMobile, categoriaTipo, livelloDiMobile, frigoSottoAltillo,
-  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, togliAltiDentroColonne, spazioMancante, baseAMuro, COLORI_FRIGO, pontiSopra, cambiaPensileSottoPonte,
+  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, togliAltiDentroColonne, spazioMancante, baseAMuro, sceltePorteGruppo, COLORI_FRIGO, pontiSopra, cambiaPensileSottoPonte,
   spazioLiberoParete, moduliDiParete,
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
@@ -24,12 +24,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261118l';
-import { renderPianta } from './pianta.js?v=20261118l';
-import { calcolaDistintaCucina } from './distinta.js?v=20261118l';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261118l';
-import { agganciaTema } from '../tema.js?v=20261118l';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261118l';
+} from './modello.js?v=20261118m';
+import { renderPianta } from './pianta.js?v=20261118m';
+import { calcolaDistintaCucina } from './distinta.js?v=20261118m';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261118m';
+import { agganciaTema } from '../tema.js?v=20261118m';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261118m';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -684,6 +684,7 @@ function renderPannelloModuli() {
     </section>` : ''}
 
     ${livello === 'alto' ? htmlColoriPonte() : ''}
+    ${livello === 'alto' && cucinaPonte() ? htmlPortePonte() : ''}
 
     ${livello === 'alto' ? `
     <section>
@@ -856,6 +857,7 @@ function attaccaEventiStep2() {
   };
   document.getElementById('auto-70')?.addEventListener('click', () => autoPensili(700));
   agganciaColoriPonte(pannello);
+  agganciaPortePonte(pannello);
   pannello.querySelectorAll('.opt-pponte').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     progetto.pannelloPonte = { ...(progetto.pannelloPonte || {}), attivo: b.dataset.pponte === 'si' };
@@ -1362,7 +1364,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261118l');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261118m');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1580,6 +1582,7 @@ function renderPannelloModificaMobile(m) {
       </div>` : ''}
     </section>` : ''}
     ${(() => {
+      if (m.tipo === 'ponte' || (cat === 'pensile' && pontiSopra(progetto, m).length)) return htmlPortePonte(m.tipo === 'ponte' ? 'ponte' : 'pensiliPonte');
       if (!(gruppoColore === 'base' || gruppoColore === 'pensile' || gruppoColore === 'colonna')) return '';
       const fp = progetto.fingerPull;
       const push = !!(progetto.push && progetto.push[gruppoColore]);
@@ -1647,6 +1650,7 @@ function renderPannelloModificaMobile(m) {
   agganciaColoreFrigo(pannello, m);
   agganciaAperturaColonna(pannello, m);
   agganciaColoriPonte(pannello);
+  agganciaPortePonte(pannello);
   agganciaPensileSottoPonte(pannello, m);
   pannello.querySelectorAll('.swatch[data-mat], .opt-piano[data-mat]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
@@ -2074,13 +2078,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261118l');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261118m');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261118l'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261118m'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2125,6 +2129,83 @@ function htmlColoriPonte() {
       </div>
       <div class="riga-3d" style="margin-top:4px">«—» = ${parte.come.toLowerCase()}.</div>
     </section>`;
+}
+// PORTE DEL PONTE: porta normale o finger-pull, maniglia o push (e quale maniglia), per il
+// ponte e per i pensili sotto, indipendenti dal resto. Finché non si sceglie: come colonne / pensili.
+const PARTI_PORTE_PONTE = [
+  { k: 'ponte', nome: 'Ponte (profondo)', segue: 'colonna', come: 'come le colonne' },
+  { k: 'pensiliPonte', nome: 'Pensili sotto', segue: 'pensile', come: 'come i pensili' },
+];
+function htmlPortePonte(parteFissa = null) {
+  if (!parteFissa && step2.partePortePonte == null) step2.partePortePonte = 'ponte';
+  const parte = PARTI_PORTE_PONTE.find((x) => x.k === (parteFissa || step2.partePortePonte)) || PARTI_PORTE_PONTE[0];
+  const sc = sceltePorteGruppo(progetto, parte.k, parte.segue);
+  const man = !sc.fp && !sc.push;
+  const mod = matMod || scena3dMod;
+  const lista = mod && mod.materialiPer ? mod.materialiPer('maniglie') : [];
+  const sel = sc.maniglia || 'maniglia-standard';
+  const v = (on, testo) => `${on ? '✓ ' : ''}${testo}`;
+  return `
+    <section class="step3-pannello" data-porte-ponte="${parte.k}">
+      <h3>Porte del ponte${parteFissa ? ` · ${parte.nome}` : ''}</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Il ponte e i pensili sotto hanno le loro scelte, indipendenti dal resto della cucina.</div>
+      ${parteFissa ? '' : `
+      <div class="opzioni-anta">
+        ${PARTI_PORTE_PONTE.map((x) => `<button type="button" class="btn-ghost opt-parteporte ${x.k === parte.k ? 'attivo' : ''}" data-parteporte="${x.k}">${v(x.k === parte.k, x.nome)}</button>`).join('')}
+      </div>`}
+      <div class="riga-3d" style="margin:8px 0 4px">Porta</div>
+      <div class="opzioni-anta">
+        <button type="button" class="btn-ghost opt-fpponte ${!sc.fp ? 'attivo' : ''}" data-fpponte="0">${v(!sc.fp, 'Normale')}</button>
+        <button type="button" class="btn-ghost opt-fpponte ${sc.fp ? 'attivo' : ''}" data-fpponte="1">${v(sc.fp, 'Finger-pull')}</button>
+      </div>
+      <div class="riga-3d" style="margin:8px 0 4px">Apertura</div>
+      <div class="opzioni-anta">
+        <button type="button" class="btn-ghost opt-pushponte ${!sc.push ? 'attivo' : ''}" data-pushponte="0">${v(!sc.push, 'Maniglia')}</button>
+        <button type="button" class="btn-ghost opt-pushponte ${sc.push ? 'attivo' : ''}" data-pushponte="1">${v(sc.push, 'Push')}</button>
+      </div>
+      ${sc.push ? '<div class="riga-3d" style="margin-top:6px">Push: si preme e si apre. In distinta un push pull e una base per ogni porta.</div>' : ''}
+      ${man && lista.length > 1 ? `
+      <div class="riga-3d" style="margin:10px 0 6px">Maniglia</div>
+      <div class="palette-colori">
+        ${lista.map((mt) => `<button type="button" class="swatch ${mt.id === sel ? 'sel' : ''}" data-manponte="${mt.id}" title="${mt.nome}"
+          style="background:${mod.sfondoSwatch(mt)}"></button>`).join('')}
+      </div>` : ''}
+      ${sc.proprie
+        ? `<button type="button" class="btn-ghost porte-ponte-reset" style="margin-top:8px;width:100%">↺ Torna ${parte.come}</button>`
+        : `<div class="riga-3d" style="margin-top:6px">Per ora ${parte.come}: tocca una scelta per cambiarla solo qui.</div>`}
+    </section>`;
+}
+function agganciaPortePonte(root) {
+  const sezione = root.querySelector('[data-porte-ponte]');
+  if (!sezione) return;
+  const k = sezione.dataset.portePonte;
+  sezione.querySelectorAll('.opt-parteporte').forEach((b) => b.addEventListener('click', () => { step2.partePortePonte = b.dataset.parteporte; renderPannello(); }));
+  sezione.querySelectorAll('.opt-fpponte').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    if (typeof progetto.fingerPull !== 'object' || progetto.fingerPull === null) {   // vecchio sì/no per tutto → per gruppo
+      const old = progetto.fingerPull === true;
+      progetto.fingerPull = { base: old, pensile: old, colonna: old };
+    }
+    progetto.fingerPull[k] = b.dataset.fpponte === '1';
+    aggiorna();
+  }));
+  sezione.querySelectorAll('.opt-pushponte').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    progetto.push = { ...(progetto.push || {}), [k]: b.dataset.pushponte === '1' };
+    aggiorna();
+  }));
+  sezione.querySelectorAll('[data-manponte]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    progetto.maniglie = { ...(progetto.maniglie || {}), [k]: b.dataset.manponte };
+    aggiorna();
+  }));
+  sezione.querySelector('.porte-ponte-reset')?.addEventListener('click', () => {
+    registraStoria();
+    for (const chiave of ['fingerPull', 'push', 'maniglie']) {
+      if (progetto[chiave] && typeof progetto[chiave] === 'object') { const o = { ...progetto[chiave] }; delete o[k]; progetto[chiave] = o; }
+    }
+    aggiorna();
+  });
 }
 function agganciaColoriPonte(root) {
   root.querySelectorAll('.opt-parteponte').forEach((b) => b.addEventListener('click', () => { step2.parteColorePonte = b.dataset.parteponte; renderPannello(); }));
