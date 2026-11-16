@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118o';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118p';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -124,10 +124,16 @@ export const MATERIALI = [
     thumb: 'materials/compacto-negro-thumb.jpg',
     texture: 'materials/compacto-negro.jpg', colore: 0x212121,
     campione: { wMm: 3000, hMm: 1400 }, spessore: 12 },
+  // foto della lastra intera: 3400 × 1400 mm
   { id: 'compacto-bernini', nome: 'Compacto Bernini', categoria: 'encimera',
     thumb: 'materials/compacto-bernini-thumb.jpg',
-    texture: 'materials/compacto-bernini.jpg', colore: 0xece7dd,
-    spessore: 12 },
+    texture: 'materials/compacto-bernini.jpg', colore: 0xebe7db,
+    campione: { wMm: 3400, hMm: 1400 }, spessore: 12 },
+  // foto della lastra intera: 3600 × 1400 mm
+  { id: 'compacto-siena', nome: 'Compacto Siena', categoria: 'encimera',
+    thumb: 'materials/compacto-siena-thumb.jpg',
+    texture: 'materials/compacto-siena.jpg', colore: 0xebe1d4,
+    campione: { wMm: 3600, hMm: 1400 }, spessore: 12 },
   // Tinta solida bianca opaca (nessuna texture, solo colore + matte):
   // usa la logica "solido" del getMaterialeTHREE come i colori delle ante.
   { id: 'compacto-blanco-sm', nome: 'Compacto Blanco SM', categoria: 'encimera',
@@ -206,7 +212,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118o');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118p');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
