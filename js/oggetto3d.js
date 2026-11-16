@@ -138,14 +138,15 @@ function profilo(V) {
     const out = new Float32Array(n);
     for (let r = 0; r < n; r++) {
       if (Number.isNaN(arr[r])) { out[r] = NaN; continue; }
-      const fin = []; for (let q = Math.max(0, r - 3); q <= Math.min(n - 1, r + 3); q++) if (!Number.isNaN(arr[q])) fin.push(arr[q]);
+      const hw = Math.max(3, Math.round(n * 0.02));           // via i "dentini" del ritaglio (riflessi sul bordo, ganci piccoli)
+      const fin = []; for (let q = Math.max(0, r - hw); q <= Math.min(n - 1, r + hw); q++) if (!Number.isNaN(arr[q])) fin.push(arr[q]);
       fin.sort((p, q) => p - q); out[r] = fin[fin.length >> 1];
     }
     const m = mediana(out);
     // SMUSSATURA GRADUALE (gaussiana) invece di "raddrizzare" a scatti: le facce piatte
     // restano piatte, le curve restano curve e tra le due non restano gradini (che col
     // materiale lucido si vedevano come righe)
-    const R = Math.max(2, Math.round(n * 0.012)), sg = R / 2, ker = [];
+    const R = Math.max(2, Math.round(n * 0.03)), sg = R / 2, ker = [];
     for (let q = -R; q <= R; q++) ker.push(Math.exp(-(q * q) / (2 * sg * sg)));
     const lis = new Float32Array(n);
     for (let r = 0; r < n; r++) {
@@ -427,134 +428,95 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
     const ls = latoSporgente(S);                               // solo da che parte è il davanti nella foto di lato
     if (ls) davantiSx = ls === 'sx';
   }
-  const passo = Math.max(W, D, H) / 170;
-  const NX = Math.max(16, Math.round(W / passo)), NY = Math.max(16, Math.round(H / passo)), NZ = Math.max(16, Math.round(D / passo));
-  const GX = NX + 2, GY = NY + 2, GZ = NZ + 2;
-  const id = (i, j, k) => (k * GY + j) * GX + i;
-  const f = new Float32Array(GX * GY * GZ);
   const tonda = !T && (pianta === 'tonda' || pianta === 'ovale');
-  // FORMA DA SOPRA AUTOMATICA (senza la foto da sopra): rettangolo con gli
-  // spigoli arrotondati come si vede nelle foto (in cima davanti e di lato);
-  // le misure restano esatte. 'squadrata' = spigoli appena smussati.
+  // FORMA DA SOPRA AUTOMATICA (senza la foto da sopra): spigoli arrotondati come si
+  // vedono nelle foto (in cima davanti e di lato); 'squadrata' = spigoli appena smussati
   let rr = Math.min(W, D) * 0.045;
   if (!T && pianta !== 'squadrata' && !tonda) {
     const rF = raggioCima(pF, W, H), rS = pS ? raggioCima(pS, D, H) : rF;
     rr = Math.max(rr, Math.min(Math.min(W, D) * 0.48, (rF + rS) / 2));
   }
+  // rettangolo arrotondato → superellisse (n alto = squadrato, 2 = ovale)
+  const kR = Math.min(1, rr / (Math.min(W, D) / 2));
+  const nSup = tonda ? 2 : Math.max(2, Math.min(24, 2 / Math.pow(Math.max(0.06, kR), 0.8)));
   const zCorpo = D / 2 - corpoF * D;                       // faccia davanti del corpo (oltre: solo la maniglia)
-  const dentro = (dd) => Math.max(0, Math.min(1, 0.5 + dd / passo));
-  for (let j = 1; j <= NY; j++) {
-    const y = (j - 0.5) / NY * H, vy = 1 - y / H;
+
+  // SUPERFICIE A FETTE (come i modellatori 3D): a ogni altezza una curva chiusa e continua,
+  // larga ESATTAMENTE come la foto davanti e profonda come quella di lato, con la forma
+  // del contorno da sopra; le fette si uniscono in una pelle unica e liscia
+  const M = 160, NYr = 150;
+  const ANG = Array.from({ length: M }, (_, q) => (q / M) * Math.PI * 2);
+  const raggio = (poly, cx, cz, c, sn) => {                // dove il raggio dal centro esce dal contorno
+    let best = -1;
+    for (let q = 0; q < poly.length; q++) {
+      const [x1, z1] = poly[q], [x2, z2] = poly[(q + 1) % poly.length];
+      const ex = x2 - x1, ez = z2 - z1, den = c * ez - sn * ex;
+      if (Math.abs(den) < 1e-9) continue;
+      const t = ((x1 - cx) * ez - (z1 - cz) * ex) / den, u = ((x1 - cx) * sn - (z1 - cz) * c) / den;
+      if (t > 0 && u >= -1e-6 && u <= 1 + 1e-6 && t > best) best = t;
+    }
+    return best > 0 ? [cx + c * best, cz + sn * best] : null;
+  };
+  const sezione = (xl, xr, zb, zf) => {
+    const cx = (xl + xr) / 2, cz = (zb + zf) / 2, hx = Math.max(0.5, (xr - xl) / 2), hz = Math.max(0.5, (zf - zb) / 2);
+    if (pT) {
+      const poly = [], K = 100;
+      for (let q = 0; q <= K; q++) { const v = q / K, vT = corpoT.t0 + (1 - v) * (corpoT.t1 - corpoT.t0), b = pT.dx(vT); if (!Number.isNaN(b)) poly.push([xl + b * (xr - xl), zf - v * (zf - zb)]); }
+      for (let q = K; q >= 0; q--) { const v = q / K, vT = corpoT.t0 + (1 - v) * (corpoT.t1 - corpoT.t0), a = pT.sx(vT); if (!Number.isNaN(a)) poly.push([xl + a * (xr - xl), zf - v * (zf - zb)]); }
+      if (poly.length > 8) return ANG.map((th) => raggio(poly, cx, cz, Math.cos(th), Math.sin(th)) || [cx + hx * Math.cos(th), cz + hz * Math.sin(th)]);
+    }
+    return ANG.map((th) => { const c = Math.cos(th), sn = Math.sin(th); return [cx + hx * Math.sign(c) * Math.pow(Math.abs(c), 2 / nSup), cz + hz * Math.sign(sn) * Math.pow(Math.abs(sn), 2 / nSup)]; });
+  };
+  const anelli = [];
+  for (let jj = 0; jj <= NYr; jj++) {
+    const y = (jj / NYr) * H, vy = Math.min(0.9985, Math.max(0.0015, 1 - y / H));
     const xl = pF.sx(vy) * W - W / 2, xr = pF.dx(vy) * W - W / 2;
-    if (Number.isNaN(xl) || Number.isNaN(xr)) continue;
+    if (Number.isNaN(xl) || Number.isNaN(xr) || xr - xl < 1) continue;
     let zf = D / 2, zb = -D / 2;
     if (pS) {
       let a = pS.sx(vy), b = pS.dx(vy);
       if (Number.isNaN(a) || Number.isNaN(b)) continue;
-      if (!banda) {
-        // senza maniglia vera: leve e manopole piccole che sporgono nella foto di lato non
-        // diventano fasce larghe come tutto l'oggetto (la scala resta quella esatta)
-        a = Math.max(a, pS.mSx); b = Math.min(b, pS.mDx);
-      }
+      if (!banda) { a = Math.max(a, pS.mSx); b = Math.min(b, pS.mDx); }   // leve e manopole piccole: fuori dalla forma
       if (davantiSx) { zf = D / 2 - a * D; zb = D / 2 - b * D; } else { zf = D / 2 - (1 - b) * D; zb = D / 2 - (1 - a) * D; }
     }
-    const sporgeQui = banda && vy >= banda[0] - 0.01 && vy <= banda[1] + 0.01;
-    for (let k = 1; k <= NZ; k++) {
-      const z = (k - 0.5) / NZ * D - D / 2, wz = (z + D / 2) / D;
-      for (let i = 1; i <= NX; i++) {
-        const x = (i - 0.5) / NX * W - W / 2;
-        // corpo: dentro al profilo davanti (x) e di lato (z), spigoli verticali arrotondati
-        const zfc = Math.min(zf, zCorpo + (sporgeQui ? 0 : 0));
-        const hx = (xr - xl) / 2, hz = (zfc - zb) / 2, cx = (xl + xr) / 2, cz = (zfc + zb) / 2;
-        let dd;
-        if (pT) {
-          // dentro DAVANTI e LATO esatti, con il CONTORNO DA SOPRA (del corpo) disegnato dentro
-          const v = (zf - z) / Math.max(1, zf - zb);                   // 0 = davanti … 1 = dietro, a questa altezza
-          if (v < 0 || v > 1) dd = -Math.max(z - zf, zb - z, passo);
-          else {
-            const vT = corpoT.t0 + (1 - v) * (corpoT.t1 - corpoT.t0);  // nella foto da sopra: in alto = dietro
-            const a = pT.sx(vT), b = pT.dx(vT);
-            if (Number.isNaN(a) || Number.isNaN(b)) dd = -passo;
-            else dd = Math.min(x - (xl + a * (xr - xl)), (xl + b * (xr - xl)) - x, z - zb, zf - z);
-          }
-        } else if (tonda) {
-          const ex = (x - cx) / Math.max(1, hx), ez = (z - cz) / Math.max(1, hz);
-          dd = (1 - Math.sqrt(ex * ex + ez * ez)) * Math.min(hx, hz);
-        } else {
-          const qx = Math.abs(x - cx) - (hx - rr), qz = Math.abs(z - cz) - (hz - rr);
-          dd = -(Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0) - rr);
-        }
-        let o = dentro(dd);
-        // MANIGLIA: davanti al corpo, solo dove è nella foto davanti
-        if (sporgeQui && z > zCorpo - passo && zf > zCorpo + passo) {
-          const mx0 = man ? man.a * W - W / 2 : -Infinity, mx1 = man ? man.b * W - W / 2 : Infinity;
-          const dm = Math.min(x - mx0, mx1 - x, zf - z, z - (zCorpo - 2 * passo), x - xl, xr - x);
-          o = Math.max(o, dentro(dm));
-        }
-        f[id(i, j, k)] = o;
-      }
+    zf = Math.min(zf, zCorpo);
+    if (zf - zb < 1) continue;
+    anelli.push({ y, p: sezione(xl, xr, zb, zf) });
+  }
+  if (anelli.length < 2) return null;
+  // PELLE LISCIA: ogni fetta si ammorbidisce tutto intorno (niente righe verticali) e le
+  // fette si ammorbidiscono tra loro (niente onde orizzontali); la prima e l'ultima restano ferme
+  for (let it = 0; it < 3; it++) for (const r of anelli) {
+    const p = r.p, nuovo = p.map((_, q) => { const a = p[(q + M - 1) % M], b = p[q], c = p[(q + 1) % M]; return [(a[0] + 2 * b[0] + c[0]) / 4, (a[1] + 2 * b[1] + c[1]) / 4]; });
+    r.p = nuovo;
+  }
+  for (let it = 0; it < 5; it++) {
+    const prima = anelli.map((r) => r.p.map((pt) => pt.slice()));
+    for (let r = 1; r < anelli.length - 1; r++) for (let q = 0; q < M; q++) {
+      const a = prima[r - 1][q], b = prima[r][q], c = prima[r + 1][q];
+      anelli[r].p[q] = [(a[0] + 2 * b[0] + c[0]) / 4, (a[1] + 2 * b[1] + c[1]) / 4];
     }
   }
-  // SUPERFICIE LISCIA: il volume si ammorbidisce nelle tre direzioni (filtro 1-2-1, due
-  // passate): spariscono i gradini fila per fila e le righe verticali, che col materiale
-  // lucido si vedevano come strisce di luce
-  {
-    const tmp = new Float32Array(f.length);
-    const passa = (dx, dy, dz) => {
-      const st = dx + dy * GX + dz * GX * GY;
-      for (let k = 1; k < GZ - 1; k++) for (let j = 1; j < GY - 1; j++) {
-        let q = id(1, j, k);
-        for (let i = 1; i < GX - 1; i++, q++) tmp[q] = 0.25 * f[q - st] + 0.5 * f[q] + 0.25 * f[q + st];
-      }
-      for (let k = 1; k < GZ - 1; k++) for (let j = 1; j < GY - 1; j++) { let q = id(1, j, k); for (let i = 1; i < GX - 1; i++, q++) f[q] = tmp[q]; }
-    };
-    for (let it = 0; it < 3; it++) { passa(1, 0, 0); passa(0, 1, 0); passa(0, 0, 1); }
+  const vert = [], ind = [];
+  anelli.forEach((r) => { for (const [x, z] of r.p) vert.push(x, r.y, z); });
+  for (let r = 0; r < anelli.length - 1; r++) for (let q = 0; q < M; q++) {
+    const a = r * M + q, b = r * M + ((q + 1) % M), c = (r + 1) * M + q, d = (r + 1) * M + ((q + 1) % M);
+    ind.push(a, c, b, b, c, d);
   }
-  // sopra e sotto: chiusura morbida (prima e ultima fila)
-  for (let k = 1; k <= NZ; k++) for (let i = 1; i <= NX; i++) {
-    f[id(i, 1, k)] = Math.min(f[id(i, 1, k)], 0.75); f[id(i, NY, k)] = Math.min(f[id(i, NY, k)], 0.75);
+  // tappi sotto e sopra (centro della prima e dell'ultima fetta)
+  for (const [r, giu] of [[0, true], [anelli.length - 1, false]]) {
+    let sx = 0, sz = 0; for (const [x, z] of anelli[r].p) { sx += x; sz += z; }
+    const ci = vert.length / 3; vert.push(sx / M, anelli[r].y, sz / M);
+    for (let q = 0; q < M; q++) { const a = r * M + q, b = r * M + ((q + 1) % M); if (giu) ind.push(ci, a, b); else ind.push(ci, b, a); }
   }
-  const pos = (i, j, k) => [(i - 0.5) / NX * W - W / 2, (j - 0.5) / NY * H, (k - 0.5) / NZ * D - D / 2];
-  // MARCHING CUBES
-  const vert = [], ind = [], cache = new Map();
-  const ang = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]];
-  const spig = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]];
-  const ISO = 0.5;
-  for (let k = 0; k < GZ - 1; k++) for (let j = 0; j < GY - 1; j++) for (let i = 0; i < GX - 1; i++) {
-    let cubo = 0; const val = [];
-    for (let c = 0; c < 8; c++) { const v = f[id(i + ang[c][0], j + ang[c][1], k + ang[c][2])]; val.push(v); if (v > ISO) cubo |= 1 << c; }
-    const ci = (~cubo) & 255;
-    if (!edgeTable[ci]) continue;
-    const vSp = new Array(12);
-    for (let e = 0; e < 12; e++) {
-      if (!(edgeTable[ci] & (1 << e))) continue;
-      const [a, b] = spig[e];
-      const Aa = [i + ang[a][0], j + ang[a][1], k + ang[a][2]], Bb = [i + ang[b][0], j + ang[b][1], k + ang[b][2]];
-      const ka = id(...Aa), kb = id(...Bb), chiave = ka < kb ? ka * 1e7 + kb : kb * 1e7 + ka;
-      let vi = cache.get(chiave);
-      if (vi === undefined) {
-        const t = (ISO - val[a]) / ((val[b] - val[a]) || 1e-6);
-        const pa = pos(...Aa), pb = pos(...Bb);
-        vi = vert.length / 3; vert.push(pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t, pa[2] + (pb[2] - pa[2]) * t);
-        cache.set(chiave, vi);
-      }
-      vSp[e] = vi;
-    }
-    for (let q = 0; triTable[ci * 16 + q] !== -1; q += 3) ind.push(vSp[triTable[ci * 16 + q]], vSp[triTable[ci * 16 + q + 1]], vSp[triTable[ci * 16 + q + 2]]);
-  }
-  if (!ind.length) return null;
-  {                                                        // LEVIGATURA (Taubin)
-    const nV = vert.length / 3, vic = Array.from({ length: nV }, () => new Set());
-    for (let q = 0; q < ind.length; q += 3) { const [a, b, c] = [ind[q], ind[q + 1], ind[q + 2]]; vic[a].add(b).add(c); vic[b].add(a).add(c); vic[c].add(a).add(b); }
-    const passoT = (fatt) => {
-      const nuovo = new Float32Array(vert.length);
-      for (let v = 0; v < nV; v++) {
-        let sx = 0, sy = 0, sz = 0, n = 0; for (const u of vic[v]) { sx += vert[u * 3]; sy += vert[u * 3 + 1]; sz += vert[u * 3 + 2]; n++; }
-        for (let a = 0; a < 3; a++) { const m = n ? [sx, sy, sz][a] / n : vert[v * 3 + a]; nuovo[v * 3 + a] = vert[v * 3 + a] + fatt * (m - vert[v * 3 + a]); }
-      }
-      for (let i = 0; i < vert.length; i++) vert[i] = nuovo[i];
-    };
-    for (let it = 0; it < 6; it++) { passoT(0.5); passoT(-0.53); }
+  // MANIGLIA vera (vista davanti e di lato): un blocco davanti al corpo, solo dove c'è
+  if (banda && man) {
+    const y0 = H * (1 - banda[1]), y1 = H * (1 - banda[0]);
+    let zMax = zCorpo; for (let k = 0; k <= 20; k++) { const vy = banda[0] + (banda[1] - banda[0]) * k / 20, a = pS.sx(vy), b = pS.dx(vy); const zf = davantiSx ? D / 2 - a * D : D / 2 - (1 - b) * D; if (!Number.isNaN(zf)) zMax = Math.max(zMax, zf); }
+    const x0 = man.a * W - W / 2, x1 = man.b * W - W / 2, z0 = zCorpo - 5, z1 = zMax;
+    const b0 = vert.length / 3;
+    for (const [x, y, z] of [[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]]) vert.push(x, y, z);
+    for (const [a, b, c] of [[0, 2, 1], [0, 3, 2], [4, 5, 6], [4, 6, 7], [0, 1, 5], [0, 5, 4], [3, 7, 6], [3, 6, 2], [1, 2, 6], [1, 6, 5], [0, 4, 7], [0, 7, 3]]) ind.push(b0 + a, b0 + b, b0 + c);
   }
   const gi = new THREE.BufferGeometry();
   gi.setAttribute('position', new THREE.Float32BufferAttribute(vert, 3));
@@ -603,7 +565,7 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   // lucido o opaco? dai riflessi nella foto davanti (tanti punti molto chiari su un colore scuro = lucido)
   const Lm = 0.299 * F.media[0] + 0.587 * F.media[1] + 0.114 * F.media[2];
   const lucido = Lm < 150 ? 0.28 : 0.4;
-  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: lucido, metalness: 0.05, envMapIntensity: 1.0 });
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: lucido, metalness: 0.05, envMapIntensity: 1.0, side: THREE.DoubleSide });
   const vuota = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); vuota.needsUpdate = true;
   const U = {
     oF: { value: tF.tex }, oB: { value: (tB || tF).tex }, oS: { value: tS ? tS.tex : vuota }, oT: { value: tT ? tT.tex : vuota },
