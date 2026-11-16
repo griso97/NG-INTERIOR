@@ -1477,4 +1477,13 @@ window.NG_I18N_ES = {
  "✓ ↑ Verso l'alto": "✓ ↑ Hacia arriba",
  "Push: si preme e si apre. In distinta un push pull e una base per ogni porta.": "Push: se presiona y se abre. En la lista, un push pull y una base por cada puerta.",
  "Cerniere apertura verso l'alto (da definire)": "Bisagras apertura hacia arriba (por definir)",
+ "Colori del ponte": "Colores del puente",
+ "Ponte (profondo)": "Puente (profundo)",
+ "✓ Ponte (profondo)": "✓ Puente (profundo)",
+ "Pensili sotto": "Altos debajo",
+ "✓ Pensili sotto": "✓ Altos debajo",
+ "Pannello": "Panel",
+ "✓ Pannello": "✓ Panel",
+ "Come i pensili": "Como los altos",
+ "Come il ponte": "Como el puente",
 };

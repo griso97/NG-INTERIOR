@@ -12,8 +12,8 @@
 // =============================================================================
 
 import {
-  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte,
-} from './modello.js?v=20261117a';
+  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra,
+} from './modello.js?v=20261117b';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -232,6 +232,10 @@ function pezziDiModulo(progetto, m) {
     : cat === 'costado' ? ((progetto.costadiDiversi && m.colore) || (alto ? (col.pensile || col.costado)
       : (col.costado || ((m.altezza_mm || 0) >= 1500 ? (col.colonna || col.base) : col.base)))) : col.base;
   // costado "come il piano di lavoro": materiale dell'encimera
+  // CUCINA A PONTE: colori propri del ponte e dei pensili sotto il ponte
+  const cpD = progetto.coloriPonte || {};
+  if (m.tipo === 'ponte' && cpD.ponte) idAnte = cpD.ponte;
+  if (cat === 'pensile' && cpD.pensili && pontiSopra(progetto, m).length) idAnte = cpD.pensili;
   if (m.coloreFronte && cat !== 'costado') idAnte = m.coloreFronte;   // colore proprio di questo modulo
   if (idAnte === '@piano') idAnte = (progetto.encimera && progetto.encimera.materiale) || null;
   const pianoStd = cat === 'costado' && idAnte === null && ((progetto.costadiDiversi && m.colore) === '@piano' || col.costado === '@piano');
@@ -337,7 +341,7 @@ export function calcolaDistintaCucina(progetto) {
       const primo = (progetto.mobiliLiberi || []).find((o) => o.id === f.ids[0]);
       raw.push({ nome: f.pezzi > 1 ? `Pannello sotto ponte (pezzo ${f.pezzo} di ${f.pezzi})` : 'Pannello sotto ponte',
         larghezza: f.w, altezza: Math.round(f.d), spessore: spP, materiale: 'anta',
-        materialeNome: nomeMateriale((primo && primo.coloreFronte) || col.colonna || col.pensile, 'Colore da scegliere'), quantita: 1 });
+        materialeNome: nomeMateriale((progetto.coloriPonte || {}).pannello || (primo && primo.coloreFronte) || (progetto.coloriPonte || {}).ponte || col.colonna || col.pensile, 'Colore da scegliere'), quantita: 1 });
     }
   }
   const aggMap = new Map();
@@ -396,7 +400,8 @@ export function calcolaDistintaCucina(progetto) {
   for (const p of raw) {
     if (!/^anta|^fronte cassetto/i.test(p.nome)) continue;
     const cat = categoriaTipo((perId.get(p.moduloId) || {}).tipo);
-    if (fpDi(p, cat) || pushDi(p, cat)) continue;
+    const cassetto = /^fronte cassetto/i.test(p.nome);           // i cassetti non hanno mai il push
+    if (fpDi(p, cat) || (!cassetto && pushDi(p, cat))) continue;
     aggiungi(`Maniglie · ${nomeManiglia(cat)}`, p.quantita);
   }
   // PUSH: per ogni porta un push pull e la sua base

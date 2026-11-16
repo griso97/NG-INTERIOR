@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261117a';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261117a';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261117a';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261117a';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261117a';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261117a';
+} from './modello.js?v=20261117b';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261117b';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261117b';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261117b';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261117b';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261117b';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261117a';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261117b';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1381,6 +1381,7 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
 }
 function cassetti(g, w, h, d, n, matAnta, piccolo = null) {
   const z = d / 2;
+  const pushPrima = _push; _push = false;        // i CASSETTI non hanno mai il push: maniglia (o finger-pull)
   // Fughe da 2 mm, una in più dei cassetti; frontali tutti uguali oppure uno
   // piccolo in alto e gli altri uguali (stessa regola della distinta)
   const uw = w - FUGA_W, FC = 2;
@@ -1399,6 +1400,7 @@ function cassetti(g, w, h, d, n, matAnta, piccolo = null) {
       maniglia(g, 0, py + ph / 2 - Math.min(28, ph * 0.3), z, true, Math.min(uw * 0.5, 320));
     }
   }
+  _push = pushPrima;
 }
 // Numero di fuochi in base alla larghezza del mobile: piccolo → 2, grande → 4.
 function fuochiPerLarghezza(w) { return w < 600 ? 2 : 4; }
@@ -2148,7 +2150,10 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       if (fondoPonte != null) base = fondoPonte - h;
       pensiliPlan.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, yBottom: base });
       const sporg = antaPensileSporge(progetto.antaPensile, h);
-      const gPens = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matPensile, { sporg });
+      // PENSILE SOTTO IL PONTE: può avere il suo colore (Colori del ponte → pensili)
+      const cp = progetto.coloriPonte || {};
+      const matPensPonte = fondoPonte != null && cp.pensili ? getMaterialeTHREE(cp.pensili, reRender) : null;
+      const gPens = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matPensPonte || matPensile, { sporg });
       cimeAlte.set(m.id, base + h);
       // LED sotto i pensili (opzionale, con scelta temperatura colore).
       // Il pensile-angolo (diagonale) non lo prende: ha una geometria dedicata.
@@ -2191,7 +2196,9 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       // MOBILE SOPRA FRIGO: cima a filo con il costado / la colonna accanto
       const h = m.altezza_mm || 350;
       const base = baseAltillo(progetto, m, topLine, cimaAlta, cimaScelta);
-      const gA = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matColonna || matPensile);
+      const cpA = progetto.coloriPonte || {};
+      const matPonte = m.tipo === 'ponte' && cpA.ponte ? getMaterialeTHREE(cpA.ponte, reRender) : null;
+      const gA = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matPonte || matColonna || matPensile);
       cimeAlte.set(m.id, base + h);
       // PONTE senza pensili sotto: i LED (se accesi) vanno sotto il ponte, sul piano
       // (con il pannello sotto il ponte li porta lui, più in basso)
@@ -2296,7 +2303,9 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       if (!pz.length) continue;
       const fondo = Math.min(...pz.map((o) => baseAltillo(progetto, o, q.topLine, q.cimaAlta, q.scelta)));
       const primo = pz[0];
-      const mat = (primo.coloreFronte ? getMaterialeTHREE(primo.coloreFronte, reRender) : null) || matColonna || matPensile || COL.anta;
+      const cpP = progetto.coloriPonte || {};
+      const idPann = cpP.pannello || primo.coloreFronte || cpP.ponte || null;   // pannello: il suo colore, se no come il ponte
+      const mat = (idPann ? getMaterialeTHREE(idPann, reRender) : null) || matColonna || matPensile || COL.anta;
       const gP = new THREE.Group();
       gP.add(corpo(f.w, spP, f.d, mat));
       const conPensili = (progetto.mobiliLiberi || []).some((o) => categoriaTipo(o.tipo) === 'pensile' && pz.some((p) => siSovrappongono(o, p)));
