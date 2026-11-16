@@ -1,10 +1,11 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
-import { materialiPer } from '../materiali.js?v=20261118p';
-import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261118p';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261118p';
-import { apriDistinta } from './passo2.js?v=20261118p';
+import { materialiPer } from '../materiali.js?v=20261118q';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261118q';
+import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261118q';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261118q';
+import { apriDistinta } from './passo2.js?v=20261118q';
 
 let FINITURE = materialiPer('legno');          // dal catalogo (si rilegge a ogni pannello)
 export { MATERIALI_DEFAULT };
@@ -109,8 +110,9 @@ function disegna(reinquadra) {
 // Stessa grafica della cucina: quadratini del campione (nome nel tooltip e nel titolo).
 function palette(parte, sel) {
   const { esc } = ctx;
-  return `<div class="palette-colori">${FINITURE.map((m) => `<button type="button" class="swatch ${m.id === sel ? 'sel' : ''}"
-    data-parte="${parte}" data-mat="${m.id}" title="${esc(m.nome)}" aria-label="${esc(m.nome)}" style="background-image:url('${m.thumb}')"></button>`).join('')}</div>`;
+  return htmlTendineColori(FINITURE, (m) => `<button type="button" class="swatch ${m.id === sel ? 'sel' : ''}"
+    data-parte="${parte}" data-mat="${m.id}" title="${esc(m.nome)}" aria-label="${esc(m.nome)}" style="background-image:url('${m.thumb}')"></button>`,
+    { sel, chiave: `modulari-${parte}` });
 }
 
 function renderPannello() {
@@ -172,7 +174,7 @@ function renderPannello() {
     ev.currentTarget.classList.toggle('attivo', anteSonoAperte());
   });
   P.querySelector('#p3-foto-reale').addEventListener('click', async () => {
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261118p');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261118q');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaModulari(p), tela3d: ctx.canvas, nome: 'mobile' });
   });
   P.querySelector('#p3-foto').addEventListener('click', () => {

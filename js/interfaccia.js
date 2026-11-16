@@ -6,7 +6,8 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261118p';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261118q';
+import { htmlTendineColori } from './tendine-colori.js?v=20261118q';
 
 export function configDefault() {
   return {
@@ -790,15 +791,14 @@ function renderMateriali(config) {
             <span>${corrente.nome}</span>
           </span>
         </summary>
-        <div class="mat-grid">
-          ${materialiPer('legno').map((m) => `
+        <div class="mat-tendine">
+          ${htmlTendineColori(materialiPer('legno'), (m) => `
             <button type="button"
               class="mat-swatch ${m.id === corrente.id ? 'sel' : ''}"
               data-mat="${m.id}" title="${m.nome}">
               <img src="${m.thumb}" alt="" />
               <span>${m.nome}</span>
-            </button>
-          `).join('')}
+            </button>`, { sel: corrente.id, chiave: `armadio-${p.id}`, classeGriglia: 'mat-grid' })}
         </div>
       </details>
     `;

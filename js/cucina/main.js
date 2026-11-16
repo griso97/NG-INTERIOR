@@ -24,12 +24,13 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261118p';
-import { renderPianta } from './pianta.js?v=20261118p';
-import { calcolaDistintaCucina } from './distinta.js?v=20261118p';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261118p';
-import { agganciaTema } from '../tema.js?v=20261118p';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261118p';
+} from './modello.js?v=20261118q';
+import { renderPianta } from './pianta.js?v=20261118q';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261118q';
+import { calcolaDistintaCucina } from './distinta.js?v=20261118q';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261118q';
+import { agganciaTema } from '../tema.js?v=20261118q';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261118q';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -254,11 +255,10 @@ function htmlSchienale() {
       </div>
       ${att ? `
       <div class="riga-3d" style="margin:10px 0 6px">Materiale: <strong>${def ? def.nome : 'uguale al piano di lavoro'}</strong></div>
-      <div class="palette-colori">
-        <button type="button" class="swatch swatch-none ${!mat ? 'sel' : ''}" data-sch-mat="" title="Uguale al piano di lavoro">=</button>
-        ${tutti.map((mt) => `<button type="button" class="swatch ${mt.id === mat ? 'sel' : ''}"
-          data-sch-mat="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`).join('')}
-      </div>` : ''}
+      ${htmlTendineColori(tutti, (mt) => `<button type="button" class="swatch ${mt.id === mat ? 'sel' : ''}"
+          data-sch-mat="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`, {
+        sel: mat, chiave: 'cucina-aplacado',
+        prima: `<button type="button" class="swatch swatch-none ${!mat ? 'sel' : ''}" data-sch-mat="" title="Uguale al piano di lavoro">=</button>` })}` : ''}
     </section>`;
 }
 function agganciaSchienale(root) {
@@ -1240,11 +1240,10 @@ function renderPannelloStep3d() {
     <section class="step3-pannello">
       <h3>Piano di lavoro (encimera)</h3>
       <div class="riga-3d" style="margin-bottom:6px">Il piano cambia su tutta la cucina. Ogni encimera porta il suo spessore.</div>
-      <div class="palette-colori">
-        <button type="button" class="swatch swatch-none ${!encAttuale ? 'sel' : ''}" data-enc="" title="Nero standard (4 cm)">—</button>
-        ${materialiEnc.map((mt) => `<button type="button" class="swatch ${mt.id === encAttuale ? 'sel' : ''}"
-          data-enc="${mt.id}" title="${mt.nome} (${mt.spessore || 40} mm)" style="background-image:url('${mt.thumb}')"></button>`).join('')}
-      </div>
+      ${htmlTendineColori(materialiEnc, (mt) => `<button type="button" class="swatch ${mt.id === encAttuale ? 'sel' : ''}"
+          data-enc="${mt.id}" title="${mt.nome} (${mt.spessore || 40} mm)" style="background-image:url('${mt.thumb}')"></button>`, {
+        sel: encAttuale, chiave: 'cucina-encimera',
+        prima: `<button type="button" class="swatch swatch-none ${!encAttuale ? 'sel' : ''}" data-enc="" title="Nero standard (4 cm)">—</button>` })}
     </section>` : ''}
     ${htmlSchienale()}
     ${htmlFiniture()}
@@ -1364,7 +1363,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261118p');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261118q');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1570,16 +1569,10 @@ function renderPannelloModificaMobile(m) {
         <span class="swatch" style="pointer-events:none;width:22px;height:22px;${enc ? `background-image:url('${enc.thumb}')` : 'background:#2a2a2a'}"></span>
         ${colAttuale === '@piano' ? '✓ ' : ''}Uguale al piano di lavoro${enc ? ` (${enc.nome})` : ''}</button>`;
       })() : ''}
-      <div class="palette-colori">
-        ${materiali.map((mt) => `<button type="button" class="swatch ${mt.id === colAttuale ? 'sel' : ''}"
-          data-mat="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`).join('')}
-      </div>
-      ${gruppoColore === 'costado' && materialiEncimera.length ? `
-      <div class="riga-3d" style="margin:10px 0 6px">Oppure un piano (encimera)</div>
-      <div class="palette-colori">
-        ${materialiEncimera.map((mt) => `<button type="button" class="swatch ${mt.id === colAttuale ? 'sel' : ''}"
-          data-mat="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`).join('')}
-      </div>` : ''}
+      ${htmlTendineColori(gruppoColore === 'costado' ? [...materiali, ...materialiEncimera] : materiali,
+        (mt) => `<button type="button" class="swatch ${mt.id === colAttuale ? 'sel' : ''}"
+          data-mat="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`,
+        { sel: colAttuale, chiave: `cucina-colore-${gruppoColore}${fpGruppo && gruppoColore !== 'costado' ? '-fp' : ''}` })}
     </section>` : ''}
     ${(() => {
       if (m.tipo === 'ponte' || (cat === 'pensile' && pontiSopra(progetto, m).length)) return htmlPortePonte(m.tipo === 'ponte' ? 'ponte' : 'pensiliPonte');
@@ -1619,11 +1612,10 @@ function renderPannelloModificaMobile(m) {
     <section class="step3-pannello">
       <h3>Piano di lavoro (encimera)</h3>
       <div class="riga-3d" style="margin-bottom:6px">Il piano cambia su tutta la cucina. Ogni encimera porta il suo spessore.</div>
-      <div class="palette-colori">
-        <button type="button" class="swatch swatch-none ${!encAttuale ? 'sel' : ''}" data-enc="" title="Nero standard (4 cm)">—</button>
-        ${materialiEncimera.map((mt) => `<button type="button" class="swatch ${mt.id === encAttuale ? 'sel' : ''}"
-          data-enc="${mt.id}" title="${mt.nome} (${mt.spessore || 40} mm)" style="background-image:url('${mt.thumb}')"></button>`).join('')}
-      </div>
+      ${htmlTendineColori(materialiEncimera, (mt) => `<button type="button" class="swatch ${mt.id === encAttuale ? 'sel' : ''}"
+          data-enc="${mt.id}" title="${mt.nome} (${mt.spessore || 40} mm)" style="background-image:url('${mt.thumb}')"></button>`, {
+        sel: encAttuale, chiave: 'cucina-encimera',
+        prima: `<button type="button" class="swatch swatch-none ${!encAttuale ? 'sel' : ''}" data-enc="" title="Nero standard (4 cm)">—</button>` })}
     </section>` : ''}
     ${isBase ? htmlSchienale() : ''}
     ${cat === 'pensile' ? `
@@ -2079,13 +2071,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261118p');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261118q');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261118p'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261118q'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2124,10 +2116,10 @@ function htmlColoriPonte() {
       <div class="opzioni-anta">
         ${PARTI_PONTE.map((x) => `<button type="button" class="btn-ghost opt-parteponte ${x.k === parte.k ? 'attivo' : ''}" data-parteponte="${x.k}">${x.k === parte.k ? '✓ ' : ''}${x.nome}</button>`).join('')}
       </div>
-      <div class="palette-colori" style="margin-top:8px">
-        <button type="button" class="swatch swatch-none ${!cp[parte.k] ? 'sel' : ''}" data-colponte="" title="${parte.come}">—</button>
-        ${lista.map((mt) => `<button type="button" class="swatch ${mt.id === cp[parte.k] ? 'sel' : ''}" data-colponte="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`).join('')}
-      </div>
+      <div style="margin-top:8px">${htmlTendineColori(lista,
+        (mt) => `<button type="button" class="swatch ${mt.id === cp[parte.k] ? 'sel' : ''}" data-colponte="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`,
+        { sel: cp[parte.k] || null, chiave: `cucina-ponte-${parte.k}`,
+          prima: `<button type="button" class="swatch swatch-none ${!cp[parte.k] ? 'sel' : ''}" data-colponte="" title="${parte.come}">—</button>` })}</div>
       <div class="riga-3d" style="margin-top:4px">«—» = ${parte.come.toLowerCase()}.</div>
     </section>`;
 }

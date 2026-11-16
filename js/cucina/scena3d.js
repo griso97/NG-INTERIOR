@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261118p';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118p';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261118p';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118p';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118p';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118p';
+} from './modello.js?v=20261118q';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118q';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261118q';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118q';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118q';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118q';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118p';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118q';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -2457,11 +2457,10 @@ function materialePerTop(mat) {
     tex.wrapT = mat.map.wrapT || THREE.RepeatWrapping;
     tex.anisotropy = mat.map.anisotropy || 4;
     tex.center.set(0.5, 0.5);
-    // LASTRA in scala vera (es. 3400 × 1400): la foto NON si gira, il lato lungo della lastra corre
-    // lungo il piano come nella realtà (girata di 90° le misure andavano sul lato sbagliato:
-    // foto stirata e venature di traverso). Le foto quadrate di prima restano girate come sempre.
-    const cm = mat.userData && mat.userData.campioneMm;
-    tex.rotation = cm && cm.wMm !== cm.hMm ? 0 : Math.PI / 2;
+    // MISURA VERA (lastra 3400 × 1400, pezzo da 57 × 57…): la foto NON si gira, la venatura
+    // corre lungo il piano come nella realtà (girata di 90° le misure andavano sul lato sbagliato:
+    // foto stirata e venature di traverso). Le foto senza misura restano girate come sempre.
+    tex.rotation = mat.userData && mat.userData.campioneVero ? 0 : Math.PI / 2;
     tex.needsUpdate = true;
     _texTopCache.set(mat.map, tex);
   }

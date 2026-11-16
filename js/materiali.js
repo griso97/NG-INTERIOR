@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118p';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118q';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -157,7 +157,9 @@ export const MATERIALI = [
     texture: 'materials/r3-supra-cemento-oscuro.jpg', colore: 0x3a3836, spessore: 38 },
   { id: 'r3-supra-marmol-markina', nome: 'R3 Supra Mármol Markina Alvic', categoria: 'encimera',
     thumb: 'materials/r3-supra-marmol-markina-thumb.jpg',
-    texture: 'materials/r3-supra-marmol-markina.jpg', colore: 0x1a1a1a, spessore: 38 },
+    // foto di un pezzo VERO da 570 × 570 mm, in scala vera sul piano (continua, senza specchi)
+    texture: 'materials/r3-supra-marmol-markina.jpg', colore: 0x2c2b29,
+    campione: { wMm: 570, hMm: 570 }, spessore: 38 },
   { id: 'r3-supra-marmol-versilia', nome: 'R3 Supra Mármol Versilia Alvic', categoria: 'encimera',
     thumb: 'materials/r3-supra-marmol-versilia-thumb.jpg',
     texture: 'materials/r3-supra-marmol-versilia.jpg', colore: 0xeeeeee, spessore: 38 },
@@ -212,7 +214,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118p');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118q');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -333,6 +335,9 @@ function installaSchedaProdotto() {
     timer = setTimeout(chiudi, 4000);
   }, true);
 }
+
+// TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261118q';
 
 /** Prodotti visibili in una sezione del catalogo (con i nascosti tolti). */
 export function materialiPer(sezione, { tutti = false } = {}) {
@@ -568,7 +573,7 @@ function matGolaDa(def) {
  *    combaciano, con passaggio morbido → la venatura prosegue lunga.
  * Ritorna { canvas, fx, fy }: fx, fy = quante misure del campione copre un giro.
  */
-function legnoContinuo(img) {
+function legnoContinuo(img, { raddrizza = true } = {}) {
   const W0 = img && (img.naturalWidth || img.width), H0 = img && (img.naturalHeight || img.height);
   if (!(W0 > 32) || !(H0 > 32)) return null;
   const k = Math.min(1, 1024 / W0, 1200 / H0);
@@ -601,7 +606,7 @@ function legnoContinuo(img) {
   // 0b) VENATURA DRITTA: nelle foto le righe sono spesso un filo inclinate, e
   //     sopra/sotto non combacerebbero alla cucitura. Misuro di quanto si
   //     spostano tra la parte alta e la bassa e raddrizzo (ogni riga scorre).
-  {
+  if (raddrizza) {
     const fascia = (y0, y1) => { const p = new Float32Array(W); for (let y = y0; y < y1; y++) for (let x = 0; x < W; x++) { const i = (y * W + x) * 4; p[x] += 0.3 * A[i] + 0.59 * A[i + 1] + 0.11 * A[i + 2]; } return p; };
     const su = fascia(0, Math.round(H * 0.25)), giu = fascia(Math.round(H * 0.75), H);
     const max = Math.round(W * 0.06), x0 = Math.round(W * 0.12), x1 = Math.round(W * 0.88);
@@ -700,6 +705,51 @@ function legnoContinuo(img) {
   go.putImageData(im, 0, 0);
   return { canvas: out, fx: Q / W, fy: HT / H };
 }
+/**
+ * LASTRA di un piano di lavoro dalla foto: IDENTICA alla foto (niente raddrizzamenti,
+ * sfumature o pezzi sovrapposti, che sul marmo impastano le venature). Solo ingrandita
+ * in alta qualità — le foto dei produttori sono piccole (≈640 px per 3,6 m) e la scheda
+ * grafica da vicino le sfocherebbe — con una nitidezza leggera: venature e riflessi netti.
+ */
+function lastraNitida(img) {
+  const W0 = img && (img.naturalWidth || img.width), H0 = img && (img.naturalHeight || img.height);
+  if (!(W0 > 16) || !(H0 > 16)) return null;
+  const k = Math.min(3, 2400 / W0, 2400 / H0);
+  if (k < 1.3) return null;                                   // già grande: va bene così
+  const W = Math.round(W0 * k), H = Math.round(H0 * k);
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  g.drawImage(img, 0, 0, W, H);
+  try {
+    const d = g.getImageData(0, 0, W, H), a = d.data, n = W * H;
+    // maschera di contrasto: dettaglio = foto − foto sfocata (sfocatura a scatola, 2 passate)
+    const r = Math.max(1, Math.round(k * 0.9)), forza = 0.55;
+    const sf = new Float32Array(n * 3), tmp = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { sf[i * 3] = a[i * 4]; sf[i * 3 + 1] = a[i * 4 + 1]; sf[i * 3 + 2] = a[i * 4 + 2]; }
+    const passata = (src, dst, lungo, corto, passo, salto) => {
+      for (let j = 0; j < corto; j++) {
+        for (let q = 0; q < 3; q++) {
+          let acc = 0, cnt = 0;
+          for (let t = -r; t <= r; t++) { const tt = Math.min(lungo - 1, Math.max(0, t)); acc += src[(j * salto + tt * passo) * 3 + q]; cnt++; }
+          for (let t = 0; t < lungo; t++) {
+            dst[(j * salto + t * passo) * 3 + q] = acc / cnt;
+            const fuori = Math.max(0, t - r), dentro = Math.min(lungo - 1, t + r + 1);
+            acc += src[(j * salto + dentro * passo) * 3 + q] - src[(j * salto + fuori * passo) * 3 + q];
+          }
+        }
+      }
+    };
+    passata(sf, tmp, W, H, 1, W);      // orizzontale
+    passata(tmp, sf, H, W, W, 1);      // verticale
+    for (let i = 0; i < n; i++) for (let q = 0; q < 3; q++) {
+      const o = a[i * 4 + q];
+      a[i * 4 + q] = Math.max(0, Math.min(255, o + (o - sf[i * 3 + q]) * forza));
+    }
+    g.putImageData(d, 0, 0);
+  } catch (_) { /* senza nitidezza va bene lo stesso */ }
+  return c;
+}
 export function getMaterialeTHREE(id, onPronto) {
   if (cacheMat.has(id)) return cacheMat.get(id);
   const def = trovaMateriale(id);
@@ -763,6 +813,7 @@ export function getMaterialeTHREE(id, onPronto) {
   // foto a specchio fa disegni simmetrici (a "farfalla") che si notano subito.
   const continuo = !!campione && (def.categoria === 'legno' || def.categoria === 'encimera');
   if (campione) { mat.userData.campioneMm = campione; if (continuo) mat.userData.continuo = true; }
+  if (def.campione) mat.userData.campioneVero = true;     // misura VERA data dal prodotto (non quella di ripiego)
   if (def.proprio && def.lucido) mat.userData.ngSpec = 1;   // foto lucida: riflessi veri nel 3D
   // Finger-pull da foto: materiale della GOLA (la parte sopra, es. nera)
   if (def.gola) {
@@ -782,10 +833,23 @@ export function getMaterialeTHREE(id, onPronto) {
       tex.wrapS = THREE.RepeatWrapping;
       tex.wrapT = THREE.RepeatWrapping;
       tex.anisotropy = 16;                     // nitida anche di sbieco (il massimo della scheda)
-      if (campione) {
+      // LASTRA INTERA di un piano (es. 3600 × 1400) o di un pannello in marmo (SM Nuvola, 1240 × 2750):
+      // la foto è IDENTICA, come un pezzo di marmo vero; oltre la lastra la seconda è "a libro"
+      // (a specchio), come la mette il marmista
+      const lastra = (def.categoria === 'encimera' || def.marmo) && def.campione && Math.max(def.campione.wMm, def.campione.hMm) >= 2000;
+      if (campione && lastra) {
+        const ln = lastraNitida(tex.image);
+        if (ln) {
+          const t2 = new THREE.CanvasTexture(ln);
+          t2.colorSpace = THREE.SRGBColorSpace; t2.anisotropy = 16;
+          tex.dispose(); tex = t2;
+        }
+        tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping;
+        tex.repeat.set(unitaUV.u / campione.wMm, unitaUV.v / campione.hMm);
+      } else if (campione) {
         // LEGNO CONTINUO: dalla foto un legno che prosegue senza specchi né
-        // giunte, alla misura reale del campione
-        const lc = continuo ? legnoContinuo(tex.image) : null;
+        // giunte, alla misura reale del campione (i marmi non si raddrizzano: venature come nella foto)
+        const lc = continuo ? legnoContinuo(tex.image, { raddrizza: def.categoria !== 'encimera' }) : null;
         if (lc) {
           const t2 = new THREE.CanvasTexture(lc.canvas);
           t2.colorSpace = THREE.SRGBColorSpace; t2.anisotropy = 16;

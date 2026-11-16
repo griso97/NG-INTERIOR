@@ -684,3 +684,28 @@ table.distinta td.qta {
 .foto-reale-barra { height: 6px; background: #2a241c; border-radius: 3px; overflow: hidden; margin-top: 10px; }
 .foto-reale-barra > div { height: 100%; width: 0; background: linear-gradient(90deg, #8a6a14, #e8c25a); transition: width .3s; }
 
+
+/* ===== TENDINE DEI COLORI: ogni sottocategoria (Legni, Mate, Luxe, Finger-pull, Encimere) si apre con un tocco ===== */
+.tendine-colori { display: flex; flex-direction: column; gap: 6px; }
+.tendine-colori > .tendine-prima { margin-bottom: 2px; }
+.tendina-colori { border: 1px solid var(--bordo); border-radius: 3px; background: var(--bg-3); }
+.tendina-colori[open] { border-color: var(--oro-scuro); }
+.tendina-colori > summary {
+  list-style: none; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;
+  display: flex; align-items: center; gap: 8px; padding: 11px 12px; min-height: 44px; box-sizing: border-box;
+  font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--testo);
+}
+.tendina-colori > summary::-webkit-details-marker { display: none; }
+.tendina-colori > summary::after {
+  content: ''; margin-left: auto; flex: none; width: 7px; height: 7px;
+  border-right: 1.5px solid var(--testo-dim); border-bottom: 1.5px solid var(--testo-dim);
+  transform: translateY(-2px) rotate(45deg); transition: transform .15s;
+}
+.tendina-colori[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
+.tendina-colori > summary:hover { color: var(--oro-chiaro); }
+.tendina-conta { font-size: 10px; letter-spacing: 0; color: var(--testo-dim); background: var(--bg-4, rgba(127,127,127,.15)); border-radius: 10px; padding: 1px 7px; }
+.tendina-colori.con-sel > summary .tendina-nome { color: var(--oro-chiaro); }
+.tendina-colori.con-sel > summary .tendina-nome::after { content: ' ●'; font-size: 9px; vertical-align: 1px; }
+.tendina-colori > .palette-colori { padding: 2px 10px 12px; }
+.tendina-colori > .mat-grid { border-top: 1px dashed var(--bordo); }
+.mat-tendine { padding: 10px 12px 12px; border-top: 1px dashed var(--bordo); }
