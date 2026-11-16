@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte,
-} from './modello.js?v=20261116z';
+} from './modello.js?v=20261117a';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -44,7 +44,7 @@ function pensileAntaSporge(opt, h) {
 const NOMI_VETRO = { trasparente: 'trasparente', satinato: 'satinato', fume: 'fumé' };
 function anteModulo(pz, mod, L, H, N, lato, altAnta, sporg, vetrina) {
   const a = dimAnta(L, H, N);
-  const nota = (N === 1 ? ` (apertura ${lato === 'sx' ? 'sx' : 'dx'})` : '') + (sporg ? ' sporgente' : '');
+  const nota = (N === 1 ? ` (apertura ${lato === 'alto' ? "verso l'alto" : lato === 'sx' ? 'sx' : 'dx'})` : '') + (sporg ? ' sporgente' : '');
   if (vetrina) {
     // ANTA VETRINA: telaio in legno (si fresa il vano e si mette il vetro) o telaio alluminio/nero da ordinare
     const ah = altAnta != null ? altAnta : a.h, vt = NOMI_VETRO[vetrina.vetro] || 'trasparente';
@@ -179,9 +179,18 @@ function pezziDiModulo(progetto, m) {
     const ab = abC;
     const aw = round(L - 3);                        // larghezza anta (1 anta)
     const topDoor = restoAntaColonna(m, H - ab);
-    const ap = ` (apertura ${m.antaLato === 'sx' ? 'sx' : 'dx'})`;
-    pz.push({ modulo: mod, nome: `Anta bassa${ap}`, larghezza: aw, altezza: round(ab - 2), spessore: SP, materiale: 'anta', quantita: 1 });
-    if (topDoor > 60) pz.push({ modulo: mod, nome: `Anta alta${ap}`, larghezza: aw, altezza: round(topDoor - 2), spessore: SP, materiale: 'anta', quantita: 1 });
+    // ogni porta con le SUE scelte (porta normale / finger-pull, maniglia / push, verso)
+    const g = progetto.fingerPull, pu = progetto.push || {};
+    const fpGr = g === true || !!(g && typeof g === 'object' && g.colonna), pushGr = !!pu.colonna;
+    const porta = (chiave, nome, alt) => {
+      const o = (m.porte && m.porte[chiave]) || {};
+      const fpP = o.fp != null ? !!o.fp : fpGr, pushP = o.push != null ? !!o.push : pushGr;
+      const lato = o.lato || (m.antaLato === 'sx' ? 'sx' : 'dx');
+      const desc = ` (apertura ${lato === 'alto' ? "verso l'alto" : lato}${fpP ? ' · finger-pull' : ''}${pushP ? ' · push' : ''})`;
+      pz.push({ modulo: mod, nome: `${nome}${desc}`, larghezza: aw, altezza: alt, spessore: SP, materiale: 'anta', quantita: 1, fp: fpP, push: pushP, lato });
+    };
+    porta('bassa', 'Anta bassa', round(ab - 2));
+    if (topDoor > 60) porta('alta', 'Anta alta', round(topDoor - 2));
   } else if (cat === 'costado') {
     // costado ALTO: alto come le ante del pensile vicino (70/72/90/92), come nel 3D
     let hC = H;
@@ -349,7 +358,10 @@ export function calcolaDistintaCucina(progetto) {
   const grp = (cat) => (cat === 'pensile' ? 'pensile' : cat === 'colonna' ? 'colonna' : 'base');
   const fp = progetto.fingerPull;
   const conPush = (cat) => !!(progetto.push && progetto.push[grp(cat === 'altillo' ? 'colonna' : cat)]);
-  const conFP = (cat) => !conPush(cat) && (fp === true || !!(fp && typeof fp === 'object' && fp[grp(cat)]));
+  const conFP = (cat) => fp === true || !!(fp && typeof fp === 'object' && fp[grp(cat === 'altillo' ? 'colonna' : cat)]);
+  // per ogni pezzo: le scelte della porta (le colonne le hanno porta per porta), se no quelle del gruppo
+  const fpDi = (p, cat) => (p.fp != null ? p.fp : conFP(cat));
+  const pushDi = (p, cat) => (p.push != null ? p.push : conPush(cat));
   const nomeManiglia = (cat) => {
     const id = (progetto.maniglie || {})[grp(cat)];
     const def = id && typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === id);
@@ -361,6 +373,8 @@ export function calcolaDistintaCucina(progetto) {
   for (const p of raw) {
     if (!/^anta/i.test(p.nome)) continue;
     const m = perId.get(p.moduloId) || {};
+    // apertura VERSO L'ALTO: cerniere / meccanismo diversi (da definire)
+    if (p.lato === 'alto' || /verso l'alto/.test(p.nome)) { aggiungi("Cerniere apertura verso l'alto (da definire)", p.quantita); continue; }
     // pensile angolo 63×63 e Ciaflan: cerniere ad apertura grande (165°)
     if (m.tipo === 'pensile-angolo' || m.tipo === 'pensile-angolo-45' || m.tipo === 'base-angolo') { aggiungi('Cerniere 165° (angoli e Ciaflan)', 2 * p.quantita); continue; }
     // colonna frigo: la porta bassa (70 o 80) ha 2 cerniere come le altre;
@@ -382,14 +396,14 @@ export function calcolaDistintaCucina(progetto) {
   for (const p of raw) {
     if (!/^anta|^fronte cassetto/i.test(p.nome)) continue;
     const cat = categoriaTipo((perId.get(p.moduloId) || {}).tipo);
-    if (conFP(cat) || conPush(cat)) continue;
+    if (fpDi(p, cat) || pushDi(p, cat)) continue;
     aggiungi(`Maniglie · ${nomeManiglia(cat)}`, p.quantita);
   }
   // PUSH: per ogni porta un push pull e la sua base
   for (const p of raw) {
     if (!/^anta/i.test(p.nome)) continue;
     const cat = categoriaTipo((perId.get(p.moduloId) || {}).tipo);
-    if (!conPush(cat)) continue;
+    if (!pushDi(p, cat)) continue;
     aggiungi('Push pull', p.quantita);
     aggiungi('Push pull · base', p.quantita);
   }

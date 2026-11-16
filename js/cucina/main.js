@@ -24,12 +24,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261116z';
-import { renderPianta } from './pianta.js?v=20261116z';
-import { calcolaDistintaCucina } from './distinta.js?v=20261116z';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261116z';
-import { agganciaTema } from '../tema.js?v=20261116z';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116z';
+} from './modello.js?v=20261117a';
+import { renderPianta } from './pianta.js?v=20261117a';
+import { calcolaDistintaCucina } from './distinta.js?v=20261117a';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261117a';
+import { agganciaTema } from '../tema.js?v=20261117a';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261117a';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1356,7 +1356,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116z');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261117a');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1403,7 +1403,7 @@ function renderPannelloModificaMobile(m) {
   // Configurazione ante (numero + lato apertura): vale per base con ante e pensili
   const puoAnte = m.tipo === 'base-ante' || m.tipo === 'pensile' || m.tipo === 'sopra-frigo' || m.tipo === 'ponte';
   const nAnte = anteDiMobile(m);
-  const latoAnta = m.antaLato === 'sx' ? 'sx' : 'dx';
+  const latoAnta = m.antaLato === 'sx' ? 'sx' : m.antaLato === 'alto' ? 'alto' : 'dx';
   const fuochi = (m.larghezza_mm || 600) < 600 ? 2 : 4;
   const sinkCm = Math.max(30, Math.round(((m.larghezza_mm || 600) - 100) / 10));
   const gruppoColore = cat === 'pensile' ? 'pensile' : (cat === 'colonna' || cat === 'altillo') ? 'colonna'
@@ -1482,6 +1482,7 @@ function renderPannelloModificaMobile(m) {
       <div class="opzioni-anta">
         <button type="button" class="btn-ghost opt-lato ${latoAnta === 'sx' ? 'attivo' : ''}" data-lato="sx">${latoAnta === 'sx' ? '✓ ' : ''}← Sinistra</button>
         <button type="button" class="btn-ghost opt-lato ${latoAnta === 'dx' ? 'attivo' : ''}" data-lato="dx">${latoAnta === 'dx' ? '✓ ' : ''}Destra →</button>
+        <button type="button" class="btn-ghost opt-lato ${latoAnta === 'alto' ? 'attivo' : ''}" data-lato="alto">${latoAnta === 'alto' ? '✓ ' : ''}↑ Verso l'alto</button>
       </div>` : ''}
       <div class="riga-3d" style="margin-top:6px">${isBase
         ? 'Il pensile sopra questa base prende la stessa configurazione.'
@@ -1570,17 +1571,23 @@ function renderPannelloModificaMobile(m) {
       if (!(gruppoColore === 'base' || gruppoColore === 'pensile' || gruppoColore === 'colonna')) return '';
       const fp = progetto.fingerPull;
       const push = !!(progetto.push && progetto.push[gruppoColore]);
-      const on = !push && (fp === true || !!(fp && typeof fp === 'object' && fp[gruppoColore]));
+      const on = fp === true || !!(fp && typeof fp === 'object' && fp[gruppoColore]);
       const man = !on && !push;
       return `
     <section class="step3-pannello">
-      <h3>Apertura · ${nomeGruppo}</h3>
-      <div class="riga-3d" style="margin-bottom:6px">Maniglia classica, gola <strong>finger-pull</strong> oppure <strong>push</strong> (si preme e si apre: niente maniglia; in distinta un push pull e una base per ogni porta). Vale per tutti i ${nomeGruppo}.</div>
+      <h3>Porte · ${nomeGruppo}</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Vale per tutti i ${nomeGruppo}. Le due scelte sono indipendenti: anche una porta finger-pull può avere il push.</div>
+      <div class="riga-3d" style="margin:4px 0">Porta</div>
       <div class="opzioni-anta">
-        <button type="button" class="btn-ghost opt-fp ${man ? 'attivo' : ''}" data-fp="0">${man ? '✓ ' : ''}Maniglia</button>
+        <button type="button" class="btn-ghost opt-fp ${!on ? 'attivo' : ''}" data-fp="0">${!on ? '✓ ' : ''}Normale</button>
         <button type="button" class="btn-ghost opt-fp ${on ? 'attivo' : ''}" data-fp="1">${on ? '✓ ' : ''}Finger-pull</button>
-        <button type="button" class="btn-ghost opt-fp ${push ? 'attivo' : ''}" data-fp="push">${push ? '✓ ' : ''}Push</button>
       </div>
+      <div class="riga-3d" style="margin:8px 0 4px">Apertura</div>
+      <div class="opzioni-anta">
+        <button type="button" class="btn-ghost opt-push ${!push ? 'attivo' : ''}" data-push="0">${!push ? '✓ ' : ''}Maniglia</button>
+        <button type="button" class="btn-ghost opt-push ${push ? 'attivo' : ''}" data-push="1">${push ? '✓ ' : ''}Push</button>
+      </div>
+      ${push ? '<div class="riga-3d" style="margin-top:6px">Push: si preme e si apre. In distinta un push pull e una base per ogni porta.</div>' : ''}
       ${man ? (() => {
         const lista = (scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer('maniglie') : [];
         const sel = (progetto.maniglie || {})[gruppoColore] || 'maniglia-standard';
@@ -1715,7 +1722,11 @@ function renderPannelloModificaMobile(m) {
       progetto.fingerPull = { base: old, pensile: old, colonna: old };
     }
     progetto.fingerPull[gruppoColore] = b.dataset.fp === '1';
-    progetto.push = { ...(progetto.push || {}), [gruppoColore]: b.dataset.fp === 'push' };
+    aggiorna();
+  }));
+  pannello.querySelectorAll('.opt-push[data-push]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    progetto.push = { ...(progetto.push || {}), [gruppoColore]: b.dataset.push === '1' };
     aggiorna();
   }));
   // Colonna: variante "parte alta" e altezza del vano aperto.
@@ -2025,13 +2036,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116z');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261117a');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116z'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261117a'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2083,24 +2094,60 @@ function agganciaPensileSottoPonte(root, m) {
   root.querySelector('#pens-ponte-h')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') applica(e.target.value); });
 }
 
-/** COLONNA: apertura delle porte (maniglia a sinistra o a destra). */
+/**
+ * COLONNA: lato di apertura di partenza (sinistra / destra) e, PORTA PER PORTA,
+ * le scelte proprie: porta normale o finger-pull, maniglia o push, verso
+ * sinistra / destra / alto. "Come le colonne" = la scelta del gruppo.
+ */
+function porteDellaColonna(m) {
+  const porte = [{ k: 'bassa', nome: 'Porta bassa' }];
+  // porta alta: c'è sempre, tranne forno + microonde senza spazio sopra (come nel 3D: lo decide l'altezza)
+  porte.push({ k: 'alta', nome: m.variante === 'forno' ? 'Porta sopra il forno' : m.variante === 'microonde' ? 'Porta sopra il microonde'
+    : m.variante === 'forno-micro' ? 'Porticina sopra forno e microonde' : m.variante === 'vano' ? 'Porta sopra il vano' : 'Porta alta' });
+  return porte;
+}
 function htmlAperturaColonna(m) {
   if (categoriaTipo(m.tipo) !== 'colonna') return '';
   const lato = m.antaLato === 'sx' ? 'sx' : 'dx';
+  const sel = (k, campo, opzioni) => {
+    const v = ((m.porte || {})[k] || {})[campo];
+    const val = v == null ? '' : String(v);
+    return `<select class="porta-col" data-porta="${k}" data-campo="${campo}" style="width:100%">${opzioni.map(([o, t]) => `<option value="${o}" ${o === val ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
+  };
   return `
     <section class="step3-pannello">
-      <h3>Apertura porte colonna</h3>
-      <div class="riga-3d" style="margin-bottom:6px">Da che lato si aprono le porte (dove sta la maniglia). Vale per tutte le porte di questa colonna.</div>
+      <h3>Porte della colonna</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Lato di apertura di tutte le porte (dove sta la maniglia):</div>
       <div class="opzioni-anta">
         <button type="button" class="btn-ghost opt-latocol ${lato === 'sx' ? 'attivo' : ''}" data-latocol="sx">${lato === 'sx' ? '✓ ' : ''}← Sinistra</button>
         <button type="button" class="btn-ghost opt-latocol ${lato === 'dx' ? 'attivo' : ''}" data-latocol="dx">${lato === 'dx' ? '✓ ' : ''}Destra →</button>
       </div>
+      <div class="riga-3d" style="margin:10px 0 4px">Ogni porta può avere le sue scelte (es. la porticina in alto normale con push):</div>
+      ${porteDellaColonna(m).map((p) => `
+      <div style="border:1px solid var(--bordo,#333);border-radius:8px;padding:8px;margin-top:6px">
+        <div style="font-weight:600;margin-bottom:6px">${p.nome}</div>
+        <div class="ra-campi">
+          <label>Porta${sel(p.k, 'fp', [['', 'Come le colonne'], ['false', 'Normale'], ['true', 'Finger-pull']])}</label>
+          <label>Apertura${sel(p.k, 'push', [['', 'Come le colonne'], ['false', 'Maniglia'], ['true', 'Push']])}</label>
+          <label>Verso${sel(p.k, 'lato', [['', 'Come la colonna'], ['sx', '← Sinistra'], ['dx', 'Destra →'], ['alto', "↑ Verso l'alto"]])}</label>
+        </div>
+      </div>`).join('')}
     </section>`;
 }
 function agganciaAperturaColonna(root, m) {
   root.querySelectorAll('.opt-latocol[data-latocol]').forEach((b) => b.addEventListener('click', () => {
     if ((m.antaLato === 'sx' ? 'sx' : 'dx') === b.dataset.latocol) return;
     registraStoria(); m.antaLato = b.dataset.latocol; aggiorna();
+  }));
+  root.querySelectorAll('select.porta-col').forEach((el) => el.addEventListener('change', () => {
+    registraStoria();
+    const k = el.dataset.porta, campo = el.dataset.campo, v = el.value;
+    const porte = { ...(m.porte || {}) }, o = { ...(porte[k] || {}) };
+    if (v === '') delete o[campo];
+    else o[campo] = campo === 'lato' ? v : v === 'true';
+    if (Object.keys(o).length) porte[k] = o; else delete porte[k];
+    if (Object.keys(porte).length) m.porte = porte; else delete m.porte;
+    aggiorna();
   }));
 }
 

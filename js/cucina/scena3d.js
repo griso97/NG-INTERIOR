@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261116z';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116z';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261116z';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116z';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116z';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116z';
+} from './modello.js?v=20261117a';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261117a';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261117a';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261117a';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261117a';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261117a';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116z';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261117a';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1334,7 +1334,7 @@ function lungManiglia(standard) {
 }
 function manigliaOrizzAnta(g, px, py, pw, ph, z, verso, inAlto) {
   const L = lungManiglia(Math.min(pw * 0.5, 320));
-  const off = Math.max(0, pw / 2 - L / 2 - 40);       // verso il lato che apre (0 = centrata)
+  const off = verso ? Math.max(0, pw / 2 - L / 2 - 40) : 0;   // verso il lato che apre (0 = centrata)
   // profilo / a bordo: attaccati al bordo dell'anta; le altre a 45 mm dal bordo
   const aBordo = ['profilo', 'bordo'].includes(formaManiglia());
   const dB = aBordo ? 17 : 45;
@@ -1353,6 +1353,7 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
   // Anta singola: la maniglia (= lato di apertura) va a destra di default,
   // a sinistra se l'utente lo sceglie (antaLato = 'sx').
   const sx = lato === 'sx';
+  const suAlto = lato === 'alto' && n === 1;     // apertura VERSO L'ALTO: maniglia orizzontale al centro, sul bordo basso
   for (let i = 0; i < n; i++) {
     const px = -uw / 2 + pw / 2 + i * (pw + GAP_ANTE);
     // Anta sporgente sotto (gola integrata): si apre da sotto, niente maniglia.
@@ -1372,8 +1373,8 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
       pannello(g, px, py, z, pw, ph, matAnta || COL.anta);
       if (!sporg) {
         // verso: +1 = maniglia verso destra, −1 = verso sinistra
-        const verso = n === 1 ? (sx ? -1 : 1) : (i === 0 ? 1 : -1);
-        manigliaOrizzAnta(g, px, py, pw, ph, z, verso, !_anteInBasso);
+        const verso = suAlto ? 0 : n === 1 ? (sx ? -1 : 1) : (i === 0 ? 1 : -1);
+        manigliaOrizzAnta(g, px, py, pw, ph, z, verso, suAlto ? false : !_anteInBasso);
       }
     }
   }
@@ -1441,21 +1442,34 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
   // porta bassa alta come i mobili bassi (70 o 80): tutta la parte bassa allineata
   const ab = _progColonne ? portaBassaColonna(_progColonne, m) : (m.altezzaBassa_mm || 700);
   const bottom = -h / 2;
-  // APERTURA: 'dx' = maniglia a destra (cerniere a sinistra, di partenza), 'sx' = a sinistra
-  const s = m && m.antaLato === 'sx' ? -1 : 1;
-  const porta = (yB, segH) => {
+  // OGNI PORTA della colonna: porta normale o finger-pull, maniglia o push, verso
+  // sinistra / destra / alto. Di partenza come il gruppo colonne e il lato della colonna.
+  const scelte = (chiave) => {
+    const o = (m && m.porte && m.porte[chiave]) || {};
+    return { fp: o.fp != null ? !!o.fp : _fingerPull, push: o.push != null ? !!o.push : _push,
+      lato: o.lato || (m && m.antaLato === 'sx' ? 'sx' : 'dx') };
+  };
+  const porta = (yB, segH, chiave = 'alta') => {
     const cyc = yB + segH / 2;
     const ph = segH - FUGA_H;
-    if (_fingerPull) {
+    const c = scelte(chiave), s = c.lato === 'sx' ? -1 : 1, alto = c.lato === 'alto';
+    const pushPrima = _push; _push = c.push;
+    if (c.fp && alto) {
+      const CH = 30;                                 // canale orizzontale sul bordo basso (si apre verso l'alto)
+      pannello(g, 0, cyc + CH / 2, z, pw, ph - CH, matAnta || COL.anta);
+      canaleFingerPull(g, 0, cyc - ph / 2 + CH / 2, z, pw, CH, true, matAnta, true);
+    } else if (c.fp) {
       const CW = 30;                                 // larghezza del canale (dal lato della maniglia)
       pannello(g, -s * CW / 2, cyc, z, pw - CW, ph, matAnta || COL.anta);
       canaleFingerPull(g, s * (pw / 2 - CW / 2), cyc, z, ph, CW, false, matAnta);
     } else {
       pannello(g, 0, cyc, z, pw, ph, matAnta || COL.anta);
-      maniglia(g, s * (pw / 2 - 30), cyc, z, false, Math.min(260, ph * 0.4));
+      if (alto) manigliaOrizzAnta(g, 0, cyc, pw, ph, z, 0, false);
+      else maniglia(g, s * (pw / 2 - 30), cyc, z, false, Math.min(260, ph * 0.4));
     }
+    _push = pushPrima;
   };
-  porta(bottom, ab);                 // porta bassa
+  porta(bottom, ab, 'bassa');        // porta bassa
   let y0 = bottom + ab;
   const rem = h - ab;
   if (m.variante === 'forno') {
@@ -1853,8 +1867,8 @@ function pensileAngoloFronte(g, w, h, d, matAnta) {
 function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
   if (cat === 'frigo') { frigoLibero(g, w, h, d, m && m.colore); return g; }
-  _push = pushCat(cat);                  // push: niente maniglia
-  _fingerPull = !_push && fpCat(_fpByCat, cat);   // finger-pull per categoria del mobile
+  _push = pushCat(cat);                  // push: niente maniglia (anche con il finger-pull)
+  _fingerPull = fpCat(_fpByCat, cat);   // finger-pull per categoria del mobile
   _maniglia = manigliaCat(cat);         // maniglia del catalogo per categoria
   // Colonna: il fianco si vede (sopra i pensili, di lato) → stesso materiale
   // delle ante della colonna, non il colore crema del corpo
