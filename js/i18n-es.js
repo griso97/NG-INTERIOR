@@ -1445,4 +1445,6 @@ window.NG_I18N_ES = {
  "Nessuno": "Ninguno",
  "✓ Nessuno": "✓ Ninguno",
  "🌉 Crea il ponte": "🌉 Crear el puente",
+ "Spazio tra il piano di lavoro e i pensili (cm) · minimo 50": "Espacio entre la encimera y los altos (cm) · mínimo 50",
+ "Il ponte verrebbe troppo basso: scegli pensili più bassi o meno spazio sul piano.": "El puente quedaría demasiado bajo: elige altos más bajos o menos espacio sobre la encimera.",
 };

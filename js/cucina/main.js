@@ -24,12 +24,12 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261116u';
-import { renderPianta } from './pianta.js?v=20261116u';
-import { calcolaDistintaCucina } from './distinta.js?v=20261116u';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261116u';
-import { agganciaTema } from '../tema.js?v=20261116u';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116u';
+} from './modello.js?v=20261116v';
+import { renderPianta } from './pianta.js?v=20261116v';
+import { calcolaDistintaCucina } from './distinta.js?v=20261116v';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261116v';
+import { agganciaTema } from '../tema.js?v=20261116v';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261116v';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -127,7 +127,7 @@ const stepInfo = document.getElementById('step-info');
 
 // Stato locale UI per Step 2
 let step2 = {
-  ponteH: 360, pontePens: 500,      // cucina a ponte: altezza del ponte e dei pensili sotto
+  ponteH: 'auto', pontePens: 700, ponteSpazio: 550,   // cucina a ponte: ponte (auto = riempie fino in cima), pensili sotto, spazio sul piano
   pareteAttivaId: null,  // parete selezionata per inserire moduli
   tipoSelezionato: 'base-ante',
   larghezzaSelezionata: 600,
@@ -640,14 +640,20 @@ function renderPannelloModuli() {
     <section>
       <h3>Ponte</h3>
       <div class="riga-3d">Sopra ogni base fra le colonne: il <strong>ponte</strong> (profondo 60, a filo con le colonne) e sotto i <strong>pensili</strong> (profondi 35). Stessa larghezza delle basi, tutto allineato.</div>
-      <div class="riga-3d" style="margin:10px 0 4px">Altezza del ponte (cm)</div>
+      <div class="riga-3d" style="margin:10px 0 4px">Spazio tra il piano di lavoro e i pensili (cm) · minimo 50</div>
       <div class="orienta-row">
-        ${[240, 360, 480, 600].map((h) => `<button class="btn-ghost ponte-h ${step2.ponteH === h ? 'attivo' : ''}" type="button" data-h="${h}">${step2.ponteH === h ? '✓ ' : ''}${h / 10}</button>`).join('')}
+        ${[500, 550, 600, 650].map((h) => `<button class="btn-ghost ponte-s ${step2.ponteSpazio === h ? 'attivo' : ''}" type="button" data-s="${h}">${step2.ponteSpazio === h ? '✓ ' : ''}${h / 10}</button>`).join('')}
       </div>
       <div class="riga-3d" style="margin:10px 0 4px">Pensili sotto il ponte (cm)</div>
       <div class="orienta-row">
-        ${[0, 400, 500, 600, 700].map((h) => `<button class="btn-ghost ponte-p ${step2.pontePens === h ? 'attivo' : ''}" type="button" data-p="${h}">${step2.pontePens === h ? '✓ ' : ''}${h ? h / 10 : 'Nessuno'}</button>`).join('')}
+        ${[0, 600, 700, 720].map((h) => `<button class="btn-ghost ponte-p ${step2.pontePens === h ? 'attivo' : ''}" type="button" data-p="${h}">${step2.pontePens === h ? '✓ ' : ''}${h ? h / 10 : 'Nessuno'}</button>`).join('')}
       </div>
+      <div class="riga-3d" style="margin:10px 0 4px">Altezza del ponte (cm)</div>
+      <div class="orienta-row">
+        <button class="btn-ghost ponte-h ${step2.ponteH === 'auto' ? 'attivo' : ''}" type="button" data-h="auto">${step2.ponteH === 'auto' ? '✓ ' : ''}Automatica</button>
+        ${[240, 360, 480, 600].map((h) => `<button class="btn-ghost ponte-h ${step2.ponteH === h ? 'attivo' : ''}" type="button" data-h="${h}">${step2.ponteH === h ? '✓ ' : ''}${h / 10}</button>`).join('')}
+      </div>
+      <div class="riga-3d" id="ponte-calcolo" style="margin-top:8px"></div>
       <button id="ponte-crea" class="btn-oro" type="button" style="width:100%;margin-top:10px">🌉 Crea il ponte</button>
       <div class="riga-3d" id="ponte-spazio" style="margin-top:8px"></div>
       <div class="riga-3d" style="margin:12px 0 6px"><strong>Pannello sotto il ponte</strong>: copre il fondo dei moduli profondi, per tutta la fila, sopra i pensili piccoli. Va nella lista dei pezzi.</div>
@@ -843,7 +849,22 @@ function attaccaEventiStep2() {
     progetto.pannelloPonte = { ...(progetto.pannelloPonte || {}), attivo: true, spessore: v };
     aggiorna();
   });
-  pannello.querySelectorAll('.ponte-h').forEach((b) => b.addEventListener('click', () => { step2.ponteH = Number(b.dataset.h); renderPannello(); }));
+  pannello.querySelectorAll('.ponte-h').forEach((b) => b.addEventListener('click', () => { step2.ponteH = b.dataset.h === 'auto' ? 'auto' : Number(b.dataset.h); renderPannello(); }));
+  pannello.querySelectorAll('.ponte-s').forEach((b) => b.addEventListener('click', () => { step2.ponteSpazio = Number(b.dataset.s); renderPannello(); }));
+  // CALCOLO DEL PONTE: cima delle colonne − pannello − piano − spazio − pensili
+  const elCalc = document.getElementById('ponte-calcolo');
+  let calcolo = null;
+  if (elCalc) caricaScena3d().then((mod) => {
+    if (!mod || !mod.calcoloPonte || !elCalc.isConnected) return;
+    calcolo = mod.calcoloPonte(progetto, step2.ponteSpazio, step2.pontePens);
+    const c = calcolo, cm = (v) => (v / 10).toLocaleString('it-IT', { maximumFractionDigits: 1 });
+    const hP = step2.ponteH === 'auto' ? c.hPonte : step2.ponteH;
+    const spazioVero = c.cima - c.pannello - hP - step2.pontePens - c.piano;
+    elCalc.innerHTML = `Cima colonne <strong>${cm(c.cima)}</strong> · piano di lavoro <strong>${cm(c.piano)}</strong> · pensili <strong>${cm(step2.pontePens)}</strong> · pannello <strong>${cm(c.pannello)}</strong><br>`
+      + (hP < 150 ? `⚠ Il ponte verrebbe solo <strong>${cm(hP)} cm</strong>: scegli pensili più bassi o meno spazio sul piano.`
+        : step2.ponteH === 'auto' ? `→ Ponte da <strong>${cm(hP)} cm</strong> (su misura), spazio sul piano <strong>${cm(spazioVero)} cm</strong>.`
+          : `→ Con il ponte da ${cm(hP)} lo spazio sul piano è <strong>${cm(spazioVero)} cm</strong>${spazioVero < 500 ? ' ⚠ meno di 50' : ''}.`);
+  }).catch(() => {});
   pannello.querySelectorAll('.ponte-p').forEach((b) => b.addEventListener('click', () => { step2.pontePens = Number(b.dataset.p); renderPannello(); }));
   // spazio tra il piano di lavoro e i pensili sotto il ponte (calcolato dal 3D)
   const elSp = document.getElementById('ponte-spazio');
@@ -856,7 +877,10 @@ function attaccaEventiStep2() {
   }).catch(() => {});
   document.getElementById('ponte-crea')?.addEventListener('click', () => {
     registraStoria();
-    const n = generaPonteAuto(progetto, step2.ponteH, step2.pontePens);
+    const hP = step2.ponteH === 'auto' ? (calcolo ? calcolo.hPonte : null) : step2.ponteH;
+    if (hP == null) return;
+    if (hP < 150) { alert((window.NGI18N ? window.NGI18N.t : (x) => x)('Il ponte verrebbe troppo basso: scegli pensili più bassi o meno spazio sul piano.')); return; }
+    const n = generaPonteAuto(progetto, hP, step2.pontePens);
     step2.mobSelId = null;
     aggiorna();
     if (n === 0) alert((window.NGI18N ? window.NGI18N.t : (x) => x)('Metti prima le basi e, ai due lati, le colonne (o i costadi alti): il ponte va sopra le basi che stanno fra loro.'));
@@ -1310,7 +1334,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116u');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261116v');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1971,13 +1995,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116u');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261116v');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116u'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261116v'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

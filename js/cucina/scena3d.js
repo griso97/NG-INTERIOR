@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261116u';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116u';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261116u';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116u';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116u';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116u';
+} from './modello.js?v=20261116v';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala } from '../materiali.js?v=20261116v';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261116v';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261116v';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261116v';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261116v';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116u';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261116v';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -146,6 +146,28 @@ function quoteAlte(progetto) {
  * CUCINA A PONTE: spazio libero (mm) tra il piano di lavoro e il fondo dei
  * pensili sotto il ponte (il più piccolo), o null se non ci sono.
  */
+/**
+ * PONTE AUTOMATICO: dato lo spazio sul piano di lavoro e l'altezza dei
+ * pensili, l'altezza del ponte che riempie fino alla cima delle colonne
+ * (cima − pannello − piano − spazio − pensili). { cima, piano, pannello, hPonte }
+ */
+export function calcoloPonte(progetto, spazio, hPens) {
+  const q = quoteAlte(progetto);
+  const cima = q.cimaAlta != null ? q.cimaAlta : 2350;
+  const encId = progetto.encimera && progetto.encimera.materiale;
+  const encDef = encId ? MATERIALI.find((m) => m.id === encId) : null;
+  const spTop = (encDef && encDef.spessore != null) ? encDef.spessore : SP_TOP;
+  let piano = 0;
+  for (const b of (progetto.mobiliLiberi || [])) {
+    if (!['base', 'lavastoviglie', 'lavatrice'].includes(categoriaTipo(b.tipo))) continue;
+    const h = b.altezza_mm || 700;
+    piano = Math.max(piano, zoccoloPerAltezza(h) + h + spTop);
+  }
+  if (!piano) piano = 150 + 700 + spTop;
+  const pann = spessorePannelloPonte(progetto);
+  const hPonte = Math.round(cima - pann - (piano + spazio + (hPens || 0)));
+  return { cima: Math.round(cima), piano: Math.round(piano), pannello: pann, hPonte };
+}
 export function spazioSottoPonte(progetto) {
   const q = quoteAlte(progetto);
   let min = null;
