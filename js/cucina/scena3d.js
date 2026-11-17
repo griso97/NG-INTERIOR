@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261118v';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118v';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261118v';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118v';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118v';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118v';
+} from './modello.js?v=20261118w';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118w';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261118w';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118w';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118w';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118w';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118v';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118w';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -332,7 +332,7 @@ function aggiungiAccessorioTop(a, fin = {}) {
     // comandi disegnati sul vetro (come quelli veri), riflessi dell'ambiente
     const { pw, pd } = dimPlacca(a.w, a.d);
     const sopra = new THREE.MeshPhysicalMaterial({ map: texPiano(pw, pd, a.fuochi), color: 0xffffff, roughness: 0.12,
-      metalness: 0.0, clearcoat: 1.0, clearcoatRoughness: 0.03, envMapIntensity: 0.9 });
+      metalness: 0.0, clearcoat: 0.7, clearcoatRoughness: 0.05, envMapIntensity: 0.28 });
     // vetro da 6 mm sopra il piano fino a 20 mm dentro il foro; sopra la texture
     const vetro = new THREE.Mesh(new THREE.BoxGeometry(pw, 26, pd),
       [matElVetro, matElVetro, sopra, matElVetro, matElVetro, matElVetro]);
@@ -452,10 +452,22 @@ const texSpazzolato = canvasTex(512, 512, (g, w, h) => {
   }
 });
 texSpazzolato.wrapS = texSpazzolato.wrapT = THREE.RepeatWrapping;
+// Spazzolatura FINE per le superfici grandi (sportello lavastoviglie): righe sottili e leggere
+const texSpazzolatoFine = canvasTex(1024, 512, (g, w, h) => {
+  g.fillStyle = '#d6d8dc'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 9000; i++) {
+    const y = Math.random() * h, l = 80 + Math.random() * 500, x = Math.random() * w;
+    const v = 196 + Math.floor(Math.random() * 46);
+    g.strokeStyle = `rgba(${v},${v + 1},${v + 4},${0.06 + Math.random() * 0.1})`;
+    g.lineWidth = 1;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + l, y + (Math.random() - 0.5) * 0.6); g.stroke();
+  }
+});
+texSpazzolatoFine.wrapS = texSpazzolatoFine.wrapT = THREE.RepeatWrapping;
 const matElInox = new THREE.MeshStandardMaterial({ map: texSpazzolato, color: 0xffffff, roughness: 0.36, metalness: 0.78, envMapIntensity: 0.75 });
 // Vetro nero lucido: quasi niente colore proprio, solo riflessi (clearcoat)
 const matElVetro = new THREE.MeshPhysicalMaterial({ color: 0x060608, roughness: 0.18, metalness: 0.0,
-  clearcoat: 1.0, clearcoatRoughness: 0.04, envMapIntensity: 0.9 });
+  clearcoat: 1.0, clearcoatRoughness: 0.04, envMapIntensity: 0.4 });
 const matElCorpo = new THREE.MeshPhysicalMaterial({ color: 0x0c0c0f, roughness: 0.3, metalness: 0.1,
   clearcoat: 0.8, clearcoatRoughness: 0.1, envMapIntensity: 0.7 });
 // Interno del forno visto attraverso il vetro scuro: cavità, griglie, ventola
@@ -496,16 +508,58 @@ function texPiano(pw, pd, fuochi) {
     const r = Math.min(w, h) * (fuochi === 2 ? 0.2 : 0.17);
     pos.forEach(([x, y], i) => {
       const rr = r * (i % 3 === 0 ? 1.08 : 0.9);
-      g.strokeStyle = 'rgba(205,205,210,0.55)'; g.lineWidth = 3;
+      g.strokeStyle = 'rgba(190,190,196,0.30)'; g.lineWidth = 1.6;
       g.beginPath(); g.arc(w * x, h * y, rr, 0, Math.PI * 2); g.stroke();
-      g.strokeStyle = 'rgba(205,205,210,0.22)'; g.lineWidth = 2;
+      g.strokeStyle = 'rgba(190,190,196,0.12)'; g.lineWidth = 1.2;
       g.beginPath(); g.arc(w * x, h * y, rr * 0.62, 0, Math.PI * 2); g.stroke();
     });
     // striscia comandi touch davanti (in basso nella texture = verso la stanza)
-    const yc = h * 0.91; g.fillStyle = 'rgba(205,205,210,0.6)';
+    const yc = h * 0.91; g.fillStyle = 'rgba(190,190,196,0.38)';
     g.font = `${Math.round(h * 0.045)}px Arial, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
     ['−', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+'].forEach((t, i, a) => g.fillText(t, w * (0.22 + (0.56 * i) / (a.length - 1)), yc));
-    g.beginPath(); g.arc(w * 0.1, yc, h * 0.022, 0, Math.PI * 2); g.lineWidth = 2; g.strokeStyle = 'rgba(205,205,210,0.6)'; g.stroke();
+    g.beginPath(); g.arc(w * 0.1, yc, h * 0.022, 0, Math.PI * 2); g.lineWidth = 1.4; g.strokeStyle = 'rgba(190,190,196,0.38)'; g.stroke();
+  });
+}
+
+// STANZA DEI RIFLESSI per i materiali LUCIDI (acciaio, vetro, cromo, lucidi, piani satinati):
+// una stanza con finestre e pannelli di luce, come negli studi fotografici. Riflettendo una
+// sfumatura sola il metallo sembrava plastica grigia e il vetro una lastra nera; così sembrano
+// veri. Pareti, ante opache e legni restano con la luce di prima (scene.environment).
+let _envLucidi = null;
+function ambienteLucidi(rnd) {
+  if (_envLucidi) return _envLucidi;
+  const sc = new THREE.Scene();
+  const base = (c) => new THREE.MeshBasicMaterial({ color: c, side: THREE.BackSide });
+  const stanza = new THREE.Mesh(new THREE.BoxGeometry(14, 7, 14), base(0xbab5ad));
+  stanza.position.y = 3.5; sc.add(stanza);
+  const pav = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), new THREE.MeshBasicMaterial({ color: 0x55504a }));
+  pav.rotation.x = -Math.PI / 2; pav.position.y = 0.02; sc.add(pav);
+  pav.material.color.set(0x77716a);
+  const luce = (w, h, x, y, z, rx, ry, forza) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.985, 0.96).multiplyScalar(forza), side: THREE.DoubleSide }));
+    m.position.set(x, y, z); m.rotation.set(rx, ry, 0); sc.add(m);
+  };
+  luce(5, 2.6, -1, 3.4, 6.98, 0, 0, 1.7);                // finestra grande alle spalle di chi guarda
+  luce(3.2, 2.6, -6.98, 3.4, 1, 0, Math.PI / 2, 1.4);     // finestra sul lato
+  luce(3, 1.1, -2.5, 6.98, 0, Math.PI / 2, 0, 2.4);       // pannelli di luce a soffitto
+  luce(3, 1.1, 2.5, 6.98, 0, Math.PI / 2, 0, 2.4);
+  luce(1.2, 5, 6.98, 3, -2, 0, -Math.PI / 2, 1.2);        // striscia chiara sull'altro lato
+  const pm = new THREE.PMREMGenerator(rnd);
+  _envLucidi = pm.fromScene(sc, 0.025).texture;
+  pm.dispose();
+  return _envLucidi;
+}
+/** I materiali lucidi della cucina riflettono la stanza dei riflessi (vedi ambienteLucidi). */
+function riflettiStanza(radice, rnd) {
+  const env = ambienteLucidi(rnd);
+  radice.traverse((o) => {
+    if (!o.isMesh) return;
+    for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+      if (!m || !m.isMeshStandardMaterial || m.envMap === env) continue;
+      const lucido = (m.metalness || 0) >= 0.45 || (m.clearcoat || 0) > 0 || (m.userData && (m.userData.fotoTop || m.userData.ngSpec || m.userData.vetro));
+      if (!lucido) continue;
+      m.envMap = env; m.needsUpdate = true;
+    }
   });
 }
 
@@ -1529,7 +1583,7 @@ function ripianoColonna(g, w, d, y) {
  */
 function lavastoviglieFronte(g, w, h, d) {
   const z = d / 2, Z0 = z + 2;
-  const matInox = new THREE.MeshStandardMaterial({ color: 0xc4c5c9, roughness: 0.32, metalness: 0.88, envMapIntensity: 0.9 });
+  const matInox = new THREE.MeshStandardMaterial({ map: texSpazzolatoFine, color: 0xffffff, roughness: 0.34, metalness: 0.88, envMapIntensity: 1.6 });
   const box = (bw, bh, bd, x, y, zFront, mat) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(2, bw), Math.max(2, bh), bd), mat);
     m.position.set(x, y, zFront - bd / 2); m.castShadow = true; g.add(m); return m;
@@ -2395,6 +2449,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   for (const a of accessori) aggiungiAccessorioTop(a, progetto.finiture || {});
 
   uvInScala(gruppo);
+  try { riflettiStanza(gruppo, renderer); } catch (_) { /* senza riflessi va bene lo stesso */ }
   // LED sotto i pensili: la loro luce tinge anche le foto (piano, pannello dietro, ante)
   impostaTintaLed(progetto.led && progetto.led.attivo ? (LED_COLORI[progetto.led.colore] || LED_COLORI.caldo) : null);
   if (reframe) inquadra(bb, direzioneStanza(full, vertici));
