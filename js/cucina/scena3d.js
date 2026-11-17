@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261118s';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118s';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261118s';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118s';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118s';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118s';
+} from './modello.js?v=20261118t';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118t';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261118t';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118t';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118t';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118t';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118s';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118t';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1794,6 +1794,25 @@ function aggiungiLedPensile(g, w, h, d, colore, avanti = 0) {
   g.add(spot.target);
 }
 
+/** LED SOPRA IL PONTE: striscia sul cielo del ponte, verso il muro, con la luce che SALE
+ *  e illumina il muro sopra (luce indiretta). Stessi colori dei LED sotto. */
+function aggiungiLedSopra(g, w, h, d, colore) {
+  const hex = LED_COLORI[colore] || LED_COLORI.caldo;
+  const stripW = Math.max(60, w - 40), stripH = 6, stripD = 18;
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(stripW, stripH, stripD), new THREE.MeshBasicMaterial({ color: hex, toneMapped: false }));
+  const zStrip = -d / 2 + stripD / 2 + 30;
+  mesh.position.set(0, h / 2 + stripH / 2, zStrip);
+  mesh.userData.ledStriscia = { colore: hex, lunghezza: stripW };
+  g.add(mesh);
+  const spot = new THREE.SpotLight(hex, 5200, 2600, Math.PI / 3.2, 0.85, 1.0);
+  spot.position.set(0, h / 2 + 8, zStrip - 10);
+  spot.target.position.set(0, h / 2 + 1000, zStrip - 330);
+  g.add(spot);
+  g.add(spot.target);
+}
+/** Dove vanno i LED nella cucina a ponte: 'sotto' (come i pensili), 'sopra' il ponte, 'entrambi'. */
+const ledPonte = (progetto) => (progetto.led && progetto.led.ponte) || 'sotto';
+
 /**
  * Pensile ad angolo a L (pezzo unico): due bracci perpendicolari, ingombro
  * w×d (63×63), ciascun braccio profondo come un pensile normale. Un'anta
@@ -2162,7 +2181,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       cimeAlte.set(m.id, base + h);
       // LED sotto i pensili (opzionale, con scelta temperatura colore).
       // Il pensile-angolo (diagonale) non lo prende: ha una geometria dedicata.
-      if (progetto.led && progetto.led.attivo && m.tipo !== 'pensile-angolo-45') {
+      if (progetto.led && progetto.led.attivo && m.tipo !== 'pensile-angolo-45' && (fondoPonte == null || ledPonte(progetto) !== 'sopra')) {
         const conPannello = progetto.schienale && progetto.schienale.attivo;
         aggiungiLedPensile(gPens, dim.w, h, dim.d, progetto.led.colore, conPannello ? SP_SCHIENALE : 0);
         if (m.tipo === 'pensile-angolo') {                       // anche sotto il secondo braccio
@@ -2208,9 +2227,13 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       cimeAlte.set(m.id, base + h);
       // PONTE senza pensili sotto: i LED (se accesi) vanno sotto il ponte, sul piano
       // (con il pannello sotto il ponte li porta lui, più in basso)
-      if (m.tipo === 'ponte' && progetto.led && progetto.led.attivo && !spessorePannelloPonte(progetto)
+      if (m.tipo === 'ponte' && progetto.led && progetto.led.attivo && ledPonte(progetto) !== 'sopra' && !spessorePannelloPonte(progetto)
         && !(progetto.mobiliLiberi || []).some((o) => categoriaTipo(o.tipo) === 'pensile' && siSovrappongono(o, m))) {
         aggiungiLedPensile(gA, dim.w, h, dim.d, progetto.led.colore, 0);
+      }
+      // LED SOPRA IL PONTE (scelta "Sopra" o "Sotto + sopra")
+      if (m.tipo === 'ponte' && progetto.led && progetto.led.attivo && ledPonte(progetto) !== 'sotto') {
+        aggiungiLedSopra(gA, dim.w, h, dim.d, progetto.led.colore);
       }
       g3d = collocaMobile(gA, cx, base, cz, h, m.rot);
     } else if (cat === 'regletta') {
@@ -2315,7 +2338,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const gP = new THREE.Group();
       gP.add(corpo(f.w, spP, f.d, mat));
       const conPensili = (progetto.mobiliLiberi || []).some((o) => categoriaTipo(o.tipo) === 'pensile' && pz.some((p) => siSovrappongono(o, p)));
-      if (progetto.led && progetto.led.attivo && !conPensili) aggiungiLedPensile(gP, f.w, spP, f.d, progetto.led.colore, 0);
+      if (progetto.led && progetto.led.attivo && ledPonte(progetto) !== 'sopra' && !conPensili) aggiungiLedPensile(gP, f.w, spP, f.d, progetto.led.colore, 0);
       gruppo.add(collocaMobile(gP, f.x, fondo - spP, -f.y, spP, f.rot));
     }
   }
@@ -2593,6 +2616,7 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
       // il piano si estende ALL'INDIETRO per coprirli — il fronte (lato porte)
       // resta dov'è. Copro l'unione delle impronte moduli + costadi.
       let pMin = perp - G.d / 2, pMax = perp + G.d / 2;
+      let cMin = Infinity, cMax = -Infinity;                    // impronta dei costadi della fila
       for (const f of fianchi) {
         if (f.cat !== 'costado' || (f.h || 0) >= 1500) continue;   // solo costadi bassi
         const pf = proiettaFianco(f, c, s);
@@ -2602,8 +2626,14 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
         const fMin = pf.perp - hV, fMax = pf.perp + hV;
         if (fMax < perp - G.d / 2 - 20 || fMin > perp + G.d / 2 + 20) continue; // non condivide il fronte
         pMin = Math.min(pMin, fMin); pMax = Math.max(pMax, fMax);
+        cMin = Math.min(cMin, fMin); cMax = Math.max(cMax, fMax);
       }
-      tratti1.push({ G, c, s, rotN, topY, k, lo, hi, perp, pMin, pMax, endLo, endHi, fermoLo, fermoHi });
+      // BORDI DEL PIANO: 2 cm oltre i mobili; ma dove c'è un COSTADO il piano finisce A FILO del
+      // costado (costado da 1000 → piano da 1000), non 2 cm oltre
+      const mMin = perp - G.d / 2, mMax = perp + G.d / 2;
+      const bMin = cMin <= mMin + 1 ? cMin : mMin - 20;
+      const bMax = cMax >= mMax - 1 ? cMax : mMax + 20;
+      tratti1.push({ G, c, s, rotN, topY, k, lo, hi, perp, pMin, pMax, bMin, bMax, endLo, endHi, fermoLo, fermoHi });
     }
   }
   // 2) ANGOLI E MURI: un'estremità che non arriva al muro (es. il mobile d'angolo
@@ -2614,7 +2644,7 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
   const inCoord = (T, x, y) => ({ a: x * T.c + y * T.s, p: -x * T.s + y * T.c });
   const angoliPiano = (T) => {                           // i 4 angoli della lastra (pianta)
     const P = (a, p) => ({ x: T.c * a - T.s * p, y: T.s * a + T.c * p });
-    return [P(T.endLo, T.pMin - 20), P(T.endHi, T.pMin - 20), P(T.endLo, T.pMax + 20), P(T.endHi, T.pMax + 20)];
+    return [P(T.endLo, T.bMin), P(T.endHi, T.bMin), P(T.endLo, T.bMax), P(T.endHi, T.bMax)];
   };
   const nuoviFini = tratti1.map((T) => {
     const out = { endLo: T.endLo, endHi: T.endHi };
@@ -2664,10 +2694,10 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
   tratti1.forEach((T, i) => Object.assign(T, nuoviFini[i]));
   // 3) LASTRE (con i fori di lavello / piano cottura) e pannello dietro
   for (const T of tratti1) {
-    const { G, c, s, rotN, topY, k, lo, hi, perp, pMin, pMax, endLo, endHi } = T;
+    const { G, c, s, rotN, topY, k, lo, hi, perp, pMin, pMax, bMin, bMax, endLo, endHi } = T;
     {
-      const depth = (pMax - pMin) + 40;
-      const perpTop = (pMin + pMax) / 2;
+      const depth = bMax - bMin;
+      const perpTop = (bMin + bMax) / 2;
       const len = endHi - endLo;
       const centerAlong = (endLo + endHi) / 2;
       const cx = c * centerAlong + (-s) * perpTop;

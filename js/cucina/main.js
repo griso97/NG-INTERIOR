@@ -24,13 +24,13 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261118s';
-import { renderPianta } from './pianta.js?v=20261118s';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261118s';
-import { calcolaDistintaCucina } from './distinta.js?v=20261118s';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261118s';
-import { agganciaTema } from '../tema.js?v=20261118s';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261118s';
+} from './modello.js?v=20261118t';
+import { renderPianta } from './pianta.js?v=20261118t';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261118t';
+import { calcolaDistintaCucina } from './distinta.js?v=20261118t';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261118t';
+import { agganciaTema } from '../tema.js?v=20261118t';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261118t';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1280,6 +1280,14 @@ function renderPannelloStep3d() {
             data-led="${o.id}">${current === o.id ? '✓ ' : ''}${o.et}</button>`).join('');
         })()}
       </div>
+      ${cucinaPonte() && (progetto.led || {}).attivo ? (() => {
+        const dove = (progetto.led || {}).ponte || 'sotto';
+        const v = (id, et) => `<button type="button" class="btn-ghost opt-ledponte ${dove === id ? 'attivo' : ''}" data-ledponte="${id}">${dove === id ? '✓ ' : ''}${et}</button>`;
+        return `
+      <div class="riga-3d" style="margin:10px 0 6px">Dove, nella cucina a ponte</div>
+      <div class="opzioni-anta">${v('sotto', 'Sotto')}${v('sopra', 'Sopra il ponte')}${v('entrambi', 'Sotto + sopra')}</div>
+      <div class="riga-3d" style="margin-top:6px">Sotto: illumina il piano. Sopra il ponte: luce che sale sul muro. Vale per il ponte e i pensili sotto; gli altri pensili tengono il loro LED.</div>`;
+      })() : ''}
     </section>
     ${(() => {
       const ct = progetto.cierreTecho || { attivo: false, altezza: 300 };
@@ -1357,13 +1365,18 @@ function renderPannelloStep3d() {
   pannello.querySelectorAll('.opt-led').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     const v = b.dataset.led;
-    if (v === 'off') progetto.led = { attivo: false, colore: (progetto.led && progetto.led.colore) || 'caldo' };
-    else progetto.led = { attivo: true, colore: v };
+    if (v === 'off') progetto.led = { ...(progetto.led || {}), attivo: false, colore: (progetto.led && progetto.led.colore) || 'caldo' };
+    else progetto.led = { ...(progetto.led || {}), attivo: true, colore: v };
+    aggiorna();
+  }));
+  pannello.querySelectorAll('.opt-ledponte').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    progetto.led = { ...(progetto.led || {}), ponte: b.dataset.ledponte };
     aggiorna();
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261118s');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261118t');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2071,13 +2084,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261118s');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261118t');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261118s'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261118t'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
