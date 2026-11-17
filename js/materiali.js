@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118q';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118r';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -134,6 +134,19 @@ export const MATERIALI = [
     thumb: 'materials/compacto-siena-thumb.jpg',
     texture: 'materials/compacto-siena.jpg', colore: 0xebe1d4,
     campione: { wMm: 3600, hMm: 1400 }, spessore: 12 },
+  // COMPACTO NUVOLA (foto della tavola intera girata: lato lungo lungo il piano)
+  { id: 'compacto-nuvola-04', nome: 'Compacto Nuvola 04', categoria: 'encimera',
+    thumb: 'materials/compacto-nuvola-04-thumb.jpg',
+    texture: 'materials/compacto-nuvola-04.jpg', colore: 0xdddcd3,
+    campione: { wMm: 2750, hMm: 1240 }, spessore: 12 },
+  { id: 'compacto-nuvola-03', nome: 'Compacto Nuvola 03', categoria: 'encimera',
+    thumb: 'materials/compacto-nuvola-03-thumb.jpg',
+    texture: 'materials/compacto-nuvola-03.jpg', colore: 0xe9ebeb,
+    campione: { wMm: 2750, hMm: 1240 }, spessore: 12 },
+  { id: 'compacto-nuvola-01', nome: 'Compacto Nuvola 01', categoria: 'encimera',
+    thumb: 'materials/compacto-nuvola-01-thumb.jpg',
+    texture: 'materials/compacto-nuvola-01.jpg', colore: 0xeee9dd,
+    campione: { wMm: 2110, hMm: 1240 }, spessore: 12 },
   // Tinta solida bianca opaca (nessuna texture, solo colore + matte):
   // usa la logica "solido" del getMaterialeTHREE come i colori delle ante.
   { id: 'compacto-blanco-sm', nome: 'Compacto Blanco SM', categoria: 'encimera',
@@ -214,7 +227,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118q');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118r');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -337,7 +350,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261118q';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261118r';
 
 /** Prodotti visibili in una sezione del catalogo (con i nascosti tolti). */
 export function materialiPer(sezione, { tutti = false } = {}) {
