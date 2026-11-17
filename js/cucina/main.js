@@ -24,13 +24,13 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261118x';
-import { renderPianta } from './pianta.js?v=20261118x';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261118x';
-import { calcolaDistintaCucina } from './distinta.js?v=20261118x';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261118x';
-import { agganciaTema } from '../tema.js?v=20261118x';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261118x';
+} from './modello.js?v=20261118y';
+import { renderPianta } from './pianta.js?v=20261118y';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261118y';
+import { calcolaDistintaCucina } from './distinta.js?v=20261118y';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261118y';
+import { agganciaTema } from '../tema.js?v=20261118y';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261118y';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1390,7 +1390,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261118x');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261118y');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1506,6 +1506,7 @@ function renderPannelloModificaMobile(m) {
     </section>`;
     })() : ''}
     ${htmlColoreFrigo(m)}
+    ${htmlColoreLavastoviglie(m)}
     ${htmlAperturaColonna(m)}
     ${htmlPensileSottoPonte(m)}
     ${m.tipo === 'ponte' || (categoriaTipo(m.tipo) === 'pensile' && pontiSopra(progetto, m).length) ? htmlColoriPonte() : ''}
@@ -2117,13 +2118,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261118x');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261118y');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261118x'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261118y'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2363,12 +2364,44 @@ function htmlColoreFrigo(m) {
         ${COLORI_FRIGO.map((c) => `<button type="button" class="btn-ghost opt-frigo ${c.id === sel ? 'attivo' : ''}" data-frigo="${c.id}" style="display:flex;align-items:center;gap:8px;justify-content:center">
           <span style="width:18px;height:18px;border-radius:3px;border:1px solid #777;background:${c.css}"></span>${c.id === sel ? '✓ ' : ''}${c.nome}</button>`).join('')}
       </div>
+      <div class="riga-3d" style="margin:10px 0 6px">Maniglia</div>
+      <div class="opzioni-anta">
+        ${[['incassata', 'Incassata (fra le porte)'], ['barra', 'A barra']].map(([id, nome]) => `<button type="button" class="btn-ghost opt-frigoman ${(m.maniglia || 'incassata') === id ? 'attivo' : ''}" data-frigoman="${id}">${(m.maniglia || 'incassata') === id ? '✓ ' : ''}${nome}</button>`).join('')}
+      </div>
+    </section>`;
+}
+/** LAVASTOVIGLIE: a vista in acciaio, nera o bianca, oppure INTEGRATA dietro un'anta come i mobili. */
+const COLORI_LAVAST = [
+  { id: 'acciaio', nome: 'Acciaio inox', css: 'linear-gradient(135deg,#e1e3e6,#a4a8ad 55%,#cfd2d5)' },
+  { id: 'nero', nome: 'Nera', css: '#1b1c1f' },
+  { id: 'bianco', nome: 'Bianca', css: '#f1f1ee' },
+  { id: 'integrata', nome: 'Integrata (anta come i mobili)', css: 'repeating-linear-gradient(90deg,#cfc8b8 0 8px,#bdb5a3 8px 9px)' },
+];
+function htmlColoreLavastoviglie(m) {
+  if (m.tipo !== 'lavastoviglie') return '';
+  const sel = m.colore || 'acciaio';
+  return `
+    <section class="step3-pannello">
+      <h3>Lavastoviglie</h3>
+      <div class="opzioni-anta">
+        ${COLORI_LAVAST.map((c) => `<button type="button" class="btn-ghost opt-lavast ${c.id === sel ? 'attivo' : ''}" data-lavast="${c.id}" style="display:flex;align-items:center;gap:8px;justify-content:center">
+          <span style="width:18px;height:18px;border-radius:3px;border:1px solid #777;background:${c.css}"></span>${c.id === sel ? '✓ ' : ''}${c.nome}</button>`).join('')}
+      </div>
+      ${sel === 'integrata' ? '<div class="riga-3d" style="margin-top:6px">L\'anta ha il colore dei mobili bassi e va nella distinta.</div>' : ''}
     </section>`;
 }
 function agganciaColoreFrigo(root, m) {
   root.querySelectorAll('.opt-frigo[data-frigo]').forEach((b) => b.addEventListener('click', () => {
     if ((m.colore || 'bianco') === b.dataset.frigo) return;
     registraStoria(); m.colore = b.dataset.frigo; aggiorna();
+  }));
+  root.querySelectorAll('.opt-frigoman[data-frigoman]').forEach((b) => b.addEventListener('click', () => {
+    if ((m.maniglia || 'incassata') === b.dataset.frigoman) return;
+    registraStoria(); m.maniglia = b.dataset.frigoman; aggiorna();
+  }));
+  root.querySelectorAll('.opt-lavast[data-lavast]').forEach((b) => b.addEventListener('click', () => {
+    if ((m.colore || 'acciaio') === b.dataset.lavast) return;
+    registraStoria(); m.colore = b.dataset.lavast; aggiorna();
   }));
 }
 
@@ -2456,6 +2489,7 @@ function blocMobileSelezionato() {
       </div>
       ${htmlBaseAngolo(m)}
       ${htmlColoreFrigo(m)}
+      ${htmlColoreLavastoviglie(m)}
       ${htmlAperturaColonna(m)}
       ${htmlPensileSottoPonte(m)}
       ${htmlDistanzaFrigo(m)}

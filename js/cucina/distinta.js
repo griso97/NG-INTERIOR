@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna,
-} from './modello.js?v=20261118x';
+} from './modello.js?v=20261118y';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -229,6 +229,8 @@ function pezziDiModulo(progetto, m) {
     // (già nel conteggio moduli e nel 3D con piano sopra) e dà la sua quota di
     // ZOCCOLO, così lo zoccolo continuo della cucina ha la lunghezza giusta.
     zoccolo(pz, mod, L, H);
+    // lavastoviglie INTEGRATA: l'anta davanti la facciamo noi, come quelle dei mobili bassi
+    if (m.tipo === 'lavastoviglie' && m.colore === 'integrata') anteModulo(pz, mod, L, H, 1, m.antaLato);
   } else {
     // fallback generico
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(L), altezza: H, spessore: SP, materiale: 'carcassa', quantita: 1 });

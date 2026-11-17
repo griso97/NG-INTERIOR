@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261118x';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118x';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261118x';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118x';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118x';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118x';
+} from './modello.js?v=20261118y';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118y';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261118y';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118y';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118y';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118y';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118x';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118y';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1588,9 +1588,13 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
  * NERA in alto (schermo + spie) e maniglia a barra — stile Bosch/Siemens.
  * Costruito DAVANTI alla faccia del mobile (Z0) per non essere coperto.
  */
-function lavastoviglieFronte(g, w, h, d) {
+let _matLavastBianco = null;
+function lavastoviglieFronte(g, w, h, d, colore = 'acciaio') {
   const z = d / 2, Z0 = z + 2;
-  const matInox = new THREE.MeshStandardMaterial({ map: texSpazzolatoFine, color: 0xffffff, roughness: 0.34, metalness: 0.88, envMapIntensity: 1.6 });
+  // nera = stesso nero satinato del frigo; bianca; se no acciaio satinato
+  const matInox = colore === 'nero' ? COLORI_FRIGO.nero.porta
+    : colore === 'bianco' ? (_matLavastBianco || (_matLavastBianco = new THREE.MeshStandardMaterial({ color: 0xf1f1ee, roughness: 0.3, metalness: 0.04, envMapIntensity: 0.9 })))
+      : new THREE.MeshStandardMaterial({ map: texSpazzolatoFine, color: 0xffffff, roughness: 0.34, metalness: 0.88, envMapIntensity: 1.6 });
   const box = (bw, bh, bd, x, y, zFront, mat) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(2, bw), Math.max(2, bh), bd), mat);
     m.position.set(x, y, zFront - bd / 2); m.castShadow = true; g.add(m); return m;
@@ -1607,6 +1611,11 @@ function lavastoviglieFronte(g, w, h, d) {
     const led = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 3, 10), matElButton);
     led.rotation.x = Math.PI / 2;
     led.position.set((w - 12) * 0.05 + i * 16, topY, Z0 + 4); g.add(led);
+  }
+  if (colore === 'nero' || colore === 'bianco') {
+    // NERA / BIANCA: niente barra, maniglia INCASSATA nella fascia comandi (come le libere moderne)
+    box((w - 12) * 0.28, hStrip * 0.5, 3, (w - 12) * 0.08, topY - hStrip * 0.05, Z0 + 1, matFrigoFuga);
+    return;
   }
   // Maniglia a barra inox sotto la fascia
   const barL = Math.min(w * 0.55, 420), barY = topY - hStrip / 2 - 16;
@@ -1627,8 +1636,8 @@ const COLORI_FRIGO = {
   bianco:  { porta: new THREE.MeshStandardMaterial({ color: 0xf2f2ef, roughness: 0.28, metalness: 0.04, envMapIntensity: 0.8 }),
              fianco: new THREE.MeshStandardMaterial({ color: 0xeaeae6, roughness: 0.4, metalness: 0.04 }),
              maniglia: new THREE.MeshStandardMaterial({ color: 0xc9cbcf, roughness: 0.3, metalness: 0.8 }) },
-  nero:    { porta: new THREE.MeshPhysicalMaterial({ color: 0x232427, roughness: 0.22, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.1, envMapIntensity: 1.4 }),
-             fianco: new THREE.MeshStandardMaterial({ color: 0x2b2c30, roughness: 0.45, metalness: 0.25 }),
+  nero:    { porta: new THREE.MeshPhysicalMaterial({ color: 0x1b1c1f, roughness: 0.42, metalness: 0.2, clearcoat: 0.35, clearcoatRoughness: 0.35, envMapIntensity: 1.0 }),
+             fianco: new THREE.MeshStandardMaterial({ color: 0x202124, roughness: 0.5, metalness: 0.2 }),
              maniglia: new THREE.MeshStandardMaterial({ color: 0x6d6f74, roughness: 0.3, metalness: 0.85 }),
              fuga: new THREE.MeshBasicMaterial({ color: 0x050505 }) },
   acciaio: { porta: matElInox,
@@ -1641,7 +1650,7 @@ const matFrigoFuga = new THREE.MeshStandardMaterial({ color: 0x3a3b3e, roughness
  * in basso con la fuga in mezzo, maniglie verticali sottili sul bordo.
  * colore: 'bianco' | 'nero' | 'acciaio'.
  */
-function frigoLibero(g, w, h, d, colore) {
+function frigoLibero(g, w, h, d, colore, maniglia = 'incassata') {
   const C = COLORI_FRIGO[colore] || COLORI_FRIGO.bianco;
   const box = (bw, bh, bd, x, y, z, mat) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(2, bw), Math.max(2, bh), Math.max(2, bd)), mat);
@@ -1656,6 +1665,15 @@ function frigoLibero(g, w, h, d, colore) {
   const hFr = h - hCong - 4;
   box(w - 4, hFr, sp, 0, y0 + hCong + hFr / 2, zP, C.porta);                   // porta frigo
   box(w - 8, fuga, 4, 0, y0 + hCong - fuga / 2, d / 2 - sp - 1, C.fuga || matFrigoFuga);  // fuga tra le porte
+  if (maniglia !== 'barra') {
+    // MANIGLIA INCASSATA (come i frigo moderni): sotto la porta del frigo un incavo largo dove
+    // entrano le dita, con il labbro piegato; niente barre fuori
+    const lI = Math.round((w - 4) * 0.66), hI = 26, matI = C.fuga || matFrigoFuga;
+    box(lI, hI, 22, 0, y0 + hCong + hI / 2, d / 2 - 11, matI);                    // incavo (scuro, rientrato)
+    const labbro = box(lI, 5, 24, 0, y0 + hCong + 2.5, d / 2 - 12 + 6, C.porta);  // labbro inclinato sotto l'incavo
+    labbro.rotation.x = -0.35;
+    return;
+  }
   // maniglie: barra verticale sottile sul bordo destro, staccata dalla porta
   const xM = w / 2 - 30, lF = Math.min(420, hFr * 0.32), lC = Math.min(300, (hCong - fuga) * 0.45);
   box(14, lF, 16, xM, y0 + hCong + 40 + lF / 2, d / 2 + 14, C.maniglia);
@@ -1947,7 +1965,7 @@ function pensileAngoloFronte(g, w, h, d, matAnta) {
 /** Costruisce il mobile completo centrato nell'origine (corpo + fronti). */
 function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
-  if (cat === 'frigo') { frigoLibero(g, w, h, d, m && m.colore); return g; }
+  if (cat === 'frigo') { frigoLibero(g, w, h, d, m && m.colore, m && m.maniglia); return g; }
   _push = pushCat(cat);                  // push: niente maniglia (anche con il finger-pull)
   _fingerPull = fpCat(_fpByCat, cat);   // finger-pull per categoria del mobile
   _maniglia = manigliaCat(cat);         // maniglia del catalogo per categoria
@@ -1984,7 +2002,11 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   if (cat === 'colonna') { colonnaFronte(g, w, h, d, m, matAnta); return g; }
   if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta, m.cassettoPiccolo_mm); return g; }
   if (tipo === 'lavello') { ante(g, w, h, d, w >= 600 ? 2 : 1, matAnta); return g; } // lavello disegnato sopra il top
-  if (tipo === 'lavastoviglie') { lavastoviglieFronte(g, w, h, d); return g; }
+  if (tipo === 'lavastoviglie') {
+    // INTEGRATA: dietro un'anta come quelle dei mobili (con la sua maniglia); se no a vista
+    if (m && m.colore === 'integrata') { ante(g, w, h, d, 1, matAnta, false, m.antaLato); return g; }
+    lavastoviglieFronte(g, w, h, d, m && m.colore); return g;
+  }
   if (cat === 'lavatrice') { lavatriceFronte(g, w, h, d); return g; }
   if (tipo === 'forno') { fronteForno(g, w, h, d, matAnta); return g; } // placca sopra il top
   // base con ante / pensile (il pensile può avere l'anta sporgente sotto)
