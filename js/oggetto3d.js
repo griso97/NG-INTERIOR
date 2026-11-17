@@ -14,7 +14,7 @@
 // Assi (mm): x = larghezza (centro 0) · y = altezza (0 = appoggio) · z = profondità (+ = davanti)
 // =============================================================================
 import * as THREE from 'three';
-import { formaOggetto, sagomaEstrusa, compattezza } from './scanner3d.js?v=20261119d';
+import { formaOggetto, sagomaEstrusa, solidoDiRotazione, compattezza } from './scanner3d.js?v=20261119e';
 import { edgeTable, triTable } from '../vendor/three/addons/objects/mc-tabelle.js';
 
 /** Distanza (chamfer 3-4, in pixel) di ogni pixel dal più vicino pixel "fuori" (m = 0). */
@@ -643,10 +643,16 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   // OGGETTI PIATTI O COMPOSTI (ceppo dei coltelli con supporto, tagliere, impastatrice con la
   // ciotola) o una sola foto dritta di un oggetto sottile: la SAGOMA della foto con il suo
   // spessore vero, identica alla foto vista davanti
-  const estrusa = compattezza(foto.fronte) < 0.85 || (!S && D < W * 0.6);
+  // OGGETTI TONDI con una foto sola (sgabelli, lampade, vasi, bottiglie): AL TORNIO, non estrusi
+  const composta = compattezza(foto.fronte) < 0.85;
+  const tornio = composta && !S && D >= W * 0.6 && pianta !== 'squadrata';
+  const estrusa = !tornio && (composta || (!S && D < W * 0.6));
   let forma = null, davantiSx = S ? latoSporgente(S) === 'sx' : false;
   const vert = [], ind = [], pezzi = [];
-  if (estrusa) {
+  if (tornio) {
+    const g = solidoDiRotazione(foto.fronte, W, H, D, THREE); if (!g) return null;
+    pezzi.push(g);
+  } else if (estrusa) {
     const g = sagomaEstrusa(foto.fronte, W, H, D, THREE); if (!g) return null;
     pezzi.push(g);
   } else {
@@ -716,7 +722,7 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   const vuota = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); vuota.needsUpdate = true;
   const U = {
     oF: { value: tF.tex }, oB: { value: (tB || tF).tex }, oS: { value: tS ? tS.tex : vuota }, oT: { value: tT ? tT.tex : vuota },
-    haS: { value: tS ? 1 : 0 }, haT: { value: tT ? 1 : 0 },
+    haS: { value: tS ? 1 : 0 }, haT: { value: tT ? 1 : 0 }, soloF: { value: tornio ? 1 : 0 },
     latoFoto: { value: davantiSx ? 1 : -1 },                     // lato fotografato: x > 0 se nella foto il davanti è a sinistra
     cS: { value: lin(corpoCol) }, cT: { value: lin(cimaCol) }, cU: { value: lin(F.media.map((x) => x * 0.55)) },
   };
@@ -731,7 +737,7 @@ vUvF = uvF; vUvB = uvB; vUvS = uvS; vUvS2 = uvS2; vUvT = uvT; vObjN = normal; vA
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
 uniform sampler2D oF; uniform sampler2D oB; uniform sampler2D oS; uniform sampler2D oT;
-uniform float haS; uniform float haT; uniform float latoFoto; uniform vec3 cS; uniform vec3 cT; uniform vec3 cU;
+uniform float haS; uniform float haT; uniform float soloF; uniform float latoFoto; uniform vec3 cS; uniform vec3 cT; uniform vec3 cU;
 varying vec2 vUvF; varying vec2 vUvB; varying vec2 vUvS; varying vec2 vUvS2; varying vec2 vUvT; varying vec3 vObjN; varying vec3 vAff;
 vec3 vFotoCol = vec3(0.0);`)
       .replace('#include <map_fragment>', `
@@ -743,13 +749,16 @@ vec3 vFotoCol = vec3(0.0);`)
   float tot = max(1e-4, wF + wB + wS + wT + wU);
   vec3 c = texture2D(oF, vUvF).rgb * wF + texture2D(oB, vUvB).rgb * wB
     + mix(cS, texture2D(oS, n.x * latoFoto > 0.0 ? vUvS : vUvS2).rgb, haS) * wS + mix(cT, texture2D(oT, vUvT).rgb, haT) * wT + cU * wU;
+  // AL TORNIO: ogni punto sta sotto la sagoma della foto davanti → il suo colore viene da lì,
+  // anche sui lati e sopra (es. la base dorata dello sgabello, non il colore medio)
+  c = mix(c, texture2D(oF, vUvF).rgb * tot, soloF);
   diffuseColor.rgb *= c / tot;
   vFotoCol = c / tot;
 }`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
   totalEmissiveRadiance += vFotoCol * 0.22;      // la foto resta luminosa come è (non più scura e spenta)`);
   };
-  mat.customProgramCacheKey = () => 'ogg-proiezione-v4';
+  mat.customProgramCacheKey = () => 'ogg-proiezione-v5';
   const mats = mat;
   const geo = gi;
   return { geo, mats, W, D, H, colore: hex(F.media), scambiate, girata, estrusa };

@@ -661,6 +661,81 @@ export function sagomaEstrusa(src, larg, alt, prof, THREE) {
   g.translate(0, 0, -(prof - 2 * sm) / 2);
   return g;
 }
+/**
+ * SOLIDO "AL TORNIO" da UNA foto davanti, per gli oggetti TONDI (sgabelli, lampade, vasi, bottiglie,
+ * caraffe): a ogni altezza la larghezza della foto diventa un'ellisse larga così e profonda
+ * larghezza × prof/larg. Le parti staccate (seduta, asta, poggiapiedi, base, leva) restano
+ * pezzi separati che seguono la foto. Prima questi oggetti venivano "estrusi": visti di lato
+ * erano una lastra piena profonda quanto l'oggetto.
+ */
+export function solidoDiRotazione(src, larg, alt, prof, THREE) {
+  const M = maschera(src, 600); if (!M) return null;
+  const { w, h, A } = M;
+  let x0 = w, x1 = -1, y0 = h, y1 = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (A[y * w + x] > 0.5) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  if (x1 <= x0 || y1 <= y0) return null;
+  const sx = larg / (x1 - x0 + 1), sy = alt / (y1 - y0 + 1), kz = prof / larg, xm = (x0 + x1 + 1) / 2;
+  const SEG = 40;
+  // i tratti pieni di una riga, con il bordo a metà pixel (alfa 0,5)
+  const tratti = (y) => {
+    const out = []; let a = -1;
+    const pieno = (x) => A[y * w + x] > 0.5;
+    for (let x = x0; x <= x1 + 1; x++) {
+      const p = x <= x1 && pieno(x);
+      if (p && a < 0) a = x;
+      if (!p && a >= 0) {
+        const ea = a > 0 ? a - 0.5 + (0.5 - A[y * w + a - 1]) / Math.max(1e-3, A[y * w + a] - A[y * w + a - 1]) : a;
+        const eb = x - 1 < w - 1 ? x - 0.5 + (A[y * w + x - 1] - 0.5) / Math.max(1e-3, A[y * w + x - 1] - A[y * w + Math.min(w - 1, x)]) : x;
+        if (x - a >= 1) out.push([Math.max(a - 1, ea), Math.min(x, eb)]);
+        a = -1;
+      }
+    }
+    return out;
+  };
+  // TUBI: un tratto continua il tubo della riga sotto se si toccano e nessuno dei due si divide
+  const tubi = [], attivi = [];
+  const passo = Math.max(1, Math.round((y1 - y0) / 260));
+  const anello = (tr, y) => ({ cx: ((tr[0] + tr[1]) / 2 - xm) * sx, a: Math.max(0.6, (tr[1] - tr[0]) / 2 * sx), y: alt - (y - y0 + 0.5) * sy });
+  for (let y = y1; y >= y0 - passo; y -= passo) {
+    const riga = y >= y0 ? tratti(y) : [];
+    const tocca = (t, r) => r[0] <= t.ult[1] + 1 && r[1] >= t.ult[0] - 1;
+    const nuovi = [];
+    const usati = new Set();
+    for (const r of riga) {
+      const cand = attivi.filter((t) => tocca(t, r));
+      const unico = cand.length === 1 && riga.filter((q) => tocca(cand[0], q)).length === 1 && !usati.has(cand[0]);
+      if (unico) { const t = cand[0]; t.anelli.push(anello(r, y)); t.ult = r; usati.add(t); nuovi.push(t); }
+      else {
+        // si divide o si unisce: tubo nuovo, che parte dalla riga di prima (niente fessure)
+        const t = { anelli: [anello(r, Math.min(y1, y + passo)), anello(r, y)], ult: r };
+        tubi.push(t); nuovi.push(t);
+      }
+    }
+    attivi.length = 0; attivi.push(...nuovi);
+    if (!tubi.length && riga.length) { /* primo giro */ }
+    for (const t of nuovi) if (!tubi.includes(t)) tubi.push(t);
+  }
+  // geometria: anelli ellittici uniti, con il tappo sotto e sopra
+  const pos = [], ind = [];
+  for (const t of tubi) {
+    if (t.anelli.length < 2) continue;
+    const base = pos.length / 3;
+    for (const r of t.anelli) for (let k = 0; k < SEG; k++) { const th = (k / SEG) * Math.PI * 2; pos.push(r.cx + r.a * Math.cos(th), r.y, r.a * kz * Math.sin(th)); }
+    for (let i = 0; i < t.anelli.length - 1; i++) for (let k = 0; k < SEG; k++) {
+      const a0 = base + i * SEG + k, a1 = base + i * SEG + (k + 1) % SEG, b0 = a0 + SEG, b1 = a1 + SEG;
+      ind.push(a0, b0, a1, a1, b0, b1);
+    }
+    for (const [i, giu] of [[0, true], [t.anelli.length - 1, false]]) {
+      const r = t.anelli[i], c = pos.length / 3; pos.push(r.cx, r.y, 0);
+      for (let k = 0; k < SEG; k++) { const a0 = base + i * SEG + k, a1 = base + i * SEG + (k + 1) % SEG; if (giu) ind.push(c, a0, a1); else ind.push(c, a1, a0); }
+    }
+  }
+  if (!ind.length) return null;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(ind);
+  return g;
+}
 /** Quanto la sagoma è "piena" rispetto al suo involucro convesso (1 = forma semplice). */
 export function compattezza(src) {
   const M = maschera(src, 400); if (!M) return 1;
