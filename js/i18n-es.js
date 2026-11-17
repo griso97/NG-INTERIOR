@@ -1500,6 +1500,7 @@ window.NG_I18N_ES = {
  "Push: si preme e si apre. In distinta un push pull e una base per ogni porta.": "Push: se presiona y se abre. En la lista, un push pull y una base por cada puerta.",
  "Cerniere apertura verso l'alto (da definire)": "Bisagras apertura hacia arriba (por definir)",
  "Colori del ponte": "Colores del puente",
+ "Si adatta da solo allo spazio che resta": "Se adapta solo al espacio que queda",
  "📲 Portare tutto su un altro dispositivo (es. dal computer al telefono)": "📲 Llevar todo a otro dispositivo (p. ej. del ordenador al móvil)",
  "Un file solo con": "Un solo archivo con",
  "tutto": "todo",

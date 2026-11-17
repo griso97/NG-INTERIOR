@@ -5,24 +5,24 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261119c';
+import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261119d';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo, fotoRealisticaArmadio,
   iniziaSpostamentoRipiano, muoviSpostamentoRipiano, fineSpostamentoRipiano,
   toccoArmadio, ripianiCorrenti, posizioneNuovoRipiano, evidenziaRipiano,
-} from './scena3d.js?v=20261119c';
-import { SFONDI_LISTA } from './sfondi.js?v=20261119c';
-import { agganciaTema } from './tema.js?v=20261119c';
-import { renderPannello, configDefault } from './interfaccia.js?v=20261119c';
-import { renderDistinta } from './distinta.js?v=20261119c';
-import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261119c';
-import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261119c';
+} from './scena3d.js?v=20261119d';
+import { SFONDI_LISTA } from './sfondi.js?v=20261119d';
+import { agganciaTema } from './tema.js?v=20261119d';
+import { renderPannello, configDefault, adattaModuli } from './interfaccia.js?v=20261119d';
+import { renderDistinta } from './distinta.js?v=20261119d';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261119d';
+import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261119d';
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js?v=20261119c';
+} from './storage.js?v=20261119d';
 
 // Config iniziale: ultima salvata, oppure default
-let config = caricaLocale() || configDefault();
+let config = adattaModuli(caricaLocale() || configDefault());   // moduli sempre larghi quanto il totale
 
 // Se nella URL c'è ?tipo=battente o ?tipo=scorrevole, lo applica subito.
 // Serve per entrare dal menu "scegli.html" già sul tipo giusto.
@@ -70,6 +70,7 @@ function onChange(nuovaConfig, opzioni = {}) {
 }
 
 function aggiorna() {
+  adattaModuli(config);                    // niente spazio vuoto dentro i tamponamenti
   const distinta = calcolaDistintaCompleta(config);
   aggiornaScena(config);
   renderDistinta(distintaEl, distinta, config);
@@ -114,7 +115,7 @@ function agganciaExport(distinta) {
   if (btnMod) btnMod.onclick = () => apriModelloExcel({ pezzi: pezziModello(), progetto: progettoNome });
   const btnFoto = document.getElementById('btn-foto-reale');
   if (btnFoto) btnFoto.onclick = async () => {
-    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261119c');
+    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261119d');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaArmadio(p), tela3d: document.getElementById('canvas3d'), nome: 'armadio' });
   };
   const btnImg = document.getElementById('btn-img');

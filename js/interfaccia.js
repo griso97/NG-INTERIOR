@@ -6,8 +6,8 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261119c';
-import { htmlTendineColori } from './tendine-colori.js?v=20261119c';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261119d';
+import { htmlTendineColori } from './tendine-colori.js?v=20261119d';
 
 export function configDefault() {
   return {
@@ -335,7 +335,8 @@ function renderModuli(config) {
         <div class="grid-2">
           <label>Larghezza (mm)
             <input type="number" class="m-lar" data-i="${i}" value="${m.larghezza}"
-              min="100" max="${maxLarghezzaModulo(config, i)}" step="1" />
+              min="100" max="${maxLarghezzaModulo(config, i)}" step="1" ${i === config.moduli.length - 1 && config.moduli.length > 1 ? 'readonly' : ''} />
+            ${i === config.moduli.length - 1 && config.moduli.length > 1 ? '<span class="hint">Si adatta da solo allo spazio che resta</span>' : ''}
           </label>
           ${scorrevole ? '' : `
           <label>Nº ante
@@ -433,9 +434,37 @@ function campoLatoApertura(modulo) {
  * (Il "resto" disponibile per questo modulo.)
  */
 function maxLarghezzaModulo(config, i) {
+  // l'ULTIMO modulo si adatta da solo: gli altri possono arrivare fin dove all'ultimo restano 10 cm
+  const n = config.moduli.length;
+  if (config.moduliPersonalizzati && n > 1 && i < n - 1) {
+    const altri = config.moduli.reduce((s, m, k) => s + (k === i || k === n - 1 ? 0 : (m.larghezza || 0)), 0);
+    return Math.max(100, config.larghezzaTotale - altri - 100);
+  }
   const altri = config.moduli.reduce(
     (s, m, k) => s + (k === i ? 0 : (m.larghezza || 0)), 0);
   return Math.max(0, config.larghezzaTotale - altri);
+}
+
+/**
+ * I MODULI RIEMPIONO SEMPRE LA LARGHEZZA TOTALE (niente spazio vuoto dentro i tamponamenti):
+ *  - "tutti uguali": larghezza L/n (ricalcolata se non torna, es. progetto vecchio);
+ *  - "dimensioni personalizzate": l'ULTIMO modulo prende lo spazio che resta. Prima togliendo un
+ *    modulo o allargando il totale restava un buco largo come un modulo dentro la cornice.
+ */
+export function adattaModuli(config) {
+  const n = (config.moduli || []).length, L = config.larghezzaTotale;
+  if (!n || !(L > 0)) return config;
+  if (!config.moduliPersonalizzati) {
+    const giusta = Math.floor(L / n);
+    if (config.moduli.some((m) => m.larghezza !== giusta)) config.moduli.forEach((m) => { m.larghezza = giusta; });
+    return config;
+  }
+  const altri = config.moduli.slice(0, n - 1).reduce((s, m) => s + (m.larghezza || 0), 0);
+  if (L - altri >= 100) { config.moduli[n - 1].larghezza = L - altri; return config; }
+  // gli altri occupano già tutto: si ridivide in parti uguali (nessun modulo a zero)
+  const eq = Math.floor(L / n);
+  config.moduli.forEach((m, k) => { m.larghezza = k === n - 1 ? L - eq * (n - 1) : eq; });
+  return config;
 }
 
 /**
@@ -472,9 +501,12 @@ function attaccaEventiModuli(contenitore, config, onChange) {
         let v = Math.max(minW, Math.floor(Number(e.target.value) || 0));
         if (v > maxW) { v = maxW; e.target.value = v; }   // blocca lo sforamento
         mod.larghezza = v;
-        // Aggiorna il tetto massimo degli altri input in base alla nuova somma.
+        adattaModuli(config);                               // l'ultimo modulo prende il resto
+        // Aggiorna il tetto massimo degli altri input in base alla nuova somma (e l'ultimo).
         contenitore.querySelectorAll('#moduli-list .m-lar').forEach((inp) => {
-          inp.max = maxLarghezzaModulo(config, Number(inp.dataset.i));
+          const k = Number(inp.dataset.i);
+          inp.max = maxLarghezzaModulo(config, k);
+          if (k !== i) inp.value = config.moduli[k].larghezza;
         });
         aggiornaControlloSommaModuli(config);
         onChange(config);
@@ -767,6 +799,7 @@ function ripartisciModuli(config, n = config.moduli.length) {
     }
   }
   config.moduli = nuovi;
+  adattaModuli(config);
 }
 
 /**
