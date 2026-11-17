@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261118y';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118y';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261118y';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118y';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118y';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118y';
+} from './modello.js?v=20261118z';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118z';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261118z';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118z';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118z';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118z';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118y';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118z';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -556,7 +556,7 @@ function riflettiStanza(radice, rnd) {
     if (!o.isMesh) return;
     for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
       if (!m || !m.isMeshStandardMaterial || m.envMap === env) continue;
-      const lucido = (m.metalness || 0) >= 0.45 || (m.clearcoat || 0) > 0 || (m.userData && (m.userData.fotoTop || m.userData.ngSpec || m.userData.vetro));
+      const lucido = (m.metalness || 0) >= 0.45 || (m.clearcoat || 0) > 0 || (m.userData && (m.userData.fotoTop || m.userData.ngSpec || m.userData.vetro || m.userData.neroOpaco));
       if (!lucido) continue;
       m.envMap = env; m.needsUpdate = true;
     }
@@ -1136,7 +1136,8 @@ function griglia(g, z, gw, gh, yc) {
 let _stileForno = 'inox';
 const matVetroBianco = new THREE.MeshPhysicalMaterial({ color: 0xf1f1ef, roughness: 0.15, metalness: 0,
   clearcoat: 1.0, clearcoatRoughness: 0.04, envMapIntensity: 0.6 });
-const matNeroOpaco = new THREE.MeshStandardMaterial({ color: 0x0d0d0f, roughness: 0.5, metalness: 0.0, envMapIntensity: 0.35 });
+const matNeroOpaco = new THREE.MeshStandardMaterial({ color: 0x232427, roughness: 0.58, metalness: 0.0, envMapIntensity: 0.9 });
+matNeroOpaco.userData.neroOpaco = true;
 const matCromo = new THREE.MeshStandardMaterial({ color: 0xe6e8ec, roughness: 0.12, metalness: 1.0, envMapIntensity: 1.1 });
 const matManopolaBianca = new THREE.MeshStandardMaterial({ color: 0xf4f4f2, roughness: 0.35, metalness: 0.0 });
 // Interno chiaro del forno bianco: smalto grigio chiaro, guide e griglia
@@ -1636,8 +1637,9 @@ const COLORI_FRIGO = {
   bianco:  { porta: new THREE.MeshStandardMaterial({ color: 0xf2f2ef, roughness: 0.28, metalness: 0.04, envMapIntensity: 0.8 }),
              fianco: new THREE.MeshStandardMaterial({ color: 0xeaeae6, roughness: 0.4, metalness: 0.04 }),
              maniglia: new THREE.MeshStandardMaterial({ color: 0xc9cbcf, roughness: 0.3, metalness: 0.8 }) },
-  nero:    { porta: new THREE.MeshPhysicalMaterial({ color: 0x1b1c1f, roughness: 0.42, metalness: 0.2, clearcoat: 0.35, clearcoatRoughness: 0.35, envMapIntensity: 1.0 }),
-             fianco: new THREE.MeshStandardMaterial({ color: 0x202124, roughness: 0.5, metalness: 0.2 }),
+  // nero OPACO come i frigo neri veri: antracite molto scuro, riflesso morbido (non nero pianoforte)
+  nero:    { porta: new THREE.MeshPhysicalMaterial({ color: 0x28292c, roughness: 0.55, metalness: 0.1, clearcoat: 0.12, clearcoatRoughness: 0.5, envMapIntensity: 1.0 }),
+             fianco: new THREE.MeshStandardMaterial({ color: 0x252629, roughness: 0.6, metalness: 0.1, envMapIntensity: 0.9 }),
              maniglia: new THREE.MeshStandardMaterial({ color: 0x6d6f74, roughness: 0.3, metalness: 0.85 }),
              fuga: new THREE.MeshBasicMaterial({ color: 0x050505 }) },
   acciaio: { porta: matElInox,

@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118y';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118z';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -227,7 +227,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118y');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118z');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -350,7 +350,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261118y';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261118z';
 
 /** Prodotti visibili in una sezione del catalogo (con i nascosti tolti). */
 export function materialiPer(sezione, { tutti = false } = {}) {
@@ -798,6 +798,24 @@ function lastraNitida(img) {
   } catch (_) { /* senza nitidezza va bene lo stesso */ }
   return c;
 }
+/**
+ * NERO OPACO VERO: un pannello nero opaco (es. SM Negro Supermate, zoccolo nero) riflette comunque
+ * circa il 3–4% della luce: dal vivo è un antracite molto scuro con un riflesso morbido, non un buco
+ * nero piatto. I colori pieni troppo scuri salgono a questo minimo (stessa tinta) e prendono un
+ * riflesso satinato morbido della stanza. Vale anche per i colori aggiunti in Impostazioni.
+ */
+function neroOpacoVero(mat) {
+  const c = mat.color, L = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;   // luminanza (lineare)
+  if (L >= 0.03) return;
+  const MIN = 0.022;                                                     // ≈ #28292b
+  if (L < MIN) {
+    if (L < 1e-5) c.setRGB(MIN, MIN, MIN * 1.04);
+    else c.multiplyScalar(MIN / L);
+  }
+  mat.roughness = Math.min(mat.roughness, 0.62);                         // satinato morbido (Supermate)
+  mat.envMapIntensity = Math.max(mat.envMapIntensity || 0, 0.9);
+  mat.userData.neroOpaco = true;
+}
 export function getMaterialeTHREE(id, onPronto) {
   if (cacheMat.has(id)) return cacheMat.get(id);
   const def = trovaMateriale(id);
@@ -822,6 +840,7 @@ export function getMaterialeTHREE(id, onPronto) {
         metalness: def.metalness ?? 0.0,
         envMapIntensity: def.envMapIntensity ?? 0.4,
       });
+      neroOpacoVero(mat);
     }
     // finger-pull in tinta unita: la gola ha il suo materiale (es. nero)
     if (def.gola) {
