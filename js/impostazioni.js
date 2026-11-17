@@ -8,16 +8,17 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261119i';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119i';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119i';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119i';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119i';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119i';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119i';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119i';
-import { agganciaTema } from './tema.js?v=20261119i';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119i';
+} from './catalogo.js?v=20261119j';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119j';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119j';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119j';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119j';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119j';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119j';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119j';
+import { agganciaTema } from './tema.js?v=20261119j';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119j';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261119j';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -58,6 +59,7 @@ function dettagli(m) {
   if (m.lunghezzaMm) r.push(`lunghezza ${Math.round(m.lunghezzaMm / 10)} cm`);
   if (m.viste && m.categoria === 'maniglia') r.push(`viste: ${['davanti', ...Object.keys(m.viste)].join(', ')}`);
   if (m.viste && m.categoria === 'oggetto') r.push(`foto: ${['davanti', ...['lato', 'sopra', 'dietro'].filter((v) => m.viste[v])].join(', ')}`);
+  if (m.pronto) r.push('oggetto 3D pronto · Poly Haven (CC0)');
   if (m.ral) r.push(`RAL ${esc(m.ral)}`);
   if (m.proprio && m.lucido != null && m.categoria !== 'maniglia') r.push(m.lucido ? 'lucido' : 'opaco');
   if (m.gola) r.push('con gola');
@@ -78,6 +80,7 @@ function render() {
     <p class="imp-desc">${esc(S.desc)}</p>
     <div class="imp-barra">
       <span class="imp-conta">${visibili} di ${lista.length} visibili</span>
+      ${sezione === 'oggetti' ? `<button type="button" class="btn-ghost" id="imp-pronti">🔎 Oggetti 3D pronti</button>` : ''}
       ${puoAggiungere ? `<button type="button" class="btn-oro" id="imp-aggiungi">+ Aggiungi prodotto</button>` : ''}
     </div>
     <div class="imp-griglia">
@@ -87,7 +90,7 @@ function render() {
         <div class="imp-card ${vis ? '' : 'spento'}" data-id="${esc(m.id)}">
           <div class="imp-foto" style="background:${sfondoSwatch(m)}"></div>
           <div class="imp-info">
-            <span class="imp-badge ${m.proprio ? 'tuo' : ''}">${m.derivato ? 'Dal finger-pull (senza gola)' : m.proprio ? 'Aggiunto da te' : 'Predefinito'}</span>
+            <span class="imp-badge ${m.proprio ? 'tuo' : ''}">${m.derivato ? 'Dal finger-pull (senza gola)' : m.pronto ? 'Oggetto 3D pronto' : m.proprio ? 'Aggiunto da te' : 'Predefinito'}</span>
             <span class="imp-nome">${esc(m.nome)}</span>
             <span class="imp-dett">${dettagli(m)}</span>
             <label class="imp-vis"><input type="checkbox" data-vis="${esc(m.id)}" ${vis ? 'checked' : ''}> Visibile in questa sezione</label>
@@ -121,13 +124,15 @@ function render() {
   }));
   const add = el.querySelector('#imp-aggiungi');
   if (add) add.addEventListener('click', () => apriScheda(null));
+  const pr = el.querySelector('#imp-pronti');
+  if (pr) pr.addEventListener('click', () => apriPronti());
 }
 
 // ---------------------------------------------------------------------------
 // Scheda prodotto: foto + ritaglio + misure + dati
 // ---------------------------------------------------------------------------
 const modale = document.getElementById('imp-modale');
-function chiudi() { modale.hidden = true; document.getElementById('imp-modale-corpo').innerHTML = ''; }
+function chiudi() { fermaPronto(); modale.hidden = true; document.getElementById('imp-modale-corpo').innerHTML = ''; }
 modale.addEventListener('click', (e) => { if (e.target === modale) chiudi(); });
 const MANIGLIA_STANDARD_CM = 15;
 
@@ -136,7 +141,7 @@ function apriScheda(m) {
   const proprio = nuovo || m.proprio;
   const p = proprio && !nuovo ? stato.prodotti.find((x) => x.id === m.id) : null;
   const sez = nuovo ? sezione : (p ? p.sezione : sezione);
-  if (sez === 'oggetti') return apriSchedaOggetto(p);
+  if (sez === 'oggetti') return p && p.pronto ? apriSchedaPronto(p) : apriSchedaOggetto(p);
   const tipo = sez === 'fingerpull' ? 'fp' : sez === 'maniglie' ? 'man' : 'base';
   const info = (p ? p.info : (m && m.info)) || {};
   const camp = p && p.campioneCm ? p.campioneCm : { w: '', h: '' };
@@ -852,6 +857,118 @@ function ritaglio(img, corpo, zone, sfondoChiaro = false) {
     const r = R[z.id];
     return [z.id, { x: Math.round(r.x * W), y: Math.round(r.y * H), w: Math.max(1, Math.round(r.w * W)), h: Math.max(1, Math.round(r.h * H)) }];
   }));
+}
+
+// ---------------------------------------------------------------------------
+// OGGETTI 3D PRONTI (Poly Haven, CC0): cerca, guarda in 3D, aggiungi al catalogo
+// ---------------------------------------------------------------------------
+let _chiudiPronto = null;
+function fermaPronto() { if (_chiudiPronto) { _chiudiPronto(); _chiudiPronto = null; } }
+const cmPronto = (mm) => (Math.round(mm / 5) / 2).toLocaleString('it-IT');
+function apriPronti(statoRicerca = { testo: '', cat: CAT_PRONTI[0].id }) {
+  fermaPronto();
+  const corpo = document.getElementById('imp-modale-corpo');
+  document.getElementById('imp-modale-titolo').textContent = tr('Oggetti 3D pronti');
+  corpo.innerHTML = `
+    <div class="imp-form">
+      <div class="imp-aiuto">Oggetti già fatti in 3D da professionisti, con i materiali veri e le <strong>misure reali</strong>. Scrivi cosa cerchi (es. vaso, pianta, frutta, lampada) o scegli una categoria, tocca un oggetto per vederlo e aggiungilo al catalogo: in cucina lo trovi in «Aggiungi oggetti».</div>
+      <div class="pronti-cerca"><input type="text" id="pr-testo" placeholder="Cosa cerchi? es. vaso, pianta, frutta…" value="${esc(statoRicerca.testo)}" autocomplete="off"><button type="button" class="btn-oro" id="pr-vai">Cerca</button></div>
+      <div class="pronti-chip">${CAT_PRONTI.map((c) => `<button type="button" class="btn-ghost btn-mini ${!statoRicerca.testo && c.id === statoRicerca.cat ? 'attivo' : ''}" data-prcat="${c.id}">${esc(c.nome)}</button>`).join('')}</div>
+      <div class="imp-auto-msg" id="pr-msg" hidden></div>
+      <div class="pronti-griglia" id="pr-griglia"></div>
+      <div class="pronti-credito">${esc(CREDITO_PRONTI)}</div>
+      <div class="imp-piede"><button type="button" class="btn-ghost" id="pr-chiudi">Chiudi</button></div>
+    </div>`;
+  modale.hidden = false;
+  const msg = (t) => { const m = corpo.querySelector('#pr-msg'); m.textContent = t; m.hidden = !t; };
+  const mostra = async () => {
+    const g = corpo.querySelector('#pr-griglia'); g.innerHTML = ''; msg(tr('Cerco…'));
+    let lista = [];
+    try { lista = await cercaPronti(statoRicerca.testo, statoRicerca.testo ? null : statoRicerca.cat); }
+    catch (e) { msg(tr('Non riesco a collegarmi alla libreria degli oggetti: controlla la connessione e riprova.')); return; }
+    if (!corpo.querySelector('#pr-griglia')) return;
+    msg(lista.length ? '' : tr('Nessun oggetto trovato: prova con un\'altra parola o scegli una categoria.'));
+    g.innerHTML = lista.slice(0, 80).map((o) => `
+      <button type="button" class="pronti-voce" data-prid="${esc(o.id)}" title="${esc(o.nome)}">
+        <img src="${miniPronto(o.id)}" alt="" loading="lazy">
+        <span data-no-i18n>${esc(o.nome)}</span>
+        ${o.dim ? `<small>${cmPronto(o.dim.w)} × ${cmPronto(o.dim.d)} × ${cmPronto(o.dim.h)} cm</small>` : ''}
+      </button>`).join('');
+    g.querySelectorAll('[data-prid]').forEach((b) => b.addEventListener('click', () => {
+      const o = lista.find((x) => x.id === b.dataset.prid); if (o) apriSchedaPronto(null, o, statoRicerca);
+    }));
+  };
+  const cercaOra = () => { statoRicerca.testo = corpo.querySelector('#pr-testo').value.trim(); corpo.querySelectorAll('[data-prcat]').forEach((x) => x.classList.toggle('attivo', !statoRicerca.testo && x.dataset.prcat === statoRicerca.cat)); mostra(); };
+  corpo.querySelector('#pr-vai').addEventListener('click', cercaOra);
+  corpo.querySelector('#pr-testo').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); cercaOra(); } });
+  corpo.querySelectorAll('[data-prcat]').forEach((b) => b.addEventListener('click', () => {
+    statoRicerca.cat = b.dataset.prcat; statoRicerca.testo = ''; corpo.querySelector('#pr-testo').value = '';
+    corpo.querySelectorAll('[data-prcat]').forEach((x) => x.classList.toggle('attivo', x === b)); mostra();
+  }));
+  corpo.querySelector('#pr-chiudi').addEventListener('click', () => { fermaPronto(); chiudi(); });
+  mostra();
+}
+/** Un oggetto pronto: anteprima 3D, nome, misure; «Aggiungi al catalogo» (nuovo) o «Salva» (già nel catalogo). */
+function apriSchedaPronto(p, o = null, statoRicerca = null) {
+  fermaPronto();
+  const nuovo = !p;
+  const idPh = nuovo ? o.id : p.pronto.id;
+  const corpo = document.getElementById('imp-modale-corpo');
+  document.getElementById('imp-modale-titolo').textContent = tr(nuovo ? 'Oggetto 3D pronto' : 'Modifica prodotto');
+  const mis = nuovo ? (o.dim ? { w: o.dim.w / 10, d: o.dim.d / 10, h: o.dim.h / 10 } : null) : { w: p.pronto.w, d: p.pronto.d, h: p.pronto.h };
+  const v = (x) => (x != null ? String(Math.round(x * 10) / 10) : '');
+  corpo.innerHTML = `
+    <div class="imp-form">
+      <div id="pr-vista" class="imp-man3d-vista"><div class="imp-aiuto">${tr('Scarico il 3D…')}</div></div>
+      <label>Nome <span class="imp-obbl">*</span><input type="text" id="pr-nome" value="${esc(nuovo ? o.nome : p.nome)}"></label>
+      <fieldset class="imp-misura">
+        <legend>Misure reali (cm)</legend>
+        <div class="imp-misure3">
+          <label>Larghezza<input type="text" inputmode="decimal" autocomplete="off" id="pr-w" value="${v(mis && mis.w)}"></label>
+          <label>Profondità<input type="text" inputmode="decimal" autocomplete="off" id="pr-d" value="${v(mis && mis.d)}"></label>
+          <label>Altezza<input type="text" inputmode="decimal" autocomplete="off" id="pr-h" value="${v(mis && mis.h)}"></label>
+        </div>
+        <div class="imp-aiuto">Sono le misure vere dell'oggetto. Se le cambi, il 3D si allunga o si stringe.</div>
+      </fieldset>
+      <div class="pronti-credito">${esc(CREDITO_PRONTI)}</div>
+      <div class="imp-errore" id="f-err" hidden></div>
+      <div class="imp-piede">
+        <button type="button" class="btn-ghost" id="pr-indietro">${nuovo ? '← Indietro' : 'Annulla'}</button>
+        <button type="button" class="btn-oro" id="pr-salva">${nuovo ? 'Aggiungi al catalogo' : 'Salva'}</button>
+      </div>
+    </div>`;
+  modale.hidden = false;
+  const box = corpo.querySelector('#pr-vista');
+  anteprimaPronto(box, idPh).then((f) => { if (corpo.contains(box)) _chiudiPronto = f; else f(); })
+    .catch(() => { box.innerHTML = `<div class="imp-aiuto">${tr('Non riesco a scaricare il 3D: controlla la connessione e riprova.')}</div>`; });
+  // senza misure nella libreria: quelle del modello scaricato
+  if (!mis) modelloPronto(idPh).then((m) => { const d = m.userData.dim; for (const [k, x] of [['w', d.w], ['d', d.d], ['h', d.h]]) corpo.querySelector(`#pr-${k}`).value = v(x / 10); }).catch(() => {});
+  corpo.querySelector('#pr-indietro').addEventListener('click', () => { fermaPronto(); if (nuovo) apriPronti(statoRicerca || undefined); else chiudi(); });
+  corpo.querySelector('#pr-salva').addEventListener('click', async () => {
+    const err = corpo.querySelector('#f-err'); err.hidden = true;
+    const nome = corpo.querySelector('#pr-nome').value.trim();
+    const n = (id) => Number(String(corpo.querySelector(id).value).replace(',', '.'));
+    const w = n('#pr-w'), d = n('#pr-d'), h = n('#pr-h');
+    if (!nome) { err.textContent = tr('Scrivi il nome del prodotto.'); err.hidden = false; return; }
+    if (!(w > 0 && d > 0 && h > 0)) { err.textContent = tr('Scrivi le misure reali in cm (larghezza, profondità e altezza).'); err.hidden = false; return; }
+    const b = corpo.querySelector('#pr-salva'); b.disabled = true; b.textContent = tr('Salvo…');
+    try {
+      if (nuovo) {
+        const id = nuovoId();
+        const foto = await (await fetch(miniPronto(idPh))).blob();          // anteprima nel catalogo
+        await salvaFoto(id, foto, 'foto'); await salvaFoto(id, foto, 'thumb');
+        stato.prodotti.push({ id, sezione: 'oggetti', nome, info: { note: 'Poly Haven · CC0' }, pronto: { fonte: 'polyhaven', id: idPh, w, d, h },
+          creato: Date.now(), aggiornato: Date.now() });
+      } else {
+        stato.prodotti = stato.prodotti.map((x) => (x.id === p.id ? { ...x, nome, pronto: { ...x.pronto, w, d, h }, aggiornato: Date.now() } : x));
+      }
+      fermaPronto();
+      await salvaERicarica();
+    } catch (e) {
+      console.error(e); err.textContent = tr('Salvataggio non riuscito: forse lo spazio del browser è pieno.'); err.hidden = false;
+      b.disabled = false; b.textContent = tr(nuovo ? 'Aggiungi al catalogo' : 'Salva');
+    }
+  });
 }
 
 window.addEventListener('hashchange', () => {

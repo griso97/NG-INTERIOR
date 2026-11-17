@@ -13,14 +13,15 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261119i';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119i';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261119i';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119i';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119i';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119i';
+} from './modello.js?v=20261119j';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119j';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261119j';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261119j';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119j';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119j';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119j';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119i';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119j';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -2240,8 +2241,15 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
     if (cat === 'oggetto' && String(m.tipo).startsWith('ogg:')) {
       // OGGETTO DEL CATALOGO (dalle foto): sul piano se sta sopra un mobile basso, se no a terra
       const def = MATERIALI.find((x) => x.id === m.tipo.slice(4));
-      const r = def && oggettoDaFoto({ ...def, misure: { w: m.larghezza_mm || def.misure.w, d: m.profondita_mm || def.misure.d, h: m.altezza_mm || def.misure.h } }, reRender);
-      if (r) {
+      const misOgg = def && def.misure ? { w: m.larghezza_mm || def.misure.w, d: m.profondita_mm || def.misure.d, h: m.altezza_mm || def.misure.h } : null;
+      // OGGETTO 3D PRONTO (Poly Haven): il modello vero, alle misure scelte
+      const pr = def && def.pronto ? oggettoPronto(def, misOgg, reRender) : null;
+      const r = def && !def.pronto && oggettoDaFoto({ ...def, misure: misOgg }, reRender);
+      if (pr) {
+        const og = new THREE.Group(); og.add(pr);
+        og.position.set(cx, quotaAppoggio(progetto, m, spTop), cz); og.rotation.y = -(m.rot || 0) * Math.PI / 180; g3d = og;
+        og.userData.appoggiabile = true; daPosare.push(og);
+      } else if (r) {
         const og = new THREE.Group();
         const mesh = new THREE.Mesh(r.geo, r.mat); mesh.castShadow = true; mesh.receiveShadow = true; og.add(mesh);
         og.position.set(cx, quotaAppoggio(progetto, m, spTop), cz); og.rotation.y = -(m.rot || 0) * Math.PI / 180; g3d = og;

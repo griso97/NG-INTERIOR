@@ -127,3 +127,14 @@
 .imp-tipo-foto.dritta { border-color: #4f9a5c; color: #6cc27a; }
 .imp-tipo-foto.storta { border-color: #b8873a; color: #e0a64a; }
 .imp-vista-ruolo select { padding: 6px; border-radius: 6px; }
+
+/* OGGETTI 3D PRONTI (Poly Haven) */
+.pronti-cerca { display: flex; gap: 8px; margin: 8px 0; }
+.pronti-cerca input { flex: 1; min-width: 0; padding: 10px; background: var(--bg-3); border: 1px solid var(--bordo); color: var(--testo); border-radius: 4px; font-size: 16px; }
+.pronti-chip { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.pronti-griglia { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; max-height: 56vh; overflow-y: auto; }
+.pronti-voce { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; background: var(--bg-3); border: 1px solid var(--bordo); border-radius: 6px; color: var(--testo); font: inherit; font-size: 12px; cursor: pointer; text-align: center; }
+.pronti-voce:hover, .pronti-voce:focus-visible { border-color: var(--oro, #b8962e); }
+.pronti-voce img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #eae7e1; border-radius: 4px; }
+.pronti-voce small { color: var(--testo-dim, #999); font-size: 11px; }
+.pronti-credito { font-size: 11px; color: var(--testo-dim, #999); margin-top: 8px; }
