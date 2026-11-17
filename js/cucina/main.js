@@ -24,13 +24,13 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261118u';
-import { renderPianta } from './pianta.js?v=20261118u';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261118u';
-import { calcolaDistintaCucina } from './distinta.js?v=20261118u';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261118u';
-import { agganciaTema } from '../tema.js?v=20261118u';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261118u';
+} from './modello.js?v=20261118v';
+import { renderPianta } from './pianta.js?v=20261118v';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261118v';
+import { calcolaDistintaCucina } from './distinta.js?v=20261118v';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261118v';
+import { agganciaTema } from '../tema.js?v=20261118v';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261118v';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1376,7 +1376,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261118u');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261118v');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1557,6 +1557,20 @@ function renderPannelloModificaMobile(m) {
       m.tipo === 'forno' ? 'Modulo con forno e piano cottura.' :
       m.tipo === 'lavello' ? 'Modulo con lavello.' :
       'Per aggiungere lavello o piano cottura seleziona una base con ante o cassetti.'}</div></section>`}
+    ${cat === 'pannello' ? (() => {
+      // PANNELLONE (pannello copertura dell'isola, regletta grande): colore suo, a scelta
+      const lista = perSez('pannello');
+      const sel = m.coloreFronte || null;
+      const def = sel ? [...lista, ...materialiEncimera].find((x) => x.id === sel) : null;
+      return `
+    <section class="step3-pannello">
+      <h3>Colore del pannello</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Colore: <strong>${def ? def.nome : 'come le ante dei mobili bassi'}</strong></div>
+      ${htmlTendineColori(lista, (mt) => `<button type="button" class="swatch ${mt.id === sel ? 'sel' : ''}" data-colpann="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`, {
+        sel, chiave: 'cucina-pannello',
+        prima: `<button type="button" class="swatch swatch-none ${!sel ? 'sel' : ''}" data-colpann="" title="Come le ante dei mobili bassi">=</button>` })}
+    </section>`;
+    })() : ''}
     ${gruppoColore ? `
     <section class="step3-pannello">
       <h3>Colore ${gruppoColore === 'costado' ? '' : 'ante '}· ${gruppoColore === 'costado' && costadoSingolo ? 'questo costado' : soloQuesto ? 'solo questo modulo' : nomeGruppo}</h3>
@@ -1657,6 +1671,11 @@ function renderPannelloModificaMobile(m) {
   agganciaColoriPonte(pannello);
   agganciaPortePonte(pannello);
   agganciaPensileSottoPonte(pannello, m);
+  pannello.querySelectorAll('.swatch[data-colpann]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    if (b.dataset.colpann) m.coloreFronte = b.dataset.colpann; else delete m.coloreFronte;
+    aggiorna();
+  }));
   pannello.querySelectorAll('.swatch[data-mat], .opt-piano[data-mat]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     if (costadoSingolo) { m.colore = b.dataset.mat; aggiorna(); return; }
@@ -2084,13 +2103,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261118u');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261118v');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261118u'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261118v'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

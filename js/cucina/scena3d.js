@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261118u';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118u';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261118u';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118u';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118u';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118u';
+} from './modello.js?v=20261118v';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118v';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261118v';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118v';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118v';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118v';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118u';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118v';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -2245,7 +2245,8 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       // Pannello su misura: box 18 mm di spessore, finitura come le ante.
       // Va da terra fino all'altezza scelta, niente zoccolo e niente top.
       const h = m.altezza_mm || 2200;
-      g3d = collocaMobile(corpo(dim.w, h, dim.d, matBase || COL.anta), cx, 0, cz, h, m.rot);
+      // colore suo (scelto toccando il pannello) o come le ante dei mobili bassi
+      g3d = collocaMobile(corpo(dim.w, h, dim.d, matMio || matBase || COL.anta), cx, 0, cz, h, m.rot);
     } else if (cat === 'costado') {
       let h = m.altezza_mm || 850;
       // Costado "alto" (profondità da pensile): sta in alto, appeso all'altezza

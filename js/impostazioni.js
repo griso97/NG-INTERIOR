@@ -8,14 +8,14 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261118u';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261118u';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261118u';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261118u';
-import { scontornaIA, scontornoIaPossibile } from './scontorno-ia.js?v=20261118u';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261118u';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261118u';
-import { agganciaTema } from './tema.js?v=20261118u';
+} from './catalogo.js?v=20261118v';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261118v';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261118v';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261118v';
+import { scontornaIA, scontornoIaPossibile } from './scontorno-ia.js?v=20261118v';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261118v';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261118v';
+import { agganciaTema } from './tema.js?v=20261118v';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
