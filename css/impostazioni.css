@@ -5,6 +5,15 @@
 .imp-main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
 .imp-titolo { font-family: 'Playfair Display', Georgia, serif; color: var(--oro); font-size: 28px; margin: 6px 0 4px; }
 .imp-sotto { color: var(--testo-dim); margin: 0 0 18px; line-height: 1.5; }
+/* Copia completa (portare tutto su un altro dispositivo) */
+.imp-copia { border: 1px solid var(--bordo); border-radius: 4px; background: var(--bg-2); padding: 0 14px; margin: 0 0 18px; }
+.imp-copia[open] { border-color: var(--oro-scuro); padding-bottom: 14px; }
+.imp-copia > summary { cursor: pointer; padding: 12px 0; color: var(--oro-chiaro); font-size: 14px; list-style: none; }
+.imp-copia > summary::-webkit-details-marker { display: none; }
+.imp-copia p, .imp-copia li { color: var(--testo-dim); font-size: 13px; line-height: 1.55; }
+.imp-copia ol { margin: 6px 0 12px; padding-left: 20px; }
+.imp-copia-azioni { display: flex; flex-wrap: wrap; gap: 10px; }
+.imp-copia-carica { cursor: pointer; display: inline-flex; align-items: center; }
 .imp-schede { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .imp-schede button { flex: 0 1 auto; }
 .imp-schede button.attivo { border-color: var(--oro); color: var(--oro-chiaro); background: rgba(201,169,74,.12); }

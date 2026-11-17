@@ -8,14 +8,15 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261118z';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261118z';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261118z';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261118z';
-import { scontornaIA, scontornoIaPossibile } from './scontorno-ia.js?v=20261118z';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261118z';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261118z';
-import { agganciaTema } from './tema.js?v=20261118z';
+} from './catalogo.js?v=20261119a';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119a';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119a';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119a';
+import { scontornaIA, scontornoIaPossibile } from './scontorno-ia.js?v=20261119a';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119a';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119a';
+import { agganciaTema } from './tema.js?v=20261119a';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119a';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -857,6 +858,29 @@ window.addEventListener('hashchange', () => {
   if (h !== sezione && SEZIONI.some((x) => x.id === h)) { sezione = h; render(); }
 });
 render();
+
+// PORTARE TUTTO SU UN ALTRO DISPOSITIVO (copia completa in un file)
+{
+  const msg = (t) => { const m = document.getElementById('imp-copia-msg'); if (m) { m.textContent = t; m.hidden = !t; } };
+  document.getElementById('imp-copia-scarica')?.addEventListener('click', async () => {
+    msg(tr('Preparo la copia…'));
+    try {
+      const r = await scaricaCopiaCompleta();
+      msg(`✓ ${tr('Copia scaricata')}: ${r.progetti} ${tr('progetti')}, ${r.prodotti} ${tr('prodotti')}, ${r.preventivi} ${tr('preventivi')} (${r.mb < 0.1 ? '< 0,1' : String(r.mb).replace('.', ',')} MB). ${tr('Ora mandala all\'altro dispositivo e caricala lì.')}`);
+    } catch (e) { msg(`${tr('Non sono riuscito a preparare la copia')}: ${e.message || e}`); }
+  });
+  document.getElementById('imp-copia-file')?.addEventListener('change', async (e) => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    if (!confirm(tr('I progetti aperti su questo dispositivo diventano quelli della copia; prodotti e preventivi si uniscono. Continuo?'))) { e.target.value = ''; return; }
+    msg(tr('Carico la copia…'));
+    try {
+      const r = await caricaCopiaCompleta(f);
+      msg(`✓ ${tr('Copia caricata')}: ${r.progetti} ${tr('progetti')}, ${r.prodotti} ${tr('prodotti')}, ${r.preventivi} ${tr('preventivi')}. ${tr('Ricarico la pagina…')}`);
+      setTimeout(() => location.reload(), 1800);
+    } catch (err) { msg(`${tr('Non sono riuscito a caricare la copia')}: ${tr(err.message || String(err))}`); }
+    e.target.value = '';
+  });
+}
 
 // ---------------------------------------------------------------------------
 // SCHEDA OGGETTO / ELETTRODOMESTICO: foto davanti (+ lato, sopra, dietro),
