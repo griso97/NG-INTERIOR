@@ -14,7 +14,7 @@
 // Assi (mm): x = larghezza (centro 0) · y = altezza (0 = appoggio) · z = profondità (+ = davanti)
 // =============================================================================
 import * as THREE from 'three';
-import { formaOggetto, sagomaEstrusa, solidoDiRotazione, compattezza } from './scanner3d.js?v=20261119h';
+import { formaOggetto, sagomaEstrusa, solidoDiRotazione, compattezza } from './scanner3d.js?v=20261119i';
 import { edgeTable, triTable } from '../vendor/three/addons/objects/mc-tabelle.js';
 
 /** Distanza (chamfer 3-4, in pixel) di ogni pixel dal più vicino pixel "fuori" (m = 0). */
@@ -471,15 +471,18 @@ function calcolaTreQuarti(src, diag = null) {
   const theta = Math.atan(Math.sqrt(sL / sR));                 // angolo dalla faccia di SINISTRA
   const phi = Math.asin(Math.sqrt(Math.min(0.8, sL * sR)));     // quanto è dall'alto
   const yV = ((L.m * c + L.q) + (R.m * c + R.q)) / 2;           // altezza dello spigolo in basso
+  // (le facce vanno da un bordo della sagoma allo spigolo: la ciotola dell'impastatrice è più
+  // larga della base, quindi i bordi della BASE darebbero un fianco troppo stretto)
+  const fa = x0, fb = x1 + 1;
   // altezza delle facce: senza la fascia del coperchio che si vede da sopra. Per una scatola è
   // quanto scendono i due lati del fondo; ma spesso la cima è più piccola della base (testa
   // dell'impastatrice, coperchio del bollitore): al massimo il 12%, per non tagliare la cima
-  const Hc = bh - Math.min(0.12 * bh, sL * (c - x0) + sR * (x1 - c));
+  const Hc = bh - Math.min(0.12 * bh, sL * (c - fa) + sR * (fb - c));
   const Hpx = Hc / Math.cos(phi);
-  const larghL = (c - x0) / Math.cos(theta), larghR = (x1 - c) / Math.sin(theta);
+  const larghL = (c - fa) / Math.cos(theta), larghR = (fb - c) / Math.sin(theta);
   const k = (src.naturalWidth || src.width) / w;               // pixel della foto per pixel della sagoma
   return {
-    k, x0, x1: x1 + 1, c, yV, sL, sR, Hc, Hpx, theta, phi,
+    k, x0: fa, x1: fb, c, yV, sL, sR, Hc, Hpx, theta, phi,
     larghL, larghR, aspL: larghL / Hpx, aspR: larghR / Hpx, facce: {},
   };
 }

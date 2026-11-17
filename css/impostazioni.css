@@ -109,6 +109,7 @@
 
 .imp-misure3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
 .imp-misure3 input { width: 100%; box-sizing: border-box; }
+.imp-form input.misura-auto { color: var(--oro-chiaro, #d8b45a); font-style: italic; border-color: var(--oro, #b8962e); }   /* misura ricavata dalle foto */
 .imp-pianta { display: flex; gap: 6px; flex-wrap: wrap; }
 .imp-pianta .attivo { border-color: var(--oro, #c9a94a); color: var(--oro-chiaro, #e8c25a); }
 

@@ -8,16 +8,16 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261119h';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119h';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119h';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119h';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119h';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119h';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119h';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119h';
-import { agganciaTema } from './tema.js?v=20261119h';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119h';
+} from './catalogo.js?v=20261119i';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119i';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119i';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119i';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119i';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119i';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119i';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119i';
+import { agganciaTema } from './tema.js?v=20261119i';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119i';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -947,7 +947,7 @@ function apriSchedaOggetto(p, bozza) {
           <label>Profondità<input type="text" inputmode="decimal" autocomplete="off" id="o-d" value="${esc(o.d)}" placeholder="es. 36"></label>
           <label>Altezza<input type="text" inputmode="decimal" autocomplete="off" id="o-h" value="${esc(o.h)}" placeholder="es. 31"></label>
         </div>
-        <div class="imp-aiuto">Le trovi nella scheda del prodotto (la profondità con la maniglia). Il 3D esce in scala vera.</div>
+        <div class="imp-aiuto">Le trovi nella scheda del prodotto (la profondità con la maniglia). Se non le sai tutte, scrivi quella che sai (es. l'altezza): le altre le ricavo dalle foto. Il 3D esce in scala vera.</div>
         <div id="o-misure-msg" class="imp-auto-msg" hidden></div>
       </fieldset>
       <fieldset class="imp-misura" id="o-pianta-box">
@@ -1023,9 +1023,40 @@ function apriSchedaOggetto(p, bozza) {
     clearTimeout(_tAntOgg);
     _tAntOgg = setTimeout(async () => {
       const box = corpo.querySelector('#o-vista'); if (!box) return;
+      // MISURE CHE NON SAI: scrivi quella che sai, le altre le ricavo dalle PROPORZIONI delle foto
+      // (anche dal fianco raddrizzato di una foto di tre quarti). Le ricavate sono in oro.
+      let notaMisure = '';
+      {
+        const campi = { w: corpo.querySelector('#o-w'), d: corpo.querySelector('#o-d'), h: corpo.querySelector('#o-h') };
+        const val = (k) => (campi[k].dataset.auto ? NaN : num(`#o-${k}`) * 10);
+        let w = val('w'), d = val('d'), h = val('h');
+        const scritte = [w, d, h].filter((x) => x > 0).length;
+        if (imgs.fronte && scritte >= 1 && scritte < 3) {
+          const av0 = assegnaViste({ ...imgs, tipi }, w > 0 ? w : 1000, d > 0 ? d : 1000, h > 0 ? h : 1000);
+          const pr = av0 && av0.misure;                              // wh = larghezza/altezza, dh = profondità/altezza
+          const ricavate = [];
+          if (pr && pr.wh > 0) {
+            if (!(h > 0)) { h = w > 0 ? w / pr.wh : (d > 0 && pr.dh > 0 ? d / pr.dh : NaN); if (h > 0) ricavate.push('h'); }
+            if (!(w > 0) && h > 0) { w = h * pr.wh; ricavate.push('w'); }
+            if (!(d > 0) && h > 0 && pr.dh > 0) { d = h * pr.dh; ricavate.push('d'); }
+          }
+          const mm = { w, d, h };
+          for (const k of ['w', 'd', 'h']) {
+            if (ricavate.includes(k)) { campi[k].value = String(Math.round(mm[k] / 5) / 2); campi[k].dataset.auto = '1'; campi[k].classList.add('misura-auto'); }
+            else if (campi[k].dataset.auto) { campi[k].value = ''; delete campi[k].dataset.auto; campi[k].classList.remove('misura-auto'); }
+          }
+          if (ricavate.length) notaMisure = `📐 ${tr('Le misure in oro le ho ricavate dalle foto, partendo da quella che hai scritto. Se le conosci, scrivile tu.')}`;
+          if (!(d > 0)) notaMisure = `📐 ${tr('La profondità non si vede dalle foto: scrivila tu, oppure aggiungi una foto di lato o di tre quarti.')}`;
+        }
+      }
       const W = num('#o-w') * 10, D = num('#o-d') * 10, H = num('#o-h') * 10;
       if (_chiudiAntOgg) { _chiudiAntOgg(); _chiudiAntOgg = null; }
-      if (!imgs.fronte || !(W > 0 && D > 0 && H > 0)) { box.innerHTML = `<div class="imp-aiuto">${tr('Carica la foto davanti e scrivi le misure.')}</div>`; return; }
+      if (!imgs.fronte || !(W > 0 && D > 0 && H > 0)) {
+        const mmsg = corpo.querySelector('#o-misure-msg');
+        if (mmsg) { mmsg.textContent = notaMisure; mmsg.hidden = !notaMisure; }
+        box.innerHTML = `<div class="imp-aiuto">${tr(imgs.fronte ? "Scrivi almeno una misura (es. l'altezza): le altre le ricavo dalle foto." : 'Carica la foto davanti e scrivi le misure.')}</div>`;
+        return;
+      }
       box.innerHTML = `<div class="imp-aiuto">${tr('Costruisco il 3D…')}</div>`;
       await new Promise((r) => setTimeout(r, 30));
       // FOTO DA SOPRA di traverso (si capisce dalle misure): la giro, con il davanti in basso, e lo dico
@@ -1054,7 +1085,7 @@ function apriSchedaOggetto(p, bozza) {
           <button type="button" class="btn-oro btn-mini" id="o-usa-misura" style="margin-top:6px">${tr('Usa')} ${cm(c.mm)} cm</button>`;
         mm.hidden = false;
         mm.querySelector('#o-usa-misura').addEventListener('click', () => { corpo.querySelector(ids[c.campo]).value = cm(c.mm).replace(',', '.'); anteprima(); });
-      } else if (mm) mm.hidden = true;
+      } else if (mm) { mm.textContent = notaMisure; mm.hidden = !notaMisure; }
       _chiudiAntOgg = await anteprimaOggetto(box, { ...imgs, tipi }, W, D, H, pianta);
     }, 250);
   };
@@ -1165,6 +1196,7 @@ function apriSchedaOggetto(p, bozza) {
   }));
   corpo.querySelectorAll('#o-w, #o-d, #o-h').forEach((x) => x.addEventListener('change', anteprima));
   corpo.querySelectorAll('#o-w, #o-d, #o-h, #f-nome, #f-note').forEach((x) => x.addEventListener('input', bozzaPiu));
+  corpo.querySelectorAll('#o-w, #o-d, #o-h').forEach((x) => x.addEventListener('input', () => { delete x.dataset.auto; x.classList.remove('misura-auto'); }));
   /** Riprende la bozza: misure, nome, foto già isolate e quelle rimaste a metà. */
   const riprendi = async (b) => {
     for (const [id, v] of [['#o-w', b.w], ['#o-d', b.d], ['#o-h', b.h], ['#f-nome', b.nome], ['#f-note', b.note]]) {
