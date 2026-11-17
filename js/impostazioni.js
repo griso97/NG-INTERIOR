@@ -8,15 +8,15 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261119b';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119b';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119b';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119b';
-import { scontornaIA, scontornoIaPossibile } from './scontorno-ia.js?v=20261119b';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119b';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119b';
-import { agganciaTema } from './tema.js?v=20261119b';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119b';
+} from './catalogo.js?v=20261119c';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119c';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119c';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119c';
+import { scontornaIA, scontornoIaPossibile } from './scontorno-ia.js?v=20261119c';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119c';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119c';
+import { agganciaTema } from './tema.js?v=20261119c';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119c';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);

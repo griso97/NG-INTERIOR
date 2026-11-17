@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261119b';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119b';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261119b';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119b';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119b';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119b';
+} from './modello.js?v=20261119c';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119c';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261119c';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119c';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119c';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119c';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119b';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119c';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -2878,23 +2878,47 @@ function renderZoccoliContinui(basi, mat) {
     const key = `${rotN}|${perp}|${Math.round(b.zocc || 150)}`;
     (gruppi[key] ||= { rotN, c, s, zocc: b.zocc || 150, d: b.d || PROFONDITA_BASE, items: [] }).items.push(b);
   }
+  // 1) i tratti di zoccolo di ogni fila, con la linea del loro FRONTE (arretrato di 100 dalle ante)
+  const runs = [];
   for (const key in gruppi) {
     const G = gruppi[key];
     const { c, s, rotN, zocc } = G;
+    const k = s * s - c * c;                                   // fronte del mobile lungo l'asse perpendicolare (±1)
     for (const run of tratti(G.items, c, s)) {
       let perpSum = 0; for (const b of run.items) perpSum += b.x * (-s) + b.y * c;
       const perp = perpSum / run.items.length;
-      const len = run.hi - run.lo;
-      const centerAlong = (run.lo + run.hi) / 2;
-      const cx = c * centerAlong + (-s) * perp;
-      const cy = s * centerAlong + c * perp;
-      const geo = new THREE.BoxGeometry(len, zocc, G.d - 100);
-      const mesh = new THREE.Mesh(geo, mat ? mat.clone() : new THREE.MeshStandardMaterial({ color: 0x191919, roughness: 0.96, metalness: 0 }));
-      mesh.position.z = -50;                 // arretrato rispetto al fronte
-      const g = new THREE.Group(); g.add(mesh);
-      gruppo.add(collocaMobile(g, cx, 0, -cy, zocc, rotN));
+      runs.push({ c, s, rotN, zocc, d: G.d, perp, fronte: perp + k * (G.d / 2 - 100), lo: run.lo, hi: run.hi });
     }
   }
+  // 2) ANGOLI (cucine a L / U): dove due file si incontrano a 90° lo zoccolo GIRA senza buchi.
+  //    Ogni tratto che finisce prima dello spigolo si allunga fino al fronte dello zoccolo
+  //    dell'altra fila (prima restava un vuoto sotto il mobile d'angolo / la regletta).
+  const nuovi = runs.map((T) => ({ lo: T.lo, hi: T.hi }));
+  runs.forEach((T, i) => {
+    for (const Q of runs) {
+      if (Q === T || Math.abs(Q.zocc - T.zocc) > 5 || Math.abs(T.c * Q.c + T.s * Q.s) > 0.05) continue;   // solo file a 90°, stessa altezza
+      // incrocio dei due fronti: (-sT, cT)·X = fT ; (-sQ, cQ)·X = fQ
+      const a1 = -T.s, b1 = T.c, a2 = -Q.s, b2 = Q.c, det = a1 * b2 - a2 * b1;
+      if (Math.abs(det) < 1e-6) continue;
+      const X = (T.fronte * b2 - Q.fronte * b1) / det, Y = (a1 * Q.fronte - a2 * T.fronte) / det;
+      const aT = X * T.c + Y * T.s, aQ = X * Q.c + Y * Q.s;
+      if (aQ < Q.lo - 700 || aQ > Q.hi + 700) continue;                  // l'altra fila non arriva lì
+      if (aT > T.hi && aT - T.hi <= 700) nuovi[i].hi = Math.max(nuovi[i].hi, aT);
+      if (aT < T.lo && T.lo - aT <= 700) nuovi[i].lo = Math.min(nuovi[i].lo, aT);
+    }
+  });
+  // 3) i pezzi di zoccolo
+  runs.forEach((T, i) => {
+    const { lo, hi } = nuovi[i];
+    const len = hi - lo, centerAlong = (lo + hi) / 2;
+    const cx = T.c * centerAlong + (-T.s) * T.perp;
+    const cy = T.s * centerAlong + T.c * T.perp;
+    const geo = new THREE.BoxGeometry(len, T.zocc, T.d - 100);
+    const mesh = new THREE.Mesh(geo, mat ? mat.clone() : new THREE.MeshStandardMaterial({ color: 0x191919, roughness: 0.96, metalness: 0 }));
+    mesh.position.z = -50;                 // arretrato rispetto al fronte
+    const g = new THREE.Group(); g.add(mesh);
+    gruppo.add(collocaMobile(g, cx, 0, -cy, T.zocc, T.rotN));
+  });
 }
 
 /** Materiale dello zoccolo in base al colore scelto (default: nero opaco). */
