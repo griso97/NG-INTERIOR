@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261118r';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118r';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261118r';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118r';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118r';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118r';
+} from './modello.js?v=20261118s';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118s';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261118s';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118s';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118s';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118s';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118r';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118s';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -2470,14 +2470,13 @@ function materialePerTop(mat) {
     map: tex,
     color: 0xffffff,
     userData: mat.userData && mat.userData.campioneMm ? { campioneMm: mat.userData.campioneMm } : {},
-    // Top completamente opaco: la texture deve apparire sul 3D come nella
-    // foto prodotto, senza essere schiarita dalla luce ambiente della scena.
-    roughness: 1.0,
-    metalness: 0.0,
-    envMapIntensity: 0.0,
   });
   pianoComeFoto(m);          // colori, sfumature e venature identici alla foto
   m.userData.fotoTop = true; // foto realistica: piano satinato (riflessi morbidi)
+  // PIETRA SATINATA: la foto resta identica, sopra un riflesso morbido della stanza e delle luci
+  // (come un compact / marmo vero), non più carta stampata opaca
+  Object.assign(m, { roughness: 0.38, metalness: 0.0, envMapIntensity: 0.9 });
+  m.userData.ngSpec = 0.32;
   _matTopCache.set(mat, m);
   return m;
 }
@@ -2738,6 +2737,9 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
           slab.add(fianco);
         }
       }
+      // pietra vera: niente contorni da disegno tecnico sul piano e sull'aplacado (sull'isola il bordo
+      // di una metà si vedeva come una riga sopra l'altra metà)
+      slab.traverse((o) => { if (o.isLineSegments) o.visible = false; });
       gruppo.add(collocaMobile(slab, cx, topY, -cy, thickness, rotN));
     }
   }

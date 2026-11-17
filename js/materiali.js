@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118r';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261118s';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -227,7 +227,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118r');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261118s');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -350,7 +350,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261118r';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261118s';
 
 /** Prodotti visibili in una sezione del catalogo (con i nascosti tolti). */
 export function materialiPer(sezione, { tutti = false } = {}) {
@@ -519,6 +519,17 @@ export function taraLuceCatalogo(renderer, scene, direzioni = [[0, 0, 1], [0, 0,
 export function uvInScala(radice) {
   radice.updateMatrixWorld(true);
   const pw = new THREE.Vector3();
+  // PIANI DI LAVORO: una lastra sola per tutta la cucina, in coordinate della stanza. I pezzi
+  // accanto (es. le due file dell'isola, schiena contro schiena) sono la STESSA lastra che
+  // continua, non la stessa foto ripetuta a specchio. Centro = centro di tutti i piani.
+  const bbPiani = new THREE.Box3(), bbTmp = new THREE.Box3();
+  radice.traverse((o) => {
+    if (!o.isMesh) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    if (mats.some((m) => m && m.userData && m.userData.fotoTop && m.userData.campioneMm)) bbPiani.union(bbTmp.setFromObject(o));
+  });
+  const centroPiani = bbPiani.isEmpty() ? new THREE.Vector3() : bbPiani.getCenter(new THREE.Vector3());
+  const P = new THREE.Vector3(), N = new THREE.Vector3(), nm = new THREE.Matrix3();
   radice.traverse((o) => {
     if (!o.isMesh) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
@@ -527,6 +538,30 @@ export function uvInScala(radice) {
     const geo = o.geometry;
     if (!geo || geo.userData.uvMm || !geo.attributes.uv || !geo.attributes.normal) return;
     const { wMm, hMm } = mc.userData.campioneMm;
+    if (mc.userData.fotoTop) {
+      // direzione del pezzo (lungo la fila); girato di 180° = stessa direzione → stessa lastra
+      const e = o.matrixWorld.elements;
+      let a = Math.atan2(e[2], e[0]);
+      if (a < -1e-6) a += Math.PI;
+      if (a >= Math.PI - 1e-6) a -= Math.PI;
+      const ax = Math.cos(a), az = Math.sin(a);          // lungo la fila (piano XZ)
+      nm.getNormalMatrix(o.matrixWorld);
+      const pos = geo.attributes.position, nor = geo.attributes.normal, uv = geo.attributes.uv;
+      for (let i = 0; i < pos.count; i++) {
+        P.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld).sub(centroPiani);
+        N.fromBufferAttribute(nor, i).applyMatrix3(nm).normalize();
+        const lungo = P.x * ax + P.z * az, trav = -P.x * az + P.z * ax;
+        const nL = Math.abs(N.x * ax + N.z * az), nT = Math.abs(-N.x * az + N.z * ax), nY = Math.abs(N.y);
+        let u, v;
+        if (nY >= nL && nY >= nT) { u = lungo; v = trav; }          // sopra / sotto
+        else if (nL >= nT) { u = trav; v = P.y; }                  // testate
+        else { u = lungo; v = P.y; }                               // bordo davanti / dietro
+        uv.setXY(i, (u + wMm / 2) / unitaUV.u, (v + hMm / 2) / unitaUV.v);
+      }
+      uv.needsUpdate = true;
+      geo.userData.uvMm = true;
+      return;
+    }
     if (!geo.boundingBox) geo.computeBoundingBox();
     const bb = geo.boundingBox, c = { x: (bb.min.x + bb.max.x) / 2, y: (bb.min.y + bb.max.y) / 2, z: (bb.min.z + bb.max.z) / 2 };
     const pos = geo.attributes.position, nor = geo.attributes.normal, uv = geo.attributes.uv;
