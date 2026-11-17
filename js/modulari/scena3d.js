@@ -9,9 +9,9 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261119a';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119a';
-import { creaResa, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119a';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261119b';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119b';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119b';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -90,6 +90,7 @@ export function monta(canvas) {
   scene.add(pav);
 
   controls = new OrbitControls(camera, renderer.domElement);
+  nearSegueLaVista(camera, controls);              // profondità precisa: niente triangoli sui fondi
   controls.enableDamping = true; controls.dampingFactor = 0.08;
   controls.maxPolarAngle = Math.PI / 2 - 0.02;
 
@@ -326,6 +327,10 @@ export function aggiorna(forma, elementi, opz) {
   }
   uvInScala(gruppo);                 // foto del catalogo: centrata su ogni pannello, misura vera
   ombreSuTutto(gruppo);              // tutto fa e riceve ombra
+  // il mobile FA ombra (su pavimento e muro) ma non la riceve dal sole: dentro i vani il sole
+  // disegnava strisce diagonali chiare e scure sui fianchi e sulla schiena (in una stanza vera la
+  // luce dentro un armadio è diffusa); gli angoli e i ripiani restano scuriti dalle ombre di contatto
+  gruppo.traverse((o) => { if (o.isMesh) o.receiveShadow = false; });
   if (renderer) renderer.shadowMap.needsUpdate = true;
   const nuova = { W: forma.larghezza, H: forma.altezzaMax, P: opz.P };
   const cambiata = !ultimaVista || ['W', 'H', 'P'].some((k) => Math.abs(ultimaVista[k] - nuova[k]) > 1);

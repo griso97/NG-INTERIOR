@@ -25,6 +25,22 @@ const eTelefono = () => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || 
  *        intensita (0..1), prima?() (prima di ogni disegno) }
  * Ritorna { disegna(), cambiato(), tick(), dimensiona(), foto(lato), dispose() }.
  */
+/**
+ * PROFONDITÀ PRECISA: il punto dove la telecamera comincia a vedere (near) segue la distanza da
+ * quello che si guarda (3%, fra 1 e 15 cm). Fisso a 1 cm, con la vista a 3–5 m la scheda grafica
+ * (soprattutto sul telefono) confondeva i due triangoli di ogni pannello e le ombre di contatto
+ * disegnavano triangoli chiari e scuri sui fondi degli armadi. Avvicinandosi molto scende a 1 cm.
+ */
+export function nearSegueLaVista(camera, controls) {
+  const regola = () => {
+    const d = camera.position.distanceTo(controls.target);
+    const n = Math.min(150, Math.max(10, d * 0.03));
+    if (Math.abs(camera.near - n) > 0.5) { camera.near = n; camera.updateProjectionMatrix(); }
+  };
+  controls.addEventListener('change', regola);
+  regola();
+  return regola;
+}
 export function creaResa(opz) {
   const { renderer, scene, camera } = opz;
   const tel = eTelefono();

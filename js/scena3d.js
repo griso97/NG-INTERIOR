@@ -12,11 +12,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261119a';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261119a';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261119a';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261119b';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261119b';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261119b';
 import { sfondoDi } from './sfondi.js?v=20261111b';
-import { creaResa, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261119a';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261119b';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -246,6 +246,7 @@ export function inizializzaScena(canvas) {
 
   // Controlli orbitali: rotazione + pan + zoom liberi come prima
   controls = new OrbitControls(camera, renderer.domElement);
+  nearSegueLaVista(camera, controls);              // profondità precisa: niente triangoli sui fondi
   controls.target.set(1000, 1100, 300);
   controls.enableRotate = true;
   controls.enablePan = true;
@@ -530,6 +531,10 @@ export function aggiornaScena(config) {
   uvInScala(gruppoArmadio);       // prodotti del catalogo: foto in scala vera
   // OMBRE: tutto l'armadio fa e riceve ombra; muro dietro e luce inquadrati sull'armadio
   ombreSuTutto(gruppoArmadio);
+  // il mobile FA ombra (su pavimento e muro) ma non la riceve dal sole: dentro i vani il sole
+  // disegnava strisce diagonali chiare e scure sui fianchi e sulla schiena (in una stanza vera la
+  // luce dentro un armadio è diffusa); gli angoli e i ripiani restano scuriti dalle ombre di contatto
+  gruppoArmadio.traverse((o) => { if (o.isMesh) o.receiveShadow = false; });
   gruppoArmadio.updateMatrixWorld(true);
   const bbA = new THREE.Box3().setFromObject(gruppoArmadio);
   if (!bbA.isEmpty() && muroDietro) {
