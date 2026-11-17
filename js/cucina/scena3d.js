@@ -11,16 +11,16 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111x';
 import {
-  calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte,
+  calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261118w';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118w';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261118w';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118w';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118w';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118w';
+} from './modello.js?v=20261118x';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118x';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261118x';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118x';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118x';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118w';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118x';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1492,6 +1492,10 @@ function lavelloTop(g, w, h, d) {
   rub.position.set(0, yTop + 90, -d * 0.28); g.add(rub);
 }
 let _progColonne = null;     // progetto corrente (porta bassa delle colonne = bassi)
+// INTERNO DEGLI ARMADI (struttura): bianco o antracite, scelto nel pannello del 3D
+const COLORI_INTERNO = { bianco: 0xecebe6, antracite: 0x3a3b3e };
+let _coloreInterno = COLORI_INTERNO.bianco;
+const _matInterno = new THREE.MeshStandardMaterial({ color: COLORI_INTERNO.bianco, roughness: 0.75, metalness: 0 });
 function colonnaFronte(g, w, h, d, m, matAnta) {
   const z = d / 2;
   const pw = w - FUGA_W;
@@ -1546,12 +1550,26 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
     if (top > 60) porta(y0 + hf + hm, top);
   } else if (m.variante === 'vano') {
     // Porta bassa → ripiano → vano aperto (a vista) → ripiano → porta alta.
-    const vanoH = Math.max(100, Math.min(m.altezzaVano_mm || 600, rem - 100));
-    const fondoVano = ripianoColonna(g, w, d, y0);   // ripiano sotto il vano
+    // CORNICE nel colore delle ANTE (come in falegnameria): ripiano sotto e sopra, due fianchetti
+    // dentro e due listelli sul bordo dei fianchi; dietro la schiena del colore interno. La struttura
+    // bianca non si vede. Misure come in distinta (pezziCorniceVano).
+    const vanoH = altezzaVanoColonna(m, rem);
+    const sp = spFiancoColonna(m), Li = w - 2 * sp, mA = matAnta || COL.anta, T = 18;
+    const pezzo = (bw, bh, bd, x, y, zc, mat) => {
+      const me = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mat);
+      me.position.set(x, y, zc); me.castShadow = true; me.receiveShadow = true; g.add(me); return me;
+    };
+    const pd = d - T - 2, pz = -d / 2 + T + pd / 2 + 1;                     // dalla schiena al filo davanti
+    pezzo(Li - 2 * T, vanoH - 2 * T, 3, 0, y0 + vanoH / 2, -d / 2 + T + 2.5, _matInterno);   // schiena (interno)
+    const fondoVano = pezzo(Li, T, pd, 0, y0 + T / 2, pz, mA);            // ripiano sotto il vano
     fondoVano.userData.appoggio = true;       // ci si appoggiano gli oggetti (microonde, macchina del caffè…)
-    ripianoColonna(g, w, d, y0 + vanoH);      // ripiano sopra il vano
+    pezzo(Li, T, pd, 0, y0 + vanoH - T / 2, pz, mA);                      // ripiano sopra il vano
+    for (const sx of [-1, 1]) {
+      pezzo(T, vanoH - 2 * T, pd, sx * (Li / 2 - T / 2), y0 + vanoH / 2, pz, mA);   // fianchetti
+      pezzo(sp, vanoH, T, sx * (w / 2 - sp / 2), y0 + vanoH / 2, d / 2 + T / 2, mA); // listelli sul bordo dei fianchi
+    }
     // apertura del vano (invisibile): trascinando un oggetto e puntando nel vano, ci va dentro
-    const portale = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(10, w - 36), Math.max(10, vanoH - 18)),
+    const portale = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(10, Li - 2 * T), Math.max(10, vanoH - 2 * T)),
       new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
     portale.position.set(0, y0 + vanoH / 2, d / 2);
     portale.visible = false;
@@ -1562,17 +1580,6 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
   } else {
     porta(y0, rem);                  // porta unica a tutta altezza
   }
-}
-
-/** Ripiano orizzontale della colonna (visibile nel vano aperto). */
-function ripianoColonna(g, w, d, y) {
-  const sh = new THREE.Mesh(
-    new THREE.BoxGeometry(w - FUGA_W, 18, d - 40),
-    new THREE.MeshStandardMaterial({ color: COL.colonna, roughness: 0.9, metalness: 0 }));
-  sh.position.set(0, y, -5);
-  sh.castShadow = true; sh.receiveShadow = true;
-  g.add(sh);
-  return sh;
 }
 
 /** Lavastoviglie a incasso: anta unica + striscia comandi inox in alto. */
@@ -1951,10 +1958,10 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   }
   // Colonna: il fianco si vede (sopra i pensili, di lato) → stesso materiale
   // delle ante della colonna, non il colore crema del corpo
-  const coloreCorpo = cat === 'pensile' ? COL.pensile
-    : cat === 'colonna' ? (m && m.struttura === 'bianco' ? 0xecebe6 : (matAnta && matAnta.isMaterial) ? matAnta : COL.colonna)
+  const coloreCorpo = cat === 'pensile' ? _coloreInterno
+    : cat === 'colonna' ? (m && m.struttura === 'bianco' ? _coloreInterno : (matAnta && matAnta.isMaterial) ? matAnta : COL.colonna)
     : cat === 'regletta' ? COL.regletta : cat === 'lavatrice' ? 0x17181d
-    : cat === 'lavastoviglie' ? 0xbcbdc2 : COL.corpo;
+    : cat === 'lavastoviglie' ? 0xbcbdc2 : (cat === 'base' || cat === 'altillo') ? _coloreInterno : COL.corpo;
   // Pensile angolo a L: corpo a L (due bracci), non il box quadrato.
   if (tipo === 'pensile-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, PROFONDITA_PENSILE, false, !!opt.sporg); return g; }
   if (tipo === 'base-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, Math.min((m && m.profBraccio_mm) || PROFONDITA_BASE, Math.min(w, d) - 10), true); return g; }
@@ -2076,6 +2083,8 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   _manByCat = progetto.maniglie || {};
   _stileForno = (progetto.finiture || {}).forno || 'inox';
   _progColonne = progetto;
+  _coloreInterno = COLORI_INTERNO[progetto.coloreInterno] || COLORI_INTERNO.bianco;
+  _matInterno.color.setHex(_coloreInterno);
   _reRenderMan = () => { if (_lastProgetto) aggiornaScena3d(_lastProgetto, false, selId); };
   // L'illuminazione della scena resta sempre al valore pieno (giorno) sia
   // con i LED spenti che accesi: non si vuole che i LED spengano l'ambiente.

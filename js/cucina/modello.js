@@ -64,6 +64,27 @@ export const PROF_STRUTTURA_MISURA = 580, SP_STRUTTURA_MISURA = 18, SP_SCHIENA_M
  *  - ripiani (4 di default): (L − 2 × spessore) × (P − schiena)       ×n  (+ 4 portaripiani l'uno)
  * Es. 2300 × 400, P 580: fianchi 2300×570, top/fondo 364×570, schiena 398×2298.
  */
+/** Spessore del FIANCO della struttura della colonna: 16 le colonne del fornitore, quello scelto la su misura. */
+export function spFiancoColonna(m) { return m.tipo === 'colonna-misura' ? (m.spStruttura_mm || SP_STRUTTURA_MISURA) : 16; }
+/** Profondità della STRUTTURA della colonna (senza le ante): 580 di solito. */
+export function profStrutturaColonna(m) { return m.tipo === 'colonna-misura' ? (m.profStruttura_mm || PROF_STRUTTURA_MISURA) : dimMobile(m).d - 20; }
+/** Altezza del VANO APERTO della colonna (come la porta alta: resto − vano). */
+export function altezzaVanoColonna(m, rem) { return Math.max(100, Math.min(m.altezzaVano_mm || 600, rem - 100)); }
+/**
+ * CORNICE DEL VANO APERTO della colonna, nel colore delle ANTE (così la struttura bianca non si vede):
+ *  - 2 ripiani (sopra e sotto): larghezza interna (L − 2 fianchi) × profondità struttura
+ *  - 2 listelli sul bordo dei fianchi: larghi come il fianco (16), spessi come le ante (18), alti come il vano
+ *  - 2 fianchetti dentro: profondità struttura × (vano − i 2 ripiani)
+ * Es. colonna da 60, vano 45: ripiani 568×580, listelli 16×450 sp 18, fianchetti 580×414.
+ */
+export function pezziCorniceVano(m, vanoH, spAnta = 18) {
+  const L = m.larghezza_mm || 600, sp = spFiancoColonna(m), P = profStrutturaColonna(m);
+  return [
+    { nome: 'Ripiano vano (cornice)', larghezza: L - 2 * sp, altezza: P, spessore: spAnta, quantita: 2 },
+    { nome: 'Listello vano (cornice)', larghezza: sp, altezza: vanoH, spessore: spAnta, quantita: 2 },
+    { nome: 'Fianchetto vano (cornice)', larghezza: P, altezza: vanoH - 2 * spAnta, spessore: spAnta, quantita: 2 },
+  ];
+}
 /** Ripiani della colonna su misura: quelli scelti, 4 se non è stato scelto niente. */
 export function ripianiColonnaMisura(m) { return m.ripiani != null ? Number(m.ripiani) || 0 : 4; }
 export function pezziColonnaMisura(m) {
@@ -241,7 +262,7 @@ export function campiMobile(tipoId) {
       { campo: 'profStruttura_mm', et: 'Profondità struttura finita, schiena compresa (mm)', tipo: 'numero', min: 150, step: 1, opzioni: [580, 560, 350], default: PROF_STRUTTURA_MISURA },
       { campo: 'spStruttura_mm',  et: 'Spessore struttura (mm)', tipo: 'numero', min: 8, step: 1, opzioni: [16, 18, 19], default: SP_STRUTTURA_MISURA },
       { campo: 'struttura',       et: 'Materiale della struttura (fianchi, top, fondo, schiena)',
-        opzioni: [{ v: 'ante', l: 'Come le ante della colonna' }, { v: 'bianco', l: 'Melaminico bianco' }], default: 'ante' },
+        opzioni: [{ v: 'ante', l: 'Come le ante della colonna' }, { v: 'bianco', l: 'Come l\'interno degli armadi (bianco o antracite)' }], default: 'ante' },
       { campo: 'ripiani',         et: 'Ripiani interni (4 portaripiani ciascuno)', opzioni: [0, 1, 2, 3, 4, 5, 6], default: 4 },
       { campo: 'altezzaBassa_mm', et: 'Porta bassa (mm) — con i mobili bassi si allinea da sola', opzioni: ALTEZZE_BASE, default: ALTEZZE_BASE[0] },
       { campo: 'variante',        et: 'Parte alta', opzioni: VARIANTI_COLONNA.map((v) => ({ v: v.id, l: v.nome })), default: 'porta' },

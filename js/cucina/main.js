@@ -24,13 +24,13 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261118w';
-import { renderPianta } from './pianta.js?v=20261118w';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261118w';
-import { calcolaDistintaCucina } from './distinta.js?v=20261118w';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261118w';
-import { agganciaTema } from '../tema.js?v=20261118w';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261118w';
+} from './modello.js?v=20261118x';
+import { renderPianta } from './pianta.js?v=20261118x';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261118x';
+import { calcolaDistintaCucina } from './distinta.js?v=20261118x';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261118x';
+import { agganciaTema } from '../tema.js?v=20261118x';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261118x';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1248,6 +1248,15 @@ function renderPannelloStep3d() {
     ${htmlSchienale()}
     ${htmlFiniture()}
     <section class="step3-pannello">
+      <h3>Interno degli armadi</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Il colore della struttura dei mobili: si vede dentro (vetrine, vano aperto, cassetti) e sui fianchi senza costado. Va anche nella distinta.</div>
+      <div class="palette-zoccolo">
+        ${[['bianco', 'Bianco', '#ecebe6'], ['antracite', 'Antracite', '#3a3b3e']].map(([id, nome, css]) => `<button type="button" class="swatch-zocc ${(progetto.coloreInterno || 'bianco') === id ? 'sel' : ''}"
+          data-interno="${id}" title="${nome}" style="background:${css}"></button>
+          <span class="et-zocc">${nome}</span>`).join('')}
+      </div>
+    </section>
+    <section class="step3-pannello">
       <h3>Colore zoccolo</h3>
       <div class="palette-zoccolo">
         ${coloriZocc.map((z) => `<button type="button" class="swatch-zocc ${z.id === zoccSel ? 'sel' : ''}"
@@ -1345,6 +1354,11 @@ function renderPannelloStep3d() {
     if (m) Object.assign(m, postoPerOggetto(m));
     aggiorna();
   }));
+  pannello.querySelectorAll('.swatch-zocc[data-interno]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    progetto.coloreInterno = b.dataset.interno;
+    aggiorna();
+  }));
   pannello.querySelectorAll('.swatch-zocc[data-zocc]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     progetto.zoccoloColore = b.dataset.zocc;
@@ -1376,7 +1390,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261118w');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261118x');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2103,13 +2117,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261118w');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261118x');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261118w'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261118x'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

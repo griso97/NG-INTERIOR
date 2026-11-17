@@ -12,8 +12,8 @@
 // =============================================================================
 
 import {
-  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura,
-} from './modello.js?v=20261118w';
+  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna,
+} from './modello.js?v=20261118x';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)
@@ -76,10 +76,7 @@ function restoAntaColonna(m, rem) {
     const hm = Math.max(150, Math.min(H_MICRO, rem - hf - 200));
     return rem - hf - hm;
   }
-  if (m.variante === 'vano') {
-    const vanoH = Math.max(100, Math.min(m.altezzaVano_mm || 600, rem - 100));
-    return rem - vanoH;   // porta alta = resto − vano
-  }
+  if (m.variante === 'vano') return rem - altezzaVanoColonna(m, rem);   // porta alta = resto − vano
   return rem; // porta unica
 }
 
@@ -106,6 +103,9 @@ function reglettaAngolo(pz, mod, progetto, m, H) {
     pz.push({ modulo: mod, nome: 'Regletta angolo (braccio)', larghezza: round(vis), altezza: H, spessore: THK_REG, materiale: 'anta', quantita: 2 });
   }
 }
+
+/** Melaminico dell'INTERNO degli armadi (scelto nel 3D): bianco o antracite. */
+function nomeInterno(progetto) { return progetto.coloreInterno === 'antracite' ? 'Melaminico antracite' : 'Melaminico bianco'; }
 
 /** Nome del materiale dal catalogo (quello caricato nella pagina). */
 function nomeMateriale(id, altrimenti) {
@@ -195,8 +195,12 @@ function pezziDiModulo(progetto, m) {
     if (m.tipo === 'colonna-misura') {
       for (const p of pezziColonnaMisura(m)) {
         pz.push({ modulo: mod, ...p, materiale: 'carcassa', struttura: true,
-          ...(m.struttura === 'bianco' ? { materialeNome: 'Melaminico bianco' } : {}) });
+          ...(m.struttura === 'bianco' ? { materialeNome: nomeInterno(progetto) } : {}) });
       }
+    }
+    // VANO APERTO: cornice nel colore delle ante (ripiani, listelli, fianchetti): la struttura non si vede
+    if (m.variante === 'vano') {
+      for (const p of pezziCorniceVano(m, altezzaVanoColonna(m, H - ab), SP)) pz.push({ modulo: mod, ...p, materiale: 'anta', cornice: true });
     }
   } else if (cat === 'costado') {
     // costado ALTO: alto come le ante del pensile vicino (70/72/90/92), come nel 3D
@@ -249,7 +253,7 @@ function pezziDiModulo(progetto, m) {
   for (const p of pz) {
     p.moduloId = m.id;                                // chiave di raggruppamento univoca
     if (p.materialeNome) continue;                    // già detto (es. anta vetrina da ordinare)
-    p.materialeNome = p.materiale === 'melaminico' ? 'Melaminico bianco'
+    p.materialeNome = p.materiale === 'melaminico' ? nomeInterno(progetto)
       : p.materiale === 'zoccolo' ? nomeMateriale(progetto.zoccoloColore || 'nero-opaco', 'Zoccolo')
       : pianoStd ? 'Come il piano di lavoro (nero standard)' : nomeMateriale(idAnte, 'Colore da scegliere');
   }
@@ -258,10 +262,11 @@ function pezziDiModulo(progetto, m) {
 
 // Gruppi SEPARATI della lista pezzi: porte, frontali, parti dei cassetti,
 // costadi, reglette, pannelli, zoccoli.
-const ORDINE_GRUPPI = ['Strutture su misura', 'Porte', 'Frontali cassetto', 'Cassetti (fondo e trasera)', 'Costadi',
+const ORDINE_GRUPPI = ['Strutture su misura', 'Cornici vano', 'Porte', 'Frontali cassetto', 'Cassetti (fondo e trasera)', 'Costadi',
   'Reglette', 'Pannelli', 'Zoccoli', 'Varie'];
 function gruppoPezzo(p) {
-  if (p.struttura) return 'Strutture su misura';            // fianchi, top/fondo, schiena, ripiani della colonna su misura
+  if (p.struttura) return 'Strutture su misura';
+  if (p.cornice) return 'Cornici vano';            // fianchi, top/fondo, schiena, ripiani della colonna su misura
   const n = String(p.nome).toLowerCase();
   if (n.includes('regletta')) return 'Reglette';
   if (n.includes('costado')) return 'Costadi';
@@ -323,7 +328,7 @@ export function calcolaDistintaCucina(progetto) {
     const L = dimMobile(m).w;
     const misura = m.altezza_mm ? `${m.altezza_mm}×${L}` : `${L}`;
     const key = `${gruppo}|${m.tipo}|${misura}|${m.fuoriMisura ? 1 : 0}`;
-    if (!modMap.has(key)) modMap.set(key, { gruppo, nome: nomeTipo(m.tipo), misura, tipo: nomeTipo(m.tipo), fuoriMisura: !!m.fuoriMisura, quantita: 0 });
+    if (!modMap.has(key)) modMap.set(key, { gruppo, nome: `${nomeTipo(m.tipo)} · interno ${progetto.coloreInterno === 'antracite' ? 'antracite' : 'bianco'}`, misura, tipo: nomeTipo(m.tipo), fuoriMisura: !!m.fuoriMisura, quantita: 0 });
     modMap.get(key).quantita++;
   }
   const moduli = [...modMap.values()].sort((a, b) => ORDINE_MODULI.indexOf(a.gruppo) - ORDINE_MODULI.indexOf(b.gruppo));
