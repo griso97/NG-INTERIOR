@@ -8,13 +8,14 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261118t';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261118t';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261118t';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261118t';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261118t';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261118t';
-import { agganciaTema } from './tema.js?v=20261118t';
+} from './catalogo.js?v=20261118u';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261118u';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261118u';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261118u';
+import { scontornaIA, scontornoIaPossibile } from './scontorno-ia.js?v=20261118u';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261118u';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261118u';
+import { agganciaTema } from './tema.js?v=20261118u';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -885,7 +886,7 @@ function apriSchedaOggetto(p) {
   const corpo = document.getElementById('imp-modale-corpo');
   corpo.innerHTML = `
     <div class="imp-form">
-      <div class="imp-aiuto">Carica le foto dell'oggetto su sfondo uniforme: vanno benissimo quelle del sito del produttore (su bianco). Il sito <strong>riconosce da solo quale foto è davanti, di lato, dietro o da sopra</strong>, isola l'oggetto e costruisce il <strong>3D con le misure vere e le tue foto sopra</strong>. Se sbaglia una vista, correggila con «Questa foto è».</div>
+      <div class="imp-aiuto">Carica le foto dell'oggetto: vanno bene sia quelle del produttore (su bianco) sia quelle ambientate (in una stanza, con altri oggetti attorno): lo sfondo lo toglie il sito, da solo. Il sito <strong>riconosce da solo quale foto è davanti, di lato, dietro o da sopra</strong>, isola l'oggetto e costruisce il <strong>3D con le misure vere e le tue foto sopra</strong>. Se sbaglia una vista, correggila con «Questa foto è».</div>
       <div class="imp-aiuto">Per la forma servono foto <strong>dritte</strong> (davanti e di lato, con il telefono all'altezza dell'oggetto). Sotto ogni foto il sito scrive se è <strong>dritta</strong> o <strong>di tre quarti</strong> (a 45°: non la usa per la forma). Se sbaglia, tocca la scritta per cambiarla.</div>
       <label class="imp-tutte">📷 Carica tutte le foto insieme<input type="file" accept="image/*" multiple id="o-tutte"></label>
       <div class="imp-viste3">
@@ -1034,7 +1035,17 @@ function apriSchedaOggetto(p) {
   const carica = async (f, v) => {
     const im = await caricaImmagine(f).catch(() => null);
     if (!im) { errore(tr('Non riesco ad aprire questa foto. Prova con un JPG o PNG.')); return false; }
-    const seg = segmentaManiglia(im, null, 1, { raddrizza: false, oggetto: true });
+    // SCONTORNO AUTOMATICO CON L'IA (come i siti professionali: anche foto ambientate, con
+    // stanza, mensole e altri oggetti attorno). Se il dispositivo non ce la fa: quello di prima.
+    let seg = null;
+    if (scontornoIaPossibile()) {
+      const testo = (a) => (a.fase === 'scarico'
+        ? `${tr('Preparo lo scontorno automatico (solo la prima volta)')}: ${Math.round(a.frazione * 100)}%`
+        : a.fase === 'preparo' ? tr('Preparo lo scontorno automatico…') : tr('Tolgo lo sfondo dalla foto…'));
+      try { seg = await scontornaIA(im, { avanza: (a) => avviso(testo(a)) }); } catch (e) { console.warn('scontorno IA non riuscito', e); seg = null; }
+      avviso('');
+    }
+    if (!seg) seg = segmentaManiglia(im, null, 1, { raddrizza: false, oggetto: true });
     if (!seg) { errore(tr('Non riesco a isolare l\'oggetto in questa foto: usa una foto con lo sfondo uniforme (es. bianco).')); return false; }
     imgs[v] = seg.canvas; colori[v] = seg.colore; cambiate.add(v); delete tipi[v]; delete tipiAuto[v];
     return true;

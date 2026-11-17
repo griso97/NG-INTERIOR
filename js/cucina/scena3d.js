@@ -13,14 +13,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261118t';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118t';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261118t';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118t';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118t';
-import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118t';
+} from './modello.js?v=20261118u';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261118u';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261118u';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261118u';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261118u';
+import { creaResa, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261118u';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118t';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261118u';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili

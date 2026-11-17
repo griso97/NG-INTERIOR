@@ -1,0 +1,8 @@
+isnet-ng.onnx
+-------------
+Modello di scontorno ISNet "general use" del progetto DIS (Dichotomous Image Segmentation),
+https://github.com/xuebinqin/DIS — licenza Apache-2.0 (vedi LICENSE-DIS).
+File ONNX di partenza: isnet-general-use.onnx (distribuito dal progetto rembg).
+Modificato da NG Interior solo nella MEMORIZZAZIONE: i pesi delle convoluzioni sono salvati
+a 8 bit per canale (+ DequantizeLinear); il calcolo resta in float32 e la maschera è uguale
+all'originale (0 pixel diversi oltre 64/255 sulla foto di prova). Usato da js/scontorno-ia.js.
