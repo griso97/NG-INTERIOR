@@ -8,15 +8,16 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261119e';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119e';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119e';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119e';
-import { scontornaIA, scontornoIaPossibile } from './scontorno-ia.js?v=20261119e';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119e';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119e';
-import { agganciaTema } from './tema.js?v=20261119e';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119e';
+} from './catalogo.js?v=20261119f';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119f';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119f';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119f';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119f';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119f';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119f';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119f';
+import { agganciaTema } from './tema.js?v=20261119f';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119f';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -859,6 +860,16 @@ window.addEventListener('hashchange', () => {
 });
 render();
 
+// SCHEDA OGGETTO RIMASTA A METÀ (il telefono ha ricaricato la pagina): la riapro con le foto
+leggiBozza().then((b) => {
+  if (!b || !modale.hidden) return;
+  if (!chiusaDuranteIA && Date.now() - (b.quando || 0) > 30 * 60e3) return;   // vecchia: si riprende quando riapri la scheda
+  const p = b.id ? stato.prodotti.find((x) => x.id === b.id) : null;
+  if (b.id && !p) return;
+  if (sezione !== 'oggetti') vaiSezione('oggetti');
+  apriSchedaOggetto(p, b);
+});
+
 // PORTARE TUTTO SU UN ALTRO DISPOSITIVO (copia completa in un file)
 {
   const msg = (t) => { const m = document.getElementById('imp-copia-msg'); if (m) { m.textContent = t; m.hidden = !t; } };
@@ -903,7 +914,7 @@ function aCanvas(im) {
   const c = document.createElement('canvas'); c.width = im.naturalWidth || im.width; c.height = im.naturalHeight || im.height;
   c.getContext('2d').drawImage(im, 0, 0); return c;
 }
-function apriSchedaOggetto(p) {
+function apriSchedaOggetto(p, bozza) {
   const nuovo = !p;
   const o = (p && p.oggetto) || { w: '', d: '', h: '', pianta: 'auto' };
   const info = (p && p.info) || {};
@@ -959,6 +970,29 @@ function apriSchedaOggetto(p) {
   modale.hidden = false;
   const imgs = {}, colori = {}, cambiate = new Set();
   let pianta = o.pianta || 'auto';
+  // BOZZA: tutto quello che hai fatto nella scheda resta salvato sul telefono finché non premi
+  // Salva o Annulla. Se il telefono ricarica la pagina (iPhone lo fa quando la memoria
+  // finisce) la scheda si riapre con le foto, anche quelle scelte e non ancora scontornate.
+  const idBozza = p ? p.id : null;
+  const pngDi = new WeakMap();
+  let inAttesa = [], schedaChiusa = false, _tBozza = 0;
+  const salvaOra = async () => {
+    if (schedaChiusa || !corpo.querySelector('#o-w')) return;
+    const foto = {};
+    try {
+      for (const v of Object.keys(imgs)) {
+        if (!imgs[v]) continue;
+        if (!pngDi.has(imgs[v])) pngDi.set(imgs[v], await canvasPng(aCanvas(imgs[v])));
+        foto[v] = pngDi.get(imgs[v]);
+      }
+    } catch (_) { /* foto non salvabile: pazienza, resta il resto */ }
+    if (schedaChiusa || !corpo.querySelector('#o-w')) return;
+    const val = (id) => corpo.querySelector(id).value;
+    await salvaBozza({ id: idBozza, w: val('#o-w'), d: val('#o-d'), h: val('#o-h'), nome: val('#f-nome'), note: val('#f-note'),
+      pianta, tipi: { ...tipi }, colori: { ...colori }, cambiate: [...cambiate], foto,
+      inAttesa: inAttesa.map((x) => ({ vista: x.vista, foto: x.foto })) });
+  };
+  const bozzaPiu = () => { clearTimeout(_tBozza); _tBozza = setTimeout(salvaOra, 400); };
   // foto DRITTA o DI TRE QUARTI: la scelta fatta a mano per casella (se no decide il sito)
   const tipi = { ...((o && o.tipi) || {}) };
   let tipiAuto = {};
@@ -980,7 +1014,7 @@ function apriSchedaOggetto(p) {
     }
     corpo.querySelector('#o-pianta-box').hidden = !!imgs.sopra;
   };
-  const mostraTutte = () => VISTE_OGG.forEach((x) => mostra(x.id));
+  const mostraTutte = () => { VISTE_OGG.forEach((x) => mostra(x.id)); bozzaPiu(); };
   const anteprima = () => {
     clearTimeout(_tAntOgg);
     _tAntOgg = setTimeout(async () => {
@@ -1056,13 +1090,13 @@ function apriSchedaOggetto(p) {
     avviso(`✓ ${tr('Ho riconosciuto le viste')}: ${frasi.join('; ')}. ${tr('Se è sbagliato, correggi con «Questa foto è».')}`);
   };
 
-  const carica = async (f, v) => {
+  const carica = async (f, v, senzaIA = false) => {
     const im = await caricaImmagine(f).catch(() => null);
     if (!im) { errore(tr('Non riesco ad aprire questa foto. Prova con un JPG o PNG.')); return false; }
     // SCONTORNO AUTOMATICO CON L'IA (come i siti professionali: anche foto ambientate, con
     // stanza, mensole e altri oggetti attorno). Se il dispositivo non ce la fa: quello di prima.
     let seg = null;
-    if (scontornoIaPossibile()) {
+    if (!senzaIA && scontornoIaPossibile()) {
       const testo = (a) => (a.fase === 'scarico'
         ? `${tr('Preparo lo scontorno automatico (solo la prima volta)')}: ${Math.round(a.frazione * 100)}%`
         : a.fase === 'preparo' ? tr('Preparo lo scontorno automatico…') : tr('Tolgo lo sfondo dalla foto…'));
@@ -1079,7 +1113,12 @@ function apriSchedaOggetto(p) {
       const f = e.target.files && e.target.files[0]; if (!f) return;
       corpo.querySelector('#f-err').hidden = true;
       // la foto resta nella casella dove l'hai messa (prima il riconoscimento poteva spostarla e far sparire un'altra foto)
-      if (await carica(f, v)) { mostraTutte(); anteprima(); }
+      // prima la metto al sicuro nella bozza (se il telefono chiude la pagina, non si perde)
+      const x = { vista: v, foto: f.slice(0, f.size, f.type) };
+      inAttesa.push(x); await salvaOra();
+      const ok = await carica(f, v);
+      inAttesa = inAttesa.filter((y) => y !== x);
+      if (ok) { mostraTutte(); anteprima(); } else bozzaPiu();
       e.target.value = '';
     });
     corpo.querySelector(`[data-togli="${v}"]`).addEventListener('click', () => {
@@ -1107,8 +1146,11 @@ function apriSchedaOggetto(p) {
     const files = [...(e.target.files || [])].slice(0, 4); if (!files.length) return;
     corpo.querySelector('#f-err').hidden = true;
     const libere = VISTE_OGG.map((x) => x.id).filter((k) => !imgs[k]);
+    const lista = [];
+    for (const f of files) { const v = libere.shift(); if (!v) break; lista.push({ vista: v, foto: f.slice(0, f.size, f.type) }); }
+    inAttesa.push(...lista); await salvaOra();               // tutte al sicuro nella bozza, prima di lavorarle
     const nuove = new Set();
-    for (const f of files) { const v = libere.shift(); if (!v) break; if (await carica(f, v)) nuove.add(v); }
+    for (const x of lista) { if (await carica(x.foto, x.vista)) nuove.add(x.vista); inAttesa = inAttesa.filter((y) => y !== x); }
     riconosci(nuove); mostraTutte(); anteprima();
     e.target.value = '';
   });
@@ -1118,9 +1160,43 @@ function apriSchedaOggetto(p) {
     anteprima();
   }));
   corpo.querySelectorAll('#o-w, #o-d, #o-h').forEach((x) => x.addEventListener('change', anteprima));
-  // MODIFICA: le foto isolate già salvate
+  corpo.querySelectorAll('#o-w, #o-d, #o-h, #f-nome, #f-note').forEach((x) => x.addEventListener('input', bozzaPiu));
+  /** Riprende la bozza: misure, nome, foto già isolate e quelle rimaste a metà. */
+  const riprendi = async (b) => {
+    for (const [id, v] of [['#o-w', b.w], ['#o-d', b.d], ['#o-h', b.h], ['#f-nome', b.nome], ['#f-note', b.note]]) {
+      if (v != null && v !== '') corpo.querySelector(id).value = v;
+    }
+    if (b.pianta) { pianta = b.pianta; corpo.querySelectorAll('[data-pianta]').forEach((x) => x.classList.toggle('attivo', x.dataset.pianta === pianta)); }
+    Object.assign(tipi, b.tipi || {});
+    for (const v of b.cambiate || []) cambiate.add(v);
+    inAttesa = [...(b.inAttesa || [])];
+    for (const [v, bl] of Object.entries(b.foto || {})) {
+      const im = await caricaImmagine(bl).catch(() => null);
+      if (!im) continue;
+      imgs[v] = im; pngDi.set(im, bl); cambiate.add(v);
+      if (b.colori && b.colori[v] !== undefined) colori[v] = b.colori[v];
+    }
+    mostraTutte(); anteprima();
+    if (!inAttesa.length) { avviso(`✓ ${tr('Ho ripreso le foto che avevi già caricato. Per ricominciare da capo premi «Annulla».')}`); return; }
+    // foto scelte ma non ancora scontornate: le finisco, con l'IA. Se il telefono chiude la
+    // pagina due volte di fila, l'IA si spegne da sola e qui si usa lo scontorno semplice.
+    const lista = [...inAttesa], nuove = new Set();
+    for (const x of lista) {
+      if (await carica(x.foto, x.vista)) nuove.add(x.vista);
+      inAttesa = inAttesa.filter((y) => y !== x);
+    }
+    if (nuove.size > 1) riconosci(nuove);
+    mostraTutte(); anteprima();
+    avviso(`✓ ${tr(!chiusaDuranteIA ? 'Ho ripreso le foto che avevi già caricato. Per ricominciare da capo premi «Annulla».'
+      : scontornoIaPossibile() ? 'Il telefono aveva ricaricato la pagina mentre toglievo lo sfondo: ho ripreso le tue foto e le ho finite.'
+        : 'Il telefono ha chiuso la pagina due volte mentre toglievo lo sfondo: ho ripreso le tue foto e le ho finite con lo scontorno semplice (su questo telefono uso quello).')}`);
+  };
+  const ripresa = (bozza !== undefined ? Promise.resolve(bozza) : leggiBozza())
+    .then((b) => (b && (b.id || null) === idBozza ? riprendi(b) : null))
+    .catch((e) => console.warn('bozza non ripresa', e));
+  // MODIFICA: le foto isolate già salvate (quelle cambiate nella bozza restano quelle della bozza)
   if (p) {
-    Promise.all(VISTE_OGG.map((v) => leggiFoto(p.id, v.id))).then(async (bl) => {
+    ripresa.then(() => Promise.all(VISTE_OGG.map((v) => leggiFoto(p.id, v.id)))).then(async (bl) => {
       for (let i = 0; i < bl.length; i++) {
         const v = VISTE_OGG[i].id;
         if (bl[i] && !imgs[v] && !cambiate.has(v)) { imgs[v] = await caricaImmagine(bl[i]).catch(() => null); if (!imgs[v]) delete imgs[v]; }
@@ -1128,7 +1204,10 @@ function apriSchedaOggetto(p) {
       mostraTutte(); anteprima();
     });
   }
-  corpo.querySelector('#f-annulla').addEventListener('click', () => { if (_chiudiAntOgg) { _chiudiAntOgg(); _chiudiAntOgg = null; } chiudi(); });
+  corpo.querySelector('#f-annulla').addEventListener('click', () => {
+    schedaChiusa = true; clearTimeout(_tBozza); cancellaBozza();
+    if (_chiudiAntOgg) { _chiudiAntOgg(); _chiudiAntOgg = null; } chiudi();
+  });
   corpo.querySelector('#f-salva').addEventListener('click', async () => {
     corpo.querySelector('#f-err').hidden = true;
     const nome = corpo.querySelector('#f-nome').value.trim();
@@ -1156,6 +1235,7 @@ function apriSchedaOggetto(p) {
       if (nuovo) stato.prodotti.push({ ...dati, creato: Date.now() });
       else stato.prodotti = stato.prodotti.map((x) => (x.id === id ? { ...x, ...dati } : x));
       if (_chiudiAntOgg) { _chiudiAntOgg(); _chiudiAntOgg = null; }
+      schedaChiusa = true; clearTimeout(_tBozza); await cancellaBozza();
       await salvaERicarica();
     } catch (err) {
       console.error(err);

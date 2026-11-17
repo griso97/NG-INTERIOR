@@ -6,3 +6,11 @@ File ONNX di partenza: isnet-general-use.onnx (distribuito dal progetto rembg).
 Modificato da NG Interior solo nella MEMORIZZAZIONE: i pesi delle convoluzioni sono salvati
 a 8 bit per canale (+ DequantizeLinear); il calcolo resta in float32 e la maschera è uguale
 all'originale (0 pixel diversi oltre 64/255 sulla foto di prova). Usato da js/scontorno-ia.js.
+
+u2net-ng.onnx
+-------------
+Modello di scontorno U²-Net (https://github.com/xuebinqin/U-2-Net), licenza Apache-2.0
+(vedi LICENSE-U2Net). File ONNX di partenza: u2net.onnx (distribuito dal progetto rembg).
+Usato sui TELEFONI (lavora a 320 px: poca memoria). Modificato da NG Interior solo nella
+memorizzazione: portato all'opset 13 e pesi delle convoluzioni a 8 bit per canale
+(+ DequantizeLinear); maschera uguale all'originale (4 pixel diversi oltre 64/255 su 1 milione).

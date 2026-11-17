@@ -2,9 +2,11 @@
 // SCONTORNO CON L'IA — NG INTERIOR
 // Toglie lo sfondo da QUALSIASI foto (anche ambientata: stanza, mensole, oggetti
 // attorno), come i siti professionali, tutto dentro il sito e gratis:
-//  - modello ISNet "general use" (DIS, licenza Apache-2.0, xuebinqin/DIS), pesi salvati
-//    a 8 bit (stesso risultato del modello originale, file da 47 MB, ~600 MB di memoria:
-//    gira anche sul telefono);
+//  - COMPUTER: modello ISNet "general use" (DIS, licenza Apache-2.0, xuebinqin/DIS), lavora a
+//    1024 px, pesi salvati a 8 bit (stesso risultato dell'originale, file da 47 MB);
+//  - TELEFONO / TABLET: modello U²-Net (licenza Apache-2.0, xuebinqin/U-2-Net), lavora a 320 px:
+//    quasi lo stesso risultato con molta meno memoria (con ISNet l'iPhone chiudeva la pagina
+//    e le foto sparivano). Pesi a 8 bit, file da 44 MB;
 //  - motore onnxruntime-web 1.31.1 (licenza MIT, Microsoft): scheda grafica (WebGPU)
 //    dove c'è, se no il processore (WebAssembly). Niente server, la foto resta sul telefono.
 // Il modello si scarica la PRIMA volta e poi resta sul dispositivo (cache).
@@ -12,10 +14,29 @@
 
 const VENDOR = new URL('../vendor/', import.meta.url).href;
 const ORT_DIR = `${VENDOR}onnxruntime-web/1.31.1/`;
-const MODELLO = `${VENDOR}modelli/isnet-ng.onnx`;
-const MODELLO_MB = 47;
-const LATO = 1024;                                   // il modello lavora a 1024 × 1024
-const MEDIA = [0.5, 0.5, 0.5], DEV = [1, 1, 1];      // normalizzazione di ISNet
+const UA = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+const TELEFONO = /iPhone|iPad|iPod|Android|Mobile/i.test(UA)
+  || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && /Macintosh/.test(UA))   // iPad "da computer"
+  || (typeof navigator !== 'undefined' && navigator.deviceMemory && navigator.deviceMemory <= 4);
+const CFG = TELEFONO
+  ? { file: `${VENDOR}modelli/u2net-ng.onnx`, mb: 44, lato: 320, media: [0.485, 0.456, 0.406], dev: [0.229, 0.224, 0.225] }
+  : { file: `${VENDOR}modelli/isnet-ng.onnx`, mb: 47, lato: 1024, media: [0.5, 0.5, 0.5], dev: [1, 1, 1] };
+const MODELLO = CFG.file, MODELLO_MB = CFG.mb, LATO = CFG.lato, MEDIA = CFG.media, DEV = CFG.dev;
+// se il calcolo ha già fatto chiudere la pagina su questo dispositivo, non lo rifaccio (si usa lo scontorno classico)
+// (2 chiusure di fila = il dispositivo non ce la fa: per un mese si usa lo scontorno classico)
+const IN_CORSO = 'ng-ia-in-corso', NO_IA = 'ng-ia-no', CHIUSURE = 'ng-ia-chiusure';
+/** true se la pagina si è appena riaperta perché il telefono l'ha chiusa durante lo scontorno */
+export let chiusaDuranteIA = false;
+try {
+  if (localStorage.getItem(IN_CORSO)) {
+    chiusaDuranteIA = true;
+    localStorage.removeItem(IN_CORSO);
+    const n = (Number(localStorage.getItem(CHIUSURE)) || 0) + 1;
+    localStorage.setItem(CHIUSURE, String(n));
+    if (n >= 2) localStorage.setItem(NO_IA, String(Date.now()));
+  }
+} catch (_) { /* niente */ }
+const fineCalcolo = (ok) => { try { localStorage.removeItem(IN_CORSO); if (ok) localStorage.removeItem(CHIUSURE); } catch (_) { /* niente */ } };
 
 let _sessione = null, _caricamento = null, _ort = null, _dati = null, _soloCpu = false;
 
@@ -48,22 +69,35 @@ async function sessione(avanza) {
   if (_sessione) return _sessione;
   if (!_caricamento) {
     _caricamento = (async () => {
-      _ort = await import(`${ORT_DIR}ort.webgpu.min.mjs`);
-      _ort.env.wasm.wasmPaths = ORT_DIR;
-      _ort.env.wasm.numThreads = (typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated) ? Math.min(4, navigator.hardwareConcurrency || 2) : 1;
-      const dati = _dati || (_dati = await scaricaModello(avanza));
-      if (avanza) avanza({ fase: 'preparo', frazione: 1 });
       const prove = [];
-      if (!_soloCpu && typeof navigator !== 'undefined' && navigator.gpu) {
+      if (!_soloCpu && !TELEFONO && typeof navigator !== 'undefined' && navigator.gpu) {
         // scheda grafica VERA: quella "simulata" via software è lentissima, meglio il processore
         let vera = false;
         try { const ad = await navigator.gpu.requestAdapter(); vera = !!ad && !(ad.info && ad.info.isFallbackAdapter) && !ad.isFallbackAdapter && !/swiftshader|llvmpipe|software/i.test(`${ad.info && ad.info.vendor} ${ad.info && ad.info.architecture} ${ad.info && ad.info.description}`); } catch (_) { vera = false; }
         if (vera) prove.push(['webgpu']);
       }
       prove.push(['wasm']);
+      // solo processore: il calcolo va in un lavoratore a parte (la pagina resta libera: si vede
+      // l'avanzamento, si tocca lo schermo, il telefono non sembra bloccato)
+      const aParte = prove.length === 1 && typeof Worker !== 'undefined';
+      if (!_ort) {
+        _ort = await import(`${ORT_DIR}ort.webgpu.min.mjs`);
+        _ort.env.wasm.wasmPaths = ORT_DIR;
+        _ort.env.wasm.numThreads = (!TELEFONO && typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated) ? Math.min(4, navigator.hardwareConcurrency || 2) : 1;
+        _ort.env.wasm.proxy = aParte;
+      }
+      const dati = _dati || (_dati = await scaricaModello(avanza));
+      if (avanza) avanza({ fase: 'preparo', frazione: 1 });
       let ultimo = null;
       for (const ep of prove) {
-        try { return await _ort.InferenceSession.create(dati, { executionProviders: ep, graphOptimizationLevel: 'all' }); } catch (e) { ultimo = e; }
+        // telefono: memoria al minimo (niente riserve, i pesi restano a 8 bit finché servono)
+        const opz = TELEFONO ? { executionProviders: ep, graphOptimizationLevel: 'disabled', enableCpuMemArena: false, enableMemPattern: false }
+          : { executionProviders: ep, graphOptimizationLevel: 'all' };
+        try {
+          const ses = await _ort.InferenceSession.create(dati, opz);
+          if (_ort.env.wasm.proxy) _dati = null;       // il modello ora sta nel lavoratore: qui non serve più
+          return ses;
+        } catch (e) { ultimo = e; }
       }
       throw ultimo || new Error('motore IA non disponibile');
     })();
@@ -75,7 +109,9 @@ async function sessione(avanza) {
 
 /** Il dispositivo può farlo? (WebAssembly c'è su tutti i telefoni e PC moderni) */
 export function scontornoIaPossibile() {
-  return typeof WebAssembly === 'object' && typeof fetch === 'function';
+  let bloccata = false;
+  try { const t = Number(localStorage.getItem(NO_IA)); bloccata = t > 0 && Date.now() - t < 30 * 864e5; } catch (_) { /* niente */ }
+  return !bloccata && typeof WebAssembly === 'object' && typeof fetch === 'function';
 }
 
 /**
@@ -99,21 +135,25 @@ export async function scontornaIA(img, opz = {}) {
   for (let i = 0; i < N; i++) for (let q = 0; q < 3; q++) x[q * N + i] = (px[i * 4 + q] / 255 - MEDIA[q]) / DEV[q];
   const ingresso = new _ort.Tensor('float32', x, [1, 3, LATO, LATO]);
   let uscite;
+  try { localStorage.setItem(IN_CORSO, '1'); } catch (_) { /* niente */ }
   try {
     uscite = await s.run({ [s.inputNames[0]]: ingresso });
   } catch (e) {
     // la scheda grafica non ce la fa (limiti di WebGPU su alcuni dispositivi): rifaccio col processore
-    if (_soloCpu) throw e;
+    if (_soloCpu) { fineCalcolo(false); throw e; }
     _soloCpu = true; _sessione = null; _caricamento = null;
-    const s2 = await sessione(avanza);
-    uscite = await s2.run({ [s2.inputNames[0]]: ingresso });
-    return dopoIA(uscite, s2, img, W0, H0, avanza);
+    try {
+      const s2 = await sessione(avanza);
+      uscite = await s2.run({ [s2.inputNames[0]]: ingresso });
+    } catch (e2) { fineCalcolo(false); throw e2; }
+    return dopoIA(uscite, _sessione, img, W0, H0, avanza);
   }
   return dopoIA(uscite, s, img, W0, H0, avanza);
 }
 
 /** Dalla probabilità dell'IA all'oggetto ritagliato (vedi scontornaIA). */
 function dopoIA(uscite, s, img, W0, H0, avanza) {
+  fineCalcolo(true);
   const N = LATO * LATO;
   const y = uscite[s.outputNames[0]].data;
   // 2) probabilità (0..1, riportata fra minimo e massimo come nell'originale) → maschera

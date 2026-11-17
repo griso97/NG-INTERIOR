@@ -8,7 +8,8 @@
 // =============================================================================
 
 // impostazioni che valgono solo per il dispositivo dove sono nate (velocità del 3D, larghezze…)
-const SOLO_QUI = new Set(['ng-3d-livello-fermo', 'ng-3d-ao-leggera', 'ng-3d-fluidita', 'ng-catalogo-agg', 'ng-distinta-width']);
+const SOLO_QUI = new Set(['ng-3d-livello-fermo', 'ng-3d-ao-leggera', 'ng-3d-fluidita', 'ng-catalogo-agg', 'ng-distinta-width',
+  'ng-ia-in-corso', 'ng-ia-chiusure', 'ng-ia-no']);
 
 function apriDb(nome, versione, crea) {
   return new Promise((ok, ko) => {
