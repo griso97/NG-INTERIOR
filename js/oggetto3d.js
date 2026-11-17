@@ -14,7 +14,7 @@
 // Assi (mm): x = larghezza (centro 0) · y = altezza (0 = appoggio) · z = profondità (+ = davanti)
 // =============================================================================
 import * as THREE from 'three';
-import { formaOggetto, sagomaEstrusa, solidoDiRotazione, compattezza } from './scanner3d.js?v=20261119g';
+import { formaOggetto, sagomaEstrusa, solidoDiRotazione, compattezza } from './scanner3d.js?v=20261119h';
 import { edgeTable, triTable } from '../vendor/three/addons/objects/mc-tabelle.js';
 
 /** Distanza (chamfer 3-4, in pixel) di ogni pixel dal più vicino pixel "fuori" (m = 0). */
@@ -370,6 +370,143 @@ const hex = (rgb) => (Math.round(rgb[0]) << 16) | (Math.round(rgb[1]) << 8) | Ma
  * lato, sopra, dietro } (immagini isolate); W, D, H in mm; pianta: 'squadrata' |
  * 'tonda' | 'ovale' (solo senza la foto da sopra). Ritorna { geo, mats, colore } o null.
  */
+// --------------------------------------------------------- foto di tre quarti ----
+/**
+ * FOTO DI TRE QUARTI? Le foto prodotto sono quasi sempre scattate un po' dall'alto:
+ * in una foto DRITTA il fondo dell'oggetto è una riga piatta; in una DI TRE QUARTI il
+ * fondo fa una «V», e il punto più basso è lo SPIGOLO fra le due facce che si vedono
+ * (il davanti e un fianco). Dalle due pendenze del fondo si ricavano l'angolo della
+ * foto (θ), quanto è dall'alto (φ) e le proporzioni VERE delle due facce.
+ * Ritorna null se la foto è dritta (o non si capisce). Coordinate della sagoma (vista()).
+ */
+const _treQuarti = new WeakMap();
+export function analisiTreQuarti(src) {
+  if (!src) return null;
+  if (!_treQuarti.has(src)) { let r = null; try { r = calcolaTreQuarti(src); } catch (_) { r = null; } _treQuarti.set(src, r); }
+  return _treQuarti.get(src);
+}
+/** Retta che passa meglio per i punti (minimi quadrati, poi senza i punti lontani). */
+function rettaRobusta(xs, ys, i0, i1) {
+  const fit = (usa) => {
+    let n = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;
+    for (let i = i0; i < i1; i++) if (usa[i - i0]) { n++; sx += xs[i]; sy += ys[i]; sxx += xs[i] * xs[i]; sxy += xs[i] * ys[i]; }
+    const den = n * sxx - sx * sx; if (n < 2 || Math.abs(den) < 1e-9) return null;
+    const m = (n * sxy - sx * sy) / den; return { m, q: (sy - m * sx) / n };
+  };
+  const tutti = new Uint8Array(i1 - i0).fill(1);
+  let r = fit(tutti); if (!r) return null;
+  let s2 = 0; for (let i = i0; i < i1; i++) s2 += (ys[i] - r.m * xs[i] - r.q) ** 2;
+  const lim = Math.max(1, 2.5 * Math.sqrt(s2 / (i1 - i0)));
+  const tieni = new Uint8Array(i1 - i0);
+  for (let i = i0; i < i1; i++) tieni[i - i0] = Math.abs(ys[i] - r.m * xs[i] - r.q) < lim ? 1 : 0;
+  r = fit(tieni) || r;
+  let e = 0, n = 0; for (let i = i0; i < i1; i++) if (tieni[i - i0]) { e += (ys[i] - r.m * xs[i] - r.q) ** 2; n++; }
+  return { m: r.m, q: r.q, e: Math.sqrt(e / Math.max(1, n)), n: i1 - i0 };
+}
+/** Solo per le prove: i numeri del riconoscimento, anche quando la foto risulta dritta. */
+export function diagnosiTreQuarti(src) { const d = {}; calcolaTreQuarti(src, d); return d; }
+/** Errore di una curva (parabola) che passa per i punti: un fondo TONDO (sgabello, vaso) è una curva. */
+function erroreCurva(xs, ys) {
+  const n = xs.length; let mx = 0; for (const x of xs) mx += x; mx /= n;
+  let sc = 1; for (const x of xs) sc = Math.max(sc, Math.abs(x - mx));
+  const fit = (usa) => {
+    const S = new Float64Array(5), T = new Float64Array(3);
+    for (let i = 0; i < n; i++) {
+      if (!usa[i]) continue; const t = (xs[i] - mx) / sc;
+      let p = 1; for (let k = 0; k < 5; k++) { S[k] += p; p *= t; }
+      T[0] += ys[i]; T[1] += ys[i] * t; T[2] += ys[i] * t * t;
+    }
+    const M = [[S[0], S[1], S[2], T[0]], [S[1], S[2], S[3], T[1]], [S[2], S[3], S[4], T[2]]];
+    for (let c = 0; c < 3; c++) {
+      let piv = c; for (let r = c + 1; r < 3; r++) if (Math.abs(M[r][c]) > Math.abs(M[piv][c])) piv = r;
+      [M[c], M[piv]] = [M[piv], M[c]]; if (Math.abs(M[c][c]) < 1e-12) return null;
+      for (let r = 0; r < 3; r++) if (r !== c) { const f = M[r][c] / M[c][c]; for (let k = c; k < 4; k++) M[r][k] -= f * M[c][k]; }
+    }
+    const co = [M[0][3] / M[0][0], M[1][3] / M[1][1], M[2][3] / M[2][2]];
+    return (x) => { const t = (x - mx) / sc; return co[0] + co[1] * t + co[2] * t * t; };
+  };
+  let f = fit(new Uint8Array(n).fill(1)); if (!f) return Infinity;
+  let s2 = 0; for (let i = 0; i < n; i++) s2 += (ys[i] - f(xs[i])) ** 2;
+  const lim = Math.max(1, 2.5 * Math.sqrt(s2 / n)), usa = new Uint8Array(n);
+  for (let i = 0; i < n; i++) usa[i] = Math.abs(ys[i] - f(xs[i])) < lim ? 1 : 0;
+  f = fit(usa) || f;
+  let e = 0, m = 0; for (let i = 0; i < n; i++) if (usa[i]) { e += (ys[i] - f(xs[i])) ** 2; m++; }
+  return Math.sqrt(e / Math.max(1, m));
+}
+function calcolaTreQuarti(src, diag = null) {
+  const V = vista(src); if (!V) return null;
+  const { w, A, x0, y0, bw, bh } = V, x1 = x0 + bw - 1, y1 = y0 + bh - 1;
+  // il FONDO di ogni colonna (solo il "piede": le colonne che arrivano vicino al fondo)
+  const xs = [], ys = [];
+  for (let x = x0; x <= x1; x++) for (let y = y1; y >= y0; y--) if (A[y * w + x] > 0.5) { if (y >= y1 - 0.3 * bh) { xs.push(x); ys.push(y); } break; }
+  if (xs.length < 30) return null;
+  const xa = xs[0], xb = xs[xs.length - 1];
+  // lo SPIGOLO: dove due rette (a sinistra e a destra) spiegano meglio il fondo
+  let best = null;
+  for (let t = 0; t <= 40; t++) {
+    const c = xa + (xb - xa) * (0.08 + 0.84 * t / 40);
+    let k = 0; while (k < xs.length && xs[k] <= c) k++;
+    if (k < 8 || xs.length - k < 8) continue;
+    const L = rettaRobusta(xs, ys, 0, k), R = rettaRobusta(xs, ys, k, xs.length);
+    if (!L || !R) continue;
+    const err = L.e * L.n + R.e * R.n;
+    if (!best || err < best.err) best = { err, c, L, R };
+  }
+  const uno = rettaRobusta(xs, ys, 0, xs.length);
+  if (!best || !uno) return null;
+  const { c, L, R } = best;
+  const sL = L.m, sR = -R.m;                                   // > 0: il fondo scende verso lo spigolo
+  const cadL = sL * (c - xa), cadR = sR * (xb - c);             // quanto scende ogni lato (pixel)
+  const errV = best.err / xs.length;
+  const errP = erroreCurva(xs, ys);
+  const cRel = (c - x0) / bw;
+  if (diag) Object.assign(diag, { cRel, sL, sR, cadL: cadL / bh, cadR: cadR / bh, errV, err1: uno.e, errP, bh });
+  // DI TRE QUARTI solo se: i due lati scendono davvero verso lo spigolo, la «V» spiega il fondo
+  // molto meglio di una riga sola, e lo spigolo non è attaccato a un bordo (fianco quasi invisibile)
+  if (!(sL > 0 && sR > 0 && cadL > 0.03 * bh && cadR > 0.03 * bh)) return null;
+  if (!(uno.e > 1.3 * Math.max(0.35, errV))) return null;
+  // un fondo TONDO visto dall'alto (base dello sgabello, vaso) è una curva, non uno spigolo
+  if (!(errP > 1.4 * Math.max(0.35, errV))) return null;
+  if (cRel < 0.12 || cRel > 0.88) return null;
+  const theta = Math.atan(Math.sqrt(sL / sR));                 // angolo dalla faccia di SINISTRA
+  const phi = Math.asin(Math.sqrt(Math.min(0.8, sL * sR)));     // quanto è dall'alto
+  const yV = ((L.m * c + L.q) + (R.m * c + R.q)) / 2;           // altezza dello spigolo in basso
+  // altezza delle facce: senza la fascia del coperchio che si vede da sopra. Per una scatola è
+  // quanto scendono i due lati del fondo; ma spesso la cima è più piccola della base (testa
+  // dell'impastatrice, coperchio del bollitore): al massimo il 12%, per non tagliare la cima
+  const Hc = bh - Math.min(0.12 * bh, sL * (c - x0) + sR * (x1 - c));
+  const Hpx = Hc / Math.cos(phi);
+  const larghL = (c - x0) / Math.cos(theta), larghR = (x1 - c) / Math.sin(theta);
+  const k = (src.naturalWidth || src.width) / w;               // pixel della foto per pixel della sagoma
+  return {
+    k, x0, x1: x1 + 1, c, yV, sL, sR, Hc, Hpx, theta, phi,
+    larghL, larghR, aspL: larghL / Hpx, aspR: larghR / Hpx, facce: {},
+  };
+}
+/**
+ * Una delle due facce di una foto di tre quarti, RADDRIZZATA: il fondo torna dritto e la
+ * faccia torna larga com'è davvero (come se fosse fotografata di fronte). lato: 'L' | 'R'.
+ */
+export function facciaTreQuarti(src, q, lato, aspetto = null) {
+  const chiave = `${lato}|${aspetto ? aspetto.toFixed(3) : ''}`;
+  if (q.facce[chiave]) return q.facce[chiave];
+  const k = q.k;
+  const xa = (lato === 'L' ? q.x0 : q.c) * k, xb = (lato === 'L' ? q.c : q.x1) * k;
+  const s = lato === 'L' ? q.sL : -q.sR;                        // pendenza del fondo di questa faccia
+  const cX = q.c * k, yV = q.yV * k, Hc = q.Hc * k;
+  const Hout = Math.max(16, Math.min(1024, Math.round(q.Hpx * k)));
+  const Wout = Math.max(8, Math.round(Hout * (aspetto || (lato === 'L' ? q.aspL : q.aspR))));
+  // punto (X, Y) della faccia raddrizzata → punto della foto: xs = a·X + e ; ys = b·X + d·Y + f
+  const a = (xb - xa) / Wout, d = Hc / Hout, b = s * a, e = xa, f = yV + s * (xa - cX) - Hc;
+  const out = document.createElement('canvas'); out.width = Wout; out.height = Hout;
+  const g = out.getContext('2d');
+  g.imageSmoothingQuality = 'high';
+  g.setTransform(1 / a, -b / (a * d), 0, 1 / d, -e / a, (b * e) / (a * d) - f / d);
+  g.drawImage(src, 0, 0);
+  q.facce[chiave] = out;
+  return out;
+}
+
 /**
  * DAVANTI o LATO? Con le MISURE si capisce quale foto è quale: il davanti è
  * largo come la larghezza, il lato come la profondità (in proporzione
@@ -527,8 +664,11 @@ function formaDaSopra(V) {
  */
 export function controllaMisure(foto, W, D, H) {
   if (!(W > 0 && D > 0 && H > 0) || !foto.fronte) return null;
-  if (foto.fronte && foto.lato && vistaScambiata(foto.fronte, foto.lato, W, D, H)) foto = { ...foto, fronte: foto.lato, lato: foto.fronte };
-  const sopra = foto.sopra ? (orientaSopra(foto.sopra, W, D) || foto.sopra) : null;
+  // le viste come le usa il 3D (anche il davanti / il fianco raddrizzati da una foto di tre quarti)
+  const av = assegnaViste(foto, W, D, H);
+  if (!av) return null;
+  foto = { ...foto, fronte: av.davanti, lato: av.lato };
+  const sopra = foto.sopra && av.tipi.sopra === 'dritta' ? (orientaSopra(foto.sopra, W, D) || foto.sopra) : null;
   // proporzioni delle SAGOME ESATTE (tutta la foto, come la usa il 3D)
   const Fv = vista(foto.fronte), Sv = foto.lato ? vista(foto.lato) : null, Tv = sopra ? vista(sopra) : null;
   if (!Fv) return null;
@@ -570,50 +710,76 @@ function raggioCima(p, largh, alt) {
 }
 
 /**
- * QUALE FOTO È QUALE, dalle proporzioni (le misure scritte sono vere):
- *  - dritta davanti: larga/alta come larghezza × altezza
- *  - dritta di lato: come profondità × altezza
- *  - di TRE QUARTI (a 45°): non torna con nessuna delle due (si vedono due facce insieme):
- *    non serve per la forma.
- * foto.tipi = scelte dell'utente per casella ('dritta' | '45'): vincono sulle proporzioni.
- * Ritorna { davanti, lato, dietro, scambiate, girata, W, D, tipi: per casella 'dritta'|'45' }.
+ * QUALE FOTO È QUALE. Regole:
+ *  - una foto DRITTA resta nella casella dove l'hai messa (davanti, lato, dietro); solo se
+ *    davanti e lato sono tutte e due dritte e le misure dicono chiaramente che sono al
+ *    contrario (es. tostapane) le scambio;
+ *  - una foto DI TRE QUARTI (si vede lo spigolo: davanti + un fianco) non si butta: le sue
+ *    due facce si raddrizzano e danno la faccia che manca (il fianco, o il davanti, o tutti
+ *    e due). Quale faccia è il davanti: quella che somiglia alla foto davanti dritta (o, se
+ *    non c'è, quella che torna con le misure);
+ *  - il FIANCO vale per tutti e due i lati: l'altro è uguale, specchiato.
+ * foto.tipi = scelte a mano per casella ('dritta' | '45'): vincono su quello che vede il sito.
+ * Ritorna { davanti, lato, dietro, latoDavanti ('sx'|'dx'|null), scambiate, girata: false, W, D,
+ *   tipi: per casella 'dritta'|'45', uso: per casella cosa ne prendo, misure: proporzioni dalle foto }.
  */
 export function assegnaViste(foto, W, D, H) {
   const scelte = foto.tipi || {};
-  const tipo = (k) => {
-    const src = foto[k]; const V = src ? vista(src) : null; if (!V) return null;
-    if (scelte[k] === '45') return { k, src, f: null, l: null };
-    if (scelte[k] === 'dritta') return { k, src, f: k === 'lato' ? null : 0, l: k === 'lato' ? 0 : null };
-    const f = Math.abs(Math.log(V.aspetto / (W / H))), l = Math.abs(Math.log(V.aspetto / (D / H)));
-    return { k, src, f: f < 0.16 ? f : null, l: l < 0.16 ? l : null };
-  };
-  const qF = tipo('fronte'), qL = tipo('lato');
-  if (!qF && !qL) return null;
-  let davanti = null, lato = null, scambiate = false;
-  // il davanti: la foto nella casella "davanti" se è dritta davanti, se no quella di lato se lo è
-  if (qF && qF.f != null && (!qL || qL.f == null || qF.f <= qL.f || qL.l != null)) davanti = qF.src;
-  else if (qL && qL.f != null) { davanti = qL.src; scambiate = true; }
-  // il lato: la foto (non usata come davanti) che è dritta di lato
-  for (const t of [qL, qF]) if (!lato && t && t.src !== davanti && t.l != null) lato = t.src;
-  // solo una foto dritta, ed è di LATO (es. impastatrice fotografata di fianco): la uso come davanti
-  let girata = false;
-  if (!davanti && lato) { davanti = lato; lato = null; [W, D] = [D, W]; girata = true; }
-  const nessunaDritta = !davanti;
-  if (!davanti) davanti = foto.fronte || foto.lato;          // nessuna dritta: uso quella che c'è
-  // dietro: solo se è dritta (come il davanti)
-  let dietro = null;
-  if (foto.dietro && !scambiate && !girata) {
-    const V = vista(foto.dietro);
-    if (scelte.dietro === 'dritta' || (scelte.dietro !== '45' && V && Math.abs(Math.log(V.aspetto / (W / H))) < 0.16)) dietro = foto.dietro;
+  const tq = (k) => (foto[k] && scelte[k] !== 'dritta' ? analisiTreQuarti(foto[k]) : null);
+  const info = {};
+  for (const k of ['fronte', 'lato', 'dietro']) {
+    if (!foto[k]) continue;
+    const q = tq(k);
+    info[k] = { src: foto[k], q, dritta: !q && scelte[k] !== '45' };
   }
+  if (!info.fronte && !info.lato) return null;
+  let davanti = info.fronte && info.fronte.dritta ? info.fronte.src : null;
+  let lato = info.lato && info.lato.dritta ? info.lato.src : null;
+  let scambiate = false;
+  // tutte e due dritte ma al contrario (le misure lo dicono chiaramente): le scambio
+  if (davanti && lato && !scelte.fronte && !scelte.lato && vistaScambiata(davanti, lato, W, D, H)) { [davanti, lato] = [lato, davanti]; scambiate = true; }
+  const dietro = info.dietro && info.dietro.dritta ? info.dietro.src : null;
+  const uso = {};
+  if (info.fronte && info.fronte.dritta) uso.fronte = scambiate ? 'lato' : 'davanti';
+  if (info.lato && info.lato.dritta) uso.lato = scambiate ? 'davanti' : 'lato';
+  if (dietro) uso.dietro = 'dietro';
+  // FOTO DI TRE QUARTI: le facce raddrizzate danno quello che manca
+  let latoDavanti = null;
+  const aspD = davanti ? vista(davanti).aspetto : null, aspS = lato ? vista(lato).aspetto : null;
+  const lg = (a, b) => Math.abs(Math.log(a / b));
+  for (const k of ['fronte', 'lato']) {
+    const q = info[k] && info[k].q; if (!q || (davanti && lato)) continue;
+    // quale faccia è il davanti?
+    let davL;
+    const eM = (fL) => (fL ? lg(q.aspL, W / H) + lg(q.aspR, D / H) : lg(q.aspR, W / H) + lg(q.aspL, D / H));
+    if (aspD != null && Math.abs(lg(q.aspL, aspD) - lg(q.aspR, aspD)) > 0.08) davL = lg(q.aspL, aspD) < lg(q.aspR, aspD);
+    else if (aspS != null && Math.abs(lg(q.aspL, aspS) - lg(q.aspR, aspS)) > 0.08) davL = lg(q.aspR, aspS) < lg(q.aspL, aspS);
+    else if (Math.abs(eM(true) - eM(false)) > 0.15) davL = eM(true) < eM(false);
+    else davL = (q.c - q.x0) >= (q.x1 - q.c);                  // non si capisce: il davanti è la parte più larga nella foto
+    const presi = [];
+    // proporzioni: il davanti com'è nella foto dritta (se c'è); il fianco in proporzione al davanti
+    // (fianco / davanti dalla foto di tre quarti: non dipende da quanto è alta la faccia)
+    const lF = davL ? q.larghL : q.larghR, lS = davL ? q.larghR : q.larghL;
+    const aF = aspD != null ? aspD : lF / q.Hpx;
+    if (!davanti) { davanti = facciaTreQuarti(foto[k], q, davL ? 'L' : 'R', aF); presi.push('davanti'); }
+    if (!lato) {
+      lato = facciaTreQuarti(foto[k], q, davL ? 'R' : 'L', aF * lS / lF);
+      latoDavanti = davL ? 'sx' : 'dx';                          // il fianco tocca il davanti dallo spigolo
+      presi.push('fianco');
+    }
+    uso[k] = presi.join('+') || null;
+  }
+  if (!davanti) return null;
   const tipi = {};
-  for (const k of ['fronte', 'lato']) if (foto[k]) tipi[k] = !nessunaDritta && (foto[k] === davanti || foto[k] === lato) ? 'dritta' : '45';
-  if (foto.dietro) tipi.dietro = dietro ? 'dritta' : '45';
+  for (const k of ['fronte', 'lato', 'dietro']) if (info[k]) tipi[k] = info[k].dritta ? 'dritta' : '45';
   if (foto.sopra) {
     const T = orientaSopra(foto.sopra, W, D) || foto.sopra, Tv = vista(T), f = Tv ? formaDaSopra(Tv) : null;
     tipi.sopra = scelte.sopra === 'dritta' || (scelte.sopra !== '45' && f && Math.abs(Math.log(f.aspetto / (W / D))) < 0.5) ? 'dritta' : '45';
   }
-  return { davanti, lato, dietro, scambiate, girata, W, D, tipi };
+  // PROPORZIONI VERE dalle foto (per controllare le misure scritte)
+  const Fv = vista(davanti), Sv = lato ? vista(lato) : null;
+  const misure = { wh: Fv ? Fv.aspetto : null, dh: Sv ? Sv.aspetto : null };
+  return { davanti, lato, dietro, latoDavanti, scambiate, girata: false, W, D, tipi, uso, misure };
 }
 
 export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
@@ -625,7 +791,7 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   if (!av) return null;
   const { scambiate, girata } = av;
   W = av.W; D = av.D;
-  foto = { ...foto, fronte: av.davanti, lato: av.lato, dietro: av.dietro };
+  foto = { ...foto, fronte: av.davanti, lato: av.lato, dietro: av.dietro, latoDavanti: av.latoDavanti };
   const F = vista(foto.fronte); if (!F) return null;
   const S = vista(foto.lato);
   const B = foto.dietro ? true : false;
@@ -647,7 +813,8 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
   const composta = compattezza(foto.fronte) < 0.85;
   const tornio = composta && !S && D >= W * 0.6 && pianta !== 'squadrata';
   const estrusa = !tornio && (composta || (!S && D < W * 0.6));
-  let forma = null, davantiSx = S ? latoSporgente(S) === 'sx' : false;
+  // nella foto di lato, da che parte è il davanti (dal tre quarti si sa: è lo spigolo)
+  let forma = null, davantiSx = av.latoDavanti ? av.latoDavanti === 'sx' : (S ? latoSporgente(S) === 'sx' : false);
   const vert = [], ind = [], pezzi = [];
   if (tornio) {
     const g = solidoDiRotazione(foto.fronte, W, H, D, THREE); if (!g) return null;
@@ -656,7 +823,7 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
     const g = sagomaEstrusa(foto.fronte, W, H, D, THREE); if (!g) return null;
     pezzi.push(g);
   } else {
-    forma = formaOggetto({ fronte: foto.fronte, lato: foto.lato, sopra: T ? foto.sopra : null }, W, D, H, THREE, pianta);
+    forma = formaOggetto({ fronte: foto.fronte, lato: foto.lato, sopra: T ? foto.sopra : null, latoDavanti: foto.latoDavanti }, W, D, H, THREE, pianta);
     if (!forma) return null;
     davantiSx = forma.davantiSx;
     for (const v of forma.corpo.vert) vert.push(v);
@@ -698,10 +865,11 @@ export function geometriaOggetto(foto, W, D, H, pianta = 'auto') {
     aff[v * 3 + 1] = 0.08 + 0.92 * liscia(Math.min(wz, 1 - wz) / 0.14);      // lati: bordi davanti e dietro
     aff[v * 3 + 2] = 1;                                                     // sopra: la foto dall'alto vale ovunque guardi in su
     uvB.set(uvDa(tB || tF, 1 - u, vy), v * 2);                     // dietro: la sua foto, se no il davanti specchiato
-    // lato fotografato: la foto com'è; lato opposto: la stessa foto NON specchiata (scritte e loghi leggibili)
+    // i DUE FIANCHI dalla stessa foto: l'altro lato è uguale, SPECCHIATO (il davanti resta davanti
+    // da tutte e due le parti: es. la ciotola dell'impastatrice, la leva del tostapane)
     const us = davantiSx ? 1 - wz : wz;                             // la foto di lato esatta, su tutta la profondità
     uvS.set(uvDa(tS, us, vy), v * 2);
-    uvS2.set(uvDa(tS, 1 - us, vy), v * 2);
+    uvS2.set(uvDa(tS, us, vy), v * 2);
     // sopra: il corpo trovato nella foto da sopra (senza leve e blocchi attaccati) va su larghezza × profondità
     if (T) uvT.set([Math.min(1, Math.max(0, formaT.cx + (u - 0.5) * 2 * formaT.a)), 1 - Math.min(1, Math.max(0, formaT.cy + (wz - 0.5) * 2 * formaT.b))], v * 2);
     else uvT.set(uvDa(tT, u, wz), v * 2);
@@ -758,7 +926,7 @@ vec3 vFotoCol = vec3(0.0);`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
   totalEmissiveRadiance += vFotoCol * 0.22;      // la foto resta luminosa come è (non più scura e spenta)`);
   };
-  mat.customProgramCacheKey = () => 'ogg-proiezione-v5';
+  mat.customProgramCacheKey = () => 'ogg-proiezione-v6';
   const mats = mat;
   const geo = gi;
   return { geo, mats, W, D, H, colore: hex(F.media), scambiate, girata, estrusa };

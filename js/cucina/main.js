@@ -24,13 +24,13 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261119g';
-import { renderPianta } from './pianta.js?v=20261119g';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261119g';
-import { calcolaDistintaCucina } from './distinta.js?v=20261119g';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261119g';
-import { agganciaTema } from '../tema.js?v=20261119g';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261119g';
+} from './modello.js?v=20261119h';
+import { renderPianta } from './pianta.js?v=20261119h';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261119h';
+import { calcolaDistintaCucina } from './distinta.js?v=20261119h';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261119h';
+import { agganciaTema } from '../tema.js?v=20261119h';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261119h';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1390,7 +1390,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261119g');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261119h');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2118,13 +2118,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261119g');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261119h');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261119g'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261119h'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

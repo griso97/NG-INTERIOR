@@ -417,8 +417,8 @@ export function formaOggetto(foto, W, D, H, THREE = null, pianta = 'auto') {
   const S = foto.lato ? analizzaVista(foto.lato, D, H) : null;
   const T = foto.sopra ? analizzaVista(foto.sopra, W, D) : null;
   // nella foto di lato il DAVANTI è dove stanno i comandi: i pezzi attaccati a quel bordo
-  let davantiSx = false;
-  if (S) {
+  let davantiSx = foto.latoDavanti === 'sx';
+  if (S && !foto.latoDavanti) {
     let sx = 0, dx = 0;
     for (const q of S.pezziMm) { const xm = (q.a[0] + q.b[0]) / 2; if (xm < D * 0.2) sx += q.area; else if (xm > D * 0.8) dx += q.area; }
     davantiSx = sx > dx;

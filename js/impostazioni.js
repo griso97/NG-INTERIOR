@@ -8,16 +8,16 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261119g';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119g';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119g';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119g';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119g';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119g';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119g';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119g';
-import { agganciaTema } from './tema.js?v=20261119g';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119g';
+} from './catalogo.js?v=20261119h';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119h';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119h';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119h';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119h';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119h';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119h';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119h';
+import { agganciaTema } from './tema.js?v=20261119h';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119h';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -922,7 +922,7 @@ function apriSchedaOggetto(p, bozza) {
   corpo.innerHTML = `
     <div class="imp-form">
       <div class="imp-aiuto">Carica le foto dell'oggetto: vanno bene sia quelle del produttore (su bianco) sia quelle ambientate (in una stanza, con altri oggetti attorno): lo sfondo lo toglie il sito, da solo. Il sito <strong>riconosce da solo quale foto è davanti, di lato, dietro o da sopra</strong>, isola l'oggetto e costruisce il <strong>3D con le misure vere e le tue foto sopra</strong>. Se sbaglia una vista, correggila con «Questa foto è».</div>
-      <div class="imp-aiuto">Per la forma servono foto <strong>dritte</strong> (davanti e di lato, con il telefono all'altezza dell'oggetto). Sotto ogni foto il sito scrive se è <strong>dritta</strong> o <strong>di tre quarti</strong> (a 45°: non la usa per la forma). Se sbaglia, tocca la scritta per cambiarla.</div>
+      <div class="imp-aiuto">Vanno bene foto <strong>dritte</strong> (davanti, di lato) e foto <strong>di tre quarti</strong> (si vedono il davanti e un fianco insieme): dalla foto di tre quarti il sito <strong>raddrizza il fianco</strong> e lo usa per tutti e due i lati (l'altro lato è uguale, specchiato). La foto nella casella «Davanti» è il davanti. Sotto ogni foto il sito scrive cosa ne prende; se sbaglia, tocca la scritta per cambiarla.</div>
       <label class="imp-tutte">📷 Carica tutte le foto insieme<input type="file" accept="image/*" multiple id="o-tutte"></label>
       <div class="imp-viste3">
         ${VISTE_OGG.map((v) => `
@@ -995,7 +995,7 @@ function apriSchedaOggetto(p, bozza) {
   const bozzaPiu = () => { clearTimeout(_tBozza); _tBozza = setTimeout(salvaOra, 400); };
   // foto DRITTA o DI TRE QUARTI: la scelta fatta a mano per casella (se no decide il sito)
   const tipi = { ...((o && o.tipi) || {}) };
-  let tipiAuto = {};
+  let tipiAuto = {}, usoAuto = {};
   const errore = (t) => { const e = corpo.querySelector('#f-err'); e.textContent = t; e.hidden = false; e.scrollIntoView({ block: 'nearest' }); };
   const avviso = (t) => { const m = corpo.querySelector('#o-msg'); m.textContent = t; m.hidden = !t; };
   const num = (id) => Number(String(corpo.querySelector(id).value).replace(',', '.'));
@@ -1009,7 +1009,11 @@ function apriSchedaOggetto(p, bozza) {
     bt.hidden = !imgs[v] || !t;
     if (t) {
       bt.classList.toggle('dritta', t === 'dritta'); bt.classList.toggle('storta', t !== 'dritta');
-      bt.innerHTML = (t === 'dritta' ? `✓ ${tr('Dritta')} · ${tr('la uso per la forma')}` : `↗ ${tr('Di tre quarti')} · ${tr('non la uso per la forma')}`)
+      // di tre quarti: cosa ne prendo (il fianco va su tutti e due i lati, specchiato)
+      const u = tipi[v] ? null : usoAuto[v];
+      const da34 = u === 'fianco' ? tr("ne prendo il fianco (e lo specchio dall'altra parte)") : u === 'davanti' ? tr('ne prendo il davanti')
+        : u === 'davanti+fianco' ? tr('ne prendo il davanti e il fianco') : tr('non la uso per la forma');
+      bt.innerHTML = (t === 'dritta' ? `✓ ${tr('Dritta')} · ${tr('la uso per la forma')}` : `↗ ${tr('Di tre quarti')} · ${da34}`)
         + `<small>${tipi[v] ? tr('scelta tua · tocca per cambiare') : tr('automatico · tocca per cambiare')}</small>`;
     }
     corpo.querySelector('#o-pianta-box').hidden = !!imgs.sopra;
@@ -1036,12 +1040,12 @@ function apriSchedaOggetto(p, bozza) {
         avviso(tr('Ho scambiato davanti e lato: dalle misure, il davanti è la foto larga come la larghezza e il lato quella larga come la profondità.'));
         av = assegnaViste({ ...imgs, tipi }, W, D, H);
       }
-      tipiAuto = (av && av.tipi) || {};
+      tipiAuto = (av && av.tipi) || {}; usoAuto = (av && av.uso) || {};
       mostraTutte();
-      // LE MISURE TORNANO CON LE FOTO? (solo con le foto dritte) se una non torna, dico quanto dovrebbe essere
+      // LE MISURE TORNANO CON LE FOTO? (anche con le facce raddrizzate delle foto di tre quarti)
+      // se una non torna, dico quanto dovrebbe essere
       const mm = corpo.querySelector('#o-misure-msg');
-      const dritte = Object.fromEntries(['fronte', 'lato', 'sopra'].filter((k) => imgs[k] && (tipi[k] || tipiAuto[k]) !== '45').map((k) => [k, imgs[k]]));
-      const c = dritte.fronte ? controllaMisure(dritte, W, D, H) : null;
+      const c = imgs.fronte ? controllaMisure({ ...imgs, tipi }, W, D, H) : null;
       if (c && mm) {
         const nomi = { w: 'la larghezza', d: 'la profondità', h: "l'altezza" }, ids = { w: '#o-w', d: '#o-d', h: '#o-h' };
         const cm = (v) => (Math.round(v / 5) / 2).toLocaleString('it-IT');

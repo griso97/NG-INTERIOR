@@ -14,6 +14,7 @@
 
 const VENDOR = new URL('../vendor/', import.meta.url).href;
 const ORT_DIR = `${VENDOR}onnxruntime-web/1.31.1/`;
+import { togliRiflesso } from './riflesso.js?v=20261119h';
 const UA = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
 const TELEFONO = /iPhone|iPad|iPod|Android|Mobile/i.test(UA)
   || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && /Macintosh/.test(UA))   // iPad "da computer"
@@ -219,16 +220,19 @@ function dopoIA(uscite, s, img, W0, H0, avanza) {
   og.globalCompositeOperation = 'destination-in';
   og.drawImage(mc, bx / sx, by / sy, bw / sx, bh / sy, 0, 0, OW, OH);
   og.globalCompositeOperation = 'source-over';
-  // 6) colore mediano dell'oggetto
-  const od = og.getImageData(0, 0, OW, OH).data, cols = [[], [], []];
-  for (let i = 0; i < OW * OH; i += 3) if (od[i * 4 + 3] > 200) for (let q = 0; q < 3; q++) cols[q].push(od[i * 4 + q]);
+  // 6) il RIFLESSO sul pavimento (foto su piano lucido) non è l'oggetto: lo tolgo
+  const rf = togliRiflesso(out);
+  const fin = rf.canvas, FH = fin.height;
+  // 7) colore mediano dell'oggetto
+  const od = fin.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, OW, FH).data, cols = [[], [], []];
+  for (let i = 0; i < OW * FH; i += 3) if (od[i * 4 + 3] > 200) for (let q = 0; q < 3; q++) cols[q].push(od[i * 4 + q]);
   const med = cols.map((v) => { v.sort((a, b) => a - b); return v[v.length >> 1] || 0; });
   if (avanza) avanza({ fase: 'calcolo', frazione: 1 });
   return {
-    canvas: out, w: OW, h: OH, angolo: 0,
-    zona: { x: bx, y: by, w: bw, h: bh },
+    canvas: fin, w: OW, h: FH, angolo: 0,
+    zona: { x: bx, y: by, w: bw, h: bh * (FH / OH) },
     colore: (med[0] << 16) | (med[1] << 8) | med[2],
-    rapporto: Math.min(OW, OH) / Math.max(OW, OH),
+    rapporto: Math.min(OW, FH) / Math.max(OW, FH),
     ia: true,
   };
 }
