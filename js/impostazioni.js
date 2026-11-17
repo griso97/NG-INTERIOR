@@ -8,16 +8,16 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261119f';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119f';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119f';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119f';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119f';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119f';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119f';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119f';
-import { agganciaTema } from './tema.js?v=20261119f';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119f';
+} from './catalogo.js?v=20261119g';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119g';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119g';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119g';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119g';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119g';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119g';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119g';
+import { agganciaTema } from './tema.js?v=20261119g';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119g';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -189,8 +189,8 @@ function apriScheda(m) {
       </fieldset>` : ''}` : ''}
       ${proprio && tipo !== 'man' ? `
       <div class="grid-2">
-        <label>${tipo === 'fp' ? 'Larghezza della porta (cm)' : 'Larghezza del campione (cm)'} <span class="imp-obbl">*</span><input type="number" min="1" step="0.1" id="f-w" placeholder="es. 59,8" value="${esc(p && p.oggettoCm ? p.oggettoCm.w : camp.w)}"></label>
-        <label>${tipo === 'fp' ? 'Altezza della porta (cm)' : 'Altezza del campione (cm)'} <span class="imp-obbl">*</span><input type="number" min="1" step="0.1" id="f-h" placeholder="es. 69,7" value="${esc(p && p.oggettoCm ? p.oggettoCm.h : camp.h)}"></label>
+        <label>${tipo === 'fp' ? 'Larghezza della porta (cm)' : 'Larghezza del campione (cm)'} <span class="imp-obbl">*</span><input type="text" inputmode="decimal" autocomplete="off" id="f-w" placeholder="es. 59,8" value="${esc(p && p.oggettoCm ? p.oggettoCm.w : camp.w)}"></label>
+        <label>${tipo === 'fp' ? 'Altezza della porta (cm)' : 'Altezza del campione (cm)'} <span class="imp-obbl">*</span><input type="text" inputmode="decimal" autocomplete="off" id="f-h" placeholder="es. 69,7" value="${esc(p && p.oggettoCm ? p.oggettoCm.h : camp.h)}"></label>
       </div>
       <div class="imp-aiuto">${tipo === 'fp' ? 'Misura reale di tutta la porta della foto' : 'Misura reale di tutto il campione della foto'}: serve per avere la venatura in scala vera sui mobili, non stirata.</div>` : ''}
       ${tipo === 'man' ? `
@@ -198,13 +198,13 @@ function apriScheda(m) {
         <legend>Misura della maniglia</legend>
         <label class="imp-vis"><input type="radio" name="f-mis" value="std" ${man.standard !== false ? 'checked' : ''}> Standard (${MANIGLIA_STANDARD_CM} cm)</label>
         <label class="imp-vis"><input type="radio" name="f-mis" value="pers" ${man.standard === false ? 'checked' : ''}> Personalizzata</label>
-        <label id="f-lung-box" ${man.standard === false ? '' : 'hidden'}>Lunghezza della maniglia (cm) <span class="imp-obbl">*</span><input type="number" min="1" step="0.1" id="f-lung" value="${esc(man.standard === false ? man.lunghezzaCm : '')}"></label>
+        <label id="f-lung-box" ${man.standard === false ? '' : 'hidden'}>Lunghezza della maniglia (cm) <span class="imp-obbl">*</span><input type="text" inputmode="decimal" autocomplete="off" id="f-lung" value="${esc(man.standard === false ? man.lunghezzaCm : '')}"></label>
         <div class="imp-aiuto">La lunghezza è il lato lungo della maniglia. L'altezza si calcola dalla foto.</div>
       </fieldset>` : ''}
       <label>Nome <span class="imp-obbl">*</span><input type="text" id="f-nome" value="${esc(m ? m.nome : '')}" placeholder="${tipo === 'man' ? 'Es. Maniglia nera 160' : tipo === 'fp' ? 'Es. Rovere con gola nera' : 'Es. Rovere naturale, Giallo canarino…'}"></label>
       <div class="grid-2">
         <label>Tipo di materiale<input type="text" id="f-tipo" value="${esc(info.tipo || '')}" placeholder="${tipo === 'man' ? 'Es. Alluminio, Acciaio…' : 'Es. Melaminico, Laminato, Compacto…'}"></label>
-        <label>Spessore (mm)<input type="number" min="0" step="0.1" id="f-sp" value="${esc(info.spessore || (m && m.spessore) || '')}"></label>
+        <label>Spessore (mm)<input type="text" inputmode="decimal" autocomplete="off" id="f-sp" value="${esc(info.spessore || (m && m.spessore) || '')}"></label>
       </div>
       <label>Colore<input type="text" id="f-col" value="${esc(info.colore || '')}" placeholder="Es. Rovere chiaro, Nero opaco…"></label>
       <label>Note<input type="text" id="f-note" value="${esc(info.note || '')}" placeholder="Fornitore, codice…"></label>
@@ -943,9 +943,9 @@ function apriSchedaOggetto(p, bozza) {
       <fieldset class="imp-misura">
         <legend>Misure reali (cm) <span class="imp-obbl">*</span></legend>
         <div class="imp-misure3">
-          <label>Larghezza<input type="number" min="1" step="0.1" id="o-w" value="${esc(o.w)}" placeholder="es. 28"></label>
-          <label>Profondità<input type="number" min="1" step="0.1" id="o-d" value="${esc(o.d)}" placeholder="es. 36"></label>
-          <label>Altezza<input type="number" min="1" step="0.1" id="o-h" value="${esc(o.h)}" placeholder="es. 31"></label>
+          <label>Larghezza<input type="text" inputmode="decimal" autocomplete="off" id="o-w" value="${esc(o.w)}" placeholder="es. 28"></label>
+          <label>Profondità<input type="text" inputmode="decimal" autocomplete="off" id="o-d" value="${esc(o.d)}" placeholder="es. 36"></label>
+          <label>Altezza<input type="text" inputmode="decimal" autocomplete="off" id="o-h" value="${esc(o.h)}" placeholder="es. 31"></label>
         </div>
         <div class="imp-aiuto">Le trovi nella scheda del prodotto (la profondità con la maniglia). Il 3D esce in scala vera.</div>
         <div id="o-misure-msg" class="imp-auto-msg" hidden></div>
