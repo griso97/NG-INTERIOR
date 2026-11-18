@@ -726,9 +726,20 @@
   border: 1px solid var(--oro-scuro, #8a6a14); border-radius: 8px; background: transparent; color: var(--oro-chiaro, #e8c25a); font: 600 13px/1.2 inherit; letter-spacing: .5px; }
 .tendina-ogg.aperta { border-color: var(--oro, #c9a94a); }
 .tendina-freccia { font-size: 14px; }
+.chips-ogg { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.chip-ogg { padding: 7px 11px; border: 1px solid var(--bordo, #3a3226); border-radius: 999px; background: transparent; color: inherit;
+  font: 600 12px/1.1 inherit; cursor: pointer; white-space: nowrap; }
+.chip-ogg small { opacity: .55; font-weight: 500; margin-left: 2px; }
+.chip-ogg.attivo { border-color: var(--oro, #c9a94a); background: var(--oro, #c9a94a); color: #111; }
+.chip-ogg.attivo small { opacity: .7; }
+.crediti-ogg { margin-top: 10px; font-size: 10.5px; line-height: 1.35; opacity: .6; }
+.crediti-ogg a { color: inherit; }
 .griglia-ogg { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
 .ogg-voce { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px; cursor: pointer; border: 1px solid var(--bordo, #3a3226);
   border-radius: 8px; background: transparent; color: inherit; font-size: 11px; text-align: center; }
 .ogg-voce:hover { border-color: var(--oro, #c9a94a); }
 .ogg-voce svg { width: 44px; height: 44px; fill: none; stroke: var(--oro-chiaro, #e8c25a); stroke-width: 2.5; }
 .avviso-dettaglio { margin-top: 6px; font: 12px/1.35 ui-monospace, Menlo, monospace; opacity: .8; word-break: break-word; }
+/* lista «Aggiungi oggetti» (passo 4): foto grandi, si vede bene cosa si sceglie */
+.griglia-ogg { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+.ogg-voce .palette-ogg-img { width: 100%; height: auto; aspect-ratio: 1; background-size: cover; }

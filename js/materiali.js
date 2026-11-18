@@ -15,7 +15,19 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261119l';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261119m';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI } from './libreria3d-dati.js?v=20261119m';
+export { CREDITI_LIBRERIA, GRUPPI_OGGETTI };
+
+/** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
+ *  posa: 'appeso' (lampade: dal soffitto), 'parete' (quadri), 'terra' (sedie, sgabelli, tavoli), 'piano' (vasi). */
+function voceLibreria(v) {
+  const posa = v.tipo === 'appeso' || v.tipo === 'soffitto' ? 'appeso' : v.tipo === 'parete' ? 'parete' : v.gruppo === 'decor' ? 'piano' : 'terra';
+  const foto = `oggetti/libreria/miniature/${v.id}.jpg`;
+  return { id: `lib-${v.id}`, nome: v.nome, categoria: 'oggetto', sezione: 'oggetti', libreria: v.id, gruppo: v.gruppo, posa,
+    ...(posa === 'appeso' ? { appeso: true } : {}), thumb: foto, texture: foto, colore: 0xd8d2c8, misure: { ...v.misure },
+    info: { note: CREDITI_LIBRERIA } };
+}
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -252,6 +264,8 @@ export const MATERIALI = [
   { id: 'cm-lux-lampada-globo', nome: 'Lampada a sospensione globo opalino', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'lux-lampada-globo', linea: 'Luxury',
     thumb: 'oggetti/moderni/miniature/lux-lampada-globo.jpg', texture: 'oggetti/moderni/miniature/lux-lampada-globo.jpg', colore: 0xd8d2c8,
     misure: { w: 250, d: 250, h: 2700 }, info: { note: 'Collezione Luxury NG Interior' } },
+  // ---- LIBRERIA 3D: prodotti veri (Amazon Berkeley Objects, CC BY 4.0) ----
+  ...LIBRERIA.map(voceLibreria),
   // ---- Zoccoli (cucina) ----
   { id: 'nero-opaco', nome: 'Nero opaco', categoria: 'zoccolo', css: '#17171a', colore: 0x17171a,
     solido: true, roughness: 1.0, metalness: 0.0 },
@@ -285,7 +299,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261119l');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261119m');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -414,7 +428,20 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261119l';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261119m';
+
+// Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
+const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
+  'vaso-scultura': 'decor', 'vaso-ulivo': 'decor', 'lux-vaso-pampas': 'decor', 'lux-vaso-fume': 'decor', 'lux-candelieri': 'decor', 'lux-scultura': 'decor' };
+for (const m of MATERIALI) {
+  if (!m.moderno) continue;
+  m.gruppo = GRUPPO_COLLEZIONE[m.moderno] || 'cucina';
+  m.posa = m.appeso ? 'appeso' : m.gruppo === 'sgabelli' ? 'terra' : 'piano';
+}
+/** Gruppo di un oggetto nella lista «Aggiungi oggetti» (quelli aggiunti dall'utente: «I miei oggetti»). */
+export function gruppoOggetto(o) { return (o && o.gruppo) || (o && (o.proprio || o.pronto) ? 'miei' : 'cucina'); }
+/** Come si posa un oggetto: 'piano' (sul piano di lavoro o a terra), 'terra', 'appeso' (dal soffitto), 'parete'. */
+export function posaOggetto(o) { return (o && o.posa) || (o && o.appeso ? 'appeso' : 'piano'); }
 
 /** Prodotti visibili in una sezione del catalogo (con i nascosti tolti). */
 export function materialiPer(sezione, { tutti = false } = {}) {

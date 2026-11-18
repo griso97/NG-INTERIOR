@@ -8,17 +8,17 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261119l';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119l';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119l';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119l';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119l';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119l';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119l';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119l';
-import { agganciaTema } from './tema.js?v=20261119l';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119l';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261119l';
+} from './catalogo.js?v=20261119m';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119m';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119m';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119m';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119m';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119m';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119m';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119m';
+import { agganciaTema } from './tema.js?v=20261119m';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119m';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261119m';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -60,6 +60,7 @@ function dettagli(m) {
   if (m.viste && m.categoria === 'maniglia') r.push(`viste: ${['davanti', ...Object.keys(m.viste)].join(', ')}`);
   if (m.viste && m.categoria === 'oggetto') r.push(`foto: ${['davanti', ...['lato', 'sopra', 'dietro'].filter((v) => m.viste[v])].join(', ')}`);
   if (m.pronto) r.push('oggetto 3D pronto · Poly Haven (CC0)');
+  if (m.libreria) r.push('Amazon Berkeley Objects © Amazon.com · CC BY 4.0');
   if (m.ral) r.push(`RAL ${esc(m.ral)}`);
   if (m.proprio && m.lucido != null && m.categoria !== 'maniglia') r.push(m.lucido ? 'lucido' : 'opaco');
   if (m.gola) r.push('con gola');

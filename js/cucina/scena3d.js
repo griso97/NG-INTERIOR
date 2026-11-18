@@ -13,16 +13,17 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261119l';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119l';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261119l';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261119l';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261119l';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119l';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119l';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119l';
+} from './modello.js?v=20261119m';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119m';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261119m';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261119m';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261119m';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261119m';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119m';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119m';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119m';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119l';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119m';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -2245,13 +2246,18 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const misOgg = def && def.misure ? { w: m.larghezza_mm || def.misure.w, d: m.profondita_mm || def.misure.d, h: m.altezza_mm || def.misure.h } : null;
       // OGGETTO 3D PRONTO (Poly Haven): il modello vero, alle misure scelte
       // COLLEZIONE MODERNA / LUXURY: modellati da noi, con la frutta vera
-      const pr = def && def.pronto ? oggettoPronto(def, misOgg, reRender) : def && def.moderno ? oggettoModerno(def.moderno, misOgg, reRender) : null;
-      const r = def && !def.pronto && !def.moderno && oggettoDaFoto({ ...def, misure: misOgg }, reRender);
+      // LIBRERIA 3D: prodotti veri (luci, sgabelli, tavoli e sedie, vasi, quadri)
+      const pr = def && def.pronto ? oggettoPronto(def, misOgg, reRender) : def && def.moderno ? oggettoModerno(def.moderno, misOgg, reRender)
+        : def && def.libreria ? oggettoLibreria(def.libreria, misOgg, reRender) : null;
+      const r = def && !def.pronto && !def.moderno && !def.libreria && oggettoDaFoto({ ...def, misure: misOgg }, reRender);
       if (pr) {
         const og = new THREE.Group(); og.add(pr);
-        // le LAMPADE A SOSPENSIONE pendono dal soffitto: non si posano sul piano
-        og.position.set(cx, def.appeso ? 0 : quotaAppoggio(progetto, m, spTop), cz); og.rotation.y = -(m.rot || 0) * Math.PI / 180; g3d = og;
-        if (!def.appeso) { og.userData.appoggiabile = true; daPosare.push(og); }
+        // come si posa: le LAMPADE pendono dal soffitto, i QUADRI stanno al muro (centro a 155 cm),
+        // sedie, sgabelli e tavoli a TERRA (anche sotto lo sbalzo dell'isola), il resto sul piano
+        const posa = def.posa || (def.appeso ? 'appeso' : 'piano');
+        const y = posa === 'piano' ? quotaAppoggio(progetto, m, spTop) : posa === 'parete' ? Math.max(0, Y_QUADRO - (misOgg ? misOgg.h : 0) / 2) : 0;
+        og.position.set(cx, y, cz); og.rotation.y = -(m.rot || 0) * Math.PI / 180; g3d = og;
+        if (posa === 'piano') { og.userData.appoggiabile = true; daPosare.push(og); }
       } else if (r) {
         const og = new THREE.Group();
         const mesh = new THREE.Mesh(r.geo, r.mat); mesh.castShadow = true; mesh.receiveShadow = true; og.add(mesh);
@@ -2499,7 +2505,8 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   impostaTintaLed(progetto.led && progetto.led.attivo ? (LED_COLORI[progetto.led.colore] || LED_COLORI.caldo) : null);
   if (reframe) inquadra(bb, direzioneStanza(full, vertici));
   // OMBRE: tutto fa ombra (muri e pavimento la ricevono soltanto), inquadrate sulla cucina
-  ombreSuTutto(gruppo, (o) => !!(o.userData.muroNormale || o.userData.pavimento));
+  // le LAMPADE non fanno ombra (sono loro la luce): userData.senzaOmbra
+  ombreSuTutto(gruppo, (o) => !!(o.userData.muroNormale || o.userData.pavimento || o.userData.senzaOmbra));
   if (luceOmbre && renderer) {
     const box = new THREE.Box3();
     for (const o of gruppo.children) if (!o.userData.muroNormale && !o.userData.pavimento && !o.isGridHelper) box.expandByObject(o);

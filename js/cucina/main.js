@@ -24,13 +24,13 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261119l';
-import { renderPianta } from './pianta.js?v=20261119l';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261119l';
-import { calcolaDistintaCucina } from './distinta.js?v=20261119l';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261119l';
-import { agganciaTema } from '../tema.js?v=20261119l';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261119l';
+} from './modello.js?v=20261119m';
+import { renderPianta } from './pianta.js?v=20261119m';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261119m';
+import { calcolaDistintaCucina } from './distinta.js?v=20261119m';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261119m';
+import { agganciaTema } from '../tema.js?v=20261119m';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261119m';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1181,16 +1181,36 @@ function agganciaFiniture(root) {
  * di un mobile basso libero (centro del mobile, girati come lui), gli sgabelli
  * davanti al primo mobile basso; se non ci sono mobili, al centro della stanza.
  */
+/** Come si posa un oggetto della cucina: 'piano', 'terra', 'appeso' (lampade), 'parete' (quadri). */
+function posaDi(tipo) {
+  if (!String(tipo).startsWith('ogg:')) return 'terra';          // sgabello del catalogo mobili
+  const def = matMod && matMod.MATERIALI.find((x) => x.id === String(tipo).slice(4));
+  return matMod && matMod.posaOggetto ? matMod.posaOggetto(def) : 'piano';
+}
 function postoPerOggetto(m) {
   const basi = (progetto.mobiliLiberi || []).filter((b) => ['base'].includes(categoriaTipo(b.tipo)) && b.tipo !== 'base-angolo' && !b.lavello && b.tipo !== 'lavello');
-  const oggetti = (progetto.mobiliLiberi || []).filter((o) => o.id !== m.id && categoriaTipo(o.tipo) === 'oggetto');
-  const occupato = (x, y) => oggetti.some((o) => Math.hypot(o.x - x, o.y - y) < 250);
-  const sulPiano = String(m.tipo).startsWith('ogg:');
+  const posa = posaDi(m.tipo);
+  // occupato solo da oggetti che si posano allo stesso modo (una lampada sopra un vaso va bene)
+  const oggetti = (progetto.mobiliLiberi || []).filter((o) => o.id !== m.id && categoriaTipo(o.tipo) === 'oggetto' && posaDi(o.tipo) === posa);
+  const dm0 = dimMobile(m), passo = Math.max(250, Math.max(dm0.w || 0, dm0.d || 0) * 0.9);
+  const occupato = (x, y) => oggetti.some((o) => Math.hypot(o.x - x, o.y - y) < passo);
+  const pensili = (progetto.mobiliLiberi || []).filter((p) => categoriaTipo(p.tipo) === 'pensile');
+  const conPensile = (x, y) => pensili.some((p) => Math.hypot(p.x - x, p.y - y) < Math.max(dimMobile(p).w, 300) / 2 + 150);
   for (const b of basi) {
     const r = ((b.rot || 0) * Math.PI) / 180, fx = -Math.sin(r), fy = -Math.cos(r);
     const d = dimMobile(b).d;
-    const x = sulPiano ? b.x : b.x + fx * (d / 2 + 350), y = sulPiano ? b.y : b.y + fy * (d / 2 + 350);
-    if (!occupato(x, y)) return { x: Math.round(x), y: Math.round(y), rot: b.rot || 0 };
+    // piano / lampada: sopra il mobile; a terra: davanti (un tavolo più lontano);
+    // quadro: al muro dietro il mobile, dove non ci sono pensili
+    const dist = posa === 'terra' ? d / 2 + (m.tipo.startsWith('ogg:') && dm0.d > 700 ? 900 + dm0.d / 2 : 350)
+      : posa === 'parete' ? -(d / 2 - (dm0.d || 40) / 2) : 0;
+    // posti lungo il mobile: al centro, poi a destra e a sinistra, distanziati della misura dell'oggetto
+    const w = dimMobile(b).w || 600, ds = Math.max(250, (dm0.w || 300) + 80);
+    for (const s of [0, 1, -1, 2, -2, 3, -3].map((k) => k * ds).filter((s) => Math.abs(s) <= w / 2 + 100)) {
+      const x = b.x + fx * dist + fy * s, y = b.y + fy * dist - fx * s;
+      if (posa === 'parete' && conPensile(b.x + fy * s, b.y - fx * s)) continue;
+      // sedie e sgabelli davanti al mobile lo GUARDANO (girati di 180°)
+      if (!occupato(x, y)) return { x: Math.round(x), y: Math.round(y), rot: posa === 'terra' ? ((b.rot || 0) + 180) % 360 : b.rot || 0 };
+    }
   }
   return {};
 }
@@ -1203,22 +1223,34 @@ function renderPannelloStep3d() {
   const materialiEnc = (scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer('encimera') : [];
   const encAttuale = (progetto.encimera || {}).materiale || null;
   const avvisi = problemiMobiliLiberi(progetto);
-  // OGGETTI da aggiungere nel 3D: i propri del catalogo (dalle foto) + quelli pronti (sgabello)
-  const oggCat = matMod ? matMod.materialiPer('oggetti') : [];
-  const oggPronti = CATALOGO_MOBILI.filter((t) => t.categoria === 'oggetto');
+  // OGGETTI da aggiungere nel 3D, a GRUPPI (Luci, Sgabelli, Tavoli e sedie, Vasi, Per la cucina,
+  // Quadri, I miei oggetti): libreria 3D + collezione nostra + quelli creati dalle foto
+  const tuttiOgg = matMod ? matMod.materialiPer('oggetti') : [];
+  const gruppi = (matMod && matMod.GRUPPI_OGGETTI) || [];
+  const gruppoDi = (o) => (matMod && matMod.gruppoOggetto ? matMod.gruppoOggetto(o) : 'miei');
+  const conta = (g) => tuttiOgg.filter((o) => gruppoDi(o) === g).length + (g === 'sgabelli' ? CATALOGO_MOBILI.filter((t) => t.categoria === 'oggetto').length : 0);
+  if (!step2.oggGruppo || !gruppi.some((g) => g.id === step2.oggGruppo)) step2.oggGruppo = 'luci';
+  const oggCat = tuttiOgg.filter((o) => gruppoDi(o) === step2.oggGruppo);
+  const oggPronti = step2.oggGruppo === 'sgabelli' ? CATALOGO_MOBILI.filter((t) => t.categoria === 'oggetto') : [];
+  const T = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
+  const creditiLib = oggCat.some((o) => o.libreria) && matMod.CREDITI_LIBRERIA;
   pannello.innerHTML = `
     <section class="step3-pannello">
       <button type="button" class="tendina-ogg ${step2.oggettiAperti ? 'aperta' : ''}" id="ogg-tendina">
         <span>🪑 Aggiungi oggetti</span><span class="tendina-freccia">${step2.oggettiAperti ? '▾' : '▸'}</span>
       </button>
       ${step2.oggettiAperti ? `
-      <div class="riga-3d" style="margin:8px 0 6px">Tocca un oggetto: compare in cucina (sul piano di lavoro se c'è, se no a terra). Poi trascinalo dove vuoi.</div>
+      <div class="riga-3d" style="margin:8px 0 6px">Tocca un oggetto: compare in cucina (le lampade appese al soffitto, i quadri al muro, sedie e sgabelli a terra, il resto sul piano). Poi trascinalo dove vuoi.</div>
+      <div class="chips-ogg">
+        ${gruppi.map((g) => `<button type="button" class="chip-ogg ${g.id === step2.oggGruppo ? 'attivo' : ''}" data-ogggruppo="${g.id}">${g.nome} <small>${conta(g.id)}</small></button>`).join('')}
+      </div>
       <div class="griglia-ogg">
-        ${oggCat.map((o) => `<button type="button" class="ogg-voce" data-aggogg="${o.id}" title="${escHtml(o.nome)}">
-          <span class="palette-ogg-img" style="background-image:url('${o.thumb}')"></span><span data-no-i18n>${escHtml(o.nome)}</span></button>`).join('')}
+        ${oggCat.map((o) => `<button type="button" class="ogg-voce" data-aggogg="${o.id}" title="${escHtml(o.proprio ? o.nome : T(o.nome))}">
+          <span class="palette-ogg-img" style="background-image:url('${o.thumb}')"></span><span data-no-i18n>${escHtml(o.proprio ? o.nome : T(o.nome))}</span></button>`).join('')}
         ${oggPronti.map((t) => `<button type="button" class="ogg-voce" data-aggtipo="${t.id}">${iconaMobile(t.id)}<span>${t.nome}</span></button>`).join('')}
       </div>
-      ${oggCat.length ? '' : '<div class="riga-3d" style="margin-top:6px">I tuoi oggetti (friggitrici, tostapane…) si creano dalle foto in ⚙ Impostazioni → Oggetti ed elettrodomestici.</div>'}` : ''}
+      ${step2.oggGruppo === 'miei' && !oggCat.length ? '<div class="riga-3d" style="margin-top:6px">I tuoi oggetti (friggitrici, tostapane…) si creano dalle foto in ⚙ Impostazioni → Oggetti ed elettrodomestici.</div>' : ''}
+      ${creditiLib ? `<div class="crediti-ogg">${escHtml(creditiLib)} · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></div>` : ''}` : ''}
     </section>
     ${avvisi.length ? `
     <section class="step3-pannello">
@@ -1343,6 +1375,7 @@ function renderPannelloStep3d() {
     aggiorna();
   });
   document.getElementById('ogg-tendina')?.addEventListener('click', () => { step2.oggettiAperti = !step2.oggettiAperti; renderPannello(); });
+  pannello.querySelectorAll('[data-ogggruppo]').forEach((b) => b.addEventListener('click', () => { step2.oggGruppo = b.dataset.ogggruppo; renderPannello(); }));
   pannello.querySelectorAll('[data-aggogg], [data-aggtipo]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     let id;
@@ -1390,7 +1423,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261119l');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261119m');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2095,7 +2128,7 @@ function renderPalette() {
   const voci = CATALOGO_MOBILI.filter((t) => (t.categoria === 'costado' || livelloMobile(t.categoria) === livello)
     && (t.id !== 'ponte' || cucinaPonte()));          // il Ponte solo nella cucina a ponte
   // OGGETTI del catalogo (creati dalle foto): si posano sul piano o a terra
-  const oggetti = livello === 'basso' && matMod ? matMod.materialiPer('oggetti') : [];
+  const oggetti = livello === 'basso' && matMod ? matMod.materialiPer('oggetti').filter((o) => !o.libreria) : [];
   palette.innerHTML = voci.map((t) => `
     <button type="button" class="palette-btn" data-tipo="${t.id}">
       ${iconaMobile(t.id)}<span>${t.nome}</span>
@@ -2118,13 +2151,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261119l');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261119m');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261119l'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261119m'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

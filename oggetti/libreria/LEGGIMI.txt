@@ -1,0 +1,4 @@
+Modelli 3D da Amazon Berkeley Objects (ABO) — https://amazon-berkeley-objects.s3.amazonaws.com/index.html
+Credito: Amazon.com. Licenza: Creative Commons Attribuzione 4.0 (CC BY 4.0), vedi LICENSE-CC-BY-4.0.txt.
+Modifiche fatte da NG Interior: texture ridotte a 1024 px e ricompresse (JPEG) per il web; geometria invariata.
+L'elenco dei prodotti (con il nome originale) è in js/libreria3d-dati.js.

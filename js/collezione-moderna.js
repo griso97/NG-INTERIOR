@@ -290,7 +290,7 @@ function lampada(tipo) {
   const filo = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, cavo, 8), mat('cavo')); filo.position.y = 190 + cavo / 2; g.add(filo);
   const rosone = new THREE.Mesh(tornio([[0, 0], [55, 0], [60, 6], [60, 24], [0, 24]], 64, false), mat(tipo === 'ottone' ? 'ottone-spazzolato' : 'cavo')); rosone.position.y = 190 + cavo - 2; g.add(rosone);
   g.children.forEach((c) => { c.position.y += y0; });
-  g.traverse((x) => { if (x.isMesh) { x.castShadow = false; x.receiveShadow = false; } });
+  g.traverse((x) => { if (x.isMesh) { x.castShadow = false; x.receiveShadow = false; x.userData.senzaOmbra = true; } });
   return g;
 }
 /** Vaso scultura (ceramica opaca), linea morbida. */
