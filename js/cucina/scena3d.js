@@ -13,17 +13,17 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261119m';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119m';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261119m';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261119m';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261119m';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261119m';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119m';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119m';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119m';
+} from './modello.js?v=20261119n';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119n';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261119n';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261119n';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261119n';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261119n';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119n';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119n';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119n';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119m';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119n';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -209,8 +209,12 @@ function quotaAltaColonne(progetto) {
   if (cols.length === 0) return null;
   return Math.max(...cols.map((c) => (c.altezza_mm || 2200) + zoccoloColonna(progetto, c)));
 }
-const ALT_MURO = 2600;
+/** Altezza del SOFFITTO (mm): muri, soffitto e lampade appese. Si sceglie al passo 4. */
+export function altezzaSoffitto(progetto) { return Math.max(2200, Math.min(4500, Number(progetto && progetto.altezzaSoffitto) || 2700)); }
 const MAT_MURO = new THREE.MeshStandardMaterial({ color: 0xece8e0, roughness: 0.95, metalness: 0, envMapIntensity: 0.35 });
+// soffitto: la luce principale viene dall'alto e non lo tocca; in una stanza vera è illuminato
+// dalla luce che rimbalza dal pavimento e dai muri → un filo di luce propria (bianco caldo, opaco)
+const MAT_SOFFITTO = new THREE.MeshStandardMaterial({ color: 0xf1eee8, roughness: 0.97, metalness: 0, envMapIntensity: 0.4, emissive: 0xd9d4cb, emissiveIntensity: 0.62 });
 const H_FORNO = 600;
 const H_MICRO = 380;
 
@@ -2135,6 +2139,14 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
     pavimentoVero(progetto.sfondo || 'chiaro', sf.pav, padW, padD, () => { if (resa) resa.cambiato(); }));
   pav.rotation.x = -Math.PI / 2; pav.position.set(cxF, 0, czF); pav.userData.pavimento = true; gruppo.add(pav);
 
+  // SOFFITTO: un piano bianco opaco all'altezza scelta, rivolto in giù. Da sotto si vede
+  // (le lampade ci sono appese), da sopra no (la faccia di dietro non si disegna), quindi
+  // la vista dall'alto resta libera. Non fa ombra.
+  const ALT_MURO = altezzaSoffitto(progetto);
+  const soff = new THREE.Mesh(new THREE.PlaneGeometry(padW, padD), MAT_SOFFITTO);
+  soff.rotation.x = Math.PI / 2; soff.position.set(cxF, ALT_MURO, czF);
+  soff.userData.soffitto = true; soff.userData.senzaOmbra = true; soff.castShadow = false; soff.receiveShadow = false; gruppo.add(soff);
+
   // Muri di riferimento
   full.forEach((p, i) => {
     if (p.assente) return;
@@ -2247,8 +2259,8 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       // OGGETTO 3D PRONTO (Poly Haven): il modello vero, alle misure scelte
       // COLLEZIONE MODERNA / LUXURY: modellati da noi, con la frutta vera
       // LIBRERIA 3D: prodotti veri (luci, sgabelli, tavoli e sedie, vasi, quadri)
-      const pr = def && def.pronto ? oggettoPronto(def, misOgg, reRender) : def && def.moderno ? oggettoModerno(def.moderno, misOgg, reRender)
-        : def && def.libreria ? oggettoLibreria(def.libreria, misOgg, reRender) : null;
+      const pr = def && def.pronto ? oggettoPronto(def, misOgg, reRender) : def && def.moderno ? oggettoModerno(def.moderno, misOgg, reRender, ALT_MURO)
+        : def && def.libreria ? oggettoLibreria(def.libreria, misOgg, reRender, ALT_MURO) : null;
       const r = def && !def.pronto && !def.moderno && !def.libreria && oggettoDaFoto({ ...def, misure: misOgg }, reRender);
       if (pr) {
         const og = new THREE.Group(); og.add(pr);
@@ -2509,7 +2521,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   ombreSuTutto(gruppo, (o) => !!(o.userData.muroNormale || o.userData.pavimento || o.userData.senzaOmbra));
   if (luceOmbre && renderer) {
     const box = new THREE.Box3();
-    for (const o of gruppo.children) if (!o.userData.muroNormale && !o.userData.pavimento && !o.isGridHelper) box.expandByObject(o);
+    for (const o of gruppo.children) if (!o.userData.muroNormale && !o.userData.pavimento && !o.userData.soffitto && !o.isGridHelper) box.expandByObject(o);
     // la luce entra dal lato aperto della stanza (come da una finestra), alta e un
     // po' di lato: i frontali sono illuminati, le ombre cadono corte verso i muri
     const d = direzioneStanza(full, vertici) || { x: 0.6, z: 0.8 };

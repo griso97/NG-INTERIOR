@@ -11,9 +11,9 @@
 // TAVOLI: il piano è una superficie d'appoggio (un vaso ci si posa sopra).
 // =============================================================================
 import * as THREE from 'three';
-import { LIBRERIA } from './libreria3d-dati.js?v=20261119m';
+import { LIBRERIA } from './libreria3d-dati.js?v=20261119n';
 
-export { LIBRERIA, GRUPPI_OGGETTI, CREDITI_LIBRERIA } from './libreria3d-dati.js?v=20261119m';
+export { LIBRERIA, GRUPPI_OGGETTI, CREDITI_LIBRERIA } from './libreria3d-dati.js?v=20261119n';
 export const SOFFITTO = 2700, Y_LAMPADA = 1650, Y_QUADRO = 1550;
 
 const qui = (p) => new URL(p, import.meta.url).href;
@@ -42,8 +42,8 @@ function inMillimetri(scena, k = 1) {
   return g;
 }
 
-/** LAMPADA a sospensione: corpo a 165 cm, rosone al soffitto, cavi della lunghezza giusta. */
-function appendi(g, voce) {
+/** LAMPADA a sospensione: corpo a 165 cm, rosone al soffitto (altezza scelta), cavi della lunghezza giusta. */
+function appendi(g, voce, SOFFITTO) {
   const H = new THREE.Box3().setFromObject(g).max.y;
   if (voce.tipo === 'soffitto') { for (const m of g.children) m.geometry.translate(0, SOFFITTO - H, 0); return; }
   const [yS, yC] = voce.cavo || [H, H];
@@ -70,16 +70,17 @@ function appendi(g, voce) {
 }
 
 const _pronti = new Map();
-/** Il modello pronto (una volta sola), con le misure vere in userData.dim. */
-export function creaLibreria(id) {
-  if (!_pronti.has(id)) {
-    const voce = LIBRERIA.find((v) => v.id === id);
+const eLuce = (voce) => !!voce && (voce.tipo === 'appeso' || voce.tipo === 'soffitto');
+/** Il modello pronto (una volta sola; le lampade una volta per altezza del soffitto), con le misure vere in userData.dim. */
+export function creaLibreria(id, soffitto = SOFFITTO) {
+  const voce = LIBRERIA.find((v) => v.id === id), chiave = eLuce(voce) ? `${id}|${soffitto}` : id;
+  if (!_pronti.has(chiave)) {
     const p = !voce ? Promise.reject(new Error('oggetto sconosciuto')) : caricatore()
       .then((gl) => gl.loadAsync(qui(`../oggetti/libreria/${id}.glb`)))
       .then((gltf) => {
         const g = inMillimetri(gltf.scene, voce.scala || 1);
         const luce = voce.tipo === 'appeso' || voce.tipo === 'soffitto';
-        if (luce) appendi(g, voce);
+        if (luce) appendi(g, voce, soffitto);
         g.traverse((x) => { if (x.isMesh) { x.castShadow = !luce; x.receiveShadow = !luce; if (luce) x.userData.senzaOmbra = true; } });
         const b = new THREE.Box3().setFromObject(g);
         if (voce.tavolo) {
@@ -91,24 +92,26 @@ export function creaLibreria(id) {
         g.userData.dim = { w: b.max.x - b.min.x, h: b.max.y - b.min.y, d: b.max.z - b.min.z };
         return g;
       });
-    p.catch(() => _pronti.delete(id));
-    _pronti.set(id, p);
+    p.catch(() => _pronti.delete(chiave));
+    _pronti.set(chiave, p);
   }
-  return _pronti.get(id);
+  return _pronti.get(chiave);
 }
 
 const _fatti = new Map();
 /** In CUCINA: l'oggetto alle misure scelte; null finché non è pronto (poi quandoPronto()). */
-export function oggettoLibreria(id, misure, quandoPronto) {
-  const t = _fatti.get(id);
+export function oggettoLibreria(id, misure, quandoPronto, soffitto = SOFFITTO) {
+  const voce = LIBRERIA.find((v) => v.id === id), luce = eLuce(voce), chiave = luce ? `${id}|${soffitto}` : id;
+  const t = _fatti.get(chiave);
   if (t && t !== 'attesa' && t !== 'errore') {
-    const g = t.clone(true), voce = LIBRERIA.find((v) => v.id === id), m0 = voce ? voce.misure : null;
-    if (misure && m0) g.scale.set((misure.w || m0.w) / m0.w, (misure.h || m0.h) / m0.h, (misure.d || m0.d) / m0.d);
+    const g = t.clone(true), m0 = voce ? voce.misure : null;
+    // le lampade non si "schiacciano" in altezza: la fa il soffitto
+    if (misure && m0) g.scale.set((misure.w || m0.w) / m0.w, luce ? 1 : (misure.h || m0.h) / m0.h, (misure.d || m0.d) / m0.d);
     return g;
   }
   if (!t) {
-    _fatti.set(id, 'attesa');
-    creaLibreria(id).then((g) => { _fatti.set(id, g); if (quandoPronto) quandoPronto(); }).catch(() => _fatti.set(id, 'errore'));
+    _fatti.set(chiave, 'attesa');
+    creaLibreria(id, soffitto).then((g) => { _fatti.set(chiave, g); if (quandoPronto) quandoPronto(); }).catch(() => _fatti.set(chiave, 'errore'));
   }
   return null;
 }

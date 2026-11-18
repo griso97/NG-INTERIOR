@@ -277,8 +277,8 @@ function sgabelloBoucle() {
 /** LUXURY — lampada a sospensione: pende dal SOFFITTO (270 cm), il paralume a 165 cm da terra
  *  (75 cm sopra un piano di 90), qualunque cosa ci sia sotto. */
 const SOFFITTO = 2700, Y_LAMPADA = 1650;
-function lampada(tipo) {
-  const g = new THREE.Group(), y0 = Y_LAMPADA, cavo = SOFFITTO - Y_LAMPADA - 190 - 22;
+function lampada(tipo, soffitto = SOFFITTO) {
+  const g = new THREE.Group(), y0 = Y_LAMPADA, cavo = soffitto - Y_LAMPADA - 190 - 22;
   if (tipo === 'ottone') {
     g.add(new THREE.Mesh(tornio([[150, 0], [152, 3], [140, 60], [105, 120], [45, 160], [16, 172], [16, 190], [12, 190], [12, 168], [42, 154], [100, 116], [135, 58], [146, 2]], 112), mat('ottone-spazzolato')));
     const lamp = new THREE.Mesh(new THREE.SphereGeometry(42, 32, 16), mat('luce-calda')); lamp.position.y = 70; g.add(lamp);
@@ -448,31 +448,33 @@ export const COLLEZIONE = [
   { id: 'lux-scultura', linea: 'luxury', nome: 'Scultura travertino, marmo nero e ottone', es: 'Escultura de travertino, mármol negro y latón', misure: { w: 270, d: 120, h: 300 }, crea: async () => scultura() },
   { id: 'lux-caraffa', linea: 'luxury', nome: 'Caraffa e bicchieri in cristallo su marmo nero', es: 'Jarra y vasos de cristal sobre mármol negro', misure: { w: 324, d: 324, h: 272 }, crea: async () => caraffa() },
   { id: 'lux-sgabello', linea: 'luxury', nome: 'Sgabello alto bouclé e ottone', es: 'Taburete alto bouclé y latón', misure: { w: 420, d: 420, h: 650 }, crea: async () => sgabelloBoucle() },
-  { id: 'lux-lampada-ottone', linea: 'luxury', appeso: true, nome: 'Lampada a sospensione in ottone', es: 'Lámpara colgante de latón', misure: { w: 305, d: 305, h: 2700 }, crea: async () => lampada('ottone') },
-  { id: 'lux-lampada-globo', linea: 'luxury', appeso: true, nome: 'Lampada a sospensione globo opalino', es: 'Lámpara colgante globo opalino', misure: { w: 250, d: 250, h: 2700 }, crea: async () => lampada('globo') },
+  { id: 'lux-lampada-ottone', linea: 'luxury', appeso: true, nome: 'Lampada a sospensione in ottone', es: 'Lámpara colgante de latón', misure: { w: 305, d: 305, h: 2700 }, crea: async (s) => lampada('ottone', s) },
+  { id: 'lux-lampada-globo', linea: 'luxury', appeso: true, nome: 'Lampada a sospensione globo opalino', es: 'Lámpara colgante globo opalino', misure: { w: 250, d: 250, h: 2700 }, crea: async (s) => lampada('globo', s) },
 ];
 
 const _pronti = new Map();
 /** Il modello (una volta sola): gruppo con le misure vere. */
-export function creaModerno(id) {
-  if (!_pronti.has(id)) {
-    const voce = COLLEZIONE.find((c) => c.id === id);
-    const p = voce ? Promise.resolve(voce.crea()).then((g) => { const b = new THREE.Box3().setFromObject(g); g.userData.dim = { w: b.max.x - b.min.x, h: b.max.y - b.min.y, d: b.max.z - b.min.z }; return g; }) : Promise.reject(new Error('oggetto sconosciuto'));
-    p.catch(() => _pronti.delete(id));
-    _pronti.set(id, p);
+export function creaModerno(id, soffitto = SOFFITTO) {
+  const voce = COLLEZIONE.find((c) => c.id === id), chiave = voce && voce.appeso ? `${id}|${soffitto}` : id;
+  if (!_pronti.has(chiave)) {
+    const p = voce ? Promise.resolve(voce.crea(soffitto)).then((g) => { const b = new THREE.Box3().setFromObject(g); g.userData.dim = { w: b.max.x - b.min.x, h: b.max.y - b.min.y, d: b.max.z - b.min.z }; return g; }) : Promise.reject(new Error('oggetto sconosciuto'));
+    p.catch(() => _pronti.delete(chiave));
+    _pronti.set(chiave, p);
   }
-  return _pronti.get(id);
+  return _pronti.get(chiave);
 }
 const _fatti = new Map();
 /** In CUCINA: l'oggetto alle misure scelte; null finché non è pronto (poi quandoPronto()). */
-export function oggettoModerno(id, misure, quandoPronto) {
-  const t = _fatti.get(id);
+export function oggettoModerno(id, misure, quandoPronto, soffitto = SOFFITTO) {
+  const voce = COLLEZIONE.find((c) => c.id === id), chiave = voce && voce.appeso ? `${id}|${soffitto}` : id;
+  const t = _fatti.get(chiave);
   if (t && t !== 'attesa' && t !== 'errore') {
-    // misure scelte in cucina rispetto a quelle del CATALOGO (uguali = grandezza vera)
-    const g = t.clone(true), voce = COLLEZIONE.find((c) => c.id === id), m0 = voce ? voce.misure : null;
-    if (misure && m0) g.scale.set((misure.w || m0.w) / m0.w, (misure.h || m0.h) / m0.h, (misure.d || m0.d) / m0.d);
+    // misure scelte in cucina rispetto a quelle del CATALOGO (uguali = grandezza vera);
+    // le lampade non si schiacciano in altezza (la fa il soffitto)
+    const g = t.clone(true), m0 = voce ? voce.misure : null;
+    if (misure && m0) g.scale.set((misure.w || m0.w) / m0.w, voce.appeso ? 1 : (misure.h || m0.h) / m0.h, (misure.d || m0.d) / m0.d);
     return g;
   }
-  if (!t) { _fatti.set(id, 'attesa'); creaModerno(id).then((g) => { _fatti.set(id, g); if (quandoPronto) quandoPronto(); }).catch(() => _fatti.set(id, 'errore')); }
+  if (!t) { _fatti.set(chiave, 'attesa'); creaModerno(id, soffitto).then((g) => { _fatti.set(chiave, g); if (quandoPronto) quandoPronto(); }).catch(() => _fatti.set(chiave, 'errore')); }
   return null;
 }

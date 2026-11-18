@@ -24,13 +24,13 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261119m';
-import { renderPianta } from './pianta.js?v=20261119m';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261119m';
-import { calcolaDistintaCucina } from './distinta.js?v=20261119m';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261119m';
-import { agganciaTema } from '../tema.js?v=20261119m';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261119m';
+} from './modello.js?v=20261119n';
+import { renderPianta } from './pianta.js?v=20261119n';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261119n';
+import { calcolaDistintaCucina } from './distinta.js?v=20261119n';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261119n';
+import { agganciaTema } from '../tema.js?v=20261119n';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261119n';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1240,7 +1240,7 @@ function renderPannelloStep3d() {
         <span>🪑 Aggiungi oggetti</span><span class="tendina-freccia">${step2.oggettiAperti ? '▾' : '▸'}</span>
       </button>
       ${step2.oggettiAperti ? `
-      <div class="riga-3d" style="margin:8px 0 6px">Tocca un oggetto: compare in cucina (le lampade appese al soffitto, i quadri al muro, sedie e sgabelli a terra, il resto sul piano). Poi trascinalo dove vuoi.</div>
+      <div class="riga-3d" style="margin:8px 0 6px">Tocca un oggetto: compare in cucina (le lampade appese al soffitto, sedie e sgabelli a terra, il resto sul piano). Poi trascinalo dove vuoi.</div>
       <div class="chips-ogg">
         ${gruppi.map((g) => `<button type="button" class="chip-ogg ${g.id === step2.oggGruppo ? 'attivo' : ''}" data-ogggruppo="${g.id}">${g.nome} <small>${conta(g.id)}</small></button>`).join('')}
       </div>
@@ -1268,6 +1268,18 @@ function renderPannelloStep3d() {
         (i moduli restano fissi).
       </div>
     </section>
+    ${(() => {
+      const hS = Math.round((Number(progetto.altezzaSoffitto) || 2700) / 10);
+      return `
+    <section class="step3-pannello">
+      <h3>Soffitto</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Altezza del soffitto (cm): i muri arrivano fin lì e le lampade ci sono appese. Il soffitto si vede quando guardi la cucina dal basso; dall'alto resta aperto.</div>
+      <input type="text" inputmode="decimal" autocomplete="off" id="soffitto-h" class="modale-num" value="${hS}" style="width:100%" />
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+        ${[240, 250, 260, 270, 280, 300].map((v) => `<button type="button" class="btn-ghost opt-soffitto ${hS === v ? 'attivo' : ''}" data-soffitto="${v}" style="flex:1;min-width:58px">${v}</button>`).join('')}
+      </div>
+    </section>`;
+    })()}
     ${materialiEnc.length ? `
     <section class="step3-pannello">
       <h3>Piano di lavoro (encimera)</h3>
@@ -1374,6 +1386,14 @@ function renderPannelloStep3d() {
     progetto.cierreTecho = { ...(progetto.cierreTecho || {}), attivo: true, altezza: Math.max(20, Math.min(1500, Math.round(Number(e.target.value) || 300))) };
     aggiorna();
   });
+  // SOFFITTO: altezza in cm (fra 220 e 450)
+  const mettiSoffitto = (cm) => {
+    const v = Math.round(Number(String(cm).replace(',', '.')));
+    if (!Number.isFinite(v) || v < 220 || v > 450) { renderPannello(); return; }
+    registraStoria(); progetto.altezzaSoffitto = v * 10; aggiorna();
+  };
+  pannello.querySelector('#soffitto-h')?.addEventListener('change', (e) => mettiSoffitto(e.target.value));
+  pannello.querySelectorAll('[data-soffitto]').forEach((b) => b.addEventListener('click', () => mettiSoffitto(b.dataset.soffitto)));
   document.getElementById('ogg-tendina')?.addEventListener('click', () => { step2.oggettiAperti = !step2.oggettiAperti; renderPannello(); });
   pannello.querySelectorAll('[data-ogggruppo]').forEach((b) => b.addEventListener('click', () => { step2.oggGruppo = b.dataset.ogggruppo; renderPannello(); }));
   pannello.querySelectorAll('[data-aggogg], [data-aggtipo]').forEach((b) => b.addEventListener('click', () => {
@@ -1423,7 +1443,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261119m');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261119n');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2151,13 +2171,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261119m');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261119n');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261119m'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261119n'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

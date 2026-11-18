@@ -1729,5 +1729,6 @@ window.NG_I18N_ES = {
  "Quadri": "Cuadros",
  "I miei oggetti": "Mis objetos",
  "Modelli 3D: Amazon Berkeley Objects © Amazon.com, licenza CC BY 4.0 (texture ridotte per il web)": "Modelos 3D: Amazon Berkeley Objects © Amazon.com, licencia CC BY 4.0 (texturas reducidas para la web)",
- "Tocca un oggetto: compare in cucina (le lampade appese al soffitto, i quadri al muro, sedie e sgabelli a terra, il resto sul piano). Poi trascinalo dove vuoi.": "Toca un objeto: aparece en la cocina (las lámparas colgadas del techo, los cuadros en la pared, sillas y taburetes en el suelo, el resto sobre la encimera). Luego arrástralo donde quieras.",
+ "Tocca un oggetto: compare in cucina (le lampade appese al soffitto, sedie e sgabelli a terra, il resto sul piano). Poi trascinalo dove vuoi.": "Toca un objeto: aparece en la cocina (las lámparas colgadas del techo, sillas y taburetes en el suelo, el resto sobre la encimera). Luego arrástralo donde quieras.",
+ "Altezza del soffitto (cm): i muri arrivano fin lì e le lampade ci sono appese. Il soffitto si vede quando guardi la cucina dal basso; dall'alto resta aperto.": "Altura del techo (cm): las paredes llegan hasta allí y las lámparas cuelgan de él. El techo se ve cuando miras la cocina desde abajo; desde arriba queda abierto.",
 };

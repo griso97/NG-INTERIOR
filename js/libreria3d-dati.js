@@ -16,7 +16,6 @@ export const GRUPPI_OGGETTI = [
   { id: 'pranzo', nome: 'Tavoli e sedie' },
   { id: 'decor', nome: 'Vasi e decorazioni' },
   { id: 'cucina', nome: 'Per la cucina' },
-  { id: 'quadri', nome: 'Quadri' },
   { id: 'miei', nome: 'I miei oggetti' },
 ];
 export const LIBRERIA = [
@@ -80,11 +79,4 @@ export const LIBRERIA = [
   {"id": "B07QFRSC8M", "gruppo": "pranzo", "nome": "Sedia velluto blu, telaio ottone", "es": "Silla terciopelo azul, estructura latón", "misure": {"w": 508, "d": 522, "h": 863}, "origine": "Amazon Brand – Rivet Contemporary Brass-Framed Dining Chair, 34\"H, Ink"},
   {"id": "B07QGWLBBC", "gruppo": "pranzo", "nome": "Sedia velluto verde bosco", "es": "Silla terciopelo verde bosque", "misure": {"w": 643, "d": 575, "h": 889}, "origine": "Amazon Brand – Rivet Contemporary Curved Channel-Back Dining Chair, 35\"H, Forest"},
   {"id": "B07HSDW7J6", "gruppo": "pranzo", "nome": "Sedia Dunford grigio tweed", "es": "Silla Dunford gris tweed", "misure": {"w": 611, "d": 617, "h": 824}, "origine": "Amazon Brand – Rivet Dunford Modern Dining Chair, 33 Inch Height, Tuxedo Grey"},
-  {"id": "B075HWTLKD", "gruppo": "quadri", "nome": "Quadro astratto nastro oro", "es": "Cuadro abstracto cinta dorada", "tipo": "parete", "misure": {"w": 758, "d": 44, "h": 758}, "origine": "Amazon Brand – Rivet Abstract Gold Ribbon Print on Canvas Wall Art Decor, 30\" x 30\""},
-  {"id": "B075HXSXNV", "gruppo": "quadri", "nome": "Quadro onde astratte", "es": "Cuadro olas abstractas", "tipo": "parete", "misure": {"w": 914, "d": 39, "h": 609}, "origine": "Amazon Brand – Rivet Abstract Waves Wall Art Decor on Canvas - 24 x 36 Inch Frame, Blue"},
-  {"id": "B075HRC94H", "gruppo": "quadri", "nome": "Quadro disegno a linea", "es": "Cuadro dibujo de línea", "tipo": "parete", "misure": {"w": 610, "d": 38, "h": 610}, "origine": "Amazon Brand – Stone & Beam Modern Left-Facing Bird Line Drawing, 24\"W, Black & White"},
-  {"id": "B073P23TQ9", "gruppo": "quadri", "nome": "Quadro astratto mare 49×61", "es": "Cuadro abstracto mar 49×61", "tipo": "parete", "misure": {"w": 489, "d": 40, "h": 608}, "origine": "Amazon Brand – Stone & Beam Modern Abstract Blue and Tan Ocean Print Wall Art on Canvas, 20\" x 24\""},
-  {"id": "B073P13JKT", "gruppo": "quadri", "nome": "Quadro astratto mare 43×51", "es": "Cuadro abstracto mar 43×51", "tipo": "parete", "misure": {"w": 435, "d": 37, "h": 511}, "origine": "Amazon Brand – Stone & Beam Modern Abstract Blue and Tan Ocean Print Wall Art on Canvas, 17\" x 20\""},
-  {"id": "B073P1CJGC", "gruppo": "quadri", "nome": "Quadro astratto bianco e nero", "es": "Cuadro abstracto blanco y negro", "tipo": "parete", "misure": {"w": 610, "d": 41, "h": 915}, "origine": "Amazon Brand – Rivet Black and White Abstract Canvas Print Wall Art, 24\" x 36\""},
-  {"id": "B073P1J9CR", "gruppo": "quadri", "nome": "Quadro astratto mare 61×71", "es": "Cuadro abstracto mar 61×71", "tipo": "parete", "misure": {"w": 608, "d": 41, "h": 710}, "origine": "Amazon Brand – Stone & Beam Modern Abstract Blue and Tan Ocean Print Wall Art on Canvas, 24\" x 28\""},
 ];
