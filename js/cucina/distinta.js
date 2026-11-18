@@ -13,7 +13,7 @@
 
 import {
   categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna,
-} from './modello.js?v=20261119p';
+} from './modello.js?v=20261119q';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const SP_MEL = 16;    // melaminico bianco (fondo + trasera cassetto) (mm)

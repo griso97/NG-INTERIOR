@@ -94,7 +94,20 @@ const ombre = (o) => { o.traverse((x) => { if (x.isMesh) { x.castShadow = true; 
 function tornio(punti, seg = 96, morbido = true) {
   let v = punti.map(([r, y]) => new THREE.Vector2(Math.max(0, r), y));
   if (morbido && v.length > 3) v = new THREE.SplineCurve(v).getPoints(v.length * 8);
-  const g = new THREE.LatheGeometry(v, seg); g.computeVertexNormals(); return g;
+  const g = new THREE.LatheGeometry(v, seg); g.computeVertexNormals(); g.userData.profilo = v; return g;
+}
+/** Un solido al tornio visto dall'alto: l'altezza della superficie più alta a ogni raggio. */
+function sopraTornio(v) {
+  return (r) => {
+    let h = -Infinity;
+    for (let i = 1; i < v.length; i++) {
+      const a = v[i - 1], b = v[i], lo = Math.min(a.x, b.x), hi = Math.max(a.x, b.x);
+      if (r < lo || r > hi) continue;
+      const y = hi - lo < 1e-6 ? Math.max(a.y, b.y) : a.y + ((r - a.x) / (b.x - a.x)) * (b.y - a.y);
+      if (y > h) h = y;
+    }
+    return h;
+  };
 }
 /** Rettangolo arrotondato (mm). */
 function rettTondo(w, d, r) {
@@ -109,7 +122,10 @@ function lastra(shape, h, smusso = 1.5) {
   const g = new THREE.ExtrudeGeometry(shape, { depth: h - 2 * smusso, bevelEnabled: true, bevelThickness: smusso, bevelSize: smusso, bevelSegments: 3, curveSegments: 24 });
   g.rotateX(-Math.PI / 2); g.translate(0, smusso, 0); g.computeVertexNormals(); return g;
 }
-const rnd = (() => { let s = 7; return () => { s = (s * 16807) % 2147483647; return s / 2147483647; }; })();
+/** Numeri "a caso" ma sempre uguali per lo stesso seme: un oggetto è identico in miniatura e in cucina. */
+function generatore(seme) { let s = (seme % 2147483646) + 1; return () => { s = (s * 16807) % 2147483647; return s / 2147483647; }; }
+const semeDi = (t) => { let h = 7; for (const c of String(t)) h = (h * 31 + c.charCodeAt(0)) % 2147483647; return h; };
+let rnd = generatore(7);
 
 // ------------------------------------------------------------- frutta ----
 const _frutti = new Map();
@@ -134,23 +150,99 @@ async function frutto(id) {
   }
   return _frutti.get(id);
 }
-/** Riempie una ciotola (profilo interno: altezza del fondo a ogni raggio) con la frutta, a strati. */
-async function riempi(gruppo, tipi, fondo, rMax, quanti) {
-  const perTipo = await Promise.all(tipi.map(frutto));
-  const posati = [];
-  for (let i = 0; i < quanti; i++) {
-    const lista = perTipo[i % perTipo.length], m = lista[Math.floor(i / perTipo.length) % lista.length], r = m.userData.r;
-    let best = null;
-    for (let t = 0; t < 60; t++) {                                 // il punto più basso libero
-      const a = rnd() * Math.PI * 2, rr = Math.sqrt(rnd()) * Math.max(0, rMax - r * 0.9);
-      const x = Math.cos(a) * rr, z = Math.sin(a) * rr;
-      let y = fondo(rr) + r * 0.92;
-      for (const p of posati) { const dx = x - p.x, dz = z - p.z, dd = Math.hypot(dx, dz), min = (r + p.r) * 0.9; if (dd < min) y = Math.max(y, p.y + Math.sqrt(Math.max(0, min * min - dd * dd))); }
-      if (!best || y < best.y) best = { x, y, z };
+/** L'impronta di un frutto (già ruotato) su una griglia di lato C: per ogni cella la quota
+ *  più bassa (sotto) e più alta (sopra) della buccia, rispetto al centro del frutto. */
+function impronta(fr, C) {
+  fr.updateMatrixWorld(true);
+  const pts = [], tri = [], v = new THREE.Vector3();
+  fr.traverse((o) => {
+    if (!o.isMesh) return;
+    const p = o.geometry.attributes.position, base = pts.length / 3;
+    for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); pts.push(v.x, v.y, v.z); }
+    const idx = o.geometry.index;
+    if (idx) for (let i = 0; i < idx.count; i++) tri.push(base + idx.getX(i));
+    else for (let i = 0; i < p.count; i++) tri.push(base + i);
+  });
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (let i = 0; i < pts.length; i += 3) { x0 = Math.min(x0, pts[i]); x1 = Math.max(x1, pts[i]); z0 = Math.min(z0, pts[i + 2]); z1 = Math.max(z1, pts[i + 2]); }
+  const i0 = Math.floor(x0 / C), j0 = Math.floor(z0 / C), nx = Math.floor(x1 / C) - i0 + 1, nz = Math.floor(z1 / C) - j0 + 1;
+  const sotto = new Float32Array(nx * nz).fill(Infinity), sopra = new Float32Array(nx * nz).fill(-Infinity);
+  const metti = (x, y, z) => {
+    const k = (Math.floor(z / C) - j0) * nx + (Math.floor(x / C) - i0);
+    if (y < sotto[k]) sotto[k] = y; if (y > sopra[k]) sopra[k] = y;
+  };
+  for (let i = 0; i < pts.length; i += 3) metti(pts[i], pts[i + 1], pts[i + 2]);
+  // i triangoli: ogni centro di cella che cade dentro (visto dall'alto) prende la quota del triangolo
+  for (let t = 0; t < tri.length; t += 3) {
+    const a = tri[t] * 3, b = tri[t + 1] * 3, c = tri[t + 2] * 3;
+    const ax = pts[a], az = pts[a + 2], bx = pts[b], bz = pts[b + 2], cx = pts[c], cz = pts[c + 2];
+    const den = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
+    if (Math.abs(den) < 1e-9) continue;
+    const ia = Math.floor(Math.min(ax, bx, cx) / C), ib = Math.floor(Math.max(ax, bx, cx) / C);
+    const ja = Math.floor(Math.min(az, bz, cz) / C), jb = Math.floor(Math.max(az, bz, cz) / C);
+    for (let j = ja; j <= jb; j++) for (let i = ia; i <= ib; i++) {
+      const px = (i + 0.5) * C, pz = (j + 0.5) * C;
+      const l1 = ((bz - cz) * (px - cx) + (cx - bx) * (pz - cz)) / den, l2 = ((cz - az) * (px - cx) + (ax - cx) * (pz - cz)) / den, l3 = 1 - l1 - l2;
+      if (l1 < 0 || l2 < 0 || l3 < 0) continue;
+      metti(px, l1 * pts[a + 1] + l2 * pts[b + 1] + l3 * pts[c + 1], pz);
     }
-    const f = m.clone(true); f.position.set(best.x, best.y, best.z);
-    f.rotation.set(rnd() * 0.8 - 0.4, rnd() * Math.PI * 2, rnd() * 0.8 - 0.4);
-    gruppo.add(f); posati.push({ ...best, r });
+  }
+  return { i0, j0, nx, nz, sotto, sopra, mezzo: Math.max(x1 - x0, z1 - z0) / 2 };
+}
+/** Riempie una ciotola con la frutta, come se ogni frutto ci CADESSE dentro: si posa nel punto
+ *  più basso che trova, appoggiato davvero (sul fondo, sulla parete o sugli altri frutti), mai
+ *  sospeso e mai dentro un altro. superficie(r) = quota della ciotola al raggio r (vista dall'alto,
+ *  -Infinity fuori); bordo = raggio della ciotola: il CENTRO del frutto resta sopra la ciotola,
+ *  il frutto può sporgere un poco oltre il bordo (come nella realtà), mai più di SPORGE. */
+async function riempi(gruppo, tipi, superficie, bordo, quanti) {
+  const perTipo = await Promise.all(tipi.map(frutto));
+  const rnd = generatore(semeDi(tipi.join('|') + quanti));      // la sua sequenza: non dipende da cosa si crea insieme
+  const SPORGE = 30, C = 2.5, n = Math.ceil((bordo + SPORGE) / C), lato = 2 * n;
+  // mappa delle altezze: ciotola, poi a mano a mano anche i frutti posati
+  const H = new Float32Array(lato * lato);
+  for (let j = 0; j < lato; j++) for (let i = 0; i < lato; i++) {
+    const r = Math.hypot((i - n + 0.5) * C, (j - n + 0.5) * C);
+    H[j * lato + i] = r > bordo + SPORGE ? NaN : superficie(r);
+  }
+  const AFFONDA = 0.8;                                             // il frutto "siede" (niente fessura di luce)
+  for (let q = 0; q < quanti; q++) {
+    const lista = perTipo[q % perTipo.length], m = lista[Math.floor(q / perTipo.length) % lista.length];
+    // la quota a cui il frutto si ferma con il centro sulla cella (oi, oj); null = sporgerebbe
+    const caduta = (imp, oi, oj) => {
+      let y = -Infinity;
+      for (let j = 0; j < imp.nz; j++) for (let i = 0; i < imp.nx; i++) {
+        const s = imp.sotto[j * imp.nx + i]; if (s === Infinity) continue;
+        const gi = imp.i0 + i + oi + n, gj = imp.j0 + j + oj + n;
+        if (gi < 0 || gj < 0 || gi >= lato || gj >= lato) return null;
+        const h = H[gj * lato + gi]; if (Number.isNaN(h)) return null;
+        if (h - s > y) y = h - s;
+      }
+      return y === -Infinity ? null : y;
+    };
+    let best = null;
+    const prova = (f, imp, oi, oj) => {
+      // il centro del frutto sopra la ciotola, con un margine di mezzo frutto
+      if (Math.hypot(oi, oj) * C > bordo - imp.mezzo * 0.5) return;
+      const y = caduta(imp, oi, oj); if (y === null) return;
+      const voto = y + 0.04 * Math.hypot(oi, oj) * C + rnd() * 0.5;   // a parità d'altezza, verso il centro
+      if (!best || voto < best.voto) best = { voto, y: y - AFFONDA, oi, oj, f, imp };
+    };
+    // si prova TUTTA la ciotola (passo di 3 celle), in 3 giri diversi, poi si rifinisce il punto migliore
+    for (let giro = 0; giro < 3; giro++) {
+      const f = m.clone(true);
+      f.rotation.set(rnd() * 0.5 - 0.25, rnd() * Math.PI * 2, rnd() * 0.5 - 0.25);
+      const imp = impronta(f, C), sfasa = Math.floor(rnd() * 3);
+      for (let oj = -n + sfasa; oj < n; oj += 3) for (let oi = -n + sfasa; oi < n; oi += 3) prova(f, imp, oi, oj);
+    }
+    if (best) { const { f, imp, oi: bi, oj: bj } = best; for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) prova(f, imp, bi + di, bj + dj); }
+    if (!best) continue;                                           // non c'è più posto
+    const { f, imp, oi, oj, y } = best;
+    f.position.set(oi * C, y, oj * C); gruppo.add(f);
+    for (let j = 0; j < imp.nz; j++) for (let i = 0; i < imp.nx; i++) {
+      const s = imp.sopra[j * imp.nx + i]; if (s === -Infinity) continue;
+      const k = (imp.j0 + j + oj + n) * lato + (imp.i0 + i + oi + n);
+      if (y + s > H[k]) H[k] = y + s;
+    }
   }
 }
 
@@ -159,21 +251,18 @@ async function riempi(gruppo, tipi, fondo, rMax, quanti) {
 async function fruttiera(materiale, frutti, quanti) {
   const g = new THREE.Group();
   const prof = [[0, 0], [62, 0], [66, 6], [64, 12], [95, 20], [128, 38], [152, 62], [160, 82], [157, 86], [151, 83], [143, 64], [118, 42], [84, 27], [45, 20], [0, 18]];
-  g.add(new THREE.Mesh(tornio(prof, 128), mat(materiale)));
-  // fondo interno: altezza a ogni raggio (dal profilo interno)
-  const interno = [[0, 18], [45, 20], [84, 27], [118, 42], [143, 64], [151, 83]];
-  const fondo = (r) => { for (let i = 1; i < interno.length; i++) if (r <= interno[i][0]) { const [r0, y0] = interno[i - 1], [r1, y1] = interno[i]; return y0 + ((r - r0) / (r1 - r0)) * (y1 - y0); } return 83; };
-  await riempi(g, frutti, fondo, 136, quanti);
+  const geo = tornio(prof, 128);
+  g.add(new THREE.Mesh(geo, mat(materiale)));
+  await riempi(g, frutti, sopraTornio(geo.userData.profilo), 158, quanti);
   return ombre(g);
 }
 /** LUXURY — alzata in ottone spazzolato con frutta mista. */
 async function alzata() {
   const g = new THREE.Group();
   const prof = [[0, 0], [72, 0], [74, 5], [62, 10], [16, 15], [11, 28], [10, 105], [14, 114], [42, 119], [100, 125], [138, 134], [150, 147], [147, 150], [135, 139], [96, 130], [40, 125], [0, 124]];
-  g.add(new THREE.Mesh(tornio(prof, 128), mat('ottone-spazzolato')));
-  const interno = [[0, 124], [40, 125], [96, 130], [135, 139]];
-  const fondo = (r) => { for (let i = 1; i < interno.length; i++) if (r <= interno[i][0]) { const [r0, y0] = interno[i - 1], [r1, y1] = interno[i]; return y0 + ((r - r0) / (r1 - r0)) * (y1 - y0); } return 139; };
-  await riempi(g, ['food_pomegranate_01', 'lemon', 'food_apple_01', 'food_lime_01', 'food_pears_asian_01'], fondo, 125, 5);
+  const geo = tornio(prof, 128);
+  g.add(new THREE.Mesh(geo, mat('ottone-spazzolato')));
+  await riempi(g, ['food_pomegranate_01', 'lemon', 'food_apple_01', 'food_lime_01', 'food_pears_asian_01'], sopraTornio(geo.userData.profilo), 150, 5);
   return ombre(g);
 }
 /** Superficie al tornio CANNETTATA (scanalature verticali): r(y) del profilo + le scanalature. */
@@ -430,9 +519,9 @@ function sgabello() {
 
 // ------------------------------------------------------------- catalogo ----
 export const COLLEZIONE = [
-  { id: 'fruttiera-limoni', nome: 'Fruttiera in marmo con limoni', es: 'Frutero de mármol con limones', misure: { w: 320, d: 320, h: 200 }, crea: () => fruttiera('marmo', ['lemon'], 7) },
-  { id: 'fruttiera-pere', nome: 'Fruttiera nera con pere e lime', es: 'Frutero negro con peras y limas', misure: { w: 320, d: 320, h: 155 }, crea: () => fruttiera('ceramica-nera', ['food_pears_asian_01', 'food_lime_01'], 8) },
-  { id: 'fruttiera-mista', nome: 'Fruttiera in travertino con frutta mista', es: 'Frutero de travertino con fruta variada', misure: { w: 320, d: 320, h: 240 }, crea: () => fruttiera('travertino', ['food_apple_01', 'lemon', 'food_pomegranate_01', 'food_lime_01', 'food_pears_asian_01'], 8) },
+  { id: 'fruttiera-limoni', nome: 'Fruttiera in marmo con limoni', es: 'Frutero de mármol con limones', misure: { w: 320, d: 320, h: 200 }, crea: () => fruttiera('marmo', ['lemon'], 11) },
+  { id: 'fruttiera-pere', nome: 'Fruttiera nera con pere e lime', es: 'Frutero negro con peras y limas', misure: { w: 320, d: 320, h: 155 }, crea: () => fruttiera('ceramica-nera', ['food_pears_asian_01', 'food_lime_01'], 13) },
+  { id: 'fruttiera-mista', nome: 'Fruttiera in travertino con frutta mista', es: 'Frutero de travertino con fruta variada', misure: { w: 320, d: 320, h: 240 }, crea: () => fruttiera('travertino', ['food_apple_01', 'lemon', 'food_pomegranate_01', 'food_lime_01', 'food_pears_asian_01'], 10) },
   { id: 'vaso-scultura', nome: 'Vaso scultura in ceramica sabbia', es: 'Jarrón escultura de cerámica arena', misure: { w: 242, d: 242, h: 424 }, crea: async () => vasoScultura() },
   { id: 'vaso-ulivo', nome: 'Vaso nero con rami d\'ulivo', es: 'Jarrón negro con ramas de olivo', misure: { w: 390, d: 490, h: 960 }, crea: async () => vasoUlivo() },
   { id: 'taglieri', nome: 'Taglieri in noce e rovere', es: 'Tablas de nogal y roble', misure: { w: 505, d: 255, h: 40 }, crea: async () => taglieri() },
@@ -457,6 +546,7 @@ const _pronti = new Map();
 export function creaModerno(id, soffitto = SOFFITTO) {
   const voce = COLLEZIONE.find((c) => c.id === id), chiave = voce && voce.appeso ? `${id}|${soffitto}` : id;
   if (!_pronti.has(chiave)) {
+    if (voce) rnd = generatore(semeDi(id));
     const p = voce ? Promise.resolve(voce.crea(soffitto)).then((g) => { const b = new THREE.Box3().setFromObject(g); g.userData.dim = { w: b.max.x - b.min.x, h: b.max.y - b.min.y, d: b.max.z - b.min.z }; return g; }) : Promise.reject(new Error('oggetto sconosciuto'));
     p.catch(() => _pronti.delete(chiave));
     _pronti.set(chiave, p);
