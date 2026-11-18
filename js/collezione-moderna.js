@@ -127,6 +127,17 @@ function mat(nome) {
     case 'ulivo-tornio': m = new THREE.MeshStandardMaterial({ map: legnoDisegnato('ulivo', 1, [3, 1]), roughness: 0.42 }); break;
     case 'rovere-tornio': m = new THREE.MeshStandardMaterial({ map: tex('rovere-nodoso.jpg', 1), roughness: 0.55 }); break;
     case 'intreccio': m = new THREE.MeshStandardMaterial({ color: 0xc9a46c, roughness: 0.7, emissive: 0x3a2408, emissiveIntensity: 0.25 }); break;
+    case 'marmo-grande': m = new THREE.MeshStandardMaterial({ map: tex('compacto-bernini.jpg', 0.0008), roughness: 0.28 }); break;
+    case 'marmo-nero-grande': m = new THREE.MeshStandardMaterial({ map: tex('compacto-negro.jpg', 0.0008), roughness: 0.22 }); break;
+    case 'rovere-grande': m = new THREE.MeshStandardMaterial({ map: tex('rovere-nodoso.jpg', 0.0009), roughness: 0.5 }); break;
+    case 'champagne': m = new THREE.MeshStandardMaterial({ color: 0xbfae8e, metalness: 1, roughness: 0.34, roughnessMap: grana(121, 10) }); break;
+    case 'bronzo': m = new THREE.MeshStandardMaterial({ color: 0x5e4733, metalness: 1, roughness: 0.38, roughnessMap: grana(127, 10) }); break;
+    case 'oro-satinato': m = new THREE.MeshStandardMaterial({ color: 0xc9a85e, metalness: 1, roughness: 0.27 }); break;
+    case 'pietra-calda': m = new THREE.MeshStandardMaterial({ map: tex('compacto-siena.jpg', 0.0022), color: 0xc49a78, roughness: 0.3 }); break;
+    case 'led': m = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff0d2, emissiveIntensity: 1.8, roughness: 0.4 }); break;
+    case 'velluto-sabbia': m = new THREE.MeshPhysicalMaterial({ color: 0xc9b79c, roughness: 0.92, sheen: 1, sheenRoughness: 0.45, sheenColor: new THREE.Color(0xf2e6d2), bumpMap: grana(131, 30), bumpScale: 0.4 }); break;
+    case 'velluto-salvia': m = new THREE.MeshPhysicalMaterial({ color: 0x8e9a82, roughness: 0.92, sheen: 1, sheenRoughness: 0.45, sheenColor: new THREE.Color(0xd8e2cc), bumpMap: grana(137, 30), bumpScale: 0.4 }); break;
+    case 'terracotta-bruna': m = new THREE.MeshStandardMaterial({ color: 0x74412f, roughness: 0.88, roughnessMap: grana(117), bumpMap: grana(117, 6), bumpScale: 0.8 }); break;
     case 'terracotta': m = new THREE.MeshStandardMaterial({ color: 0xb4643f, roughness: 0.92, roughnessMap: grana(61), bumpMap: grana(61, 5), bumpScale: 1.2 }); break;
     case 'cemento': m = new THREE.MeshStandardMaterial({ color: 0x9c9890, roughness: 0.95, roughnessMap: grana(67, 3), bumpMap: grana(67, 3), bumpScale: 2.5 }); break;
     case 'terriccio': m = new THREE.MeshStandardMaterial({ color: 0x3a2a1f, roughness: 1, bumpMap: grana(71, 12), bumpScale: 4 }); break;
@@ -196,6 +207,7 @@ async function frutto(id) {
   if (!_frutti.has(id)) {
     _frutti.set(id, (async () => {
       const { GLTFLoader } = await import('../vendor/three/addons/loaders/GLTFLoader.js');
+      if (id.startsWith('proc:')) return [fruttoDisegnato(id.slice(5))];
       if (id.startsWith('lib:')) {
         // un modello della LIBRERIA (es. il pane), intero, alla scala chiesta: "lib:<id>@<scala>"
         const [nome, sc] = id.slice(4).split('@');
@@ -218,12 +230,56 @@ async function frutto(id) {
         m.applyMatrix4(o.matrixWorld); m.scale.multiplyScalar(1000); m.position.multiplyScalar(1000); m.updateMatrixWorld(true);
         const b = new THREE.Box3().setFromObject(m), c = b.getCenter(new THREE.Vector3());
         m.position.sub(c);                                         // centrato: si gira bene
+        // un frutto lungo e in piedi (avocado, pera lunga) si posa SDRAIATO, come succede davvero
+        if (b.max.y - b.min.y > 1.3 * Math.max(b.max.x - b.min.x, b.max.z - b.min.z)) m.applyMatrix4(new THREE.Matrix4().makeRotationZ(Math.PI / 2));
         const g = new THREE.Group(); g.add(m); g.userData.r = Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z) / 2;
         return g;
       });
     })());
   }
   return _frutti.get(id);
+}
+/** Buccia d'arancia: arancio con i pori (canvas), anche come rilievo. */
+function bucciaArancia() {
+  const k = 'buccia-arancia';
+  if (_tex.has(k)) return _tex.get(k);
+  const N = 256, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d');
+  g.fillStyle = '#e57d1c'; g.fillRect(0, 0, N, N);
+  let s = 5; const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+  for (let i = 0; i < 2600; i++) { g.fillStyle = r() < 0.5 ? `rgba(160,70,0,${0.15 + r() * 0.25})` : `rgba(255,190,90,${0.15 + r() * 0.2})`; g.beginPath(); g.arc(r() * N, r() * N, 0.6 + r() * 1.4, 0, 7); g.fill(); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 2); t.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.48, bumpMap: t, bumpScale: 1.2 });
+  _tex.set(k, m); return m;
+}
+/** Frutti disegnati qui (non c'è una scansione libera): ARANCIA e GRAPPOLO d'uva (verde o nera), in mm, centrati. */
+function fruttoDisegnato(tipo) {
+  const g0 = new THREE.Group(); let r;
+  if (tipo === 'arancia') {
+    const a = new THREE.Mesh(new THREE.SphereGeometry(38, 48, 32), bucciaArancia()); a.scale.y = 0.93; g0.add(a);
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(3, 4, 4, 10), new THREE.MeshStandardMaterial({ color: 0x5a6a2a, roughness: 0.8 })); p.position.y = 36; g0.add(p);
+    r = 38;
+  } else {
+    // grappolo sdraiato lungo x: acini su un cono che si stringe verso la punta, raspo in mezzo
+    const nera = tipo === 'uva-nera';
+    const acino = new THREE.MeshPhysicalMaterial({ color: nera ? 0x2c1630 : 0x9db046, emissive: nera ? 0x000000 : 0x1a2206, roughness: nera ? 0.55 : 0.32, clearcoat: nera ? 0.1 : 0.3, clearcoatRoughness: 0.3, sheen: nera ? 1 : 0, sheenColor: new THREE.Color(0x8a8aa0) });
+    const geo = new THREE.SphereGeometry(1, 20, 14), L = 135;
+    let s = nera ? 41 : 43; const rr = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+    const posti = [];
+    // acini FITTI: tanti tentativi, più fitti verso il centro e verso l'attacco (la parte larga)
+    for (let i = 0; i < 6000 && posti.length < 80; i++) {
+      const t = Math.pow(rr(), 0.8), raggio = (1 - t) * 26 + 6, a = rr() * Math.PI * 2, d = Math.pow(rr(), 0.7) * raggio, ra = 9 + rr() * 1.6;
+      const P = V3(-L / 2 + t * L, Math.cos(a) * d * 0.8, Math.sin(a) * d);
+      if (posti.some((q) => q.P.distanceTo(P) < (q.r + ra) * 0.9)) continue;
+      posti.push({ P, r: ra });
+    }
+    for (const { P, r: ra } of posti) { const m = new THREE.Mesh(geo, acino); m.scale.set(ra, ra * 1.08, ra); m.position.copy(P); g0.add(m); }
+    const raspo = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([V3(-L / 2 - 26, 8, 0), V3(-L / 2 + 6, 3, 0), V3(L / 2 - 30, 0, 0)]), 16, 2.2, 6), mat('ramo'));
+    g0.add(raspo);
+    r = L / 2;
+  }
+  g0.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(g0), c = b.getCenter(new THREE.Vector3()); g0.position.sub(c);
+  const g = new THREE.Group(); g.add(g0); g.userData.r = r; return g;
 }
 /** L'impronta di un frutto (già ruotato) su una griglia di lato C: per ogni cella la quota
  *  più bassa (sotto) e più alta (sopra) della buccia, rispetto al centro del frutto. */
@@ -1008,6 +1064,233 @@ function viniVassoio() {
   return ombre(centra(g));
 }
 
+// ------------------------------------------------------ fruttiere di design ----
+/** Ciotola al tornio "di design": profilo [r, y] (fuori in su, bordo, dentro in giù; bordo = punto più alto),
+ *  coste verticali sul fuori (n, profondità; torsione = giro in radianti dal fondo al bordo), bordo a onde (k, ampiezza). */
+function ciotolaDesign(prof, { coste = 0, prof: pc = 3, torsione = 0, onde = 0, amp = 0, seg = 192 } = {}) {
+  let v = prof.map(([r, y]) => new THREE.Vector2(r, y));
+  v = new THREE.SplineCurve(v).getPoints(v.length * 8);
+  let iBordo = 0; v.forEach((p, i) => { if (p.y > v[iBordo].y) iBordo = i; });
+  const H = v[iBordo].y, geo = new THREE.LatheGeometry(v, seg), P = geo.attributes.position, nP = v.length;
+  for (let i = 0; i < P.count; i++) {
+    const j = i % nP, x = P.getX(i), y = P.getY(i), z = P.getZ(i), rr = Math.hypot(x, z);
+    if (rr < 1e-6) continue;
+    let a = Math.atan2(z, x), r = rr, yy = y;
+    if (coste && j < iBordo - 2 && y > 6) {
+      const aa = a + torsione * (y / H), sc = Math.pow(Math.abs(Math.cos((coste * aa) / 2)), 0.6);
+      r -= pc * (1 - sc) * Math.min(1, y / 20, (H - y) / 15);
+    }
+    if (onde) yy += amp * Math.sin(onde * a) * Math.pow(Math.max(0, y) / H, 3);
+    P.setXYZ(i, (x / rr) * r, yy, (z / rr) * r);
+  }
+  geo.computeVertexNormals(); geo.userData.profilo = v;
+  // la superficie per la frutta: quella al tornio, un po' più alta verso il bordo dove ci sono le onde
+  const base = sopraTornio(v), sup = (r) => base(r) + (onde ? amp * Math.pow(Math.max(0, base(r)) / H, 3) : 0);
+  return { geo, sup, H };
+}
+/** Fruttiera di design con frutta mista ammucchiata (posata davvero, un frutto alla volta). */
+async function fruttieraDesign(tipo) {
+  const g = new THREE.Group();
+  let c, frutti, bordo;
+  if (tipo === 'onda') {
+    // terracotta bruna opaca, coste verticali, bordo morbido a onde
+    c = ciotolaDesign([[0, 0], [70, 0], [74, 4], [124, 34], [158, 80], [170, 120], [166, 125], [160, 120], [146, 82], [112, 40], [64, 16], [0, 14]], { coste: 84, prof: 4, onde: 5, amp: 9 });
+    g.add(new THREE.Mesh(c.geo, mat('terracotta-bruna'))); bordo = 168;
+    frutti = ['food_apple_01', 'proc:arancia', 'food_pears_asian_01', 'food_apple_01', 'proc:arancia', 'food_pears_asian_01', 'food_apple_01', 'proc:arancia', 'food_apple_01', 'proc:uva-verde'];
+  } else if (tipo === 'spirale') {
+    // ceramica crema, coste che girano a spirale dal fondo al bordo
+    c = ciotolaDesign([[0, 0], [62, 0], [66, 4], [106, 40], [136, 90], [146, 122], [142, 126], [136, 121], [126, 91], [96, 44], [56, 16], [0, 14]], { coste: 40, prof: 4.5, torsione: 1.2 });
+    g.add(new THREE.Mesh(c.geo, mat('ceramica-crema'))); bordo = 144;
+    frutti = ['proc:arancia', 'lemon', 'proc:arancia', 'food_lime_01', 'lemon', 'proc:arancia', 'lemon', 'food_lime_01', 'proc:arancia', 'lemon', 'proc:arancia', 'lemon', 'food_lime_01'];
+  } else if (tipo === 'verde') {
+    // bassa e larga, nera opaca, bordo a onde: frutta verde
+    c = ciotolaDesign([[0, 0], [90, 0], [94, 4], [150, 30], [184, 72], [192, 92], [188, 96], [182, 91], [172, 72], [140, 36], [86, 18], [0, 16]], { onde: 7, amp: 10 });
+    g.add(new THREE.Mesh(c.geo, mat('ceramica-nera'))); bordo = 190;
+    frutti = ['food_avocado_01', 'food_lime_01', 'food_kiwi_01', 'food_pears_asian_01', 'food_lime_01', 'food_avocado_01', 'food_kiwi_01', 'food_lime_01', 'food_kiwi_01', 'proc:uva-verde'];
+  } else {
+    // cesto a fili d'ottone: fondo pieno, fili curvi, due anelli
+    const prof = [[0, 0], [80, 0], [84, 3], [128, 40], [158, 100], [168, 150]], vv = new THREE.SplineCurve(prof.map(([r, y]) => new THREE.Vector2(r, y))).getPoints(60);
+    const fondo = new THREE.Mesh(tornio([[0, 0], [84, 0], [86, 3], [84, 6], [0, 6]], 96, false), mat('ottone-spazzolato')); g.add(fondo);
+    for (let i = 0; i < 28; i++) {
+      const a = (i / 28) * Math.PI * 2, pts = vv.map((p) => V3(Math.cos(a) * p.x, p.y, Math.sin(a) * p.x));
+      g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 2.4, 6), mat('ottone-spazzolato')));
+    }
+    for (const t of [0.55, 1]) { const p = vv[Math.round(t * (vv.length - 1))], an = new THREE.Mesh(new THREE.TorusGeometry(p.x, t === 1 ? 4 : 3, 10, 128), mat('ottone-spazzolato')); an.rotation.x = Math.PI / 2; an.position.y = p.y; g.add(an); }
+    c = { sup: sopraTornio(vv), H: 150 }; bordo = 166;
+    frutti = ['bananas', 'proc:arancia', 'food_apple_01', 'proc:arancia', 'food_apple_01', 'proc:uva-nera'];
+  }
+  await riempi(g, frutti, c.sup, bordo, frutti.length);
+  return ombre(g);
+}
+
+// ------------------------------------------------------------- design ----
+// Pezzi di design disegnati da noi: tavoli con basi scultoree, lampade LED, sgabello e sedia imbottiti.
+/** Nastro (sezione rettangolare largh × sp) lungo una curva. asse: verso fisso della larghezza (es. z),
+ *  se no la larghezza resta orizzontale. Ogni faccia ha i suoi vertici (spigoli netti). */
+function nastro(punti, largh, sp, { chiuso = false, seg = 240, asse = null } = {}) {
+  const curva = new THREE.CatmullRomCurve3(punti, chiuso, 'centripetal');
+  const S = [];
+  for (let i = 0; i <= seg; i++) {
+    const t = chiuso ? (i % seg) / seg : i / seg, P = curva.getPointAt(t), T = curva.getTangentAt(t);
+    let W = asse ? asse.clone().addScaledVector(T, -asse.dot(T)) : new THREE.Vector3().crossVectors(T, V3(0, 1, 0));
+    if (W.lengthSq() < 1e-8) W = V3(0, 0, 1); W.normalize();
+    const N = new THREE.Vector3().crossVectors(W, T).normalize(), w = typeof largh === 'function' ? largh(t) : largh;
+    S.push([[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => P.clone().addScaledVector(W, (a * w) / 2).addScaledVector(N, (b * sp) / 2)));
+  }
+  const pos = [];
+  const quad = (a, b, c, d) => pos.push(...a.toArray(), ...c.toArray(), ...b.toArray(), ...b.toArray(), ...c.toArray(), ...d.toArray());
+  for (let i = 0; i < seg; i++) for (let k = 0; k < 4; k++) quad(S[i][k], S[i][(k + 1) % 4], S[i + 1][k], S[i + 1][(k + 1) % 4]);
+  if (!chiuso) { const a = S[0], b = S[seg]; quad(a[0], a[3], a[1], a[2]); quad(b[0], b[1], b[3], b[2]); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
+  return g;
+}
+/** Piano del tavolo: ceramica/marmo (forma: 'rett' | 'stadio' | 'ovale'), con il telaio sotto rientrato. */
+function pianoTavolo(L, D, forma, materiale, sp = 12, quota = 750) {
+  const g = new THREE.Group();
+  let s;
+  if (forma === 'ovale') { s = new THREE.Shape(); s.absellipse(0, 0, L / 2, D / 2, 0, Math.PI * 2, false); }
+  else if (forma === 'stadio') s = rettTondo(L, D, D * 0.42);
+  else s = rettTondo(L, D, 24);
+  const top = new THREE.Mesh(lastra(s, sp, 2), mat(materiale)); top.position.y = quota - sp; g.add(top);
+  const filo = new THREE.Mesh(lastra(s, 4, 1), mat('gomma-nera')); filo.scale.set(0.996, 1, 0.992); filo.position.y = quota - sp - 4; g.add(filo);
+  const telaio = new THREE.Mesh(lastra(forma === 'ovale' ? (() => { const e = new THREE.Shape(); e.absellipse(0, 0, L * 0.36, D * 0.34, 0, Math.PI * 2, false); return e; })() : rettTondo(L * 0.72, D * 0.7, 20), 26, 2), mat('metallo-nero'));
+  telaio.position.y = quota - sp - 30; g.add(telaio);
+  return g;
+}
+/** T1 — «Farfalla»: due anelli a goccia inclinati che si incrociano, ceramica bianca venata. */
+function tavoloFarfalla() {
+  const g = new THREE.Group(), H = 708;
+  for (const lato of [-1, 1]) {
+    const pts = [];
+    for (let k = 0; k < 40; k++) { const a = (k / 40) * Math.PI * 2; pts.push(V3(Math.sin(a) * 280, H / 2 - Math.cos(a) * (H / 2) * (1 - 0.18 * Math.sin(a) ** 2), 0)); }
+    const m = new THREE.Mesh(nastro(pts, 150, 16, { chiuso: true, asse: V3(0, 0, 1) }), mat('champagne'));
+    m.rotation.z = lato * 0.55; m.position.set(lato * 270, 0, lato * 60); g.add(m);
+  }
+  // a terra e sotto il piano, esatti
+  g.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(g);
+  for (const c of g.children) { c.position.y -= b.min.y; } const k = H / (b.max.y - b.min.y); g.scale.y = k;
+  const tutto = new THREE.Group(); tutto.add(g); tutto.add(pianoTavolo(1900, 950, 'stadio', 'marmo-grande'));
+  return ombre(tutto);
+}
+/** T2 — «Infinito»: un nastro unico che scende al centro e sale ai lati, bronzo scuro; piano ovale. */
+function tavoloInfinito() {
+  const pts = [];
+  for (let k = 0; k < 64; k++) { const t = (k / 64) * Math.PI * 2; pts.push(V3(620 * Math.sin(t), 360 - 335 * Math.cos(2 * t), 230 * Math.sin(2 * t) + 70 * Math.cos(t))); }
+  const base = new THREE.Mesh(nastro(pts, 120, 18, { chiuso: true, seg: 400 }), mat('bronzo'));
+  const g = new THREE.Group(); g.add(base); g.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(g); base.position.y = -b.min.y; base.scale.y = 708 / (b.max.y - b.min.y);
+  const t = new THREE.Group(); t.add(g); t.add(pianoTavolo(2200, 1100, 'ovale', 'marmo-grande'));
+  return ombre(t);
+}
+/** T3 — «Mikado»: aste dorate incrociate, piano in pietra calda. */
+function tavoloMikado() {
+  const g = new THREE.Group(), H = 708;
+  const aste = [[-520, -160, 380, 120], [520, -160, -380, 120], [-470, 170, 420, -150], [470, 170, -420, -150], [-300, -40, 520, 40], [300, 40, -520, -40]];
+  for (const [x0, z0, x1, z1] of aste) g.add(asta(V3(x0, 0, z0), V3(x1, H, z1), 19, 19, 'oro-satinato', 24));
+  const t = new THREE.Group(); t.add(g); t.add(pianoTavolo(2000, 1000, 'ovale', 'pietra-calda'));
+  return ombre(t);
+}
+/** T4 — «Ics»: gambe a X in metallo nero (sezione quadra), piano spesso in rovere. */
+function tavoloIcs() {
+  const g = new THREE.Group(), H = 700;
+  for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    const a = V3(sx * 760, 0, sz * 300), b = V3(-sx * 640, H, -sz * 250);       // tutte passano dal centro: una X vista da ogni lato
+    const m = asta(a, b, 38, 38, 'metallo-nero', 4); m.rotateY(Math.PI / 4); g.add(m);
+  }
+  const piano = new THREE.Mesh(lastra(rettTondo(2200, 1000, 8), 50, 3), mat('rovere-grande')); piano.position.y = H; g.add(piano);
+  return ombre(g);
+}
+/** T5 — «Ricciolo»: una lama larga che scende, fa un ricciolo e risale, nero opaco; piano in ceramica nera. */
+function tavoloRicciolo() {
+  const pts = [V3(-760, 700, 0), V3(-560, 420, 0), V3(-330, 40, 0), V3(-60, 0, 0), V3(170, 120, 0), V3(250, 360, 0), V3(120, 540, 0), V3(-60, 470, 0), V3(-40, 250, 0), V3(150, 70, 0), V3(420, 20, 0), V3(600, 300, 0), V3(760, 700, 0)];
+  const base = new THREE.Mesh(nastro(pts, 520, 18, { asse: V3(0, 0, 1), seg: 300 }), mat('metallo-nero'));
+  const g = new THREE.Group(); g.add(base); g.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(g); base.position.y = -b.min.y; base.scale.y = 708 / (b.max.y - b.min.y);
+  const t = new THREE.Group(); t.add(g); t.add(pianoTavolo(2400, 1050, 'rett', 'marmo-nero-grande'));
+  return ombre(t);
+}
+/** Cavi sottili dal corpo al soffitto (punti già alla quota vera), con un piccolo attacco tondo. */
+function caviAlSoffitto(g, punti, soffitto, colore = 'acciaio') {
+  for (const P of punti) {
+    const l = soffitto - P.y; if (l <= 5) continue;
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, l, 6), mat(colore)); c.position.set(P.x, P.y + l / 2, P.z); g.add(c);
+    const at = new THREE.Mesh(new THREE.CylinderGeometry(18, 18, 10, 20), mat(colore)); at.position.set(P.x, soffitto - 5, P.z); g.add(at);
+  }
+}
+/** Anello LED: profilo in metallo e la striscia accesa sul lato interno-basso. */
+function anelloLed(R, metallo = 'oro-satinato') {
+  const a = new THREE.Group();
+  a.add(new THREE.Mesh(new THREE.TorusGeometry(R, 11, 14, 160), mat(metallo)));
+  const led = new THREE.Mesh(new THREE.TorusGeometry(R - 12, 5, 10, 160), mat('led')); led.position.y = -10; a.add(led);
+  a.children.forEach((c) => { c.rotation.x = Math.PI / 2; });
+  return a;
+}
+/** L1–L4 — Lampade LED di design: corpo con il fondo a 165 cm, appese con cavi d'acciaio al soffitto. */
+function lampadaLed(tipo, soffitto = SOFFITTO) {
+  const g = new THREE.Group(), y0 = Y_LAMPADA, attacchi = [];
+  if (tipo === 'anelli') {
+    // tre anelli intrecciati, inclinati in versi diversi
+    [[340, 0.32, 0, 0], [280, -0.28, 0.9, 1], [220, 0.22, 2.1, 2]].forEach(([R, inc, giro]) => {
+      const a = anelloLed(R); a.rotation.set(inc, giro, 0); a.position.y = 380; g.add(a);
+      g.updateMatrixWorld(true);
+    });
+    for (const a of [0, 2.1, 4.2]) attacchi.push(V3(Math.cos(a) * 300, 380 + 60, Math.sin(a) * 300));
+  } else if (tipo === 'infinito') {
+    const pts = [];
+    for (let k = 0; k < 80; k++) { const t = (k / 80) * Math.PI * 2, d = 1 + Math.sin(t) ** 2; pts.push(V3((560 * Math.cos(t)) / d, 60 + 35 * Math.sin(2 * t), (560 * Math.sin(t) * Math.cos(t)) / d)); }
+    const curva = new THREE.CatmullRomCurve3(pts, true);
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(curva, 400, 12, 12, true), mat('metallo-nero')));
+    const led = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map((p) => p.clone().add(V3(0, -15, 0))), true), 400, 5, 8, true), mat('led')); g.add(led);
+    attacchi.push(V3(-430, 70, 0), V3(430, 70, 0));
+  } else if (tipo === 'linee') {
+    // barre LED incrociate (tipo shanghai), quasi orizzontali
+    const barre = [[-520, -80, 0, 520, 120, 40], [-480, 160, 30, 500, -150, 0], [-300, -260, 10, 360, 260, 60], [-560, 40, 50, 420, 20, 10], [-200, 260, 20, 240, -280, 45]];
+    for (const [x0, z0, y0b, x1, z1, y1b] of barre) {
+      const a = V3(x0, 100 + y0b, z0), b = V3(x1, 100 + y1b, z1);
+      const m = asta(a, b, 14, 14, 'metallo-nero', 4); m.rotateY(Math.PI / 4); g.add(m);
+      const l = asta(a.clone().add(V3(0, -15, 0)), b.clone().add(V3(0, -15, 0)), 6, 6, 'led', 4); l.rotateY(Math.PI / 4); g.add(l);
+    }
+    attacchi.push(V3(-400, 160, 0), V3(400, 160, 20), V3(0, 160, 200), V3(0, 160, -200));
+  } else {
+    // «orbita»: un grande anello orizzontale e uno più piccolo inclinato che lo attraversa
+    const a = anelloLed(480, 'champagne'); a.position.y = 260; g.add(a);
+    const b = anelloLed(300, 'champagne'); b.rotation.set(1.15, 0.4, 0); b.position.y = 260; g.add(b);
+    for (const t of [0, 2.09, 4.19]) attacchi.push(V3(Math.cos(t) * 480, 272, Math.sin(t) * 480));
+  }
+  g.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(g);
+  g.children.forEach((c) => { c.position.y += y0 - b.min.y; });
+  caviAlSoffitto(g, attacchi.map((p) => p.clone().add(V3(0, y0 - b.min.y, 0))), soffitto);
+  g.traverse((x) => { if (x.isMesh) { x.castShadow = false; x.receiveShadow = false; x.userData.senzaOmbra = true; } });
+  return g;
+}
+/** Schienale avvolgente imbottito: arco (gradi) di raggio r, alto h, spesso sp. */
+function schienale(r, arco, h, sp, materiale) {
+  const s = new THREE.Shape(), a0 = Math.PI / 2 - (arco * Math.PI) / 360, a1 = Math.PI / 2 + (arco * Math.PI) / 360;
+  s.absarc(0, 0, r, a0, a1, false); s.absarc(0, 0, r - sp, a1, a0, true);
+  const geo = new THREE.ExtrudeGeometry(s, { depth: h - 2 * 14, bevelEnabled: true, bevelThickness: 14, bevelSize: Math.min(14, sp / 2 - 1), bevelSegments: 6, curveSegments: 48 });
+  geo.rotateX(-Math.PI / 2); geo.translate(0, 14, 0); geo.computeVertexNormals();
+  return new THREE.Mesh(geo, mat(materiale));                                          // schiena verso -z
+}
+/** S1 — Sgabello «Conchiglia»: seduta e schienale avvolgente in velluto, gambe sottili in ottone (seduta a 66 cm). */
+function sgabelloConchiglia() {
+  const g = new THREE.Group(), H = 660;
+  const sed = new THREE.Mesh(lastra(rettTondo(440, 420, 150), 80, 26), mat('velluto-sabbia')); sed.position.y = H - 80; g.add(sed);
+  const sc = schienale(230, 200, 220, 70, 'velluto-sabbia'); sc.position.set(0, H - 30, 20); g.add(sc);
+  for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) g.add(asta(V3(sx * 215, 0, sz * 205), V3(sx * 150, H - 70, sz * 140), 9, 11, 'oro-satinato', 16));
+  const yA = 260, k = yA / (H - 70), rx = 215 + (150 - 215) * k, rz = 205 + (140 - 205) * k;
+  for (const [a, b] of [[[-1, 1], [1, 1]], [[-1, -1], [1, -1]], [[-1, -1], [-1, 1]], [[1, -1], [1, 1]]]) g.add(asta(V3(a[0] * rx, yA, a[1] * rz), V3(b[0] * rx, yA, b[1] * rz), 8, 8, 'oro-satinato', 12));
+  return ombre(centra(g));
+}
+/** C1 — Sedia «Avvolgente»: guscio imbottito in velluto, gambe sottili leggermente aperte (seduta a 47 cm). */
+function sediaAvvolgente(tessuto = 'velluto-sabbia', gambe = 'oro-satinato') {
+  const g = new THREE.Group(), H = 470;
+  const sed = new THREE.Mesh(lastra(rettTondo(500, 480, 170), 90, 30), mat(tessuto)); sed.position.y = H - 90; g.add(sed);
+  const sc = schienale(270, 230, 360, 80, tessuto); sc.position.set(0, H - 40, 30); g.add(sc);
+  for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) g.add(asta(V3(sx * 245, 0, sz * 235), V3(sx * 175, H - 85, sz * 165), 10, 12, gambe, 16));
+  return ombre(centra(g));
+}
+
 // ------------------------------------------------------------- catalogo ----
 export const COLLEZIONE = [
   { id: 'fruttiera-limoni', nome: 'Fruttiera in marmo con limoni', es: 'Frutero de mármol con limones', misure: { w: 320, d: 320, h: 200 }, crea: () => fruttiera('marmo', ['lemon'], 11) },
@@ -1030,6 +1313,24 @@ export const COLLEZIONE = [
   { id: 'lux-sgabello', linea: 'luxury', nome: 'Sgabello alto bouclé e ottone', es: 'Taburete alto bouclé y latón', misure: { w: 420, d: 420, h: 650 }, crea: async () => sgabelloBoucle() },
   { id: 'lux-lampada-ottone', linea: 'luxury', appeso: true, nome: 'Lampada a sospensione in ottone', es: 'Lámpara colgante de latón', misure: { w: 305, d: 305, h: 2700 }, crea: async (s) => lampada('ottone', s) },
   { id: 'lux-lampada-globo', linea: 'luxury', appeso: true, nome: 'Lampada a sospensione globo opalino', es: 'Lámpara colgante globo opalino', misure: { w: 250, d: 250, h: 2700 }, crea: async (s) => lampada('globo', s) },
+  // ---- DESIGN (prova: tavoli scultorei, lampade LED, sgabello e sedia imbottiti) ----
+  { id: 'ds-tavolo-farfalla', nome: 'Tavolo «Farfalla», anelli incrociati e ceramica bianca', es: 'Mesa «Mariposa», aros cruzados y cerámica blanca', misure: { w: 0, d: 0, h: 0 }, crea: async () => tavoloFarfalla() },
+  { id: 'ds-tavolo-infinito', nome: 'Tavolo «Infinito», nastro in bronzo e piano ovale', es: 'Mesa «Infinito», cinta de bronce y tapa ovalada', misure: { w: 0, d: 0, h: 0 }, crea: async () => tavoloInfinito() },
+  { id: 'ds-tavolo-mikado', nome: 'Tavolo «Mikado», aste dorate e pietra calda', es: 'Mesa «Mikado», varillas doradas y piedra cálida', misure: { w: 0, d: 0, h: 0 }, crea: async () => tavoloMikado() },
+  { id: 'ds-tavolo-ics', nome: 'Tavolo a X nero con piano in rovere', es: 'Mesa en X negra con tapa de roble', misure: { w: 0, d: 0, h: 0 }, crea: async () => tavoloIcs() },
+  { id: 'ds-tavolo-ricciolo', nome: 'Tavolo «Ricciolo», lama nera e ceramica nera', es: 'Mesa «Rizo», lámina negra y cerámica negra', misure: { w: 0, d: 0, h: 0 }, crea: async () => tavoloRicciolo() },
+  { id: 'ds-led-anelli', appeso: true, nome: 'Lampada LED, tre anelli intrecciati', es: 'Lámpara LED, tres aros entrelazados', misure: { w: 0, d: 0, h: 2700 }, crea: async (s) => lampadaLed('anelli', s) },
+  { id: 'ds-led-infinito', appeso: true, nome: 'Lampada LED «Infinito»', es: 'Lámpara LED «Infinito»', misure: { w: 0, d: 0, h: 2700 }, crea: async (s) => lampadaLed('infinito', s) },
+  { id: 'ds-led-linee', appeso: true, nome: 'Lampada LED, linee incrociate', es: 'Lámpara LED, líneas cruzadas', misure: { w: 0, d: 0, h: 2700 }, crea: async (s) => lampadaLed('linee', s) },
+  { id: 'ds-led-orbita', appeso: true, nome: 'Lampada LED «Orbita», due anelli', es: 'Lámpara LED «Órbita», dos aros', misure: { w: 0, d: 0, h: 2700 }, crea: async (s) => lampadaLed('orbita', s) },
+  { id: 'ds-sgabello-conchiglia', nome: 'Sgabello «Conchiglia» in velluto e ottone', es: 'Taburete «Concha» de terciopelo y latón', misure: { w: 0, d: 0, h: 0 }, crea: async () => sgabelloConchiglia() },
+  { id: 'ds-sedia-avvolgente', nome: 'Sedia «Avvolgente» in velluto e ottone', es: 'Silla «Envolvente» de terciopelo y latón', misure: { w: 0, d: 0, h: 0 }, crea: async () => sediaAvvolgente() },
+  { id: 'ds-sedia-avvolgente-salvia', nome: 'Sedia «Avvolgente» velluto salvia, gambe nere', es: 'Silla «Envolvente» terciopelo salvia, patas negras', misure: { w: 0, d: 0, h: 0 }, crea: async () => sediaAvvolgente('velluto-salvia', 'metallo-nero') },
+  // ---- FRUTTIERE DI DESIGN ----
+  { id: 'fd-onda', nome: 'Fruttiera a onde in terracotta con frutta mista', es: 'Frutero ondulado de terracota con fruta variada', misure: { w: 0, d: 0, h: 0 }, crea: () => fruttieraDesign('onda') },
+  { id: 'fd-spirale', nome: 'Fruttiera a spirale crema con agrumi', es: 'Frutero en espiral crema con cítricos', misure: { w: 0, d: 0, h: 0 }, crea: () => fruttieraDesign('spirale') },
+  { id: 'fd-verde', nome: 'Fruttiera bassa nera con frutta verde', es: 'Frutero bajo negro con fruta verde', misure: { w: 0, d: 0, h: 0 }, crea: () => fruttieraDesign('verde') },
+  { id: 'fd-ottone', nome: 'Cesto in fili d\'ottone con banane e frutta', es: 'Cesta de alambre de latón con plátanos y fruta', misure: { w: 0, d: 0, h: 0 }, crea: () => fruttieraDesign('ottone') },
   // ---- LEGNO E BAMBÙ ----
   { id: 'lb-taglieri-muro', nome: 'Taglieri in rovere e bambù al muro', es: 'Tablas de roble y bambú contra la pared', misure: { w: 363, d: 171, h: 497 }, crea: async () => taglieriMuro() },
   { id: 'lb-vassoio-bambu', nome: 'Vassoio in bambù con olio, sale e pepe', es: 'Bandeja de bambú con aceite, sal y pimienta', misure: { w: 383, d: 173, h: 302 }, crea: async () => vassoioBambu() },

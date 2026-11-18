@@ -11,7 +11,7 @@ import {
   moduliDiParete, nomeTipo, PROFONDITA_BASE, PROFONDITA_PENSILE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
   dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili, angoloInternoVertice,
-} from './modello.js?v=20261119t';
+} from './modello.js?v=20261119u';
 
 const NS = 'http://www.w3.org/2000/svg';
 
