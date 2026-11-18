@@ -1657,7 +1657,7 @@ window.NG_I18N_ES = {
  "automatico · tocca per cambiare": "automático · toca para cambiar",
  "Sospensione marmo e ottone": "Colgante de mármol y latón",
  "Sospensione vetro e nero mid-century": "Colgante de vidrio y negro mid-century",
- "Sospensione globo bianco e nichel": "Colgante globo blanco y níquel",
+ "Sospensione globo grigio opaco": "Colgante globo gris mate",
  "Sospensione café in vetro": "Colgante café de vidrio",
  "Sospensione cupola nera opaca": "Colgante cúpula negra mate",
  "Sospensione cupola rame": "Colgante cúpula cobre",

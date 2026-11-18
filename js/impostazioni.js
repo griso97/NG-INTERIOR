@@ -8,17 +8,17 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261119n';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119n';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119n';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119n';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119n';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119n';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119n';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119n';
-import { agganciaTema } from './tema.js?v=20261119n';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119n';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261119n';
+} from './catalogo.js?v=20261119o';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119o';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119o';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119o';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119o';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119o';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119o';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119o';
+import { agganciaTema } from './tema.js?v=20261119o';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119o';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261119o';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
