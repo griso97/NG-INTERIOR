@@ -15,7 +15,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261119k';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261119l';
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
 // SOLIDI (bianco/nero/grigio matte, bianco/nero lucido) usano solo il
@@ -194,6 +194,64 @@ export const MATERIALI = [
     misure: { w: 226, d: 171, h: 248 }, pianta: 'auto', tipi: {},
     viste: { fronte: 'oggetti/smeg-klf03-panna-fronte.png', lato: null, sopra: null, dietro: null },
     info: { note: 'SMEG KLF03CREU · 22,6 × 17,1 × 24,8 cm' } },
+  // ---- COLLEZIONE MODERNA e LUXURY (oggetti d'arredo modellati da noi: js/collezione-moderna.js) ----
+  { id: 'cm-fruttiera-limoni', nome: 'Fruttiera in marmo con limoni', categoria: 'oggetto', sezione: 'oggetti', moderno: 'fruttiera-limoni', linea: 'Moderna',
+    thumb: 'oggetti/moderni/miniature/fruttiera-limoni.jpg', texture: 'oggetti/moderni/miniature/fruttiera-limoni.jpg', colore: 0xd8d2c8,
+    misure: { w: 320, d: 320, h: 200 }, info: { note: 'Collezione Moderna NG Interior' } },
+  { id: 'cm-fruttiera-pere', nome: 'Fruttiera nera con pere e lime', categoria: 'oggetto', sezione: 'oggetti', moderno: 'fruttiera-pere', linea: 'Moderna',
+    thumb: 'oggetti/moderni/miniature/fruttiera-pere.jpg', texture: 'oggetti/moderni/miniature/fruttiera-pere.jpg', colore: 0xd8d2c8,
+    misure: { w: 320, d: 320, h: 155 }, info: { note: 'Collezione Moderna NG Interior' } },
+  { id: 'cm-fruttiera-mista', nome: 'Fruttiera in travertino con frutta mista', categoria: 'oggetto', sezione: 'oggetti', moderno: 'fruttiera-mista', linea: 'Moderna',
+    thumb: 'oggetti/moderni/miniature/fruttiera-mista.jpg', texture: 'oggetti/moderni/miniature/fruttiera-mista.jpg', colore: 0xd8d2c8,
+    misure: { w: 320, d: 320, h: 240 }, info: { note: 'Collezione Moderna NG Interior' } },
+  { id: 'cm-vaso-scultura', nome: 'Vaso scultura in ceramica sabbia', categoria: 'oggetto', sezione: 'oggetti', moderno: 'vaso-scultura', linea: 'Moderna',
+    thumb: 'oggetti/moderni/miniature/vaso-scultura.jpg', texture: 'oggetti/moderni/miniature/vaso-scultura.jpg', colore: 0xd8d2c8,
+    misure: { w: 242, d: 242, h: 424 }, info: { note: 'Collezione Moderna NG Interior' } },
+  { id: 'cm-vaso-ulivo', nome: 'Vaso nero con rami d\'ulivo', categoria: 'oggetto', sezione: 'oggetti', moderno: 'vaso-ulivo', linea: 'Moderna',
+    thumb: 'oggetti/moderni/miniature/vaso-ulivo.jpg', texture: 'oggetti/moderni/miniature/vaso-ulivo.jpg', colore: 0xd8d2c8,
+    misure: { w: 390, d: 490, h: 960 }, info: { note: 'Collezione Moderna NG Interior' } },
+  { id: 'cm-taglieri', nome: 'Taglieri in noce e rovere', categoria: 'oggetto', sezione: 'oggetti', moderno: 'taglieri', linea: 'Moderna',
+    thumb: 'oggetti/moderni/miniature/taglieri.jpg', texture: 'oggetti/moderni/miniature/taglieri.jpg', colore: 0xd8d2c8,
+    misure: { w: 505, d: 255, h: 40 }, info: { note: 'Collezione Moderna NG Interior' } },
+  { id: 'cm-libri', nome: 'Libri di cucina con ciotola in ottone', categoria: 'oggetto', sezione: 'oggetti', moderno: 'libri', linea: 'Moderna',
+    thumb: 'oggetti/moderni/miniature/libri.jpg', texture: 'oggetti/moderni/miniature/libri.jpg', colore: 0xd8d2c8,
+    misure: { w: 270, d: 210, h: 110 }, info: { note: 'Collezione Moderna NG Interior' } },
+  { id: 'cm-olio-aceto', nome: 'Olio e aceto su vassoio di marmo', categoria: 'oggetto', sezione: 'oggetti', moderno: 'olio-aceto', linea: 'Moderna',
+    thumb: 'oggetti/moderni/miniature/olio-aceto.jpg', texture: 'oggetti/moderni/miniature/olio-aceto.jpg', colore: 0xd8d2c8,
+    misure: { w: 300, d: 150, h: 340 }, info: { note: 'Collezione Moderna NG Interior' } },
+  { id: 'cm-barattoli', nome: 'Barattoli in vetro con coperchio in rovere', categoria: 'oggetto', sezione: 'oggetti', moderno: 'barattoli', linea: 'Moderna',
+    thumb: 'oggetti/moderni/miniature/barattoli.jpg', texture: 'oggetti/moderni/miniature/barattoli.jpg', colore: 0xd8d2c8,
+    misure: { w: 336, d: 110, h: 253 }, info: { note: 'Collezione Moderna NG Interior' } },
+  { id: 'cm-sgabello', nome: 'Sgabello alto pelle cognac e nero', categoria: 'oggetto', sezione: 'oggetti', moderno: 'sgabello', linea: 'Moderna',
+    thumb: 'oggetti/moderni/miniature/sgabello.jpg', texture: 'oggetti/moderni/miniature/sgabello.jpg', colore: 0xd8d2c8,
+    misure: { w: 380, d: 380, h: 652 }, info: { note: 'Collezione Moderna NG Interior' } },
+  { id: 'cm-lux-alzata', nome: 'Alzata in ottone con frutta mista', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lux-alzata', linea: 'Luxury',
+    thumb: 'oggetti/moderni/miniature/lux-alzata.jpg', texture: 'oggetti/moderni/miniature/lux-alzata.jpg', colore: 0xd8d2c8,
+    misure: { w: 300, d: 300, h: 285 }, info: { note: 'Collezione Luxury NG Interior' } },
+  { id: 'cm-lux-vaso-pampas', nome: 'Vaso cannettato bianco con pampas', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lux-vaso-pampas', linea: 'Luxury',
+    thumb: 'oggetti/moderni/miniature/lux-vaso-pampas.jpg', texture: 'oggetti/moderni/miniature/lux-vaso-pampas.jpg', colore: 0xd8d2c8,
+    misure: { w: 530, d: 350, h: 1335 }, info: { note: 'Collezione Luxury NG Interior' } },
+  { id: 'cm-lux-vaso-fume', nome: 'Vaso in vetro fumé', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lux-vaso-fume', linea: 'Luxury',
+    thumb: 'oggetti/moderni/miniature/lux-vaso-fume.jpg', texture: 'oggetti/moderni/miniature/lux-vaso-fume.jpg', colore: 0xd8d2c8,
+    misure: { w: 200, d: 200, h: 300 }, info: { note: 'Collezione Luxury NG Interior' } },
+  { id: 'cm-lux-candelieri', nome: 'Candelieri in ottone', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lux-candelieri', linea: 'Luxury',
+    thumb: 'oggetti/moderni/miniature/lux-candelieri.jpg', texture: 'oggetti/moderni/miniature/lux-candelieri.jpg', colore: 0xd8d2c8,
+    misure: { w: 274, d: 150, h: 600 }, info: { note: 'Collezione Luxury NG Interior' } },
+  { id: 'cm-lux-scultura', nome: 'Scultura travertino, marmo nero e ottone', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lux-scultura', linea: 'Luxury',
+    thumb: 'oggetti/moderni/miniature/lux-scultura.jpg', texture: 'oggetti/moderni/miniature/lux-scultura.jpg', colore: 0xd8d2c8,
+    misure: { w: 270, d: 120, h: 300 }, info: { note: 'Collezione Luxury NG Interior' } },
+  { id: 'cm-lux-caraffa', nome: 'Caraffa e bicchieri in cristallo su marmo nero', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lux-caraffa', linea: 'Luxury',
+    thumb: 'oggetti/moderni/miniature/lux-caraffa.jpg', texture: 'oggetti/moderni/miniature/lux-caraffa.jpg', colore: 0xd8d2c8,
+    misure: { w: 324, d: 324, h: 272 }, info: { note: 'Collezione Luxury NG Interior' } },
+  { id: 'cm-lux-sgabello', nome: 'Sgabello alto bouclé e ottone', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lux-sgabello', linea: 'Luxury',
+    thumb: 'oggetti/moderni/miniature/lux-sgabello.jpg', texture: 'oggetti/moderni/miniature/lux-sgabello.jpg', colore: 0xd8d2c8,
+    misure: { w: 420, d: 420, h: 650 }, info: { note: 'Collezione Luxury NG Interior' } },
+  { id: 'cm-lux-lampada-ottone', nome: 'Lampada a sospensione in ottone', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'lux-lampada-ottone', linea: 'Luxury',
+    thumb: 'oggetti/moderni/miniature/lux-lampada-ottone.jpg', texture: 'oggetti/moderni/miniature/lux-lampada-ottone.jpg', colore: 0xd8d2c8,
+    misure: { w: 305, d: 305, h: 2700 }, info: { note: 'Collezione Luxury NG Interior' } },
+  { id: 'cm-lux-lampada-globo', nome: 'Lampada a sospensione globo opalino', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'lux-lampada-globo', linea: 'Luxury',
+    thumb: 'oggetti/moderni/miniature/lux-lampada-globo.jpg', texture: 'oggetti/moderni/miniature/lux-lampada-globo.jpg', colore: 0xd8d2c8,
+    misure: { w: 250, d: 250, h: 2700 }, info: { note: 'Collezione Luxury NG Interior' } },
   // ---- Zoccoli (cucina) ----
   { id: 'nero-opaco', nome: 'Nero opaco', categoria: 'zoccolo', css: '#17171a', colore: 0x17171a,
     solido: true, roughness: 1.0, metalness: 0.0 },
@@ -227,7 +285,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261119k');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261119l');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -356,7 +414,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261119k';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261119l';
 
 /** Prodotti visibili in una sezione del catalogo (con i nascosti tolti). */
 export function materialiPer(sezione, { tutti = false } = {}) {
