@@ -41,6 +41,43 @@ function grana(seme = 1, scala = 4) {
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(scala, scala);
   _tex.set(k, t); return t;
 }
+/** Legno disegnato (canvas): BAMBÙ (strisce fini e nodi) o ULIVO (crema con venature scure a onde).
+ *  rip: ripetizioni per mm (lastre) o per unità di UV (tornio, con ripXY). */
+function legnoDisegnato(tipo, rip, ripXY = null) {
+  const k = `legno|${tipo}|${rip}|${ripXY}`;
+  if (_tex.has(k)) return _tex.get(k);
+  const N = 512, c = document.createElement('canvas'); c.width = c.height = N;
+  const g = c.getContext('2d');
+  let s = tipo === 'bambu' ? 17 : 29; const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+  if (tipo === 'bambu') {
+    g.fillStyle = '#d6b583'; g.fillRect(0, 0, N, N);
+    for (let x = 0; x < N; x += 2) { g.fillStyle = `rgba(${120 + r() * 40},${80 + r() * 30},${30 + r() * 20},${0.06 + r() * 0.12})`; g.fillRect(x, 0, 1 + r() * 2, N); }
+    for (let i = 0; i < 18; i++) { const x = r() * N; g.fillStyle = `rgba(150,105,55,${0.12 + r() * 0.15})`; g.fillRect(x, 0, 6 + r() * 10, N); }   // listelli
+    for (const y of [N * 0.3, N * 0.78]) { g.fillStyle = 'rgba(120,80,40,0.35)'; g.fillRect(0, y, N, 3); g.fillStyle = 'rgba(255,240,210,0.25)'; g.fillRect(0, y + 3, N, 2); }   // nodi
+  } else {
+    // ULIVO: miele chiaro con bande morbide e venature scure ondulate (fitte, mai a "tratto di penna")
+    g.fillStyle = '#d2b07e'; g.fillRect(0, 0, N, N);
+    const onda = (y0, amp, fr, ph, x) => y0 + Math.sin(x * fr + ph) * amp + Math.sin(x * fr * 2.3 + ph * 1.7) * amp * 0.35;
+    g.filter = 'blur(6px)';
+    for (let i = 0; i < 26; i++) {
+      const y0 = r() * N, amp = 10 + r() * 30, fr = 0.008 + r() * 0.012, ph = r() * 6;
+      g.strokeStyle = r() < 0.6 ? `rgba(120,80,40,${0.1 + r() * 0.15})` : `rgba(240,215,170,${0.15 + r() * 0.15})`; g.lineWidth = 10 + r() * 30; g.beginPath();
+      for (let x = -8; x <= N + 8; x += 8) { const y = onda(y0, amp, fr, ph, x); if (x > -8) g.lineTo(x, y); else g.moveTo(x, y); }
+      g.stroke();
+    }
+    g.filter = 'blur(0.8px)';
+    for (let i = 0; i < 120; i++) {
+      const y0 = r() * N, amp = 6 + r() * 22, fr = 0.008 + r() * 0.016, ph = r() * 6, scura = r() < 0.35;
+      g.strokeStyle = scura ? `rgba(70,45,22,${0.35 + r() * 0.35})` : `rgba(130,90,45,${0.12 + r() * 0.2})`; g.lineWidth = scura ? 1 + r() * 2.5 : 0.6 + r() * 1.5; g.beginPath();
+      for (let x = -4; x <= N + 4; x += 4) { const y = onda(y0, amp, fr, ph, x); if (x > -4) g.lineTo(x, y); else g.moveTo(x, y); }
+      g.stroke();
+    }
+    g.filter = 'none';
+  }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  if (ripXY) t.repeat.set(...ripXY); else t.repeat.set(rip, rip);
+  _tex.set(k, t); return t;
+}
 const _mat = new Map();
 function mat(nome) {
   if (_mat.has(nome)) return _mat.get(nome);
@@ -83,6 +120,31 @@ function mat(nome) {
     case 'lino-avorio': m = new THREE.MeshStandardMaterial({ color: 0xe6dfd2, roughness: 0.92, bumpMap: grana(41, 12), bumpScale: 0.8 }); break;
     case 'ramo': m = new THREE.MeshStandardMaterial({ color: 0x6b6152, roughness: 0.9 }); break;
     case 'foglia-ulivo': m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.62, side: THREE.DoubleSide }); break;
+    // ---- legni chiari e naturali (texture disegnate qui: venature vere, nessun file) ----
+    case 'bambu': m = new THREE.MeshStandardMaterial({ map: legnoDisegnato('bambu', 1 / 260), roughness: 0.55 }); break;
+    case 'bambu-tornio': m = new THREE.MeshStandardMaterial({ map: legnoDisegnato('bambu', 1, [6, 1]), roughness: 0.55 }); break;
+    case 'ulivo': m = new THREE.MeshStandardMaterial({ map: legnoDisegnato('ulivo', 1 / 320), roughness: 0.42 }); break;
+    case 'ulivo-tornio': m = new THREE.MeshStandardMaterial({ map: legnoDisegnato('ulivo', 1, [3, 1]), roughness: 0.42 }); break;
+    case 'rovere-tornio': m = new THREE.MeshStandardMaterial({ map: tex('rovere-nodoso.jpg', 1), roughness: 0.55 }); break;
+    case 'intreccio': m = new THREE.MeshStandardMaterial({ color: 0xc9a46c, roughness: 0.7, emissive: 0x3a2408, emissiveIntensity: 0.25 }); break;
+    case 'terracotta': m = new THREE.MeshStandardMaterial({ color: 0xb4643f, roughness: 0.92, roughnessMap: grana(61), bumpMap: grana(61, 5), bumpScale: 1.2 }); break;
+    case 'cemento': m = new THREE.MeshStandardMaterial({ color: 0x9c9890, roughness: 0.95, roughnessMap: grana(67, 3), bumpMap: grana(67, 3), bumpScale: 2.5 }); break;
+    case 'terriccio': m = new THREE.MeshStandardMaterial({ color: 0x3a2a1f, roughness: 1, bumpMap: grana(71, 12), bumpScale: 4 }); break;
+    case 'corda': m = new THREE.MeshStandardMaterial({ color: 0xc8b089, roughness: 1, bumpMap: grana(73, 60), bumpScale: 1.5 }); break;
+    case 'vetro-verde': m = new THREE.MeshPhysicalMaterial({ color: 0x2a4a2c, metalness: 0, roughness: 0.04, transmission: 0.55, thickness: 4, ior: 1.5, specularIntensity: 1, envMapIntensity: 1.6, attenuationColor: new THREE.Color(0x0d2412), attenuationDistance: 12 }); break;
+    case 'etichetta': m = new THREE.MeshStandardMaterial({ color: 0xebe3d1, roughness: 0.85, bumpMap: grana(79, 3), bumpScale: 0.3 }); break;
+    case 'etichetta-scura': m = new THREE.MeshStandardMaterial({ color: 0x2b2522, roughness: 0.6 }); break;
+    case 'capsula': m = new THREE.MeshStandardMaterial({ color: 0x4e1420, metalness: 0.55, roughness: 0.35 }); break;
+    case 'formaggio': m = new THREE.MeshStandardMaterial({ color: 0xe9c870, roughness: 0.65, bumpMap: grana(83, 8), bumpScale: 1.5 }); break;
+    case 'crosta': m = new THREE.MeshStandardMaterial({ color: 0xbf8f45, roughness: 0.85, bumpMap: grana(89, 6), bumpScale: 2 }); break;
+    case 'acciaio-satinato': m = new THREE.MeshStandardMaterial({ color: 0xcfd1d4, metalness: 1, roughness: 0.36, roughnessMap: grana(97, 30) }); break;
+    case 'gomma-nera': m = new THREE.MeshStandardMaterial({ color: 0x1b1b1b, roughness: 0.75 }); break;
+    case 'quadrante': m = new THREE.MeshStandardMaterial({ color: 0xf2efe8, roughness: 0.3 }); break;
+    case 'ceramica-salvia': m = new THREE.MeshStandardMaterial({ color: 0x9aa58f, roughness: 0.7, roughnessMap: grana(101), bumpMap: grana(101), bumpScale: 0.5 }); break;
+    case 'ceramica-terra': m = new THREE.MeshStandardMaterial({ color: 0xa4643f, roughness: 0.55, roughnessMap: grana(103), bumpMap: grana(103), bumpScale: 0.4 }); break;
+    case 'ceramica-crema': m = new THREE.MeshStandardMaterial({ color: 0xe4dac6, roughness: 0.6, roughnessMap: grana(107), bumpMap: grana(107), bumpScale: 0.5 }); break;
+    case 'marmo-bianco': m = new THREE.MeshStandardMaterial({ map: tex('compacto-bernini.jpg', 1), roughness: 0.35 }); break;
+    case 'oliva': m = new THREE.MeshStandardMaterial({ color: 0x3d4a22, roughness: 0.3 }); break;
     default: m = new THREE.MeshStandardMaterial({ color: 0x999999 });
   }
   _mat.set(nome, m); return m;
@@ -134,6 +196,19 @@ async function frutto(id) {
   if (!_frutti.has(id)) {
     _frutti.set(id, (async () => {
       const { GLTFLoader } = await import('../vendor/three/addons/loaders/GLTFLoader.js');
+      if (id.startsWith('lib:')) {
+        // un modello della LIBRERIA (es. il pane), intero, alla scala chiesta: "lib:<id>@<scala>"
+        const [nome, sc] = id.slice(4).split('@');
+        const gl = await new GLTFLoader().loadAsync(qui(`../oggetti/libreria/${nome}.glb`));
+        gl.scene.updateMatrixWorld(true);
+        const g0 = new THREE.Group();
+        gl.scene.traverse((o) => { if (o.isMesh) { const m = new THREE.Mesh(o.geometry, o.material); m.applyMatrix4(o.matrixWorld); g0.add(m); } });
+        g0.scale.setScalar(1000 * (Number(sc) || 1)); g0.updateMatrixWorld(true);
+        const b = new THREE.Box3().setFromObject(g0), c = b.getCenter(new THREE.Vector3());
+        g0.position.sub(c);
+        const g = new THREE.Group(); g.add(g0); g.userData.r = Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z) / 2;
+        return [g];
+      }
       const gl = await new GLTFLoader().loadAsync(qui(`../oggetti/moderni/${id}/${id}.gltf`));
       gl.scene.updateMatrixWorld(true);
       const pezzi = [];
@@ -517,6 +592,422 @@ function sgabello() {
   return ombre(g);
 }
 
+// ------------------------------------------------------- legno e bambù ----
+// Oggetti in legno (rovere, ulivo) e bambù: il tocco caldo che stacca su cucine chiare e scure.
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+/** Tutto il gruppo appoggiato a y = 0 e centrato in x/z. */
+function centra(g) {
+  g.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(g), c = b.getCenter(new THREE.Vector3());
+  for (const ch of g.children) ch.position.sub(new THREE.Vector3(c.x, b.min.y, c.z));
+  return g;
+}
+/** Cilindro (anche rastremato) da a a b. */
+function asta(a, b, r0, r1, materiale, lati = 16) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, a.distanceTo(b), lati), mat(materiale));
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(V3(0, 1, 0), b.clone().sub(a).normalize());
+  return m;
+}
+/** Tubo rastremato lungo una curva (tronchi e rami). */
+function tuboRastremato(curva, r0, r1, segL = 48, segR = 10) {
+  const fr = curva.computeFrenetFrames(segL, false), pos = [], ind = [], uv = [];
+  for (let i = 0; i <= segL; i++) {
+    const t = i / segL, P = curva.getPointAt(t), r = r0 + (r1 - r0) * t, N = fr.normals[i], B = fr.binormals[i];
+    for (let j = 0; j <= segR; j++) {
+      const a = (j / segR) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
+      pos.push(P.x + r * (c * N.x + s * B.x), P.y + r * (c * N.y + s * B.y), P.z + r * (c * N.z + s * B.z)); uv.push(j / segR, t * 4);
+    }
+  }
+  for (let i = 0; i < segL; i++) for (let j = 0; j < segR; j++) { const a = i * (segR + 1) + j, b = a + segR + 1; ind.push(a, b, a + 1, b, b + 1, a + 1); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(ind); g.computeVertexNormals();
+  return g;
+}
+/** Foglie su un ramo (a coppie o alterne): matrici per un InstancedMesh. */
+function foglieSu(curva, n, { da = 0.15, sx = 1, sy = 1, apri = 0.8, coppie = true, alterna = 1.35 } = {}) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = da + (i / n) * (1 - da), P = curva.getPointAt(t), T = curva.getTangentAt(t);
+    for (const lato of coppie ? [-1, 1] : [i % 2 ? 1 : -1]) {
+      const q = new THREE.Quaternion().setFromUnitVectors(V3(0, 1, 0), T);
+      const giro = new THREE.Quaternion().setFromAxisAngle(T, i * alterna + rnd() * 0.3 + (lato > 0 ? Math.PI : 0));
+      const ap = new THREE.Quaternion().setFromAxisAngle(V3(1, 0, 0), apri + rnd() * 0.4 - t * 0.2);
+      const k = 0.8 + rnd() * 0.4;
+      out.push({ m: new THREE.Matrix4().compose(P, giro.multiply(q).multiply(ap), V3(sx * k, sy * k, k)), c: rnd() });
+    }
+  }
+  return out;
+}
+function foglieMesh(lista, geo, c1, c2) {
+  const im = new THREE.InstancedMesh(geo, mat('foglia-ulivo'), lista.length), a = new THREE.Color(c1), b = new THREE.Color(c2), tmp = new THREE.Color();
+  lista.forEach((f, i) => { im.setMatrixAt(i, f.m); im.setColorAt(i, tmp.copy(a).lerp(b, f.c)); });
+  im.castShadow = true; im.receiveShadow = true; return im;
+}
+let _tonda = null;
+/** Foglia tonda (eucalipto), appena a coppa. */
+function geoFogliaTonda() {
+  if (_tonda) return _tonda;
+  const g = new THREE.CircleGeometry(16, 14); g.translate(0, 16, 0);
+  const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i) - 16; p.setZ(i, (x * x + y * y) * 0.006); }
+  g.computeVertexNormals(); _tonda = g; return g;
+}
+/** Tagliere: rettangolo arrotondato con manico (verso +x) e foro. */
+function formaTagliere(w, d, lm = 70, rm = 22, r = 24) {
+  const s = new THREE.Shape(), x0 = -w / 2, x1 = w / 2, y0 = -d / 2, y1 = d / 2;
+  s.moveTo(x0 + r, y0); s.lineTo(x1 - r, y0); s.quadraticCurveTo(x1, y0, x1, y0 + r);
+  s.lineTo(x1, -rm - 10); s.quadraticCurveTo(x1, -rm, x1 + 14, -rm); s.lineTo(x1 + lm - rm, -rm); s.absarc(x1 + lm - rm, 0, rm, -Math.PI / 2, Math.PI / 2, false);
+  s.lineTo(x1 + 14, rm); s.quadraticCurveTo(x1, rm, x1, rm + 10);
+  s.lineTo(x1, y1 - r); s.quadraticCurveTo(x1, y1, x1 - r, y1); s.lineTo(x0 + r, y1); s.quadraticCurveTo(x0, y1, x0, y1 - r); s.lineTo(x0, y0 + r); s.quadraticCurveTo(x0, y0, x0 + r, y0);
+  const foro = new THREE.Path(); foro.absarc(x1 + lm - rm, 0, 9, 0, Math.PI * 2, true); s.holes.push(foro);
+  return s;
+}
+/** Lastra IN PIEDI: forma nel piano x-y (manico in alto), spessa sp verso -z (schiena a z = 0 → -sp). */
+function lastraInPiedi(shape, sp, smusso = 1.5) {
+  const g = new THREE.ExtrudeGeometry(shape, { depth: sp - 2 * smusso, bevelEnabled: true, bevelThickness: smusso, bevelSize: smusso, bevelSegments: 3, curveSegments: 24 });
+  g.translate(0, 0, -(sp - smusso)); g.computeVertexNormals(); return g;
+}
+/** 1 — Due taglieri appoggiati al muro: rovere grande dietro, bambù davanti (manico in alto). */
+function taglieriMuro() {
+  const g = new THREE.Group();
+  const tagliere = (larg, alt, sp, materiale, lean, x, z) => {
+    const geo = lastraInPiedi(formaTagliere(alt, larg, 80, 24), sp); geo.rotateZ(Math.PI / 2);   // manico in alto
+    geo.computeBoundingBox(); geo.translate(0, -geo.boundingBox.min.y, 0);
+    const t = new THREE.Mesh(geo, mat(materiale)); t.rotation.x = -lean; t.position.set(x, 0, z); g.add(t);
+  };
+  tagliere(300, 420, 22, 'rovere', 0.2, -35, -20);       // dietro, più alto, più inclinato
+  tagliere(240, 330, 16, 'bambu', 0.13, 55, 30);         // davanti
+  return ombre(centra(g));
+}
+/** Bottiglia d'olio in vetro (per vassoi). */
+function bottigliaOlio(alt = 260, r = 30) {
+  const b = new THREE.Group();
+  const prof = [[0, 0], [r, 0], [r + 2, 4], [r + 2, alt * 0.62], [r - 4, alt * 0.74], [12, alt * 0.86], [11, alt * 0.97], [12, alt], [9, alt], [8, alt * 0.97], [9, alt * 0.86], [r - 6, alt * 0.74], [r - 1, alt * 0.62], [r - 1, 5], [0, 4]];
+  b.add(new THREE.Mesh(tornio(prof, 64), mat('vetro')));
+  const liq = new THREE.Mesh(new THREE.CylinderGeometry(r - 1.5, r - 1.5, alt * 0.52, 48), mat('olio')); liq.position.y = 5 + alt * 0.26; b.add(liq);
+  const tappo = new THREE.Mesh(tornio([[0, 0], [9, 0], [10, 10], [7, 24], [0, 26]], 32, false), mat('ulivo-tornio')); tappo.position.y = alt - 4; b.add(tappo);
+  return b;
+}
+/** 2 — Vassoio in bambù con olio, sale e macinapepe in legno d'ulivo. */
+function vassoioBambu() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(lastra(rettTondo(380, 170, 16), 10, 1.5), mat('bambu')));
+  const bordo = rettTondo(380, 170, 16); bordo.holes.push(rettTondo(364, 154, 9));
+  g.add(new THREE.Mesh(lastra(bordo, 30, 1.5), mat('bambu')));
+  const o = bottigliaOlio(270, 30); o.position.set(-110, 10, 0); g.add(o);
+  const mac = new THREE.Mesh(tornio([[0, 0], [26, 0], [28, 6], [24, 40], [20, 90], [21, 140], [26, 165], [27, 185], [22, 195], [9, 200], [10, 214], [0, 216]], 64), mat('ulivo-tornio'));
+  mac.position.set(10, 10, -10); g.add(mac);
+  const sale = new THREE.Group();
+  sale.add(new THREE.Mesh(tornio([[0, 0], [30, 0], [36, 8], [40, 40], [37, 42], [33, 10], [0, 8]], 64), mat('ulivo-tornio')));
+  const cop = new THREE.Mesh(tornio([[0, 0], [41, 0], [42, 6], [38, 9], [8, 10], [8, 22], [5, 24], [0, 24]], 64), mat('ulivo-tornio')); cop.position.y = 41; sale.add(cop);
+  sale.position.set(105, 10, 10); g.add(sale);
+  return ombre(centra(g));
+}
+/** Mestolo / spatola in legno d'ulivo, dalla punta del manico (y = 0) in su. */
+function mestolo(tipo, L = 310) {
+  const u = new THREE.Group();
+  const manico = new THREE.Mesh(new THREE.CylinderGeometry(9, 6, L * 0.68, 20), mat('ulivo-tornio')); manico.position.y = L * 0.34; u.add(manico);
+  if (tipo === 'cucchiaio') {
+    const testa = new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), mat('ulivo-tornio'));
+    testa.scale.set(1, 0.32, 1.45); testa.rotation.x = Math.PI / 2; testa.position.y = L * 0.68 + 38; u.add(testa);
+  } else {
+    const pala = new THREE.Mesh(lastra(rettTondo(62, 96, 20), 6, 1.5), mat('ulivo')); pala.rotation.x = Math.PI / 2; pala.position.set(0, L * 0.68 + 48, 3); u.add(pala);
+  }
+  return u;
+}
+/** 3 — Portamestoli in ceramica crema con mestoli e spatole in legno d'ulivo. */
+function portamestoli() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(tornio([[0, 0], [60, 0], [63, 4], [64, 90], [66, 170], [62, 172], [58, 168], [57, 14], [0, 12]], 96), mat('ceramica-crema')));
+  const tipi = ['cucchiaio', 'spatola', 'cucchiaio', 'spatola', 'cucchiaio'];
+  tipi.forEach((t, i) => {
+    const a = (i / tipi.length) * Math.PI * 2 + 0.4, u = mestolo(t, 300 + (i % 3) * 18);
+    u.rotation.set(Math.sin(a) * 0.2, a, Math.cos(a) * 0.2); u.position.set(Math.cos(a) * 14, 14, Math.sin(a) * 14); g.add(u);
+  });
+  return ombre(g);
+}
+/** 4 — Ciotola in legno d'ulivo piena di limoni (appoggiati davvero). */
+async function ciotolaUlivo() {
+  const g = new THREE.Group();
+  const geo = tornio([[0, 0], [70, 0], [74, 4], [110, 30], [138, 62], [148, 90], [144, 94], [136, 89], [126, 62], [100, 35], [64, 17], [0, 15]], 128);
+  g.add(new THREE.Mesh(geo, mat('ulivo-tornio')));
+  await riempi(g, ['lemon'], sopraTornio(geo.userData.profilo), 146, 10);
+  return ombre(g);
+}
+let _trama = null;
+/** Intreccio (cesti): strisce che passano sopra e sotto. */
+function trama() {
+  if (_trama) return _trama;
+  const N = 256, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d');
+  g.fillStyle = '#6e4f2c'; g.fillRect(0, 0, N, N);
+  const S = 32;
+  for (let y = 0; y < N; y += S) for (let x = 0; x < N; x += S) {
+    const su = ((x + y) / S) % 2 === 0, gr = g.createLinearGradient(x, y, su ? x + S : x, su ? y : y + S);
+    gr.addColorStop(0, '#b48a55'); gr.addColorStop(0.5, '#dcb98a'); gr.addColorStop(1, '#b48a55');
+    g.fillStyle = gr; if (su) g.fillRect(x + 1, y + 3, S - 2, S - 6); else g.fillRect(x + 3, y + 1, S - 6, S - 2);
+  }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.repeat.set(26, 4); t.anisotropy = 8;
+  _trama = new THREE.MeshStandardMaterial({ map: t, roughness: 0.8, bumpMap: t, bumpScale: 2 }); return _trama;
+}
+/** 5 — Cesto in bambù intrecciato con il pane (pane vero, scansionato). */
+async function cestoPane() {
+  const g = new THREE.Group();
+  const geo = tornio([[0, 0], [110, 0], [118, 6], [140, 60], [152, 112], [147, 116], [140, 110], [128, 60], [108, 12], [0, 10]], 96);
+  g.add(new THREE.Mesh(geo, trama()));
+  const orlo = new THREE.Mesh(new THREE.TorusGeometry(149, 5, 10, 96), mat('bambu-tornio')); orlo.rotation.x = Math.PI / 2; orlo.position.y = 114; g.add(orlo);
+  await riempi(g, ['lib:skf95a2e18@0.62', 'lib:sk35c647c3@0.6'], sopraTornio(geo.userData.profilo), 146, 3);
+  return ombre(g);
+}
+/** Spicchio di formaggio (crosta sull'arco). */
+function spicchio(r, ang, h) {
+  const s = new THREE.Shape(); s.moveTo(0, 0); s.absarc(0, 0, r, -ang / 2, ang / 2, false); s.lineTo(0, 0);
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(lastra(s, h, 1), mat('formaggio')));
+  const crosta = new THREE.Mesh(new THREE.CylinderGeometry(r + 1.5, r + 1.5, h - 1, 24, 1, true, Math.PI / 2 - ang / 2, ang), mat('crosta'));
+  crosta.position.y = h / 2; g.add(crosta);
+  return g;
+}
+/** 6 — Tagliere in ulivo con pane, formaggi e olive. */
+async function tagliereFormaggi() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(lastra(formaTagliere(420, 280, 80, 24), 22, 2), mat('ulivo')));
+  const [pane] = await frutto('lib:skf95a2e18@0.78');
+  const p = pane.clone(true); p.updateMatrixWorld(true);
+  const bp = new THREE.Box3().setFromObject(p); p.position.set(-95, 22 - bp.min.y - 1, -20); p.rotation.y = 0.4; g.add(p);
+  const s1 = spicchio(95, 0.75, 58); s1.position.set(60, 22, -60); s1.rotation.y = 2.2; g.add(s1);
+  const s2 = spicchio(80, 0.6, 48); s2.position.set(120, 22, 40); s2.rotation.y = -2.4; g.add(s2);
+  const tondo = new THREE.Group();
+  tondo.add(new THREE.Mesh(new THREE.CylinderGeometry(44, 44, 36, 48), mat('crosta')));
+  const fetta = new THREE.Mesh(new THREE.CylinderGeometry(44.5, 44.5, 36.5, 48, 1, false, 0, 0.9), mat('formaggio')); tondo.add(fetta);
+  tondo.position.set(10, 22 + 18, 80); g.add(tondo);
+  const ciot = new THREE.Group();
+  const cg = tornio([[0, 0], [26, 0], [30, 3], [44, 20], [48, 34], [45, 35], [41, 21], [27, 8], [0, 6]], 64);
+  ciot.add(new THREE.Mesh(cg, mat('ceramica-salvia')));
+  for (let i = 0; i < 9; i++) {
+    const o = new THREE.Mesh(new THREE.SphereGeometry(9, 16, 12), mat('oliva')); o.scale.set(1, 0.8, 1.35);
+    const a = i * 2.4, rr = i < 6 ? 22 : 8; o.position.set(Math.cos(a) * rr, 14 + (i < 6 ? 2 : 11), Math.sin(a) * rr); o.rotation.y = a; ciot.add(o);
+  }
+  ciot.position.set(-150, 22, 95); g.add(ciot);
+  return ombre(centra(g));
+}
+/** Rametto di basilico: gambo e foglie larghe a coppie. */
+function basilico(base, dir, h, foglie) {
+  const fine = base.clone().add(dir.clone().multiplyScalar(h));
+  const curva = new THREE.CatmullRomCurve3([base, base.clone().lerp(fine, 0.5).add(V3(rnd() * 10 - 5, 0, rnd() * 10 - 5)), fine]);
+  foglie.push(...foglieSu(curva, 4 + Math.floor(rnd() * 3), { da: 0.3, sx: 2.6, sy: 0.75, apri: 0.9, alterna: Math.PI / 2 }));
+  return new THREE.Mesh(new THREE.TubeGeometry(curva, 12, 2, 6), mat('stelo'));
+}
+/** 7 — Mortaio in marmo con pestello e basilico. */
+function mortaio() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(tornio([[0, 0], [58, 0], [66, 6], [74, 40], [76, 82], [72, 92], [64, 94], [60, 86], [54, 52], [38, 32], [0, 28]], 96), mat('marmo-bianco')));
+  const pest = new THREE.Mesh(tornio([[0, 0], [16, 2], [20, 14], [17, 40], [13, 110], [15, 150], [12, 168], [0, 170]], 48), mat('marmo-bianco'));
+  pest.position.set(10, 30, 6); pest.rotation.set(0.15, 0, -0.55); g.add(pest);
+  const foglie = [];
+  for (let i = 0; i < 3; i++) { const a = 2.2 + i * 0.5; g.add(basilico(V3(-10 + i * 8, 40, -8), V3(Math.cos(a) * 0.8, 0.55, Math.sin(a) * 0.5).normalize(), 120 + i * 20, foglie)); }
+  // un rametto appoggiato sul piano, accanto
+  g.add(basilico(V3(70, 4, 50), V3(1, 0.02, 0.4).normalize(), 130, foglie));
+  g.add(foglieMesh(foglie, geoFoglia(), 0x2f6b22, 0x5c9a3a));
+  return ombre(centra(g));
+}
+/** Vasetto di terracotta con il terriccio (r = raggio alla bocca). */
+function vasetto(r = 62, h = 112) {
+  const v = new THREE.Group();
+  v.add(new THREE.Mesh(tornio([[0, 0], [r * 0.78, 0], [r * 0.8, 4], [r * 0.95, h - 22], [r + 3, h - 20], [r + 4, h], [r - 3, h], [r - 4, h - 18], [r * 0.74, 10], [0, 8]], 72, false), mat('terracotta')));
+  const t = new THREE.Mesh(new THREE.CircleGeometry(r - 5, 40).rotateX(-Math.PI / 2), mat('terriccio')); t.position.y = h - 14; v.add(t);
+  return v;
+}
+/** 8 — Tre erbe aromatiche (basilico, rosmarino, timo) in terracotta su un vassoio di legno. */
+function erbe() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(lastra(rettTondo(450, 170, 14), 14, 1.5), mat('rovere')));
+  const xs = [-140, 0, 140], h = 112, y0 = 14 + h - 14;
+  xs.forEach((x) => { const v = vasetto(62, h); v.position.set(x, 14, 0); g.add(v); });
+  const fBas = [], fRos = [], fTim = [];
+  for (let i = 0; i < 7; i++) { const a = i * 2.4; g.add(basilico(V3(xs[0] + Math.cos(a) * 18, y0, Math.sin(a) * 18), V3(Math.cos(a) * 0.35, 1, Math.sin(a) * 0.35).normalize(), 120 + rnd() * 80, fBas)); }
+  for (let i = 0; i < 11; i++) {
+    const a = i * 2.1, b = V3(xs[1] + Math.cos(a) * 20, y0, Math.sin(a) * 20), hh = 220 + rnd() * 110;
+    const curva = new THREE.CatmullRomCurve3([b, b.clone().add(V3(Math.cos(a) * 15, hh * 0.5, Math.sin(a) * 15)), b.clone().add(V3(Math.cos(a) * 35, hh, Math.sin(a) * 35))]);
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(curva, 16, 1.8, 5), mat('ramo')));
+    fRos.push(...foglieSu(curva, 34, { da: 0.12, sx: 0.28, sy: 0.4, apri: 0.7, coppie: true, alterna: 2.1 }));
+  }
+  for (let i = 0; i < 16; i++) {
+    const a = i * 2.39, b = V3(xs[2] + Math.cos(a) * 25, y0, Math.sin(a) * 25), hh = 80 + rnd() * 70, fuori = 0.6 + rnd() * 0.5;
+    const curva = new THREE.CatmullRomCurve3([b, b.clone().add(V3(Math.cos(a) * 25 * fuori, hh * 0.6, Math.sin(a) * 25 * fuori)), b.clone().add(V3(Math.cos(a) * 55 * fuori, hh, Math.sin(a) * 55 * fuori))]);
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(curva, 10, 1, 4), mat('ramo')));
+    fTim.push(...foglieSu(curva, 14, { da: 0.2, sx: 0.55, sy: 0.17, apri: 0.9, alterna: 1.6 }));
+  }
+  g.add(foglieMesh(fBas, geoFoglia(), 0x2f6b22, 0x5c9a3a));
+  g.add(foglieMesh(fRos, geoFoglia(), 0x3f5a3e, 0x7e927a));
+  g.add(foglieMesh(fTim, geoFoglia(), 0x4d6644, 0x839a72));
+  return ombre(centra(g));
+}
+/** 9 — Ulivo grande (170 cm) in vaso di cemento, a terra. */
+function ulivoGrande() {
+  const g = new THREE.Group(), H = 460;
+  g.add(new THREE.Mesh(tornio([[0, 0], [190, 0], [196, 6], [222, H - 30], [236, H - 26], [238, H], [222, H], [208, H - 26], [184, 14], [0, 12]], 96, false), mat('cemento')));
+  const t = new THREE.Mesh(new THREE.CircleGeometry(214, 48).rotateX(-Math.PI / 2), mat('terriccio')); t.position.y = H - 40; g.add(t);
+  // tronco contorto che si apre in rami
+  const y0 = H - 40, tronco = new THREE.CatmullRomCurve3([V3(0, y0 - 20, 0), V3(25, y0 + 200, 10), V3(-15, y0 + 420, -10), V3(10, y0 + 600, 15)]);
+  const corteccia = new THREE.MeshStandardMaterial({ color: 0x6d6456, roughness: 1, bumpMap: grana(113, 3), bumpScale: 6 });
+  g.add(new THREE.Mesh(tuboRastremato(tronco, 42, 24, 40, 12), corteccia));
+  const foglie = [], top = tronco.getPointAt(1);
+  const nRami = 7;
+  for (let b = 0; b < nRami; b++) {
+    const a = (b / nRami) * Math.PI * 2 + rnd() * 0.5, sp = 300 + rnd() * 200, h = 330 + rnd() * 420;
+    const pts = [top.clone()];
+    for (let k = 1; k <= 4; k++) { const t2 = k / 4, cr = sp * Math.pow(t2, 1.1); pts.push(V3(top.x + Math.cos(a + t2 * 0.5) * cr, top.y + h * t2 - sp * 0.15 * t2 * t2, top.z + Math.sin(a + t2 * 0.5) * cr)); }
+    const ramo = new THREE.CatmullRomCurve3(pts);
+    g.add(new THREE.Mesh(tuboRastremato(ramo, 18, 4, 30, 8), corteccia));
+    foglie.push(...foglieSu(ramo, 55, { da: 0.25, sx: 1.05, sy: 1.05, apri: 0.75 }));
+    // rametti laterali
+    for (let k = 0; k < 6; k++) {
+      const t2 = 0.3 + k * 0.11, P = ramo.getPointAt(t2), d = ramo.getTangentAt(t2), lat = V3(-d.z, 0.3, d.x).normalize().multiplyScalar(k % 2 ? 1 : -1);
+      const fine = P.clone().add(lat.multiplyScalar(160 + rnd() * 120)).add(V3(0, 90 + rnd() * 120, 0));
+      const r2 = new THREE.CatmullRomCurve3([P, P.clone().lerp(fine, 0.5).add(V3(0, 30, 0)), fine]);
+      g.add(new THREE.Mesh(tuboRastremato(r2, 5, 2, 12, 6), corteccia));
+      foglie.push(...foglieSu(r2, 24, { da: 0.12, sx: 1, sy: 1, apri: 0.8 }));
+    }
+  }
+  g.add(foglieMesh(foglie, geoFoglia(), 0x55634a, 0xa8b29c));
+  return ombre(centra(g));
+}
+/** 10 — Rami di eucalipto in una bottiglia di vetro. */
+function eucalipto() {
+  const g = new THREE.Group(), alt = 290;
+  g.add(new THREE.Mesh(tornio([[0, 0], [48, 0], [50, 4], [50, 170], [44, 200], [20, 240], [17, alt - 10], [19, alt], [15, alt], [14, alt - 10], [16, 240], [40, 200], [47, 170], [47, 6], [0, 5]], 72), mat('vetro')));
+  const acqua = new THREE.Mesh(new THREE.CylinderGeometry(46.5, 46.5, 120, 48), mat('acqua')); acqua.position.y = 65; g.add(acqua);
+  const foglie = [];
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + rnd() * 0.4, h = 420 + rnd() * 260, ap = 90 + rnd() * 140;
+    const b = V3(Math.cos(a) * 6, 150, Math.sin(a) * 6);
+    const curva = new THREE.CatmullRomCurve3([b, V3(Math.cos(a) * 12, alt + 20, Math.sin(a) * 12), V3(Math.cos(a) * ap * 0.6, alt + h * 0.6, Math.sin(a) * ap * 0.6), V3(Math.cos(a) * ap, alt + h - ap * 0.2, Math.sin(a) * ap)]);
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(curva, 30, 1.8, 5), mat('stelo')));
+    foglie.push(...foglieSu(curva, 16, { da: 0.4, sx: 1, sy: 1, apri: 1.0, coppie: true, alterna: Math.PI / 2 }));
+  }
+  g.add(foglieMesh(foglie, geoFogliaTonda(), 0x7f968b, 0xb2c2b8));
+  return ombre(centra(g));
+}
+/** Paralume intrecciato: spirali nei due versi su una superficie al tornio r(t), y(t), t in [0,1]. */
+function intrecciato(rDi, yDi, nSp = 18, giri = 0.55) {
+  const g = new THREE.Group(), m = mat('intreccio');
+  for (const verso of [1, -1]) for (let i = 0; i < nSp; i++) {
+    const pts = [];
+    for (let k = 0; k <= 40; k++) {
+      const t = k / 40, a = (i / nSp) * Math.PI * 2 + verso * t * giri * Math.PI * 2, r = rDi(t) + (verso > 0 ? 1.6 : -1.6) * Math.sin(t * 40);
+      pts.push(V3(Math.cos(a) * r, yDi(t), Math.sin(a) * r));
+    }
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 80, 2.6, 5), m));
+  }
+  for (const t of [0, 1]) { const anello = new THREE.Mesh(new THREE.TorusGeometry(rDi(t), 4, 8, 64), mat('bambu-tornio')); anello.rotation.x = Math.PI / 2; anello.position.y = yDi(t); g.add(anello); }
+  return g;
+}
+/** 11 / 12 — Sospensione in bambù intrecciato (sfera o campana): corpo a 165 cm, cavo fino al soffitto. */
+function lampadaBambu(forma, soffitto = SOFFITTO) {
+  const g = new THREE.Group();
+  let hCorpo;
+  if (forma === 'sfera') {
+    const R = 215, t0 = 0.07;
+    g.add(intrecciato((t) => R * Math.sin(Math.PI * (t0 + t * (1 - 2 * t0))), (t) => R - R * Math.cos(Math.PI * (t0 + t * (1 - 2 * t0))), 20, 0.5));
+    hCorpo = 2 * R * Math.cos(Math.PI * t0) / 2 + R; hCorpo = R - R * Math.cos(Math.PI * (1 - t0));
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(34, 24, 16), mat('luce-calda')); lamp.position.y = R; g.add(lamp);
+  } else {
+    const H = 300;
+    g.add(intrecciato((t) => 235 - 195 * Math.pow(t, 0.7), (t) => H * t, 22, 0.45));
+    hCorpo = H;
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(34, 24, 16), mat('luce-calda')); lamp.position.y = H * 0.55; g.add(lamp);
+  }
+  const cavo = soffitto - Y_LAMPADA - hCorpo - 22;
+  const filo = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, cavo, 8), mat('cavo')); filo.position.y = hCorpo + cavo / 2; g.add(filo);
+  const rosone = new THREE.Mesh(tornio([[0, 0], [55, 0], [60, 6], [60, 24], [0, 24]], 64, false), mat('bambu-tornio')); rosone.position.y = hCorpo + cavo - 2; g.add(rosone);
+  g.children.forEach((c) => { c.position.y += Y_LAMPADA; });
+  g.traverse((x) => { if (x.isMesh) { x.castShadow = false; x.receiveShadow = false; x.userData.senzaOmbra = true; } });
+  return g;
+}
+/** 13 — Sgabello alto in rovere con la seduta intrecciata in corda (seduta a 66 cm). */
+function sgabelloCorda() {
+  const g = new THREE.Group(), H = 660, L = 380, legno = 'rovere-tornio';
+  for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    const gamba = asta(V3(sx * (L / 2 + 22), 0, sz * (L / 2 + 22)), V3(sx * (L / 2 - 14), H, sz * (L / 2 - 14)), 15, 22, legno, 4);
+    gamba.rotateY(Math.PI / 4); g.add(gamba);
+  }
+  // telaio della seduta e traversi
+  for (const [a, b, y, r] of [[[-1, -1], [1, -1], H - 24, 18], [[1, -1], [1, 1], H - 24, 18], [[1, 1], [-1, 1], H - 24, 18], [[-1, 1], [-1, -1], H - 24, 18],
+    [[-1, 1], [1, 1], 270, 14], [[-1, -1], [1, -1], 330, 12], [[-1, -1], [-1, 1], 300, 12], [[1, -1], [1, 1], 300, 12]]) {
+    const k = (y / H) * -36 + 22 + 14 * 0;
+    const off = L / 2 + 22 - (36 * y) / H;
+    g.add(asta(V3(a[0] * off, y, a[1] * off), V3(b[0] * off, y, b[1] * off), r, r, legno, 12)); void k;
+  }
+  // la corda: trama e ordito che passano sopra e sotto
+  const sp = 9, n = Math.floor((L - 30) / sp), y = H - 18;
+  for (const asse of ['x', 'z']) for (let i = 0; i < n; i++) {
+    const c = -((n - 1) * sp) / 2 + i * sp, pts = [];
+    for (let k = 0; k <= 60; k++) {
+      const u = -L / 2 + 6 + (k / 60) * (L - 12), onda = 2.4 * Math.sin((u / sp) * Math.PI + (i % 2 ? Math.PI : 0)) * (asse === 'x' ? 1 : -1);
+      pts.push(asse === 'x' ? V3(u, y + onda, c) : V3(c, y + onda, u));
+    }
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 60, 3.4, 6), mat('corda')));
+  }
+  return ombre(centra(g));
+}
+/** 14 — Pila di ciotole in ceramica (salvia, crema, terra, nera), una dentro l'altra. */
+function ciotolePila() {
+  const g = new THREE.Group();
+  const prof = [[0, 0], [40, 0], [44, 4], [70, 28], [88, 58], [90, 63], [86, 64], [82, 58], [66, 31], [40, 10], [0, 8]];
+  ['ceramica-nera', 'ceramica-terra', 'ceramica-crema', 'ceramica-salvia'].forEach((m, i) => {
+    const c = new THREE.Mesh(tornio(prof.map(([r, y]) => [r * (1 - i * 0.02), y]), 96), mat(m)); c.position.y = i * 13; c.rotation.y = rnd() * 6; g.add(c);
+  });
+  return ombre(g);
+}
+/** 15 — Macchina da espresso in acciaio satinato, portafiltro con manico in legno d'ulivo. */
+function espresso() {
+  const g = new THREE.Group(), W = 300, D = 380, H = 390;
+  const corpo = new THREE.Mesh(lastra(rettTondo(W, D, 18), H - 20, 3), mat('acciaio-satinato')); corpo.position.y = 20; g.add(corpo);
+  for (const [x, z] of [[-120, -160], [120, -160], [120, 160], [-120, 160]]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(12, 14, 20, 20), mat('gomma-nera')); p.position.set(x, 10, z); g.add(p); }
+  // scaldatazze in cima
+  for (const x of [-W / 2 + 16, W / 2 - 16]) g.add(asta(V3(x, H + 18, -D / 2 + 20), V3(x, H + 18, D / 2 - 20), 4, 4, 'acciaio', 12));
+  for (const z of [-D / 2 + 20, D / 2 - 20]) g.add(asta(V3(-W / 2 + 16, H + 18, z), V3(W / 2 - 16, H + 18, z), 4, 4, 'acciaio', 12));
+  for (const x of [-W / 2 + 16, W / 2 - 16]) for (const z of [-D / 2 + 20, D / 2 - 20]) g.add(asta(V3(x, H, z), V3(x, H + 18, z), 4, 4, 'acciaio', 12));
+  const zF = D / 2;
+  // gruppo e portafiltro
+  const gr = new THREE.Mesh(new THREE.CylinderGeometry(40, 44, 34, 40), mat('acciaio')); gr.position.set(0, 262, zF + 30); g.add(gr);
+  g.add(asta(V3(0, 262, zF - 5), V3(0, 262, zF + 14), 30, 30, 'acciaio', 32).rotateX(0));
+  const pf = new THREE.Mesh(new THREE.CylinderGeometry(38, 34, 26, 40), mat('acciaio')); pf.position.set(0, 232, zF + 30); g.add(pf);
+  const manico = asta(V3(14, 228, zF + 60), V3(70, 214, zF + 170), 11, 15, 'ulivo-tornio', 24); g.add(manico);
+  // vaschetta con griglia
+  const v = new THREE.Mesh(lastra(rettTondo(230, 150, 10), 22, 2), mat('acciaio')); v.position.set(0, 20, zF + 10); g.add(v);
+  for (let i = 0; i < 9; i++) { const f = new THREE.Mesh(new THREE.BoxGeometry(200, 2, 5), mat('gomma-nera')); f.position.set(0, 42.5, zF - 45 + i * 12); g.add(f); }
+  // tazzina in ceramica sulla griglia, sotto il portafiltro
+  const tz = new THREE.Mesh(tornio([[0, 0], [20, 0], [24, 4], [30, 30], [32, 52], [29, 52], [27, 32], [21, 9], [0, 8]], 48), mat('ceramica-bianca')); tz.position.set(0, 44, zF + 28); g.add(tz);
+  const caffe = new THREE.Mesh(new THREE.CircleGeometry(26, 32).rotateX(-Math.PI / 2), mat('caffe')); caffe.position.set(0, 44 + 40, zF + 28); g.add(caffe);
+  // manometro, lancia vapore, manopole
+  const man = new THREE.Mesh(new THREE.CylinderGeometry(30, 30, 6, 48), mat('quadrante')); man.rotation.x = Math.PI / 2; man.position.set(0, 335, zF + 3); g.add(man);
+  const ghiera = new THREE.Mesh(new THREE.TorusGeometry(31, 3.5, 10, 48), mat('acciaio')); ghiera.position.set(0, 335, zF + 6); g.add(ghiera);
+  const ago = new THREE.Mesh(new THREE.BoxGeometry(2, 22, 1), mat('gomma-nera')); ago.position.set(4, 340, zF + 7); ago.rotation.z = -0.6; g.add(ago);
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([V3(110, 300, zF + 5), V3(118, 300, zF + 35), V3(122, 230, zF + 45), V3(124, 140, zF + 52)]), 40, 4.5, 10), mat('acciaio')));
+  for (const x of [-110, 110]) { const k = asta(V3(x, 370, zF - 40), V3(x, H + 1, zF - 40), 16, 16, 'gomma-nera', 24); g.add(k); }
+  return ombre(centra(g));
+}
+/** Bottiglia di vino (bordolese) in vetro verde scuro, con etichetta e capsula. */
+function bottigliaVino(alt = 300) {
+  const b = new THREE.Group(), r = 37;
+  b.add(new THREE.Mesh(tornio([[0, 4], [20, 10], [r - 3, 0], [r, 4], [r, alt * 0.66], [r - 6, alt * 0.74], [16, alt * 0.8], [14, alt * 0.97], [15.5, alt], [0, alt]], 64), mat('vetro-verde')));
+  const et = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.6, r + 0.6, 82, 48, 1, true, -1.2, 2.4), mat('etichetta')); et.position.y = 105; b.add(et);
+  const fascia = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.8, r + 0.8, 10, 48, 1, true, -1.2, 2.4), mat('etichetta-scura')); fascia.position.y = 120; b.add(fascia);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(15.8, 15, alt * 0.16, 32), mat('capsula')); cap.position.y = alt - alt * 0.08 + 1; b.add(cap);
+  return b;
+}
+/** 16 — Bottiglie di vino e calici su un vassoio di rovere. */
+function viniVassoio() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(lastra(rettTondo(440, 230, 18), 16, 2), mat('rovere')));
+  [[-140, -40, 0.3], [-55, -55, 2.1], [30, -30, 4.2]].forEach(([x, z, rot]) => { const b = bottigliaVino(300); b.position.set(x, 16, z); b.rotation.y = rot - Math.PI / 2 - 0.3; g.add(b); });
+  for (const [x, z] of [[110, 40], [165, -25]]) {
+    const c = new THREE.Mesh(tornio([[0, 0], [36, 0], [38, 2], [8, 6], [4, 14], [4, 110], [10, 114], [36, 140], [44, 180], [40, 215], [38, 215], [42, 180], [34, 142], [8, 117], [0, 116]], 64), mat('cristallo'));
+    c.position.set(x, 16, z); g.add(c);
+  }
+  return ombre(centra(g));
+}
+
 // ------------------------------------------------------------- catalogo ----
 export const COLLEZIONE = [
   { id: 'fruttiera-limoni', nome: 'Fruttiera in marmo con limoni', es: 'Frutero de mármol con limones', misure: { w: 320, d: 320, h: 200 }, crea: () => fruttiera('marmo', ['lemon'], 11) },
@@ -539,6 +1030,23 @@ export const COLLEZIONE = [
   { id: 'lux-sgabello', linea: 'luxury', nome: 'Sgabello alto bouclé e ottone', es: 'Taburete alto bouclé y latón', misure: { w: 420, d: 420, h: 650 }, crea: async () => sgabelloBoucle() },
   { id: 'lux-lampada-ottone', linea: 'luxury', appeso: true, nome: 'Lampada a sospensione in ottone', es: 'Lámpara colgante de latón', misure: { w: 305, d: 305, h: 2700 }, crea: async (s) => lampada('ottone', s) },
   { id: 'lux-lampada-globo', linea: 'luxury', appeso: true, nome: 'Lampada a sospensione globo opalino', es: 'Lámpara colgante globo opalino', misure: { w: 250, d: 250, h: 2700 }, crea: async (s) => lampada('globo', s) },
+  // ---- LEGNO E BAMBÙ ----
+  { id: 'lb-taglieri-muro', nome: 'Taglieri in rovere e bambù al muro', es: 'Tablas de roble y bambú contra la pared', misure: { w: 363, d: 171, h: 497 }, crea: async () => taglieriMuro() },
+  { id: 'lb-vassoio-bambu', nome: 'Vassoio in bambù con olio, sale e pepe', es: 'Bandeja de bambú con aceite, sal y pimienta', misure: { w: 383, d: 173, h: 302 }, crea: async () => vassoioBambu() },
+  { id: 'lb-portamestoli', nome: 'Portamestoli con mestoli in ulivo', es: 'Bote con cucharas de olivo', misure: { w: 167, d: 208, h: 332 }, crea: async () => portamestoli() },
+  { id: 'lb-ciotola-ulivo', nome: 'Ciotola in legno d\'ulivo con limoni', es: 'Cuenco de madera de olivo con limones', misure: { w: 296, d: 296, h: 172 }, crea: () => ciotolaUlivo() },
+  { id: 'lb-cesto-pane', nome: 'Cesto intrecciato con il pane', es: 'Cesta trenzada con pan', misure: { w: 321, d: 308, h: 180 }, crea: () => cestoPane() },
+  { id: 'lb-tagliere-formaggi', nome: 'Tagliere con pane, formaggi e olive', es: 'Tabla con pan, quesos y aceitunas', misure: { w: 504, d: 302, h: 119 }, crea: () => tagliereFormaggi() },
+  { id: 'lb-mortaio', nome: 'Mortaio in marmo con basilico', es: 'Mortero de mármol con albahaca', misure: { w: 361, d: 220, h: 233 }, crea: async () => mortaio() },
+  { id: 'lb-erbe', nome: 'Erbe aromatiche in terracotta su vassoio', es: 'Hierbas aromáticas en terracota sobre bandeja', misure: { w: 486, d: 205, h: 432 }, crea: async () => erbe() },
+  { id: 'lb-ulivo', nome: 'Ulivo in vaso di cemento', es: 'Olivo en maceta de cemento', misure: { w: 909, d: 1032, h: 1808 }, crea: async () => ulivoGrande() },
+  { id: 'lb-eucalipto', nome: 'Rami di eucalipto in bottiglia di vetro', es: 'Ramas de eucalipto en botella de vidrio', misure: { w: 313, d: 333, h: 935 }, crea: async () => eucalipto() },
+  { id: 'lb-lampada-sfera', appeso: true, nome: 'Sospensione in bambù intrecciato, sfera', es: 'Colgante de bambú trenzado, esfera', misure: { w: 437, d: 437, h: 2700 }, crea: async (s) => lampadaBambu('sfera', s) },
+  { id: 'lb-lampada-campana', appeso: true, nome: 'Sospensione in bambù intrecciato, campana', es: 'Colgante de bambú trenzado, campana', misure: { w: 478, d: 478, h: 2700 }, crea: async (s) => lampadaBambu('campana', s) },
+  { id: 'lb-sgabello-corda', nome: 'Sgabello in rovere con seduta in corda', es: 'Taburete de roble con asiento de cuerda', misure: { w: 486, d: 486, h: 663 }, crea: async () => sgabelloCorda() },
+  { id: 'lb-ciotole', nome: 'Pila di ciotole in ceramica', es: 'Pila de cuencos de cerámica', misure: { w: 229, d: 229, h: 104 }, crea: async () => ciotolePila() },
+  { id: 'lb-espresso', nome: 'Macchina da espresso in acciaio', es: 'Cafetera espresso de acero', misure: { w: 306, d: 561, h: 412 }, crea: async () => espresso() },
+  { id: 'lb-vini', nome: 'Bottiglie di vino e calici su vassoio', es: 'Botellas de vino y copas sobre bandeja', misure: { w: 444, d: 234, h: 317 }, crea: async () => viniVassoio() },
 ];
 
 const _pronti = new Map();

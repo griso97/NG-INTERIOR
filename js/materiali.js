@@ -15,8 +15,8 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261119r';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261119r';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261119s';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261119s';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -269,6 +269,55 @@ export const MATERIALI = [
   { id: 'cm-lux-lampada-globo', nome: 'Lampada a sospensione globo opalino', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'lux-lampada-globo', linea: 'Luxury',
     thumb: 'oggetti/moderni/miniature/lux-lampada-globo.jpg', texture: 'oggetti/moderni/miniature/lux-lampada-globo.jpg', colore: 0xd8d2c8,
     misure: { w: 250, d: 250, h: 2700 }, info: { note: 'Collezione Luxury NG Interior' } },
+  // ---- LEGNO E BAMBÙ (modellati da noi) ----
+  { id: 'cm-lb-taglieri-muro', nome: 'Taglieri in rovere e bambù al muro', alMuro: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-taglieri-muro', linea: 'Legno e bambù',
+    thumb: 'oggetti/moderni/miniature/lb-taglieri-muro.jpg', texture: 'oggetti/moderni/miniature/lb-taglieri-muro.jpg', colore: 0xd8d2c8,
+    misure: { w: 363, d: 171, h: 497 }, info: { note: 'Collezione Legno e bambù NG Interior' } },
+  { id: 'cm-lb-vassoio-bambu', nome: 'Vassoio in bambù con olio, sale e pepe', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-vassoio-bambu', linea: 'Legno e bambù',
+    thumb: 'oggetti/moderni/miniature/lb-vassoio-bambu.jpg', texture: 'oggetti/moderni/miniature/lb-vassoio-bambu.jpg', colore: 0xd8d2c8,
+    misure: { w: 383, d: 173, h: 302 }, info: { note: 'Collezione Legno e bambù NG Interior' } },
+  { id: 'cm-lb-portamestoli', nome: 'Portamestoli con mestoli in ulivo', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-portamestoli', linea: 'Legno e bambù',
+    thumb: 'oggetti/moderni/miniature/lb-portamestoli.jpg', texture: 'oggetti/moderni/miniature/lb-portamestoli.jpg', colore: 0xd8d2c8,
+    misure: { w: 167, d: 208, h: 332 }, info: { note: 'Collezione Legno e bambù NG Interior' } },
+  { id: 'cm-lb-ciotola-ulivo', nome: 'Ciotola in legno d\'ulivo con limoni', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-ciotola-ulivo', linea: 'Legno e bambù',
+    thumb: 'oggetti/moderni/miniature/lb-ciotola-ulivo.jpg', texture: 'oggetti/moderni/miniature/lb-ciotola-ulivo.jpg', colore: 0xd8d2c8,
+    misure: { w: 296, d: 296, h: 172 }, info: { note: 'Collezione Legno e bambù NG Interior' } },
+  { id: 'cm-lb-cesto-pane', nome: 'Cesto intrecciato con il pane', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-cesto-pane', linea: 'Legno e bambù',
+    thumb: 'oggetti/moderni/miniature/lb-cesto-pane.jpg', texture: 'oggetti/moderni/miniature/lb-cesto-pane.jpg', colore: 0xd8d2c8,
+    misure: { w: 321, d: 308, h: 180 }, info: { note: 'Collezione Legno e bambù NG Interior · pane: «Homemade Bread» — spogna, «Bread» — topfrank2013 · Sketchfab · CC BY 4.0' } },
+  { id: 'cm-lb-tagliere-formaggi', nome: 'Tagliere con pane, formaggi e olive', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-tagliere-formaggi', linea: 'Legno e bambù',
+    thumb: 'oggetti/moderni/miniature/lb-tagliere-formaggi.jpg', texture: 'oggetti/moderni/miniature/lb-tagliere-formaggi.jpg', colore: 0xd8d2c8,
+    misure: { w: 504, d: 302, h: 119 }, info: { note: 'Collezione Legno e bambù NG Interior · pane: «Homemade Bread» — spogna · Sketchfab · CC BY 4.0' } },
+  { id: 'cm-lb-mortaio', nome: 'Mortaio in marmo con basilico', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-mortaio', linea: 'Legno e bambù',
+    thumb: 'oggetti/moderni/miniature/lb-mortaio.jpg', texture: 'oggetti/moderni/miniature/lb-mortaio.jpg', colore: 0xd8d2c8,
+    misure: { w: 361, d: 220, h: 233 }, info: { note: 'Collezione Legno e bambù NG Interior' } },
+  { id: 'cm-lb-erbe', nome: 'Erbe aromatiche in terracotta su vassoio', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-erbe', linea: 'Legno e bambù',
+    thumb: 'oggetti/moderni/miniature/lb-erbe.jpg', texture: 'oggetti/moderni/miniature/lb-erbe.jpg', colore: 0xd8d2c8,
+    misure: { w: 486, d: 205, h: 432 }, info: { note: 'Collezione Legno e bambù NG Interior' } },
+  { id: 'cm-lb-ulivo', nome: 'Ulivo in vaso di cemento', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-ulivo', linea: 'Legno e bambù',
+    thumb: 'oggetti/moderni/miniature/lb-ulivo.jpg', texture: 'oggetti/moderni/miniature/lb-ulivo.jpg', colore: 0xd8d2c8,
+    misure: { w: 909, d: 1032, h: 1808 }, info: { note: 'Collezione Legno e bambù NG Interior' } },
+  { id: 'cm-lb-eucalipto', nome: 'Rami di eucalipto in bottiglia di vetro', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-eucalipto', linea: 'Legno e bambù',
+    thumb: 'oggetti/moderni/miniature/lb-eucalipto.jpg', texture: 'oggetti/moderni/miniature/lb-eucalipto.jpg', colore: 0xd8d2c8,
+    misure: { w: 313, d: 333, h: 935 }, info: { note: 'Collezione Legno e bambù NG Interior' } },
+  { id: 'cm-lb-lampada-sfera', nome: 'Sospensione in bambù intrecciato, sfera', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-lampada-sfera', linea: 'Legno e bambù',
+    thumb: 'oggetti/moderni/miniature/lb-lampada-sfera.jpg', texture: 'oggetti/moderni/miniature/lb-lampada-sfera.jpg', colore: 0xd8d2c8,
+    misure: { w: 437, d: 437, h: 2700 }, info: { note: 'Collezione Legno e bambù NG Interior' } },
+  { id: 'cm-lb-lampada-campana', nome: 'Sospensione in bambù intrecciato, campana', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-lampada-campana', linea: 'Legno e bambù',
+    thumb: 'oggetti/moderni/miniature/lb-lampada-campana.jpg', texture: 'oggetti/moderni/miniature/lb-lampada-campana.jpg', colore: 0xd8d2c8,
+    misure: { w: 478, d: 478, h: 2700 }, info: { note: 'Collezione Legno e bambù NG Interior' } },
+  { id: 'cm-lb-sgabello-corda', nome: 'Sgabello in rovere con seduta in corda', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-sgabello-corda', linea: 'Legno e bambù',
+    thumb: 'oggetti/moderni/miniature/lb-sgabello-corda.jpg', texture: 'oggetti/moderni/miniature/lb-sgabello-corda.jpg', colore: 0xd8d2c8,
+    misure: { w: 486, d: 486, h: 663 }, info: { note: 'Collezione Legno e bambù NG Interior' } },
+  { id: 'cm-lb-ciotole', nome: 'Pila di ciotole in ceramica', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-ciotole', linea: 'Legno e bambù',
+    thumb: 'oggetti/moderni/miniature/lb-ciotole.jpg', texture: 'oggetti/moderni/miniature/lb-ciotole.jpg', colore: 0xd8d2c8,
+    misure: { w: 229, d: 229, h: 104 }, info: { note: 'Collezione Legno e bambù NG Interior' } },
+  { id: 'cm-lb-espresso', nome: 'Macchina da espresso in acciaio', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-espresso', linea: 'Legno e bambù',
+    thumb: 'oggetti/moderni/miniature/lb-espresso.jpg', texture: 'oggetti/moderni/miniature/lb-espresso.jpg', colore: 0xd8d2c8,
+    misure: { w: 306, d: 561, h: 412 }, info: { note: 'Collezione Legno e bambù NG Interior' } },
+  { id: 'cm-lb-vini', nome: 'Bottiglie di vino e calici su vassoio', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-vini', linea: 'Legno e bambù',
+    thumb: 'oggetti/moderni/miniature/lb-vini.jpg', texture: 'oggetti/moderni/miniature/lb-vini.jpg', colore: 0xd8d2c8,
+    misure: { w: 444, d: 234, h: 317 }, info: { note: 'Collezione Legno e bambù NG Interior' } },
   // ---- LIBRERIA 3D: prodotti veri (Amazon Berkeley Objects, CC BY 4.0) ----
   ...LIBRERIA.map(voceLibreria),
   // ---- Zoccoli (cucina) ----
@@ -304,7 +353,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261119r');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261119s');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -433,15 +482,16 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261119r';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261119s';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
+  'lb-lampada-sfera': 'luci', 'lb-lampada-campana': 'luci', 'lb-sgabello-corda': 'sgabelli', 'lb-ulivo': 'piante', 'lb-erbe': 'piante', 'lb-eucalipto': 'piante',
   'vaso-scultura': 'decor', 'vaso-ulivo': 'piante', 'lux-vaso-pampas': 'piante', 'lux-vaso-fume': 'decor', 'lux-candelieri': 'decor', 'lux-scultura': 'decor' };
 for (const m of MATERIALI) {
   if (!m.moderno) continue;
   m.gruppo = GRUPPO_COLLEZIONE[m.moderno] || 'cucina';
-  m.posa = m.appeso ? 'appeso' : m.gruppo === 'sgabelli' ? 'terra' : 'piano';
+  m.posa = m.appeso ? 'appeso' : m.gruppo === 'sgabelli' || m.moderno === 'lb-ulivo' ? 'terra' : 'piano';
 }
 /** Gruppo di un oggetto nella lista «Aggiungi oggetti» (quelli aggiunti dall'utente: «I miei oggetti»). */
 export function gruppoOggetto(o) { return (o && o.gruppo) || (o && (o.proprio || o.pronto) ? 'miei' : 'cucina'); }
