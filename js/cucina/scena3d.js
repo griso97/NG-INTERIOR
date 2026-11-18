@@ -13,17 +13,17 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261119q';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119q';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261119q';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261119q';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261119q';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261119q';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119q';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119q';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119q';
+} from './modello.js?v=20261119r';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119r';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261119r';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261119r';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261119r';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261119r';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119r';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119r';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119r';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119q';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119r';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -2267,10 +2267,11 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
       const r = def && !def.pronto && !def.moderno && !def.libreria && oggettoDaFoto({ ...def, misure: misOgg }, reRender);
       if (pr) {
         const og = new THREE.Group(); og.add(pr);
-        // come si posa: le LAMPADE pendono dal soffitto, i QUADRI stanno al muro (centro a 155 cm),
+        // come si posa: le LAMPADE e le CAPPE a isola pendono dal soffitto, i QUADRI stanno al muro (centro a 155 cm),
         // sedie, sgabelli e tavoli a TERRA (anche sotto lo sbalzo dell'isola), il resto sul piano
         const posa = def.posa || (def.appeso ? 'appeso' : 'piano');
-        const y = posa === 'piano' ? quotaAppoggio(progetto, m, spTop) : posa === 'parete' ? Math.max(0, Y_QUADRO - (misOgg ? misOgg.h : 0) / 2) : 0;
+        // (le CAPPE a parete sono già alla loro altezza: fondo a 160 cm, canna fino al soffitto)
+        const y = posa === 'piano' ? quotaAppoggio(progetto, m, spTop) : posa === 'parete' && !def.assoluto ? Math.max(0, Y_QUADRO - (misOgg ? misOgg.h : 0) / 2) : 0;
         og.position.set(cx, y, cz); og.rotation.y = -(m.rot || 0) * Math.PI / 180; g3d = og;
         if (posa === 'piano') { og.userData.appoggiabile = true; daPosare.push(og); }
       } else if (r) {

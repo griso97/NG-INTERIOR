@@ -15,18 +15,23 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261119q';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI } from './libreria3d-dati.js?v=20261119q';
-export { CREDITI_LIBRERIA, GRUPPI_OGGETTI };
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261119r';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261119r';
+export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
- *  posa: 'appeso' (lampade: dal soffitto), 'parete' (quadri), 'terra' (sedie, sgabelli, tavoli), 'piano' (vasi). */
+ *  posa: 'appeso' (lampade e cappe a isola: dal soffitto), 'parete' (quadri e cappe a parete: al muro),
+ *  'terra' (sedie, sgabelli, tavoli, piante grandi), 'piano' (vasi, pane, piante piccole).
+ *  assoluto: il 3D è già alla sua altezza (la cappa a parete: fondo a 160 cm, canna fino al soffitto). */
 function voceLibreria(v) {
-  const posa = v.tipo === 'appeso' || v.tipo === 'soffitto' ? 'appeso' : v.tipo === 'parete' ? 'parete' : v.gruppo === 'decor' ? 'piano' : 'terra';
+  const appesa = ['appeso', 'soffitto', 'cappa-isola', 'cappa-soffitto'].includes(v.tipo);
+  const posa = appesa ? 'appeso' : v.tipo === 'parete' || v.tipo === 'cappa' ? 'parete'
+    : v.posa || (['decor', 'cucina', 'piante'].includes(v.gruppo) ? 'piano' : 'terra');
   const foto = `oggetti/libreria/miniature/${v.id}.jpg`;
   return { id: `lib-${v.id}`, nome: v.nome, categoria: 'oggetto', sezione: 'oggetti', libreria: v.id, gruppo: v.gruppo, posa,
-    ...(posa === 'appeso' ? { appeso: true } : {}), thumb: foto, texture: foto, colore: 0xd8d2c8, misure: { ...v.misure },
-    info: { note: CREDITI_LIBRERIA } };
+    ...(appesa ? { appeso: true } : {}), ...(v.tipo === 'cappa' ? { assoluto: true } : {}), ...(v.ritirato ? { ritirato: true } : {}),
+    thumb: foto, texture: foto, colore: 0xd8d2c8, misure: { ...v.misure },
+    info: { note: creditoVoce(v) || CREDITI_LIBRERIA } };
 }
 
 // LEGNI (texture da foto reali, ripetute in base alla dimensione del pezzo)
@@ -299,7 +304,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261119q');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261119r');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -428,11 +433,11 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261119q';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261119r';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
-  'vaso-scultura': 'decor', 'vaso-ulivo': 'decor', 'lux-vaso-pampas': 'decor', 'lux-vaso-fume': 'decor', 'lux-candelieri': 'decor', 'lux-scultura': 'decor' };
+  'vaso-scultura': 'decor', 'vaso-ulivo': 'piante', 'lux-vaso-pampas': 'piante', 'lux-vaso-fume': 'decor', 'lux-candelieri': 'decor', 'lux-scultura': 'decor' };
 for (const m of MATERIALI) {
   if (!m.moderno) continue;
   m.gruppo = GRUPPO_COLLEZIONE[m.moderno] || 'cucina';
@@ -462,7 +467,8 @@ export function materialiPer(sezione, { tutti = false } = {}) {
     case 'binari': l = MATERIALI.filter((m) => m.categoria === 'binario'); break;
     default: l = [];
   }
-  return l.filter(vis);
+  // gli oggetti ritirati non si aggiungono più (restano solo nei progetti già fatti)
+  return l.filter((m) => !m.ritirato && vis(m));
 }
 /** Sfondo CSS del quadratino (foto o colore). */
 export function sfondoSwatch(m) { return m.thumb ? `url('${m.thumb}') center/cover` : (m.css || `#${(m.colore || 0).toString(16).padStart(6, '0')}`); }

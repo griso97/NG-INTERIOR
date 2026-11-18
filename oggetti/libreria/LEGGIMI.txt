@@ -2,3 +2,66 @@ Modelli 3D da Amazon Berkeley Objects (ABO) — https://amazon-berkeley-objects.
 Credito: Amazon.com. Licenza: Creative Commons Attribuzione 4.0 (CC BY 4.0), vedi LICENSE-CC-BY-4.0.txt.
 Modifiche fatte da NG Interior: texture ridotte a 1024 px e ricompresse (JPEG) per il web; geometria invariata.
 L'elenco dei prodotti (con il nome originale) è in js/libreria3d-dati.js.
+
+---------------------------------------------------------------------------------------------
+Modelli 3D da Sketchfab (file sk*.glb) — licenza Creative Commons Attribuzione 4.0 (CC BY 4.0),
+vedi LICENSE-CC-BY-4.0.txt. Ogni modello è dell'autore indicato.
+Modifiche fatte da NG Interior: portati alla misura vera e nel verso giusto, pavimenti finti tolti,
+geometria alleggerita, texture ridotte a 1024 px e ricompresse (JPEG) per il web. Nel sito i cavi
+delle lampade e le canne delle cappe si allungano fino al soffitto scelto.
+
+file — nome nel sito — titolo originale — autore — fonte
+sk6708f383.glb — Tre cilindri in vetro e rame — «Modern Chandelier» — Heliona — https://sketchfab.com/3d-models/6708f383a4334b53b17784f8f2d16215 — CC BY 4.0
+skeb5b03f8.glb — Rami sottili con foglie di luce — «Heracleum (without light)» — Noery — https://sketchfab.com/3d-models/eb5b03f82a104cd591dc66705fb37dac — CC BY 4.0
+sk4b3ae3b8.glb — Barra lineare in legno — «Pendente Mantra 30500» — edudias — https://sketchfab.com/3d-models/4b3ae3b8744d429a8a4aa1b5b5cb4f7c — CC BY 4.0
+sk7d73fd18.glb — Tre coni neri e ottone — «Triple ceiling hanging lamp» — gorzi90 — https://sketchfab.com/3d-models/7d73fd18c28a431ea896558411bce07d — CC BY 4.0
+sk5edba31f.glb — Tre cupole con cavi lunghi — «Aim Pendant Light» — gov3dstudio — https://sketchfab.com/3d-models/5edba31f2fc44062a3c53efae30e8345 — CC BY 4.0
+sk83a6c210.glb — Barra lineare LED nera — «Pendente Mantra 30498» — edudias — https://sketchfab.com/3d-models/83a6c210d5bc4efda2bf410fa5241a5b — CC BY 4.0
+skdd58bb23.glb — Sfera intrecciata — «Roomlight modern plastic style» — bindertom61 — https://sketchfab.com/3d-models/dd58bb234098407180ef5379826aa23e — CC BY 4.0
+sk4516a58e.glb — Cupola a fili neri — «Pendente Mantra 6680» — edudias — https://sketchfab.com/3d-models/4516a58e35a44f8db1dda79e40da3f12 — CC BY 4.0
+sk7c0acfd6.glb — Cupola a fili neri piccola — «Pendente Mantra 6681» — edudias — https://sketchfab.com/3d-models/7c0acfd6ec124d66912f5416caae68b7 — CC BY 4.0
+sk930a3ee0.glb — Lanterna bianca con cinghia in cuoio — «Pendente Mantra 30467» — edudias — https://sketchfab.com/3d-models/930a3ee08ca948c2abc70764de6bb8cc — CC BY 4.0
+skedafa17f.glb — Sei globi opalini e ottone — «Modern Ceiling Light Fixture» — goakley — https://sketchfab.com/3d-models/edafa17f987a43f5adbff33652fe7a9c — CC BY 4.0
+sk500cb0cc.glb — Tre tubi sottili — «Spiral Pendant Lights» — Jeetu1996 — https://sketchfab.com/3d-models/500cb0cc68ef46eebc8959d0e3da38ef — CC BY 4.0
+sk2be0e4ef.glb — Imbottito giallo, gambe in legno — «Dima upholstered barstool» — andriano82 — https://sketchfab.com/3d-models/2be0e4efd95d4b9b9740eeeaae318af6 — CC BY 4.0
+sk3417cb19.glb — Velluto verde e metallo — «Stool Chair» — lilwater — https://sketchfab.com/3d-models/3417cb19a6de4ffa8da993699309f3fd — CC BY 4.0
+sk382d65ce.glb — Pelle nera e legno — «Bar Stool» — raeganmaddox — https://sketchfab.com/3d-models/382d65cea3e84bb68b81fd318b10d12c — CC BY 4.0
+sk529d3296.glb — Avorio, gambe sottili — «BAR STOOL AVORIO» — CGHUGGE — https://sketchfab.com/3d-models/529d329618b1410abd70b320dbdc35bc — CC BY 4.0
+sk72772460.glb — Nero e legno, schienale basso — «Counter Stool 01» — dominik_lebiedowicz — https://sketchfab.com/3d-models/72772460843d443bbe16f9ede0572c6b — CC BY 4.0
+sk621c04ba.glb — Seduta bianca e ottone — «RHINO 6: STOOOOOL» — muizkamson — https://sketchfab.com/3d-models/621c04ba08fc47eaa0bf89b1c6a001f4 — CC BY 4.0
+sk3ea63212.glb — Tavolo in rovere con 4 sedie bianche — «Modern Table» — khanhnguyen1189 — https://sketchfab.com/3d-models/3ea632120d76443f830912cb84976b1e — CC BY 4.0
+sk0ad70af2.glb — Sedia in legno chiaro — «High-poly Modern Wood Chair» — brainfree — https://sketchfab.com/3d-models/0ad70af21c984719a6120003792ef056 — CC BY 4.0
+skd0e2b567.glb — Sedia scultura in legno — «Pipo Chair» — mobaali — https://sketchfab.com/3d-models/d0e2b567dd4e4f43aea133e473abd7dd — CC BY 4.0
+sk6602fa4a.glb — Sedia in filo con cuscino — «Bertoia chair» — rocio133 — https://sketchfab.com/3d-models/6602fa4a62774841991c5c35783d884b — CC BY 4.0
+sk1ab9bf84.glb — Monstera su supporto in legno — «Monstera Deliciosa Potted Mid-Century plant» — ChubbyPanda — https://sketchfab.com/3d-models/1ab9bf841df04c07b1819be596327629 — CC BY 4.0
+ske9832f38.glb — Pothos in vaso rosa — «[FREE] Pothos Potted Plant - Money Plant» — AllQuad — https://sketchfab.com/3d-models/e9832f38484f4f85b3f9081b51fa3799 — CC BY 4.0
+sk0f58352d.glb — Ramo di ciliegio in vaso nero — «flowers with the vase» — Gajk.Mv — https://sketchfab.com/3d-models/0f58352d377840cdbeef0bd71b24aff6 — CC BY 4.0
+skff003601.glb — Monstera in vaso a righe — «House plant» — Lahcen.el — https://sketchfab.com/3d-models/ff00360145c444ef9b63ec27644e9a58 — CC BY 4.0
+sk8b73fd97.glb — Bonsai — «Bonsai» — Vermos — https://sketchfab.com/3d-models/8b73fd97545b468288cd9ba03c93d358 — CC BY 4.0
+sk647a28ca.glb — Magnolie in vaso di vetro — «Magnolia in a vase» — vav206 — https://sketchfab.com/3d-models/647a28ca37a84e0bbc312d0b8044452d — CC BY 4.0
+sk7c5e77d5.glb — Pianta verde in vaso bianco — «Indoor Plant» — malekalmsri — https://sketchfab.com/3d-models/7c5e77d572c848458e5d898ac49f6f27 — CC BY 4.0
+sk9b9c8867.glb — Terrario in vetro e rame — «Plant» — artsydarcy — https://sketchfab.com/3d-models/9b9c886786fd4e8e9102292a728d544c — CC BY 4.0
+sk7c922057.glb — Lavanda in vaso lilla — «lavender_vase» — mounica.choco9 — https://sketchfab.com/3d-models/7c92205759f24f8fb0a0974d192e2c74 — CC BY 4.0
+sk9d67ee5e.glb — Pianta alta in vaso bianco — «Tall Potted House Plant» — devoncarlson — https://sketchfab.com/3d-models/9d67ee5efd7e414ebf81a3dcc6bf7ada — CC BY 4.0
+sk9cf28967.glb — Coppia di piante grasse — «Zebra Plant (Haworthia fasciata)» — nathan.d1563 — https://sketchfab.com/3d-models/9cf289677295471b976182e94bebf141 — CC BY 4.0
+skee77f59a.glb — Pianta tropicale in vaso blu — «Tropical Pot Plant» — nikkip — https://sketchfab.com/3d-models/ee77f59a9fc24e318f96bab323739e71 — CC BY 4.0
+sk3345ca88.glb — Palmetta in vaso bianco — «Plant With Pot» — sudiptkmr — https://sketchfab.com/3d-models/3345ca8861c64885bd01210895d48e5a — CC BY 4.0
+skb9bbb7b0.glb — Pianta in vaso di pietra — «Potted plant» — kayaaku — https://sketchfab.com/3d-models/b9bbb7b0c02f4fb29976bb1d004cb2d9 — CC BY 4.0
+skbb7e9cf4.glb — Pane nel cesto di vimini — «Bread in Basket» — topfrank2013 — https://sketchfab.com/3d-models/bb7e9cf4496f420c8d825d2e507f124b — CC BY 4.0
+skf95a2e18.glb — Pagnotta casereccia — «Homemade Bread   .::RAWscan::.» — spogna — https://sketchfab.com/3d-models/f95a2e18d8454902a779360306d680c5 — CC BY 4.0
+sk35c647c3.glb — Pane rustico — «Bread» — topfrank2013 — https://sketchfab.com/3d-models/35c647c3231b4d7ba3dfdc1d0ba4d036 — CC BY 4.0
+sk9ccda2fd.glb — Macchina da caffè filtro — «Coffee maker» — kird3rf — https://sketchfab.com/3d-models/9ccda2fddba846e6ba97eb774b8a09c6 — CC BY 4.0
+ske846cb48.glb — Cappa a parete, piramide in acciaio — «Range Hood (Kitchen Hood)» — govindu94 — https://sketchfab.com/3d-models/e846cb48e88446808af55976ff76b1da — CC BY 4.0
+sk44b527d7.glb — Cappa a parete nera con vetro — «Kitchen Hood Model 3D fbx» — piotr.suchecki — https://sketchfab.com/3d-models/44b527d7d10d428b9930732553f479a2 — CC BY 4.0
+skf2de7240.glb — Cappa a parete grigia — «Kitchen Hood Model 3D fbx» — piotr.suchecki — https://sketchfab.com/3d-models/f2de7240cfe64ebebff8f6d78f7f7879 — CC BY 4.0
+ske7408d63.glb — Cappa a parete acciaio e vetro curvo — «GE Stainless Steel Chimney StyleRange Hood» — allenbranch — https://sketchfab.com/3d-models/e7408d63175b4d76b8e7b2ca7435fc10 — CC BY 4.0
+sk73133922.glb — Cappa a parete nera piatta — «Kitchen Hood Model 3D fbx» — piotr.suchecki — https://sketchfab.com/3d-models/731339229a10410b9a530cb8c647cd27 — CC BY 4.0
+ska3ec1063.glb — Cappa a parete, blocco nero — «FREE Rectangular Cooker Hood 60 X 40 cm» — marcin_malcherek — https://sketchfab.com/3d-models/a3ec10632d83426aaa5dad54422a6aec — CC BY 4.0
+sk7c16c7ed.glb — Cappa a parete bianca — «Kitchen Hood Model 3D fbx» — piotr.suchecki — https://sketchfab.com/3d-models/7c16c7ed67cd4315a23d6e8f2d2060cc — CC BY 4.0
+ska5da5c23.glb — Cappa a parete grigio chiaro — «Kitchen Hood Model 3D fbx» — piotr.suchecki — https://sketchfab.com/3d-models/a5da5c237eaf485f9059c91d802c8160 — CC BY 4.0
+skbfccf170.glb — Cappa a parete nera, vetro sotto — «Kitchen Hood Model 3D Obj» — piotr.suchecki — https://sketchfab.com/3d-models/bfccf170bec644f989141d539098b733 — CC BY 4.0
+skc3657ed8.glb — Cappa a parete inclinata nera — «Kitchen Hood Model 3D fbx» — piotr.suchecki — https://sketchfab.com/3d-models/c3657ed8c7f24cf4bfa3cd87e35d71a8 — CC BY 4.0
+ska8c9ef47.glb — Cappa a isola, camino nero — «Kitchen Hood Model 3D fbx» — piotr.suchecki — https://sketchfab.com/3d-models/a8c9ef47afd541b0a13a1df1e0dfe0b8 — CC BY 4.0
+sk465e74a0.glb — Cappa a isola, cilindro nero sospeso — «Kitchen Hood GLOBALO» — piotr.suchecki — https://sketchfab.com/3d-models/465e74a0624f409b90c76db15650bffc — CC BY 4.0
+sk3131f5f2.glb — Cappa a isola bianca appesa a cavi — «Kitchen Hood Model 3D fbx» — piotr.suchecki — https://sketchfab.com/3d-models/3131f5f2cd784d6d999974fe5186ab7e — CC BY 4.0
+sk43a5bc29.glb — Cappa a soffitto nera, piatta — «Kitchen Hood Model 3D fbx» — piotr.suchecki — https://sketchfab.com/3d-models/43a5bc290c174e4eb0c10b79512e363c — CC BY 4.0

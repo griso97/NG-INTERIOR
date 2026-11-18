@@ -24,14 +24,14 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261119q';
-import { renderPianta } from './pianta.js?v=20261119q';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261119q';
-import { calcolaDistintaCucina } from './distinta.js?v=20261119q';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261119q';
-import { agganciaTema } from '../tema.js?v=20261119q';
-import { tendinePannello } from '../tendine-pannello.js?v=20261119q';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261119q';
+} from './modello.js?v=20261119r';
+import { renderPianta } from './pianta.js?v=20261119r';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261119r';
+import { calcolaDistintaCucina } from './distinta.js?v=20261119r';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261119r';
+import { agganciaTema } from '../tema.js?v=20261119r';
+import { tendinePannello } from '../tendine-pannello.js?v=20261119r';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261119r';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1272,7 +1272,7 @@ function agganciaTetto(root) {
 }
 
 // --------- ACCESSORI: catalogo a TENDINE per categoria (passo Accessori e rendering) ---------
-const ICONE_GRUPPI = { luci: '💡', sgabelli: '🪑', pranzo: '🍽', decor: '🏺', cucina: '🍋', miei: '📷' };
+const ICONE_GRUPPI = { luci: '💡', sgabelli: '🪑', pranzo: '🍽', piante: '🪴', cucina: '🍋', decor: '🏺', cappe: '💨', miei: '📷' };
 /** Le categorie del catalogo con i loro oggetti (libreria 3D, collezione, quelli fatti dalle foto). */
 function gruppiAccessori() {
   if (!matMod) return [];
@@ -1288,7 +1288,8 @@ function htmlCatalogoAccessori() {
   const T = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
   return `<div class="acc-catalogo">${gr.map((g) => {
     const aperta = step2.accGruppo === g.id, n = g.voci.length + g.pronti.length;
-    const crediti = aperta && g.voci.some((o) => o.libreria) && matMod.CREDITI_LIBRERIA;
+    // crediti dei modelli 3D della categoria aperta: Amazon (uno per tutti) e ogni autore di Sketchfab
+    const crediti = !aperta ? [] : [...new Set(g.voci.filter((o) => o.libreria).map((o) => (o.info && o.info.note) || matMod.CREDITI_LIBRERIA))];
     return `
     <button type="button" class="acc-cat ${aperta ? 'aperta' : ''}" data-accgruppo="${g.id}" aria-expanded="${aperta}">
       <span class="acc-ico" aria-hidden="true">${ICONE_GRUPPI[g.id] || '•'}</span><span class="acc-nome">${g.nome}</span>
@@ -1301,7 +1302,7 @@ function htmlCatalogoAccessori() {
         ${g.pronti.map((x) => `<button type="button" class="ogg-voce" data-aggtipo="${x.id}">${iconaMobile(x.id)}<span>${x.nome}</span></button>`).join('')}
       </div>` : ''}
       ${g.id === 'miei' && !n ? '<div class="riga-3d">I tuoi oggetti (friggitrici, tostapane…) si creano dalle foto in ⚙ Impostazioni → Oggetti ed elettrodomestici.</div>' : ''}
-      ${crediti ? `<div class="crediti-ogg">${escHtml(crediti)} · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></div>` : ''}
+      ${crediti.length ? `<div class="crediti-ogg"><span data-no-i18n>${crediti.map(escHtml).join('<br>')}</span><br><a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></div>` : ''}
     </div>` : ''}`;
   }).join('')}</div>`;
 }
@@ -1536,7 +1537,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261119q');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261119r');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2266,13 +2267,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261119q');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261119r');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261119q'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261119r'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
