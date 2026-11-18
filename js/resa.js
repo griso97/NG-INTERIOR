@@ -58,7 +58,9 @@ export function creaResa(opz) {
   let livello = 0;
   if (!tel) { try { livello = Math.min(LIVELLI.length - 1, Math.max(0, Number(localStorage.getItem('ng-3d-livello-fermo')) || 0)); } catch (_) { /* niente */ } }
   const areaCss = () => { const el = renderer.domElement; return Math.max(1, (el.clientWidth || el.width) * (el.clientHeight || el.height)); };
-  const dprFermo = () => tel ? Math.min(DPR, 3)
+  // telefono da fermo: al massimo 2× (a 3× erano 9 volte i pixel di prima, con le ombre di contatto:
+  // su iPhone il disegno nitido bloccava il dito per un attimo a ogni pausa)
+  const dprFermo = () => tel ? Math.min(DPR, 2)
     : Math.max(Math.min(DPR, 1.5), Math.min(2, Math.sqrt(LIVELLI[livello].pix / areaCss())));
   try { localStorage.removeItem('ng-3d-fluidita'); } catch (_) { /* niente */ }
   // COMPUTER, mentre si gira la vista: l'immagine resta SEMPRE nitida come
@@ -86,10 +88,10 @@ export function creaResa(opz) {
     // computer, disegno da fermo (una volta sola): più campioni, ombre di contatto più lisce
     if (!tel) campioniFermo();
     quad = new FullScreenQuad(ao.blendMaterial);
-    if (!tel) {
-      aoMoto = nuovoAO(s.x, s.y);                             // le sue memorie: niente memoria rifatta a ogni giro
-      campioniMoto();
-    }
+    // ombre di contatto del MOVIMENTO con le loro memorie (anche sul telefono): prima, sul telefono,
+    // a ogni pausa/ripresa si rifacevano le memorie grandi delle ombre (a scatti, pesante)
+    aoMoto = nuovoAO(s.x, s.y);
+    campioniMoto();
   } catch (e) { console.warn('Ombre di contatto non disponibili', e); ao = null; aoMoto = null; }
 
   let sporco = true, ultimoMoto = 0, nitido = false;
@@ -123,7 +125,7 @@ export function creaResa(opz) {
   /** Ombre di contatto del movimento: 16 campioni per pixel, o 8 se la scheda grafica è lenta. */
   function campioniMoto() {
     if (!aoMoto) return;
-    const n = aoLeggera ? 8 : 16;
+    const n = aoLeggera || tel ? 8 : 16;                       // telefono: leggero mentre si gira
     aoMoto.updateGtaoMaterial({ samples: n });
     aoMoto.updatePdMaterial({ samples: n });
   }
@@ -196,7 +198,7 @@ export function creaResa(opz) {
   const campioni = [];
   function misura(ora, consecutivo) {
     const dt = ora - tPrec; tPrec = ora;
-    if (!aoMoto || !consecutivo) return;
+    if (!aoMoto || !consecutivo || tel) return;
     if (++nMoto < 20) return;                                  // i primi fotogrammi (preparazione) non contano
     campioni.push(dt);
     if (campioni.length < 12) return;

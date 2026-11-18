@@ -12,11 +12,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261120a';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261120a';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261120a';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261120b';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261120b';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261120b';
 import { sfondoDi } from './sfondi.js?v=20261111b';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261120a';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261120b';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -503,9 +503,11 @@ export function aggiornaScena(config) {
   _zoneModuli = []; _selRip = null;
   impostaSfondo(config.sfondo || 'chiaro');
   // Pulisce i figli precedenti
+  // (tutti i pezzi, anche quelli dentro i gruppi: prima solo il primo livello e la memoria
+  // della scheda grafica cresceva a ogni modifica)
   while (gruppoArmadio.children.length) {
     const c = gruppoArmadio.children.pop();
-    c.geometry?.dispose?.();
+    c.traverse((o) => o.geometry?.dispose?.());
   }
 
   const prof = profonditaCarcassa(config);

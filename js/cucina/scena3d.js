@@ -13,18 +13,18 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261120a';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120a';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261120a';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261120a';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261120a';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120a';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120a';
-import { parametri } from '../parametri.js?v=20261120a';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120a';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120a';
+} from './modello.js?v=20261120b';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120b';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261120b';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261120b';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261120b';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120b';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120b';
+import { parametri } from '../parametri.js?v=20261120b';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120b';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120b';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120a';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120b';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -687,6 +687,10 @@ function muriVisibili() {
     o.visible = (camera.position.x - o.position.x) * n.x + (camera.position.z - o.position.z) * n.z > -40;
   }
 }
+/** Memoria della scheda grafica (per le prove): geometrie, texture, programmi. */
+export function memoria3d() { return renderer ? { geo: renderer.info.memory.geometries, tex: renderer.info.memory.textures, prog: (renderer.info.programs || []).length } : null; }
+/** Dove sta la vista (per le prove): distanza dal punto guardato e angolo attorno. */
+export function vista3d() { return camera && controls ? { dist: Math.round(camera.position.distanceTo(controls.target)), az: +controls.getAzimuthalAngle().toFixed(3), on: controls.enabled } : null; }
 export function guardaDa(px, py, pz, tx, ty, tz) {
   if (!camera || !controls) return;
   camera.position.set(px, py, -pz); controls.target.set(tx, ty, -tz); controls.update();
@@ -2142,7 +2146,25 @@ async function caricaModelloOgg(id) {
   finally { _oggPending[id] = false; if (_lastProgetto && scene) aggiornaScena3d(_lastProgetto, false, selId); }
 }
 
+/**
+ * Ricostruisce la scena. Le geometrie dei pezzi VECCHI che la scena nuova non usa più si liberano
+ * dalla memoria della scheda grafica: prima restavano tutte (ogni tocco, spostamento o scelta
+ * rifà la scena) e sul telefono, dopo un po' di tocchi, la memoria si riempiva e il 3D si bloccava.
+ */
 export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
+  const vecchi = gruppo ? gruppo.children.slice() : [];
+  costruisciScena3d(progetto, reframe, selezionato);
+  if (!vecchi.length || !gruppo) return;
+  const usate = new Set();
+  gruppo.traverse((o) => { if (o.geometry) usate.add(o.geometry); });
+  const libera = new Set();
+  for (const v of vecchi) {
+    if (v.parent === gruppo) continue;                       // ancora in scena (riusato)
+    v.traverse((o) => { if (o.geometry && !usate.has(o.geometry)) libera.add(o.geometry); });
+  }
+  for (const g of libera) g.dispose();
+}
+function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   if (!scene) return;
   selId = selezionato;
   _lastProgetto = progetto;

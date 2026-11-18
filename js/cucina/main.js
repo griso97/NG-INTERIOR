@@ -24,14 +24,14 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
-} from './modello.js?v=20261120a';
-import { renderPianta } from './pianta.js?v=20261120a';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261120a';
-import { calcolaDistintaCucina } from './distinta.js?v=20261120a';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261120a';
-import { agganciaTema } from '../tema.js?v=20261120a';
-import { tendinePannello } from '../tendine-pannello.js?v=20261120a';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261120a';
+} from './modello.js?v=20261120b';
+import { renderPianta } from './pianta.js?v=20261120b';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261120b';
+import { calcolaDistintaCucina } from './distinta.js?v=20261120b';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261120b';
+import { agganciaTema } from '../tema.js?v=20261120b';
+import { tendinePannello } from '../tendine-pannello.js?v=20261120b';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261120b';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1083,27 +1083,41 @@ canvas3d.addEventListener('click', (e) => {
 
 // Spostare gli OGGETTI (sgabelli, arredo) trascinandoli nel rendering.
 // I moduli restano fissi.
-let spostamentoAttivo = false, ignoraClick = false;
+// OGNI DITO PER CONTO SUO (telefono): lo spostamento segue SOLO il dito che ha preso l'oggetto.
+// Prima un secondo dito (es. per lo zoom) finiva anche lui allo spostamento e la vista non vedeva
+// mai il suo «dito alzato»: restava con un dito «fantasma» premuto, la vista si bloccava, un dito
+// solo faceva zoom invece di girare. Ora:
+//  - dita date alla vista (girare, zoom): la vista le segue dall'inizio alla fine; mentre la vista
+//    ha già un dito giù, un altro dito non prende oggetti (è uno zoom a due dita);
+//  - mentre si sposta un oggetto, un secondo dito si ignora del tutto (né oggetto né vista).
+let spostamentoAttivo = false, ignoraClick = false, ditoOggetto = null;
+const ditiVista = new Set(), ditiIgnorati = new Set();
+const fermaEvento = (e) => { e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault(); };
 canvas3d.addEventListener('pointerdown', (e) => {
-  if (progetto.stepCorrente !== P_3D || !scena3dMod || !scena3dMod.iniziaSpostamento || e.button > 0) return;
+  if (spostamentoAttivo) { ditiIgnorati.add(e.pointerId); fermaEvento(e); return; }
+  if (ditiVista.size || progetto.stepCorrente !== P_3D || !scena3dMod || !scena3dMod.iniziaSpostamento || e.button > 0) { ditiVista.add(e.pointerId); return; }
   const ok = scena3dMod.iniziaSpostamento(e.clientX, e.clientY, (id) => {
     const m = trovaMobileLibero(progetto, id);
     return !!m && categoriaTipo(m.tipo) === 'oggetto';
   });
-  if (!ok) return;
-  spostamentoAttivo = true;
-  e.stopImmediatePropagation(); e.preventDefault();
+  if (!ok) { ditiVista.add(e.pointerId); return; }
+  spostamentoAttivo = true; ditoOggetto = e.pointerId;
+  fermaEvento(e);
   try { canvas3d.setPointerCapture(e.pointerId); } catch { /* niente */ }
 }, true);
 canvas3d.addEventListener('pointermove', (e) => {
-  if (!spostamentoAttivo) return;
+  if (ditiIgnorati.has(e.pointerId)) { fermaEvento(e); return; }
+  if (!spostamentoAttivo || e.pointerId !== ditoOggetto) return;
   e.stopImmediatePropagation();
   scena3dMod.muoviSpostamento(e.clientX, e.clientY);
 }, true);
 const fineSpost = (e) => {
-  if (!spostamentoAttivo) return;
-  spostamentoAttivo = false;
+  if (e && ditiIgnorati.delete(e.pointerId)) { fermaEvento(e); return; }
+  if (e) ditiVista.delete(e.pointerId);
+  if (!spostamentoAttivo || (e && e.pointerId !== ditoOggetto)) return;
+  spostamentoAttivo = false; ditoOggetto = null;
   if (e) e.stopImmediatePropagation();
+  try { if (e) canvas3d.releasePointerCapture(e.pointerId); } catch { /* niente */ }
   const r = scena3dMod.fineSpostamento();
   const m = r && trovaMobileLibero(progetto, r.id);
   if (!m || !r.mosso) return;
@@ -1120,6 +1134,10 @@ const fineSpost = (e) => {
 };
 canvas3d.addEventListener('pointerup', fineSpost, true);
 canvas3d.addEventListener('pointercancel', fineSpost, true);
+// dito alzato fuori dalla vista o pagina lasciata a metà gesto: niente dita rimaste «giù»
+window.addEventListener('pointerup', (e) => { ditiVista.delete(e.pointerId); ditiIgnorati.delete(e.pointerId); });
+window.addEventListener('pointercancel', (e) => { ditiVista.delete(e.pointerId); ditiIgnorati.delete(e.pointerId); });
+window.addEventListener('blur', () => { ditiVista.clear(); ditiIgnorati.clear(); if (spostamentoAttivo) fineSpost(null); });
 
 // BASE ANGOLO: lati e profondità modificabili (misure del fornitore)
 function htmlBaseAngolo(m) {
@@ -1573,7 +1591,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261120a');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261120b');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2305,13 +2323,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261120a');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261120b');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261120a'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261120b'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
