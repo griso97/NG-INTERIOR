@@ -32,9 +32,9 @@ export const PARAMETRI_DEFAULT = Object.freeze({
     traseraMeno: 72,      // trasera: larghezza = modulo − traseraMeno
     piccoloFinoA: 155,    // frontale fino a… mm → cassetto piccolo
     piccoloTrasera: 59,   // altezza trasera del cassetto piccolo
-    medioFinoA: null,     // frontale fino a… mm → cassetto medio (vuoto = non si usa)
-    medioTrasera: null,   // altezza trasera del cassetto medio
-    grandeTrasera: 155,   // altezza trasera del cassetto grande (frontali più alti)
+    medioFinoA: null,     // frontale fino a… mm → cassetto medio (vuoto = tutti i frontali più alti del piccolo)
+    medioTrasera: 155,    // altezza trasera del cassetto medio
+    grandeTrasera: null,  // altezza trasera del cassetto grande (vuoto = non si usa; frontali più alti del medio)
   },
 });
 
@@ -43,8 +43,13 @@ const numVuoto = (v) => { if (v === '' || v === null || v === undefined) return 
 
 /** Unisce i valori salvati con quelli di partenza (un numero mancante o sbagliato → quello di partenza). */
 function completa(s) {
+  // prima versione: il cassetto da 155 si chiamava «grande» e il medio era vuoto → ora è il MEDIO
+  if (s && s.cassetti && !s.v && s.cassetti.medioTrasera == null && Number(s.cassetti.grandeTrasera) > 0) {
+    s = { ...s, cassetti: { ...s.cassetti, medioTrasera: s.cassetti.grandeTrasera, grandeTrasera: null } };
+  }
   const D = PARAMETRI_DEFAULT, a = (s && s.ante) || {}, j = (s && s.manigliaJ) || {}, c = (s && s.cassetti) || {};
   return {
+    v: 2,
     ante: {
       ariaAltezza: Math.max(0, num(a.ariaAltezza, D.ante.ariaAltezza)),
       ariaLarghezza: Math.max(0, num(a.ariaLarghezza, D.ante.ariaLarghezza)),
@@ -63,7 +68,7 @@ function completa(s) {
       piccoloTrasera: Math.max(1, num(c.piccoloTrasera, D.cassetti.piccoloTrasera)),
       medioFinoA: 'medioFinoA' in c ? numVuoto(c.medioFinoA) : D.cassetti.medioFinoA,
       medioTrasera: 'medioTrasera' in c ? numVuoto(c.medioTrasera) : D.cassetti.medioTrasera,
-      grandeTrasera: Math.max(1, num(c.grandeTrasera, D.cassetti.grandeTrasera)),
+      grandeTrasera: 'grandeTrasera' in c ? numVuoto(c.grandeTrasera) : D.cassetti.grandeTrasera,
     },
   };
 }
@@ -91,10 +96,14 @@ export function ripristinaParametri() {
 // un'altra scheda (o la copia completa) ha cambiato i parametri: si rileggono
 if (typeof window !== 'undefined') window.addEventListener('storage', (e) => { if (e.key === CHIAVE || e.key === null) _cache = null; });
 
-/** Che cassetto è (dall'altezza del frontale): 'piccolo' | 'medio' | 'grande', con l'altezza della trasera. */
+/** Che cassetto è (dall'altezza del frontale): 'piccolo' | 'medio' | 'grande', con l'altezza della trasera.
+ *  piccolo: frontale fino a piccoloFinoA · grande (solo se ha la sua trasera): frontale più alto del
+ *  medio (medioFinoA) · medio: tutti gli altri. Un tipo senza trasera non si usa. */
 export function tipoCassetto(hFrontale, p = parametri()) {
   const c = p.cassetti;
-  if (hFrontale <= c.piccoloFinoA) return { tipo: 'piccolo', trasera: c.piccoloTrasera };
-  if (c.medioFinoA && c.medioTrasera && hFrontale <= c.medioFinoA) return { tipo: 'medio', trasera: c.medioTrasera };
-  return { tipo: 'grande', trasera: c.grandeTrasera };
+  const piccolo = { tipo: 'piccolo', trasera: c.piccoloTrasera }, medio = c.medioTrasera ? { tipo: 'medio', trasera: c.medioTrasera } : null;
+  const grande = c.grandeTrasera ? { tipo: 'grande', trasera: c.grandeTrasera } : null;
+  if (hFrontale <= c.piccoloFinoA) return piccolo;
+  if (grande && (!medio || (c.medioFinoA && hFrontale > c.medioFinoA))) return grande;
+  return medio || grande || piccolo;
 }

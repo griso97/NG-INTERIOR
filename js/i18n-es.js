@@ -1869,4 +1869,9 @@ window.NG_I18N_ES = {
  "Cassetti profondità {0} cm · piccolo": "Cajones profundidad {0} cm · pequeño",
  "Cassetti profondità {0} cm · medio": "Cajones profundidad {0} cm · mediano",
  "Cassetti profondità {0} cm · grande": "Cajones profundidad {0} cm · grande",
+ "tutti gli altri": "todos los demás",
+ "più alti del medio": "más altos que el mediano",
+ "Il cassetto grande: lascialo vuoto finché non ti serve. Quando lo usi, scrivi anche fino a che altezza di frontale arriva il medio: i frontali più alti diventano grandi.": "El cajón grande: déjalo vacío hasta que lo necesites. Cuando lo uses, escribe también hasta qué altura de frente llega el mediano: los frentes más altos pasan a grandes.",
+ "Esempio: modulo da 60 → fondo {0} × {1} mm · trasera {2} × {3} piccolo, {4} × {5} medio": "Ejemplo: módulo de 60 → fondo {0} × {1} mm · trasera {2} × {3} pequeño, {4} × {5} mediano",
+ "Esempio: modulo da 60 → fondo {0} × {1} mm · trasera {2} × {3} piccolo": "Ejemplo: módulo de 60 → fondo {0} × {1} mm · trasera {2} × {3} pequeño",
 };

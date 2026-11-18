@@ -8,18 +8,18 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261119v';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119v';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119v';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119v';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119v';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119v';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119v';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119v';
-import { agganciaTema } from './tema.js?v=20261119v';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119v';
-import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261119v';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261119v';
+} from './catalogo.js?v=20261119w';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119w';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119w';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119w';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119w';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119w';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119w';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119w';
+import { agganciaTema } from './tema.js?v=20261119w';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119w';
+import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261119w';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261119w';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1023,11 +1023,11 @@ function renderParametri(S) {
         <thead><tr><th></th><th>Frontale fino a</th><th>Altezza trasera</th></tr></thead>
         <tbody>
           <tr><th>Cassetto piccolo</th><td>${campo('cassetti.piccoloFinoA', '')}</td><td>${campo('cassetti.piccoloTrasera', '')}</td></tr>
-          <tr><th>Cassetto medio</th><td>${campo('cassetti.medioFinoA', '', '', { ph: 'non usato' })}</td><td>${campo('cassetti.medioTrasera', '', '', { ph: 'non usato' })}</td></tr>
-          <tr><th>Cassetto grande</th><td class="par-piu">frontali più alti</td><td>${campo('cassetti.grandeTrasera', '')}</td></tr>
+          <tr><th>Cassetto medio</th><td>${campo('cassetti.medioFinoA', '', '', { ph: '—' })}</td><td>${campo('cassetti.medioTrasera', '', '', { ph: '—' })}</td></tr>
+          <tr><th>Cassetto grande</th><td class="par-piu">più alti del medio</td><td>${campo('cassetti.grandeTrasera', '', '', { ph: '—' })}</td></tr>
         </tbody>
       </table>
-      <p class="imp-desc">Il cassetto medio: lascialo vuoto se il tuo sistema ha solo due altezze.</p>
+      <p class="imp-desc">Il cassetto grande: lascialo vuoto finché non ti serve. Quando lo usi, scrivi anche fino a che altezza di frontale arriva il medio: i frontali più alti diventano grandi.</p>
       <div class="par-esempio" id="par-es-cass" data-no-i18n></div>
     </div>
     <div class="par-azioni">
@@ -1038,8 +1038,8 @@ function renderParametri(S) {
     const Q = parametri(), A = Q.ante, c = Q.cassetti, f = (n) => String(Math.round(n * 10) / 10);
     el.querySelector('#par-es-ante').textContent = tr(`Esempio: modulo 600 × 700 → 1 anta ${f(600 - A.ariaLarghezza)} × ${f(700 - A.ariaAltezza)} mm, 2 ante ${f((600 - A.ariaLarghezza - A.ariaTraAnte) / 2)} × ${f(700 - A.ariaAltezza)} mm`);
     el.querySelector('#par-es-j').textContent = tr(`Esempio: anta da 700 con maniglia a J → 700 − ${f(A.ariaAltezza)} − ${f(Q.manigliaJ.spessore)} = ${f(700 - A.ariaAltezza - Q.manigliaJ.spessore)} mm`);
-    const medio = c.medioFinoA && c.medioTrasera ? `, ${f(600 - c.traseraMeno)} × ${f(c.medioTrasera)} medio` : '';
-    el.querySelector('#par-es-cass').textContent = tr(`Esempio: modulo da 60 → fondo ${f(600 - c.fondoMeno)} × ${f(c.fondoProfondita)} mm · trasera ${f(600 - c.traseraMeno)} × ${f(c.piccoloTrasera)} piccolo${medio}, ${f(600 - c.traseraMeno)} × ${f(c.grandeTrasera)} grande`);
+    const tL = f(600 - c.traseraMeno), tipi = [[c.piccoloTrasera, 'piccolo'], [c.medioTrasera, 'medio'], [c.grandeTrasera, 'grande']].filter(([h]) => h);
+    el.querySelector('#par-es-cass').textContent = tr(`Esempio: modulo da 60 → fondo ${f(600 - c.fondoMeno)} × ${f(c.fondoProfondita)} mm · trasera ${tipi.map(([h, n]) => `${tL} × ${f(h)} ${n}`).join(', ')}`);
   };
   esempi();
   let timer = null;
