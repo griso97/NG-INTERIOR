@@ -5,21 +5,29 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261119o';
+import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261119p';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo, fotoRealisticaArmadio,
   iniziaSpostamentoRipiano, muoviSpostamentoRipiano, fineSpostamentoRipiano,
   toccoArmadio, ripianiCorrenti, posizioneNuovoRipiano, evidenziaRipiano,
-} from './scena3d.js?v=20261119o';
-import { SFONDI_LISTA } from './sfondi.js?v=20261119o';
-import { agganciaTema } from './tema.js?v=20261119o';
-import { renderPannello, configDefault, adattaModuli } from './interfaccia.js?v=20261119o';
-import { renderDistinta } from './distinta.js?v=20261119o';
-import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261119o';
-import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261119o';
+} from './scena3d.js?v=20261119p';
+import { SFONDI_LISTA } from './sfondi.js?v=20261119p';
+import { agganciaTema } from './tema.js?v=20261119p';
+import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli } from './interfaccia.js?v=20261119p';
+import { tendinePannello } from './tendine-pannello.js?v=20261119p';
+import { renderDistinta } from './distinta.js?v=20261119p';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261119p';
+import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261119p';
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js?v=20261119o';
+} from './storage.js?v=20261119p';
+
+// PANNELLO ORDINATO: ogni sezione è una tendina (chiusa, si apre toccando il titolo);
+// la prima volta aperte solo Tipo armadio e Dimensioni. Poi resta come la lasci.
+function renderPannello(cont, cfg, cb) {
+  disegnaPannelloArmadio(cont, cfg, cb);
+  tendinePannello(cont, 'armadio', { aperte: ['Tipo armadio', 'Dimensioni esterne'] });
+}
 
 // Config iniziale: ultima salvata, oppure default
 let config = adattaModuli(caricaLocale() || configDefault());   // moduli sempre larghi quanto il totale
@@ -39,8 +47,32 @@ const distintaEl = document.getElementById('distinta');
 const avvisiEl = document.getElementById('avvisi');
 const btnToggleAnte = document.getElementById('toggle-ante');
 
+agganciaTendinaDistinta();          // prima del 3D: la tela ha già la sua misura giusta
 inizializzaScena(canvas);
 agganciaSfondo();
+
+// DISTINTA PEZZI a TENDINA: chiusa all'inizio (più spazio al 3D), si apre col bottone
+// «📋 Distinta pezzi». La scelta resta su questo dispositivo.
+function agganciaTendinaDistinta() {
+  const app = document.querySelector('.app');
+  if (!app || document.getElementById('distinta-tab')) return;
+  const b = document.createElement('button');
+  b.type = 'button'; b.id = 'distinta-tab'; b.className = 'distinta-tab';
+  app.insertBefore(b, distintaEl);
+  const CH = 'ng-distinta-aperta';
+  let aperta = false;
+  try { aperta = localStorage.getItem(CH) === '1'; } catch (_) { /* chiusa */ }
+  const imposta = (ap) => {
+    aperta = ap;
+    app.classList.toggle('distinta-chiusa', !ap);
+    b.innerHTML = ap ? '✕ <span>Chiudi distinta</span>' : '📋 <span>Distinta pezzi</span>';
+    b.setAttribute('aria-expanded', String(ap));
+    try { localStorage.setItem(CH, ap ? '1' : '0'); } catch (_) { /* va bene */ }
+    requestAnimationFrame(() => { try { forzaResize(canvas); } catch (_) { /* il 3D non è ancora partito */ } });
+  };
+  b.addEventListener('click', () => { imposta(!aperta); if (aperta) distintaEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
+  imposta(aperta);
+}
 agganciaTema();
 
 // Selettore sfondo 3D (chiaro / neutro / scuro)
@@ -115,7 +147,7 @@ function agganciaExport(distinta) {
   if (btnMod) btnMod.onclick = () => apriModelloExcel({ pezzi: pezziModello(), progetto: progettoNome });
   const btnFoto = document.getElementById('btn-foto-reale');
   if (btnFoto) btnFoto.onclick = async () => {
-    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261119o');
+    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261119p');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaArmadio(p), tela3d: document.getElementById('canvas3d'), nome: 'armadio' });
   };
   const btnImg = document.getElementById('btn-img');

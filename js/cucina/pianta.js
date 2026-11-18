@@ -11,7 +11,7 @@ import {
   moduliDiParete, nomeTipo, PROFONDITA_BASE, PROFONDITA_PENSILE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
   dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili, angoloInternoVertice,
-} from './modello.js?v=20261119o';
+} from './modello.js?v=20261119p';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -214,13 +214,19 @@ export function renderPianta(svg, progetto, opts = {}) {
 
     // Mobili liberi: sopra a muri e quote, così restano sempre toccabili
     const gMob = el('g', { class: 'sv-mobili-liberi' });
-    (progetto.mobiliLiberi || []).forEach((m) => {
+    // ACCESSORI (oggetti: lampade, sgabelli, vasi…): opts.oggetti = 'nascosti' (passi dei moduli:
+    // non si vedono, così non danno fastidio) o 'attivi' (passo Accessori: si spostano solo loro).
+    // Disegnati DOPO i mobili, così restano toccabili anche sopra il piano.
+    const eOgg = (m) => categoriaTipo(m.tipo) === 'oggetto';
+    const lista = (progetto.mobiliLiberi || []).filter((m) => !(opts.oggetti === 'nascosti' && eOgg(m)));
+    lista.sort((a, b) => (eOgg(a) ? 1 : 0) - (eOgg(b) ? 1 : 0));
+    lista.forEach((m) => {
       // stampa: solo i livelli scelti (es. solo bassi), gli altri non si disegnano
       if (opts.livelliVisibili && !opts.livelliVisibili.includes(livelloDiMobile(m))) return;
       // "Nascondi alti / bassi": l'altro livello non si disegna (così si vede bene cosa si fa).
       // Colonne, frigo e costadi alti arrivano fin su: restano anche nascondendo i bassi.
       if (opts.nascondiLivello && livelloDiMobile(m) === opts.nascondiLivello && !(opts.nascondiLivello === 'basso' && arrivaInAlto(m))) return;
-      const bloccato = livelloAttivo !== null && livelloDiMobile(m) !== livelloAttivo;
+      const bloccato = opts.oggetti === 'attivi' ? !eOgg(m) : (livelloAttivo !== null && livelloDiMobile(m) !== livelloAttivo);
       gMob.appendChild(renderMobileLibero(m, m.id === mobSelId, interattivo && !bloccato, bloccato));
     });
     svg.appendChild(gMob);
@@ -412,6 +418,7 @@ function renderMobileLibero(m, selezionato, interattivo, bloccato = false) {
     categoria === 'colonna' ? ' sv-mob-colonna' :
     categoria === 'regletta' ? ' sv-mob-regletta' :
     categoria === 'pannello' ? ' sv-mob-pannello' :
+    categoria === 'oggetto' ? ' sv-mob-ogg' :
     m.tipo === 'lavello' ? ' sv-mod-lavello' :
     m.tipo === 'forno' ? ' sv-mod-forno' : '';
   g.appendChild(el('polygon', {
@@ -444,6 +451,16 @@ function renderMobileLibero(m, selezionato, interattivo, bloccato = false) {
   if (categoria === 'regletta') return g;
 
   const [cx, cy] = versoSvg(0, 0);
+  // ACCESSORI: solo il nome, corto (tradotto) e piccolo, una riga: niente misure (non servono in pianta)
+  if (categoria === 'oggetto') {
+    const T = (s) => (typeof window !== 'undefined' && window.NGI18N ? window.NGI18N.t(s) : s);
+    let nome = T(nomeTipo(m.tipo)).split(',')[0];
+    if (nome.length > 22) nome = nome.slice(0, 21) + '…';
+    const fs = Math.max(26, Math.min(46, (Math.max(dim.w, 300)) / (nome.length * 0.5)));
+    const txt = el('text', { x: cx, y: cy + fs * 0.35, class: 'sv-mod-label sv-ogg-label', 'data-no-i18n': '' });
+    txt.style.fontSize = `${fs}px`; txt.textContent = nome; g.appendChild(txt);
+    return g;
+  }
   const nome = nomeTipo(m.tipo);
   const fs = Math.max(34, Math.min(80, m.larghezza_mm / (nome.length * 0.55)));
   const txt = el('text', {

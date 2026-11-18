@@ -12,10 +12,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
   <!-- Tema chiaro/scuro: applicato subito per evitare lo "sfarfallio" -->
   <script>(function(){try{var t=localStorage.getItem('ng-tema')||'scuro';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
-  <script src="js/i18n.js?v=20261119o"></script>
+  <script src="js/i18n.js?v=20261119p"></script>
 
-  <link rel="stylesheet" href="css/style.css?v=20261119o" />
-  <link rel="stylesheet" href="css/cucina.css?v=20261119o" />
+  <link rel="stylesheet" href="css/style.css?v=20261119p" />
+  <link rel="stylesheet" href="css/cucina.css?v=20261119p" />
 
   <!-- Three.js ES modules via importmap (file locali in vendor/) -->
   <script type="importmap">
@@ -28,7 +28,7 @@
   }
   </script>
   <!-- dopo la mappa dei moduli: Safari (iPhone) ignora una importmap che arriva dopo un modulo -->
-  <script type="module" src="js/preventivi.js?v=20261119o"></script>
+  <script type="module" src="js/preventivi.js?v=20261119p"></script>
 </head>
 <body class="cucina-body">
   <header class="app-header">
@@ -39,7 +39,7 @@
         <div class="sottotitolo">Progettazione cucina</div>
       </div>
     </div>
-    <div class="header-info" id="step-info">Passo 1 di 4 — Pianta: perimetro</div>
+    <div class="header-info" id="step-info">Passo 1 di 5 — Pianta: perimetro</div>
     <div class="header-strumenti">
       <button type="button" id="tema-toggle" class="tema-toggle">☀ Chiaro</button>
     </div>
@@ -61,6 +61,10 @@
     </button>
     <button class="step disabilitato" data-step="4" disabled>
       <span class="step-n">4</span>
+      <span class="step-nome">Accessori</span>
+    </button>
+    <button class="step disabilitato" data-step="5" disabled>
+      <span class="step-n">5</span>
       <span class="step-nome">Rendering 3D</span>
     </button>
   </nav>
@@ -116,6 +120,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/cucina/main.js?v=20261119o"></script>
+  <script type="module" src="js/cucina/main.js?v=20261119p"></script>
 </body>
 </html>

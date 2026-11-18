@@ -743,3 +743,23 @@
 /* lista «Aggiungi oggetti» (passo 4): foto grandi, si vede bene cosa si sceglie */
 .griglia-ogg { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
 .ogg-voce .palette-ogg-img { width: 100%; height: auto; aspect-ratio: 1; background-size: cover; }
+/* ---- ACCESSORI: catalogo a tendine per categoria (passo Accessori e rendering) ---- */
+.acc-catalogo { display: flex; flex-direction: column; gap: 6px; }
+.acc-cat { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; cursor: pointer; text-align: left;
+  border: 1px solid var(--bordo, #3a3226); border-radius: 10px; background: var(--bg-3, transparent); color: inherit; font: 600 14px/1.2 inherit; }
+.acc-cat:hover { border-color: var(--oro, #c9a94a); }
+.acc-cat.aperta { border-color: var(--oro, #c9a94a); color: var(--oro-chiaro, #e8c25a); }
+.acc-ico { font-size: 18px; width: 24px; text-align: center; }
+.acc-nome { flex: 1; }
+.acc-n { opacity: .55; font-weight: 500; }
+.acc-freccia { font-size: 13px; opacity: .8; }
+.acc-voci { padding: 8px 2px 10px; }
+/* pianta: gli accessori in oro tratteggiato, sopra i mobili */
+.sv-mob-ogg { fill: rgba(201, 169, 74, 0.22); stroke: #c9a94a; stroke-width: 6; stroke-dasharray: 18 10; }
+/* riepilogo: elenco accessori */
+.riep-acc { align-items: center; gap: 8px; }
+.riep-acc.sel .riep-acc-nome { color: var(--oro-chiaro, #e8c25a); }
+.riep-acc-nome { all: unset; cursor: pointer; flex: 1; }
+.riep-acc-x { all: unset; cursor: pointer; padding: 2px 8px; border-radius: 6px; opacity: .7; }
+.riep-acc-x:hover { opacity: 1; background: rgba(255, 255, 255, .08); }
+.sv-ogg-label { fill: #e8c25a; font-weight: 600; }

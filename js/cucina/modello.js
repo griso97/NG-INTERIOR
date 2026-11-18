@@ -14,6 +14,7 @@ export function progettoDefault() {
     versione: 1,
     versioneRot: 1,          // rotazione "girato a mano" (rotManuale) gestita
     stepCorrente: 1,
+    passi5: true,           // passi: 1 Pianta · 2 Bassi · 3 Alti · 4 Accessori · 5 Rendering (prima il rendering era il 4)
     piano: {
       tipologia: 'lineare',
       pareti: [

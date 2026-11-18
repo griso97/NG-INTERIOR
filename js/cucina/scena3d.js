@@ -13,17 +13,17 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261119o';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119o';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261119o';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261119o';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261119o';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261119o';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119o';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119o';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119o';
+} from './modello.js?v=20261119p';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119p';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261119p';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261119p';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261119p';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261119p';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119p';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119p';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119p';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119o';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119p';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -2142,10 +2142,13 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   // SOFFITTO: un piano bianco opaco all'altezza scelta, rivolto in giù. Da sotto si vede
   // (le lampade ci sono appese), da sopra no (la faccia di dietro non si disegna), quindi
   // la vista dall'alto resta libera. Non fa ombra.
+  // Solo con «Tetto sì» (Pianta o Rendering): senza, la cucina resta aperta.
   const ALT_MURO = altezzaSoffitto(progetto);
-  const soff = new THREE.Mesh(new THREE.PlaneGeometry(padW, padD), MAT_SOFFITTO);
-  soff.rotation.x = Math.PI / 2; soff.position.set(cxF, ALT_MURO, czF);
-  soff.userData.soffitto = true; soff.userData.senzaOmbra = true; soff.castShadow = false; soff.receiveShadow = false; gruppo.add(soff);
+  if (progetto.tetto) {
+    const soff = new THREE.Mesh(new THREE.PlaneGeometry(padW, padD), MAT_SOFFITTO);
+    soff.rotation.x = Math.PI / 2; soff.position.set(cxF, ALT_MURO, czF);
+    soff.userData.soffitto = true; soff.userData.senzaOmbra = true; soff.castShadow = false; soff.receiveShadow = false; gruppo.add(soff);
+  }
 
   // Muri di riferimento
   full.forEach((p, i) => {

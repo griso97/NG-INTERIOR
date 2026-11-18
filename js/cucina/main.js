@@ -24,13 +24,14 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261119o';
-import { renderPianta } from './pianta.js?v=20261119o';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261119o';
-import { calcolaDistintaCucina } from './distinta.js?v=20261119o';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261119o';
-import { agganciaTema } from '../tema.js?v=20261119o';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261119o';
+} from './modello.js?v=20261119p';
+import { renderPianta } from './pianta.js?v=20261119p';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261119p';
+import { calcolaDistintaCucina } from './distinta.js?v=20261119p';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261119p';
+import { agganciaTema } from '../tema.js?v=20261119p';
+import { tendinePannello } from '../tendine-pannello.js?v=20261119p';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261119p';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -39,6 +40,10 @@ let progetto = progettoSalvato || progettoDefault();
 const nascondiAltro = { basso: false, alto: false };
 try { Object.assign(nascondiAltro, JSON.parse(localStorage.getItem('ng-cucina-nascondi') || '{}')); } catch (_) { /* niente memoria: si parte tutto visibile */ }
 if (!progetto.stepCorrente) progetto.stepCorrente = 1;
+// PASSI: 1 Pianta · 2 Moduli bassi · 3 Moduli alti · 4 Accessori · 5 Rendering 3D.
+// I progetti salvati prima avevano il rendering al passo 4: lì vanno al 5.
+const P_ACC = 4, P_3D = 5;
+if (!progetto.passi5) { if (progetto.stepCorrente === 4) progetto.stepCorrente = P_3D; progetto.passi5 = true; }
 // Progetti di prima: i mobili girati a mano al centro tengono la rotazione
 if (progettoSalvato && progettoSalvato.piano) migraRotazioni(progettoSalvato);
 // Progetti salvati con versioni precedenti: completo i campi mancanti
@@ -276,13 +281,28 @@ function agganciaSchienale(root) {
 
 // --------- DISPATCH principale: sceglie lo step attivo ---------
 // Step 1 Pianta · 2 Moduli bassi · 3 Moduli alti · 4 Rendering 3D
-function renderPannello() {
-  if (progetto.stepCorrente === 4) return renderPannelloStep3d();
+function renderPannelloPasso() {
+  if (progetto.stepCorrente === P_3D) return renderPannelloStep3d();
+  if (progetto.stepCorrente === P_ACC) return renderPannelloAccessori();
   if (progetto.stepCorrente === 2 || progetto.stepCorrente === 3) return renderPannelloModuli();
   return renderPannelloStep1();
 }
+// PANNELLO ORDINATO: ogni sezione è una tendina (chiusa, si apre toccando il titolo).
+// Aperte la prima volta solo quelle che servono di più a ogni passo; poi resta come la lasci.
+const TENDINE_APERTE = {
+  1: ['Carica progetto', 'Tipologia', 'Pareti'],
+  2: ['Mobile selezionato', 'Aggiungi modulo', 'Moduli su parete', 'Parete attiva', 'Da sistemare', 'Ponte'],
+  3: ['Mobile selezionato', 'Aggiungi modulo', 'Moduli su parete', 'Parete attiva', 'Da sistemare', 'Ponte'],
+  4: ['Accessori', 'Oggetto selezionato'],
+  5: ['Da sistemare', 'Modulo selezionato', 'Oggetto selezionato', 'Colore ante', 'Colore ·'],
+};
+function renderPannello() {
+  renderPannelloPasso();
+  tendinePannello(pannello, `cucina-${progetto.stepCorrente}`, { aperte: TENDINE_APERTE[progetto.stepCorrente] || [] });
+}
 function renderRiepilogo() {
-  if (progetto.stepCorrente === 4) return renderRiepilogoStep3d();
+  if (progetto.stepCorrente === P_3D) return renderRiepilogoStep3d();
+  if (progetto.stepCorrente === P_ACC) return renderRiepilogoAccessori();
   if (progetto.stepCorrente === 2 || progetto.stepCorrente === 3) return renderRiepilogoModuli();
   return renderRiepilogoStep1();
 }
@@ -290,7 +310,8 @@ const NOMI_STEP = {
   1: 'Pianta: perimetro',
   2: 'Moduli bassi',
   3: 'Moduli alti',
-  4: 'Rendering 3D',
+  4: 'Accessori',
+  5: 'Rendering 3D',
 };
 // Livello di mobili attivo nello step corrente ('basso' = a terra, 'alto' = pensili)
 function livelloStep() { return progetto.stepCorrente === 3 ? 'alto' : 'basso'; }
@@ -304,10 +325,10 @@ function step4Disponibile() {
 // Stepper in alto: evidenzia lo step attivo, abilita quelli raggiungibili
 function renderStepper() {
   if ((progetto.stepCorrente === 2 || progetto.stepCorrente === 3) && !step2Disponibile()) progetto.stepCorrente = 1;
-  if (progetto.stepCorrente === 4 && !step4Disponibile()) progetto.stepCorrente = step2Disponibile() ? 2 : 1;
+  if ((progetto.stepCorrente === P_ACC || progetto.stepCorrente === P_3D) && !step4Disponibile()) progetto.stepCorrente = step2Disponibile() ? 2 : 1;
   document.querySelectorAll('#stepper .step').forEach((btn) => {
     const n = Number(btn.dataset.step);
-    const abilitato = n === 1 || ((n === 2 || n === 3) && step2Disponibile()) || (n === 4 && step4Disponibile());
+    const abilitato = n === 1 || ((n === 2 || n === 3) && step2Disponibile()) || ((n === P_ACC || n === P_3D) && step4Disponibile());
     btn.disabled = !abilitato;
     btn.classList.toggle('disabilitato', !abilitato);
     btn.classList.toggle('attivo', n === progetto.stepCorrente);
@@ -315,7 +336,7 @@ function renderStepper() {
     else btn.removeAttribute('aria-current');
   });
   stepInfo.textContent =
-    `Passo ${progetto.stepCorrente} di 4 — ${NOMI_STEP[progetto.stepCorrente]}`;
+    `Passo ${progetto.stepCorrente} di 5 — ${NOMI_STEP[progetto.stepCorrente]}`;
 }
 document.querySelectorAll('#stepper .step').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -413,6 +434,8 @@ function renderPannelloStep1() {
       </button>
     </section>
 
+    ${htmlTetto()}
+
     <div class="conferma-stato ${progetto.pianoConfermato ? 'ok' : 'non-conf'}">
       ${!progetto.pianoConfermato
         ? 'Pianta non ancora confermata'
@@ -428,6 +451,7 @@ function renderPannelloStep1() {
     </section>
   `;
   attaccaEventiPannello();
+  agganciaTetto(pannello);
   document.getElementById('ml-toggle')?.addEventListener('click', () => {
     manoLibera = !manoLibera; aggiuntaParete = false; verticeSel = null; tastiML = ''; aggiorna();
   });
@@ -999,7 +1023,7 @@ function attaccaEventiStep2() {
       progetto.moduliBaseConfermati = true;
       progetto.stepCorrente = 3;
     } else if (step4Disponibile()) {
-      progetto.stepCorrente = 4;
+      progetto.stepCorrente = P_ACC;
     }
     step2.mobSelId = null;
     fatto();
@@ -1048,7 +1072,7 @@ let scena3dMontata = false;
 // Click nel 3D: seleziona il mobile toccato (per vederlo/modificarlo)
 canvas3d.addEventListener('click', (e) => {
   if (ignoraClick) return;
-  if (progetto.stepCorrente !== 4 || !scena3dMod || !scena3dMod.pickMobile) return;
+  if (progetto.stepCorrente !== P_3D || !scena3dMod || !scena3dMod.pickMobile) return;
   const id = scena3dMod.pickMobile(e.clientX, e.clientY);
   if (id === step2.mobSelId) return;
   step2.mobSelId = id;
@@ -1061,7 +1085,7 @@ canvas3d.addEventListener('click', (e) => {
 // I moduli restano fissi.
 let spostamentoAttivo = false, ignoraClick = false;
 canvas3d.addEventListener('pointerdown', (e) => {
-  if (progetto.stepCorrente !== 4 || !scena3dMod || !scena3dMod.iniziaSpostamento || e.button > 0) return;
+  if (progetto.stepCorrente !== P_3D || !scena3dMod || !scena3dMod.iniziaSpostamento || e.button > 0) return;
   const ok = scena3dMod.iniziaSpostamento(e.clientX, e.clientY, (id) => {
     const m = trovaMobileLibero(progetto, id);
     return !!m && categoriaTipo(m.tipo) === 'oggetto';
@@ -1215,6 +1239,128 @@ function postoPerOggetto(m) {
   return {};
 }
 
+// --------- TETTO: sì / no e altezza dei muri (alla Pianta e nel Rendering, è la stessa scelta) ---------
+// Senza tetto la cucina si vede aperta; col tetto le lampade e la cappa sopra l'isola sono appese
+// al soffitto vero. L'altezza dei muri serve in ogni caso (muri del 3D, cavi delle lampade).
+function htmlTetto(cls = '') {
+  const si = !!progetto.tetto, hS = Math.round((Number(progetto.altezzaSoffitto) || 2700) / 10);
+  return `
+    <section class="${cls}">
+      <h3>Tetto</h3>
+      <div class="opzioni-anta">
+        <button type="button" class="btn-ghost opt-tetto ${!si ? 'attivo' : ''}" data-tetto="no">${!si ? '✓ ' : ''}Tetto no</button>
+        <button type="button" class="btn-ghost opt-tetto ${si ? 'attivo' : ''}" data-tetto="si">${si ? '✓ ' : ''}Tetto sì</button>
+      </div>
+      <div class="riga-3d" style="margin:8px 0 4px">${si ? 'Altezza dei muri (cm): il soffitto è lì e le lampade ci sono appese. Dal basso il soffitto si vede, dall\'alto la cucina resta aperta.' : 'Altezza dei muri (cm): i muri del 3D arrivano fin lì e le lampade sono appese a quell\'altezza.'}</div>
+      <input type="text" inputmode="decimal" autocomplete="off" id="soffitto-h" class="modale-num" value="${hS}" style="width:100%" />
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+        ${[240, 250, 260, 270, 280, 300].map((v) => `<button type="button" class="btn-ghost opt-soffitto ${hS === v ? 'attivo' : ''}" data-soffitto="${v}" style="flex:1;min-width:58px">${v}</button>`).join('')}
+      </div>
+    </section>`;
+}
+function agganciaTetto(root) {
+  const mettiSoffitto = (cm) => {
+    const v = Math.round(Number(String(cm).replace(',', '.')));
+    if (!Number.isFinite(v) || v < 220 || v > 450) { renderPannello(); return; }
+    registraStoria(); progetto.altezzaSoffitto = v * 10; aggiorna();
+  };
+  root.querySelector('#soffitto-h')?.addEventListener('change', (e) => mettiSoffitto(e.target.value));
+  root.querySelectorAll('[data-soffitto]').forEach((b) => b.addEventListener('click', () => mettiSoffitto(b.dataset.soffitto)));
+  root.querySelectorAll('[data-tetto]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria(); progetto.tetto = b.dataset.tetto === 'si'; aggiorna();
+  }));
+}
+
+// --------- ACCESSORI: catalogo a TENDINE per categoria (passo Accessori e rendering) ---------
+const ICONE_GRUPPI = { luci: '💡', sgabelli: '🪑', pranzo: '🍽', decor: '🏺', cucina: '🍋', miei: '📷' };
+/** Le categorie del catalogo con i loro oggetti (libreria 3D, collezione, quelli fatti dalle foto). */
+function gruppiAccessori() {
+  if (!matMod) return [];
+  const tutti = matMod.materialiPer('oggetti');
+  const gruppoDi = (o) => (matMod.gruppoOggetto ? matMod.gruppoOggetto(o) : 'miei');
+  return (matMod.GRUPPI_OGGETTI || []).map((g) => ({ ...g, voci: tutti.filter((o) => gruppoDi(o) === g.id),
+    pronti: g.id === 'sgabelli' ? CATALOGO_MOBILI.filter((x) => x.categoria === 'oggetto') : [] }));
+}
+/** Elenco delle categorie: tutte chiuse; se ne tocchi una si apre (e le altre si chiudono). */
+function htmlCatalogoAccessori() {
+  const gr = gruppiAccessori();
+  if (!gr.length) return '<div class="riga-3d">Caricamento del catalogo…</div>';
+  const T = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
+  return `<div class="acc-catalogo">${gr.map((g) => {
+    const aperta = step2.accGruppo === g.id, n = g.voci.length + g.pronti.length;
+    const crediti = aperta && g.voci.some((o) => o.libreria) && matMod.CREDITI_LIBRERIA;
+    return `
+    <button type="button" class="acc-cat ${aperta ? 'aperta' : ''}" data-accgruppo="${g.id}" aria-expanded="${aperta}">
+      <span class="acc-ico" aria-hidden="true">${ICONE_GRUPPI[g.id] || '•'}</span><span class="acc-nome">${g.nome}</span>
+      <small class="acc-n">${n}</small><span class="acc-freccia" aria-hidden="true">${aperta ? '▾' : '▸'}</span>
+    </button>
+    ${aperta ? `<div class="acc-voci">
+      ${n ? `<div class="griglia-ogg">
+        ${g.voci.map((o) => `<button type="button" class="ogg-voce" data-aggogg="${o.id}" title="${escHtml(o.proprio ? o.nome : T(o.nome))}">
+          <span class="palette-ogg-img" style="background-image:url('${o.thumb}')"></span><span data-no-i18n>${escHtml(o.proprio ? o.nome : T(o.nome))}</span></button>`).join('')}
+        ${g.pronti.map((x) => `<button type="button" class="ogg-voce" data-aggtipo="${x.id}">${iconaMobile(x.id)}<span>${x.nome}</span></button>`).join('')}
+      </div>` : ''}
+      ${g.id === 'miei' && !n ? '<div class="riga-3d">I tuoi oggetti (friggitrici, tostapane…) si creano dalle foto in ⚙ Impostazioni → Oggetti ed elettrodomestici.</div>' : ''}
+      ${crediti ? `<div class="crediti-ogg">${escHtml(crediti)} · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></div>` : ''}
+    </div>` : ''}`;
+  }).join('')}</div>`;
+}
+function agganciaCatalogoAccessori(root) {
+  root.querySelectorAll('[data-accgruppo]').forEach((b) => b.addEventListener('click', () => {
+    step2.accGruppo = step2.accGruppo === b.dataset.accgruppo ? null : b.dataset.accgruppo;
+    renderPannello();
+    root.querySelector(`[data-accgruppo="${step2.accGruppo}"]`)?.scrollIntoView({ block: 'nearest' });
+  }));
+  root.querySelectorAll('[data-aggogg], [data-aggtipo]').forEach((b) => b.addEventListener('click', () => {
+    let id;
+    if (b.dataset.aggogg) {
+      const o = matMod && matMod.materialiPer('oggetti').find((x) => x.id === b.dataset.aggogg); if (!o) return;
+      registraStoria();
+      id = aggiungiMobileLibero(progetto, `ogg:${o.id}`, { larghezza_mm: o.misure.w, profondita_mm: o.misure.d, altezza_mm: o.misure.h });
+    } else { registraStoria(); id = aggiungiMobileLibero(progetto, b.dataset.aggtipo, {}); }
+    const m = trovaMobileLibero(progetto, id);
+    if (m) Object.assign(m, postoPerOggetto(m));
+    aggiorna();
+    avvisoBreve(`${(window.NGI18N ? window.NGI18N.t('Aggiunto') : 'Aggiunto')}: ${b.title || b.textContent.trim()}`, true);
+  }));
+}
+/** PASSO 4 — ACCESSORI: catalogo a tendine; nella pianta si vedono e si spostano solo gli oggetti. */
+function renderPannelloAccessori() {
+  const sel = trovaMobileLibero(progetto, step2.mobSelId);
+  if (sel && categoriaTipo(sel.tipo) === 'oggetto') return renderPannelloOggetto(sel);
+  pannello.innerHTML = `
+    <section>
+      <h3>Accessori</h3>
+      <div class="riga-3d">Luci, sgabelli, tavoli e sedie, piante e oggetti per la cucina. Apri una categoria e tocca un oggetto: compare nella pianta (lampade sopra il piano, sedie e sgabelli davanti ai mobili, il resto sul piano). Poi trascinalo dove vuoi: nel rendering lo ritrovi lì.</div>
+    </section>
+    <section>${htmlCatalogoAccessori()}</section>
+    <section class="actions">
+      <button id="acc-indietro" class="btn-ghost" type="button">← Moduli alti</button>
+      <button id="acc-avanti" class="btn-oro" type="button" style="flex:1">Rendering 3D →</button>
+    </section>`;
+  agganciaCatalogoAccessori(pannello);
+  document.getElementById('acc-indietro')?.addEventListener('click', () => { step2.mobSelId = null; progetto.stepCorrente = 3; aggiorna(); });
+  document.getElementById('acc-avanti')?.addEventListener('click', () => { step2.mobSelId = null; progetto.stepCorrente = P_3D; aggiorna(); });
+}
+/** Riepilogo del passo Accessori: gli oggetti messi in cucina (tocca per selezionarlo, ✕ per toglierlo). */
+function renderRiepilogoAccessori() {
+  const ogg = (progetto.mobiliLiberi || []).filter((m) => categoriaTipo(m.tipo) === 'oggetto');
+  const T = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
+  riepilogo.innerHTML = `
+    <h3>Accessori in cucina</h3>
+    ${ogg.length ? ogg.map((m) => `<div class="riep-riga riep-acc ${m.id === step2.mobSelId ? 'sel' : ''}">
+      <button type="button" class="riep-acc-nome" data-accsel="${m.id}" data-no-i18n>${escHtml(T(nomeTipo(m.tipo)))}</button>
+      <button type="button" class="riep-acc-x" data-acctogli="${m.id}" title="Togli">✕</button></div>`).join('')
+    : '<div class="riga-3d">Ancora nessun accessorio: aprine una categoria a sinistra.</div>'}
+  `;
+  riepilogo.querySelectorAll('[data-accsel]').forEach((b) => b.addEventListener('click', () => { step2.mobSelId = Number(b.dataset.accsel); aggiorna(); }));
+  riepilogo.querySelectorAll('[data-acctogli]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria(); rimuoviMobileLibero(progetto, Number(b.dataset.acctogli));
+    if (step2.mobSelId === Number(b.dataset.acctogli)) step2.mobSelId = null;
+    aggiorna();
+  }));
+}
+
 function renderPannelloStep3d() {
   const sel = trovaMobileLibero(progetto, step2.mobSelId);
   if (sel) return renderPannelloModificaMobile(sel);
@@ -1223,34 +1369,11 @@ function renderPannelloStep3d() {
   const materialiEnc = (scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer('encimera') : [];
   const encAttuale = (progetto.encimera || {}).materiale || null;
   const avvisi = problemiMobiliLiberi(progetto);
-  // OGGETTI da aggiungere nel 3D, a GRUPPI (Luci, Sgabelli, Tavoli e sedie, Vasi, Per la cucina,
-  // Quadri, I miei oggetti): libreria 3D + collezione nostra + quelli creati dalle foto
-  const tuttiOgg = matMod ? matMod.materialiPer('oggetti') : [];
-  const gruppi = (matMod && matMod.GRUPPI_OGGETTI) || [];
-  const gruppoDi = (o) => (matMod && matMod.gruppoOggetto ? matMod.gruppoOggetto(o) : 'miei');
-  const conta = (g) => tuttiOgg.filter((o) => gruppoDi(o) === g).length + (g === 'sgabelli' ? CATALOGO_MOBILI.filter((t) => t.categoria === 'oggetto').length : 0);
-  if (!step2.oggGruppo || !gruppi.some((g) => g.id === step2.oggGruppo)) step2.oggGruppo = 'luci';
-  const oggCat = tuttiOgg.filter((o) => gruppoDi(o) === step2.oggGruppo);
-  const oggPronti = step2.oggGruppo === 'sgabelli' ? CATALOGO_MOBILI.filter((t) => t.categoria === 'oggetto') : [];
-  const T = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
-  const creditiLib = oggCat.some((o) => o.libreria) && matMod.CREDITI_LIBRERIA;
   pannello.innerHTML = `
     <section class="step3-pannello">
-      <button type="button" class="tendina-ogg ${step2.oggettiAperti ? 'aperta' : ''}" id="ogg-tendina">
-        <span>🪑 Aggiungi oggetti</span><span class="tendina-freccia">${step2.oggettiAperti ? '▾' : '▸'}</span>
-      </button>
-      ${step2.oggettiAperti ? `
-      <div class="riga-3d" style="margin:8px 0 6px">Tocca un oggetto: compare in cucina (le lampade appese al soffitto, sedie e sgabelli a terra, il resto sul piano). Poi trascinalo dove vuoi.</div>
-      <div class="chips-ogg">
-        ${gruppi.map((g) => `<button type="button" class="chip-ogg ${g.id === step2.oggGruppo ? 'attivo' : ''}" data-ogggruppo="${g.id}">${g.nome} <small>${conta(g.id)}</small></button>`).join('')}
-      </div>
-      <div class="griglia-ogg">
-        ${oggCat.map((o) => `<button type="button" class="ogg-voce" data-aggogg="${o.id}" title="${escHtml(o.proprio ? o.nome : T(o.nome))}">
-          <span class="palette-ogg-img" style="background-image:url('${o.thumb}')"></span><span data-no-i18n>${escHtml(o.proprio ? o.nome : T(o.nome))}</span></button>`).join('')}
-        ${oggPronti.map((t) => `<button type="button" class="ogg-voce" data-aggtipo="${t.id}">${iconaMobile(t.id)}<span>${t.nome}</span></button>`).join('')}
-      </div>
-      ${step2.oggGruppo === 'miei' && !oggCat.length ? '<div class="riga-3d" style="margin-top:6px">I tuoi oggetti (friggitrici, tostapane…) si creano dalle foto in ⚙ Impostazioni → Oggetti ed elettrodomestici.</div>' : ''}
-      ${creditiLib ? `<div class="crediti-ogg">${escHtml(creditiLib)} · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></div>` : ''}` : ''}
+      <h3>Accessori</h3>
+      <div class="riga-3d" style="margin-bottom:8px">Scegli una categoria e tocca un oggetto: compare in cucina. Poi trascinalo dove vuoi.</div>
+      ${htmlCatalogoAccessori()}
     </section>
     ${avvisi.length ? `
     <section class="step3-pannello">
@@ -1268,18 +1391,7 @@ function renderPannelloStep3d() {
         (i moduli restano fissi).
       </div>
     </section>
-    ${(() => {
-      const hS = Math.round((Number(progetto.altezzaSoffitto) || 2700) / 10);
-      return `
-    <section class="step3-pannello">
-      <h3>Soffitto</h3>
-      <div class="riga-3d" style="margin-bottom:6px">Altezza del soffitto (cm): i muri arrivano fin lì e le lampade ci sono appese. Il soffitto si vede quando guardi la cucina dal basso; dall'alto resta aperto.</div>
-      <input type="text" inputmode="decimal" autocomplete="off" id="soffitto-h" class="modale-num" value="${hS}" style="width:100%" />
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-        ${[240, 250, 260, 270, 280, 300].map((v) => `<button type="button" class="btn-ghost opt-soffitto ${hS === v ? 'attivo' : ''}" data-soffitto="${v}" style="flex:1;min-width:58px">${v}</button>`).join('')}
-      </div>
-    </section>`;
-    })()}
+    ${htmlTetto('step3-pannello')}
     ${materialiEnc.length ? `
     <section class="step3-pannello">
       <h3>Piano di lavoro (encimera)</h3>
@@ -1386,27 +1498,8 @@ function renderPannelloStep3d() {
     progetto.cierreTecho = { ...(progetto.cierreTecho || {}), attivo: true, altezza: Math.max(20, Math.min(1500, Math.round(Number(e.target.value) || 300))) };
     aggiorna();
   });
-  // SOFFITTO: altezza in cm (fra 220 e 450)
-  const mettiSoffitto = (cm) => {
-    const v = Math.round(Number(String(cm).replace(',', '.')));
-    if (!Number.isFinite(v) || v < 220 || v > 450) { renderPannello(); return; }
-    registraStoria(); progetto.altezzaSoffitto = v * 10; aggiorna();
-  };
-  pannello.querySelector('#soffitto-h')?.addEventListener('change', (e) => mettiSoffitto(e.target.value));
-  pannello.querySelectorAll('[data-soffitto]').forEach((b) => b.addEventListener('click', () => mettiSoffitto(b.dataset.soffitto)));
-  document.getElementById('ogg-tendina')?.addEventListener('click', () => { step2.oggettiAperti = !step2.oggettiAperti; renderPannello(); });
-  pannello.querySelectorAll('[data-ogggruppo]').forEach((b) => b.addEventListener('click', () => { step2.oggGruppo = b.dataset.ogggruppo; renderPannello(); }));
-  pannello.querySelectorAll('[data-aggogg], [data-aggtipo]').forEach((b) => b.addEventListener('click', () => {
-    registraStoria();
-    let id;
-    if (b.dataset.aggogg) {
-      const o = oggCat.find((x) => x.id === b.dataset.aggogg); if (!o) return;
-      id = aggiungiMobileLibero(progetto, `ogg:${o.id}`, { larghezza_mm: o.misure.w, profondita_mm: o.misure.d, altezza_mm: o.misure.h });
-    } else id = aggiungiMobileLibero(progetto, b.dataset.aggtipo, {});
-    const m = trovaMobileLibero(progetto, id);
-    if (m) Object.assign(m, postoPerOggetto(m));
-    aggiorna();
-  }));
+  agganciaTetto(pannello);
+  agganciaCatalogoAccessori(pannello);
   pannello.querySelectorAll('.swatch-zocc[data-interno]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     progetto.coloreInterno = b.dataset.interno;
@@ -1443,7 +1536,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261119o');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261119p');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1451,7 +1544,7 @@ function renderPannelloStep3d() {
       && scena3dMod.esportaImmagine3d(`cucina-${nomeFileData()}.png`);
     if (!ok) alert('Impossibile salvare l\'immagine su questo dispositivo.');
   });
-  document.getElementById('s3-indietro')?.addEventListener('click', () => { progetto.stepCorrente = 3; aggiorna(); });
+  document.getElementById('s3-indietro')?.addEventListener('click', () => { progetto.stepCorrente = P_ACC; aggiorna(); });
 }
 
 /** Stringa data per il nome file, es. 2026-11-06. */
@@ -1864,7 +1957,7 @@ function renderPannelloModificaMobile(m) {
   });
   document.getElementById('mob-misura')?.addEventListener('click', () => apriScelta(m.tipo, m.id));
   document.getElementById('mob-deseleziona')?.addEventListener('click', () => { step2.mobSelId = null; aggiorna(); });
-  document.getElementById('s3-indietro')?.addEventListener('click', () => { step2.mobSelId = null; progetto.stepCorrente = 3; aggiorna(); });
+  document.getElementById('s3-indietro')?.addEventListener('click', () => { step2.mobSelId = null; progetto.stepCorrente = P_ACC; aggiorna(); });
 }
 
 function renderRiepilogoStep3d() {
@@ -2010,7 +2103,7 @@ function escHtml(s) {
 
 // Mostra/nasconde pianta 2D vs vista 3D e tiene aggiornata la scena
 async function aggiornaVista() {
-  const in3d = progetto.stepCorrente === 4;
+  const in3d = progetto.stepCorrente === P_3D;
   svg.style.display = in3d ? 'none' : '';
   canvas3d.hidden = !in3d;
   if (legenda3d) legenda3d.textContent = in3d
@@ -2051,7 +2144,7 @@ window.addEventListener('ng-3d-ripreso', () => document.getElementById('avviso-3
 // --------- AGGIORNA (render completo + autosalvataggio) ---------
 function disegna() {
   const st = progetto.stepCorrente;
-  if (st !== 4) {
+  if (st !== P_3D) {
     renderPianta(svg, progetto, {
       pareteAttivaId: st === 2 ? step2.pareteAttivaId : null,
       pareteSelId: st === 1 ? pareteSelId : null,
@@ -2061,8 +2154,10 @@ function disegna() {
       verticeSel,
       viewBoxFisso: vbFisso,
       anteprima: anteprimaML,
-      interattivo: st === 2 || st === 3,
+      interattivo: st === 2 || st === 3 || st === P_ACC,
       livelloAttivo: (st === 2 || st === 3) ? livelloStep() : null,
+      // ACCESSORI: si vedono e si spostano solo al passo Accessori (gli altri mobili restano fermi)
+      oggetti: st === P_ACC ? 'attivi' : 'nascosti',
       nascondiLivello: (st === 2 || st === 3) && nascondiAltro[livelloStep()] ? (livelloStep() === 'basso' ? 'alto' : 'basso') : null,
     });
   }
@@ -2148,7 +2243,7 @@ function renderPalette() {
   const voci = CATALOGO_MOBILI.filter((t) => (t.categoria === 'costado' || livelloMobile(t.categoria) === livello)
     && (t.id !== 'ponte' || cucinaPonte()));          // il Ponte solo nella cucina a ponte
   // OGGETTI del catalogo (creati dalle foto): si posano sul piano o a terra
-  const oggetti = livello === 'basso' && matMod ? matMod.materialiPer('oggetti').filter((o) => !o.libreria) : [];
+  const oggetti = [];        // gli OGGETTI si aggiungono al passo Accessori (e nel rendering)
   palette.innerHTML = voci.map((t) => `
     <button type="button" class="palette-btn" data-tipo="${t.id}">
       ${iconaMobile(t.id)}<span>${t.nome}</span>
@@ -2171,13 +2266,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261119o');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261119p');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261119o'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261119p'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2185,7 +2280,7 @@ function caricaScena3d() {
 caricaMateriali().then((m) => {
   matMod = m;
   if (progetto.stepCorrente === 2) renderPalette();
-  if (progetto.stepCorrente === 4) renderPannello();
+  if (progetto.stepCorrente === P_ACC || progetto.stepCorrente === P_3D) renderPannello();
 }).catch(() => {});
 
 /**
@@ -2955,12 +3050,14 @@ document.addEventListener('keydown', (e) => {
 
 svg.addEventListener('pointerdown', (e) => {
   const mobEl = e.target.closest && e.target.closest('[data-mob-id]');
-  const inModuli = progetto.stepCorrente === 2 || progetto.stepCorrente === 3;
+  const inModuli = progetto.stepCorrente === 2 || progetto.stepCorrente === 3 || progetto.stepCorrente === P_ACC;
   if (mobEl && inModuli) {
     const m = trovaMobileLibero(progetto, Number(mobEl.dataset.mobId));
     if (!m) return;
-    // Solo i mobili del livello attivo sono spostabili: gli altri sono bloccati
-    if (livelloDiMobile(m) !== livelloStep()) return;
+    // Solo i mobili del livello attivo sono spostabili: gli altri sono bloccati.
+    // Al passo Accessori si spostano SOLO gli oggetti; ai passi dei moduli gli oggetti non ci sono.
+    const eOgg = categoriaTipo(m.tipo) === 'oggetto';
+    if (progetto.stepCorrente === P_ACC ? !eOgg : (eOgg || livelloDiMobile(m) !== livelloStep())) return;
     // Spostamento in sospeso su un ALTRO mobile: resta confermato (posManuale).
     if (step2.movePending && step2.movePending.id !== m.id) step2.movePending = null;
     const p = puntoMm(e);
@@ -3038,7 +3135,7 @@ const fineTrascinamento = () => {
   const ult = trascinamento_ultimo;
   if (m && ult && !ult.libera) inserisciInAngolo(progetto, m, ult.x, ult.y);
   if (m) mettiNelVano(progetto, m);           // oggetto sopra una colonna con vano: dentro il vano
-  if (m) { m.posManuale = true; step2.movePending = { id, prima }; }
+  if (m) { m.posManuale = true; if (categoriaTipo(m.tipo) !== 'oggetto') step2.movePending = { id, prima }; }
   // NON ENTRA: lasciato contro il muro ma non c'è posto → lo dico, con i cm che mancano.
   // Conta se il mobile ha trovato posto, non dove si è alzato il dito: lasciato un filo dentro
   // l'angolo, un costado o il mobile vicino, si mette da solo accanto e va benissimo (niente avviso).
@@ -3061,7 +3158,7 @@ function avvisoNonEntra(manca) {
     : `Impossibile posizionare l'armadio: supera la misura totale della parete (mancano ${cm} cm).`);
 }
 /** Messaggio breve in basso (sparisce da solo dopo qualche secondo). */
-function avvisoBreve(testo) {
+function avvisoBreve(testo, ok = false) {
   let el = document.getElementById('avviso-breve');
   if (!el) {
     el = document.createElement('div'); el.id = 'avviso-breve'; el.setAttribute('role', 'status');
@@ -3069,7 +3166,7 @@ function avvisoBreve(testo) {
     el.addEventListener('click', () => { el.hidden = true; });
     document.body.appendChild(el);
   }
-  el.textContent = '⚠ ' + testo; el.hidden = false;
+  el.textContent = (ok ? '✓ ' : '⚠ ') + testo; el.hidden = false;
   clearTimeout(avvisoBreve._t); avvisoBreve._t = setTimeout(() => { el.hidden = true; }, 9000);
 }
 svg.addEventListener('pointerup', fineTrascinamento);
@@ -3080,7 +3177,7 @@ svg.addEventListener('pointercancel', fineTrascinamento);
 // passi dei mobili si sceglie cosa stampare: bassi, alti o tutti e due (così
 // le misure non si sovrappongono).
 const btnStampa = document.getElementById('btn-stampa');
-function aggiornaBtnStampa() { if (btnStampa) btnStampa.hidden = progetto.stepCorrente === 4; }
+function aggiornaBtnStampa() { if (btnStampa) btnStampa.hidden = progetto.stepCorrente === P_3D || progetto.stepCorrente === P_ACC; }
 btnStampa?.addEventListener('click', () => {
   const st = progetto.stepCorrente;
   if (st === 1) { stampaPianta([], 'Pianta'); return; }
