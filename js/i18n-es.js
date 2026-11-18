@@ -1744,7 +1744,7 @@ window.NG_I18N_ES = {
  "Tetto": "Techo",
  "Tetto no": "Sin techo",
  "Tetto sì": "Con techo",
- "Altezza dei muri (cm): il soffitto è lì e le lampade ci sono appese. Dal basso il soffitto si vede, dall'alto la cucina resta aperta.": "Altura de las paredes (cm): el techo está allí y las lámparas cuelgan de él. Desde abajo el techo se ve, desde arriba la cocina queda abierta.",
+ "Altezza dei muri (cm): il soffitto è lì e le lampade ci sono appese. Da dentro il soffitto è pieno, dall'alto è trasparente e la cucina si vede.": "Altura de las paredes (cm): el techo está allí y las lámparas cuelgan de él. Desde dentro el techo es macizo, desde arriba es transparente y la cocina se ve.",
  "Altezza dei muri (cm): i muri del 3D arrivano fin lì e le lampade sono appese a quell'altezza.": "Altura de las paredes (cm): las paredes del 3D llegan hasta allí y las lámparas cuelgan a esa altura.",
  "Distinta pezzi": "Lista de piezas",
  "Chiudi distinta": "Cerrar lista",
@@ -1874,4 +1874,9 @@ window.NG_I18N_ES = {
  "Il cassetto grande: lascialo vuoto finché non ti serve. Quando lo usi, scrivi anche fino a che altezza di frontale arriva il medio: i frontali più alti diventano grandi.": "El cajón grande: déjalo vacío hasta que lo necesites. Cuando lo uses, escribe también hasta qué altura de frente llega el mediano: los frentes más altos pasan a grandes.",
  "Esempio: modulo da 60 → fondo {0} × {1} mm · trasera {2} × {3} piccolo, {4} × {5} medio": "Ejemplo: módulo de 60 → fondo {0} × {1} mm · trasera {2} × {3} pequeño, {4} × {5} mediano",
  "Esempio: modulo da 60 → fondo {0} × {1} mm · trasera {2} × {3} piccolo": "Ejemplo: módulo de 60 → fondo {0} × {1} mm · trasera {2} × {3} pequeño",
+ "Misure del soffitto (cm)": "Medidas del techo (cm)",
+ "— profondità dal muro verso la stanza, larghezza lungo il muro.": "— profundidad desde la pared hacia la habitación, ancho a lo largo de la pared.",
+ "Vuoto = automatico: arriva ai muri e, dove non c'è muro, 2 m davanti ai mobili (isola compresa) e 1,2 m ai lati.": "Vacío = automático: llega a las paredes y, donde no hay pared, 2 m delante de los muebles (isla incluida) y 1,2 m a los lados.",
+ "↺ Misure automatiche": "↺ Medidas automáticas",
+ "Soffitto {0} × {1} cm": "Techo {0} × {1} cm",
 };

@@ -23,15 +23,15 @@ import {
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro, rotazioneAutomatica, migraRotazioni,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
-  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile,
-} from './modello.js?v=20261119x';
-import { renderPianta } from './pianta.js?v=20261119x';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261119x';
-import { calcolaDistintaCucina } from './distinta.js?v=20261119x';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261119x';
-import { agganciaTema } from '../tema.js?v=20261119x';
-import { tendinePannello } from '../tendine-pannello.js?v=20261119x';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261119x';
+  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
+} from './modello.js?v=20261119y';
+import { renderPianta } from './pianta.js?v=20261119y';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261119y';
+import { calcolaDistintaCucina } from './distinta.js?v=20261119y';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261119y';
+import { agganciaTema } from '../tema.js?v=20261119y';
+import { tendinePannello } from '../tendine-pannello.js?v=20261119y';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261119y';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1253,12 +1253,34 @@ function htmlTetto(cls = '') {
         <button type="button" class="btn-ghost opt-tetto ${!si ? 'attivo' : ''}" data-tetto="no">${!si ? '✓ ' : ''}Tetto no</button>
         <button type="button" class="btn-ghost opt-tetto ${si ? 'attivo' : ''}" data-tetto="si">${si ? '✓ ' : ''}Tetto sì</button>
       </div>
-      <div class="riga-3d" style="margin:8px 0 4px">${si ? 'Altezza dei muri (cm): il soffitto è lì e le lampade ci sono appese. Dal basso il soffitto si vede, dall\'alto la cucina resta aperta.' : 'Altezza dei muri (cm): i muri del 3D arrivano fin lì e le lampade sono appese a quell\'altezza.'}</div>
+      <div class="riga-3d" style="margin:8px 0 4px">${si ? 'Altezza dei muri (cm): il soffitto è lì e le lampade ci sono appese. Da dentro il soffitto è pieno, dall\'alto è trasparente e la cucina si vede.' : 'Altezza dei muri (cm): i muri del 3D arrivano fin lì e le lampade sono appese a quell\'altezza.'}</div>
       <input type="text" inputmode="decimal" autocomplete="off" id="soffitto-h" class="modale-num" value="${hS}" style="width:100%" />
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
         ${[240, 250, 260, 270, 280, 300].map((v) => `<button type="button" class="btn-ghost opt-soffitto ${hS === v ? 'attivo' : ''}" data-soffitto="${v}" style="flex:1;min-width:58px">${v}</button>`).join('')}
       </div>
+      ${si ? htmlMisureSoffitto() : ''}
     </section>`;
+}
+// Misure del SOFFITTO (con «Tetto sì»): profondità dal muro verso la stanza e larghezza lungo il
+// muro, in cm. Vuoto = automatico (arriva ai muri; dove non c'è muro 2 m davanti ai mobili, isola
+// compresa, e 1,2 m ai lati): il numero automatico si vede scritto nel campo vuoto.
+function htmlMisureSoffitto() {
+  const r = rettangoloSoffitto(progetto);
+  const cm = (mm) => Math.round(mm / 10);
+  const P = Number(progetto.soffittoProfondita) > 0, L = Number(progetto.soffittoLarghezza) > 0;
+  const campo = (id, etichetta, su, auto) => `
+        <label style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+          <span class="riga-3d" style="margin:0">${etichetta}</span>
+          <input type="text" inputmode="decimal" autocomplete="off" id="${id}" class="modale-num" value="${su ? cm(su) : ''}" placeholder="${cm(auto)}" style="width:100%" />
+        </label>`;
+  return `
+      <div class="riga-3d" style="margin:12px 0 4px"><strong>Misure del soffitto (cm)</strong> — profondità dal muro verso la stanza, larghezza lungo il muro.</div>
+      <div style="display:flex;gap:8px">
+        ${campo('soffitto-prof', 'Profondità', P ? progetto.soffittoProfondita : 0, r.autoProfondita)}
+        ${campo('soffitto-lar', 'Larghezza', L ? progetto.soffittoLarghezza : 0, r.autoLarghezza)}
+      </div>
+      <div class="riga-3d" style="margin:4px 0 0;opacity:.8">Vuoto = automatico: arriva ai muri e, dove non c'è muro, 2 m davanti ai mobili (isola compresa) e 1,2 m ai lati.</div>
+      ${P || L ? '<button type="button" class="btn-ghost" id="soffitto-auto" style="width:100%;margin-top:6px">↺ Misure automatiche</button>' : ''}`;
 }
 function agganciaTetto(root) {
   const mettiSoffitto = (cm) => {
@@ -1267,6 +1289,18 @@ function agganciaTetto(root) {
     registraStoria(); progetto.altezzaSoffitto = v * 10; aggiorna();
   };
   root.querySelector('#soffitto-h')?.addEventListener('change', (e) => mettiSoffitto(e.target.value));
+  // misure del soffitto: vuoto = automatico; da 50 cm a 50 m
+  const mettiMisura = (chiave, v) => {
+    const t = String(v).trim().replace(',', '.');
+    const n = t === '' ? null : Math.round(Number(t));
+    if (n !== null && (!Number.isFinite(n) || n < 50 || n > 5000)) { renderPannello(); return; }
+    registraStoria(); progetto[chiave] = n === null ? null : n * 10; aggiorna();
+  };
+  root.querySelector('#soffitto-prof')?.addEventListener('change', (e) => mettiMisura('soffittoProfondita', e.target.value));
+  root.querySelector('#soffitto-lar')?.addEventListener('change', (e) => mettiMisura('soffittoLarghezza', e.target.value));
+  root.querySelector('#soffitto-auto')?.addEventListener('click', () => {
+    registraStoria(); progetto.soffittoProfondita = null; progetto.soffittoLarghezza = null; aggiorna();
+  });
   root.querySelectorAll('[data-soffitto]').forEach((b) => b.addEventListener('click', () => mettiSoffitto(b.dataset.soffitto)));
   root.querySelectorAll('[data-tetto]').forEach((b) => b.addEventListener('click', () => {
     registraStoria(); progetto.tetto = b.dataset.tetto === 'si'; aggiorna();
@@ -1539,7 +1573,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261119x');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261119y');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2161,6 +2195,8 @@ function disegna() {
       livelloAttivo: (st === 2 || st === 3) ? livelloStep() : null,
       // ACCESSORI: si vedono e si spostano solo al passo Accessori (gli altri mobili restano fermi)
       oggetti: st === P_ACC ? 'attivi' : 'nascosti',
+      // TETTO SÌ: alla Pianta e agli Accessori (dove si mettono le lampade) si vede tutto il soffitto
+      conSoffitto: st === 1 || st === P_ACC,
       nascondiLivello: (st === 2 || st === 3) && nascondiAltro[livelloStep()] ? (livelloStep() === 'basso' ? 'alto' : 'basso') : null,
     });
   }
@@ -2269,13 +2305,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261119x');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261119y');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261119x'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261119y'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

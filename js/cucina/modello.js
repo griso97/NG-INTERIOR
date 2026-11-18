@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261119x';
+import { parametri } from '../parametri.js?v=20261119y';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -2374,6 +2374,77 @@ export function calcolaVertici(pareti) {
     pts.push({ x, y });
   }
   return pts;
+}
+
+// --------- SOFFITTO («Tetto sì»): dove sta e quanto è grande (in pianta, mm) ---------
+const SOFF_MURO = 60;           // spessore dei muri: il soffitto arriva alla loro faccia esterna
+const SOFF_FRONTE = 2000;       // davanti ai mobili, verso la stanza: isola, lampade, sgabelli, passaggio
+const SOFF_LATI = 1200;         // ai lati (e dietro) dove non c'è muro
+/**
+ * Il SOFFITTO in pianta. AUTOMATICO: fino ai muri (faccia esterna); dove un lato non ha muro va
+ * oltre i mobili, 2 m davanti (verso la stanza) e 1,2 m ai lati. L'utente può scrivere la
+ * PROFONDITÀ (dal muro verso la stanza) e la LARGHEZZA (lungo il muro) in
+ * progetto.soffittoProfondita / soffittoLarghezza (mm; vuoto = automatico). Le misure vanno dal
+ * filo interno del muro (dove cominciano i mobili); la lastra copre anche lo spessore del muro.
+ * → { x0, x1, y0, y1, asse ('x'|'y': asse della profondità), fronte ('x0'|'x1'|'y0'|'y1': il lato
+ *     verso la stanza), profondita, larghezza,
+ *     autoProfondita, autoLarghezza }
+ */
+export function rettangoloSoffitto(progetto) {
+  const pareti = (progetto.piano && progetto.piano.pareti) || [];
+  const V = calcolaVertici(pareti);
+  const muri = [];
+  let nx = 0, ny = 0;                       // da che parte sta la stanza (normali interne × lunghezza)
+  pareti.forEach((p, i) => {
+    const a = V[i], b = V[i + 1];
+    if (p.assente || !a || !b) return;
+    muri.push([a, b]);
+    const sgn = p.latoInterno === 'interno' ? 1 : -1;
+    nx += -(b.y - a.y) * sgn; ny += (b.x - a.x) * sgn;
+  });
+  const xs = [], ys = [];
+  for (const [a, b] of muri) xs.push(a.x, b.x), ys.push(a.y, b.y);
+  // lungo ogni muro ci sono (o ci saranno) i mobili: la loro profondità sta sempre sotto il soffitto
+  pareti.forEach((p, i) => {
+    const a = V[i], b = V[i + 1];
+    if (p.assente || !a || !b) return;
+    const L = Math.hypot(b.x - a.x, b.y - a.y) || 1, sgn = p.latoInterno === 'interno' ? 1 : -1;
+    const ix = (-(b.y - a.y) / L) * sgn * PROFONDITA_BASE, iy = ((b.x - a.x) / L) * sgn * PROFONDITA_BASE;
+    xs.push(a.x + ix, b.x + ix); ys.push(a.y + iy, b.y + iy);
+  });
+  for (const m of (progetto.mobiliLiberi || [])) {
+    const d = dimMobile(m), r = ((m.rot || 0) * Math.PI) / 180;
+    const ex = Math.abs(Math.cos(r)) * d.w / 2 + Math.abs(Math.sin(r)) * d.d / 2, ey = Math.abs(Math.sin(r)) * d.w / 2 + Math.abs(Math.cos(r)) * d.d / 2;
+    xs.push(m.x - ex, m.x + ex); ys.push(m.y - ey, m.y + ey);
+  }
+  if (!xs.length) xs.push(0, 3000), ys.push(0, 600);
+  // asse della profondità: quello verso cui guarda la stanza (senza muri: y, stanza verso +y)
+  const asse = Math.abs(nx) > Math.abs(ny) ? 'x' : 'y';
+  const verso = (asse === 'x' ? nx : ny) < 0 ? -1 : 1;
+  // c'è un muro lungo questo lato? (un muro dritto che sta sul bordo)
+  const lungo = (k, v) => muri.some(([a, b]) => Math.abs(a[k] - v) < 120 && Math.abs(b[k] - v) < 120 && Math.hypot(b.x - a.x, b.y - a.y) > 400);
+  const intervallo = (k, vals, oltreLo, oltreHi, misura, ancora) => {
+    const lo = Math.min(...vals), hi = Math.max(...vals), mLo = lungo(k, lo), mHi = lungo(k, hi);
+    let a = mLo ? lo : lo - oltreLo, b = mHi ? hi : hi + oltreHi;
+    const auto = b - a;
+    const M = Number(misura) > 0 ? Math.max(500, Number(misura)) : null;
+    const anc = ancora || (mLo && !mHi ? 'lo' : mHi && !mLo ? 'hi' : 'centro');
+    if (M) {
+      if (anc === 'lo') b = a + M; else if (anc === 'hi') a = b - M;
+      else { const c = (a + b) / 2; a = c - M / 2; b = c + M / 2; }
+    }
+    // la lastra copre anche lo spessore dei muri (se il bordo è ancora sul muro)
+    if (mLo && Math.abs(a - lo) < 1) a -= SOFF_MURO;
+    if (mHi && Math.abs(b - hi) < 1) b += SOFF_MURO;
+    return { a, b, auto, misura: M || auto };
+  };
+  const prof = intervallo(asse, asse === 'x' ? xs : ys, verso > 0 ? SOFF_LATI : SOFF_FRONTE, verso > 0 ? SOFF_FRONTE : SOFF_LATI,
+    progetto.soffittoProfondita, verso > 0 ? 'lo' : 'hi');
+  const lar = intervallo(asse === 'x' ? 'y' : 'x', asse === 'x' ? ys : xs, SOFF_LATI, SOFF_LATI, progetto.soffittoLarghezza, null);
+  const [X, Y] = asse === 'x' ? [prof, lar] : [lar, prof];
+  return { x0: X.a, x1: X.b, y0: Y.a, y1: Y.b, asse, fronte: asse + (verso > 0 ? '1' : '0'),
+    profondita: Math.round(prof.misura), larghezza: Math.round(lar.misura),
+    autoProfondita: Math.round(prof.auto), autoLarghezza: Math.round(lar.auto) };
 }
 
 /**

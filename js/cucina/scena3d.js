@@ -12,19 +12,19 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111x';
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
-  moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261119x';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119x';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261119x';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261119x';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261119x';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261119x';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119x';
-import { parametri } from '../parametri.js?v=20261119x';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119x';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119x';
+  moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
+} from './modello.js?v=20261119y';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119y';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261119y';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261119y';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261119y';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261119y';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119y';
+import { parametri } from '../parametri.js?v=20261119y';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119y';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119y';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119x';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119y';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -2177,13 +2177,14 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   pav.rotation.x = -Math.PI / 2; pav.position.set(cxF, 0, czF); pav.userData.pavimento = true; gruppo.add(pav);
 
   // SOFFITTO (solo con «Tetto sì», alla Pianta o nel Rendering): una LASTRA vera, spessa 20 cm,
-  // grande come la stanza (fino alla faccia esterna dei muri; dove non c'è muro 1,2 m oltre i
-  // mobili). Da DENTRO si vede pieno, chiaro (le lampade ci sono appese); da SOPRA si vede
+  // grande come la stanza (fino alla faccia esterna dei muri; dove non c'è muro 2 m davanti ai
+  // mobili e 1,2 m ai lati; profondità e larghezza le può scrivere l'utente: rettangoloSoffitto).
+  // Da DENTRO si vede pieno, chiaro (le lampade ci sono appese); da SOPRA si vede
   // semitrasparente con lo spessore e i bordi netti: si capisce che c'è e la cucina resta visibile.
   // Non fa ombra.
   const ALT_MURO = altezzaSoffitto(progetto);
   if (progetto.tetto) {
-    const r = rettangoloSoffitto(progetto, vertici), W = r.x1 - r.x0, D = r.y1 - r.y0;
+    const r = rettangoloSoffitto(progetto), W = r.x1 - r.x0, D = r.y1 - r.y0;
     const cx = (r.x0 + r.x1) / 2, cz = -(r.y0 + r.y1) / 2, sp = SP_SOFFITTO;
     const soff = new THREE.Group(); soff.userData.soffitto = true;
     const sotto = new THREE.Mesh(new THREE.PlaneGeometry(W, D), MAT_SOFFITTO); sotto.rotation.x = Math.PI / 2; sotto.position.set(cx, ALT_MURO, cz); soff.add(sotto);
@@ -3011,26 +3012,6 @@ export function coloriZoccolo() {
   return materialiPer('zoccolo').map((m) => ({ id: m.id, nome: m.nome, css: sfondoSwatch(m) }));
 }
 
-/** Il rettangolo (pianta, mm) del SOFFITTO: fino alla faccia esterna dei muri; dove un lato
- *  non ha un muro, 1,2 m oltre i mobili (lo spazio per muoversi in cucina). */
-function rettangoloSoffitto(progetto, vertici) {
-  const SPM = 60, OLTRE = 1200;
-  const muri = [];
-  (progetto.piano.pareti || []).forEach((p, i) => { if (!p.assente && vertici[i] && vertici[i + 1]) muri.push([vertici[i], vertici[i + 1]]); });
-  const xs = [], ys = [];
-  for (const [a, b] of muri) xs.push(a.x, b.x), ys.push(a.y, b.y);
-  for (const m of (progetto.mobiliLiberi || [])) {
-    const d = dimMobile(m), r = ((m.rot || 0) * Math.PI) / 180, ex = Math.abs(Math.cos(r)) * d.w / 2 + Math.abs(Math.sin(r)) * d.d / 2, ey = Math.abs(Math.sin(r)) * d.w / 2 + Math.abs(Math.cos(r)) * d.d / 2;
-    xs.push(m.x - ex, m.x + ex); ys.push(m.y - ey, m.y + ey);
-  }
-  if (!xs.length) return { x0: -500, x1: 3500, y0: -500, y1: 2500 };
-  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-  // c'è un muro lungo questo lato? (un muro dritto che sta sul bordo)
-  const lungo = (asse, v) => muri.some(([a, b]) => Math.abs(a[asse] - v) < 120 && Math.abs(b[asse] - v) < 120 && Math.hypot(b.x - a.x, b.y - a.y) > 400);
-  x0 = lungo('x', x0) ? x0 - SPM : x0 - OLTRE; x1 = lungo('x', x1) ? x1 + SPM : x1 + OLTRE;
-  y0 = lungo('y', y0) ? y0 - SPM : y0 - OLTRE; y1 = lungo('y', y1) ? y1 + SPM : y1 + OLTRE;
-  return { x0, x1, y0, y1 };
-}
 function bbox(progetto, vertici) {
   const xs = [], ys = [];
   (progetto.piano.pareti || []).forEach((p, i) => {

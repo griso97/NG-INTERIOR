@@ -10,8 +10,8 @@ import {
   calcolaVertici, bboxPerimetro,
   moduliDiParete, nomeTipo, PROFONDITA_BASE, PROFONDITA_PENSILE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
-  dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili, angoloInternoVertice,
-} from './modello.js?v=20261119x';
+  dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili, angoloInternoVertice, rettangoloSoffitto,
+} from './modello.js?v=20261119y';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -78,6 +78,13 @@ export function renderPianta(svg, progetto, opts = {}) {
     cb.minY = Math.min(cb.minY, m.y - r); cb.maxY = Math.max(cb.maxY, m.y + r);
   }
 
+  // TETTO SÌ: il contorno del soffitto si vede tutto (alla Pianta e agli Accessori)
+  const soffitto = progetto.tetto && !opts.livelliVisibili ? rettangoloSoffitto(progetto) : null;
+  if (soffitto && opts.conSoffitto) {
+    cb.minX = Math.min(cb.minX, soffitto.x0); cb.maxX = Math.max(cb.maxX, soffitto.x1);
+    cb.minY = Math.min(cb.minY, soffitto.y0); cb.maxY = Math.max(cb.maxY, soffitto.y1);
+  }
+
   // Margine piccolo attorno al contenuto (quote, badge "libero").
   const MARG = 350;
   let X0 = cb.minX - MARG, X1 = cb.maxX + MARG;
@@ -112,6 +119,23 @@ export function renderPianta(svg, progetto, opts = {}) {
 
   // --- Griglia 100 mm (chiara) + linee maggiori ogni 1000 mm ---
   svg.appendChild(renderGriglia(vbX, vbY, w, h));
+
+  // --- SOFFITTO («Tetto sì»): il suo contorno tratteggiato, così si vede se copre l'isola ---
+  if (soffitto) {
+    const r = soffitto, sc = Math.max(w, h) / 900;
+    svg.appendChild(el('rect', { x: r.x0, y: -r.y1, width: r.x1 - r.x0, height: r.y1 - r.y0, class: 'sv-soffitto',
+      fill: 'rgba(150,160,175,0.07)', stroke: 'rgba(120,130,145,0.75)', 'stroke-width': 2 * sc, 'stroke-dasharray': `${10 * sc} ${7 * sc}`, 'pointer-events': 'none' }));
+    // la scritta sul lato davanti (lontano dai muri), dentro il soffitto
+    const t = el('text', { class: 'sv-soffitto-testo', 'font-size': 13 * sc, fill: 'rgba(110,120,135,0.95)', 'text-anchor': 'middle', 'pointer-events': 'none' });
+    t.textContent = `Soffitto ${Math.round(r.profondita / 10)} × ${Math.round(r.larghezza / 10)} cm`;
+    const fx = r.fronte === 'x0' ? r.x0 : r.fronte === 'x1' ? r.x1 : (r.x0 + r.x1) / 2;
+    const fy = r.fronte === 'y0' ? r.y0 : r.fronte === 'y1' ? r.y1 : (r.y0 + r.y1) / 2;
+    const dentro = 22 * sc;
+    t.setAttribute('x', fx + (r.fronte === 'x0' ? dentro : r.fronte === 'x1' ? -dentro : 0));
+    t.setAttribute('y', -(fy + (r.fronte === 'y0' ? dentro : r.fronte === 'y1' ? -dentro : 0)));
+    if (r.asse === 'x') t.setAttribute('transform', `rotate(-90 ${t.getAttribute('x')} ${t.getAttribute('y')})`);
+    svg.appendChild(t);
+  }
 
   // --- Perimetro ---
   if (pareti.length > 0) {
