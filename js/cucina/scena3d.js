@@ -13,17 +13,17 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261119s';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119s';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261119s';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261119s';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261119s';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261119s';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119s';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119s';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119s';
+} from './modello.js?v=20261119t';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119t';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261119t';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261119t';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261119t';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261119t';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119t';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119t';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119t';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119s';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119t';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -229,7 +229,7 @@ const texCache = {};
 /** Evidenzia un gruppo: bordi bianchi + leggero bagliore sul corpo. */
 function evidenzia(g) {
   g.traverse((o) => {
-    if (o.isLineSegments) {
+    if (o.isLineSegments && !o.userData.fuga) {
       o.material = new THREE.LineBasicMaterial({ color: 0xffffff });
     } else if (o.isMesh && o.material && o.material.emissive !== undefined) {
       o.material = o.material.clone();
@@ -926,6 +926,7 @@ function antaVetro(g, px, py, z, pw, ph, matAnta, v) {
   vetro.position.set(px, py, z + sp / 2); vetro.renderOrder = 2; g.add(vetro);
   const e = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(pw, ph, sp)), matOro);
   e.position.set(px, py, z + sp / 2); g.add(e);
+  fughe(g, px, py, z, pw, ph, sp);
 }
 /** Cassa aperta davanti (si vede dal vetro) con i suoi ripiani. */
 function carcassaVetrina(w, h, d, coloreCorpo, nRip) {
@@ -939,6 +940,18 @@ function carcassaVetrina(w, h, d, coloreCorpo, nRip) {
   return g;
 }
 
+// FUGHE tra le ante (sono vere, 2–3 mm): da lontano sono più sottili di un pixel e il 3D le
+// disegnerebbe "a pezzi". Allora: una RIGA scura netta sul bordo di ogni fronte (una linea è
+// sempre larga almeno un pixel, quindi resta continua a qualunque distanza) e un FONDO scuro
+// dietro l'anta, che si vede solo dentro la fuga (da vicino si vede l'ombra, non la cassa chiara).
+const matFugaLinea = new THREE.LineBasicMaterial({ color: 0x1c1a17, transparent: true, opacity: 0.62 });
+const matFugaFondo = new THREE.MeshBasicMaterial({ color: 0x15130f });
+function fughe(g, px, py, z, pw, ph, sp = 20) {
+  const x0 = px - pw / 2, x1 = px + pw / 2, y0 = py - ph / 2, y1 = py + ph / 2, zf = z + sp + 0.4;
+  const v = [[x0, y0], [x1, y0], [x1, y0], [x1, y1], [x1, y1], [x0, y1], [x0, y1], [x0, y0]].map(([x, y]) => new THREE.Vector3(x, y, zf));
+  const l = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(v), matFugaLinea); l.userData.fuga = true; g.add(l);
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(pw + FUGA_W, ph + FUGA_H), matFugaFondo); f.position.set(px, py, z + 0.6); f.userData.fondoFuga = true; g.add(f);
+}
 function pannello(g, px, py, z, pw, ph, mat) {
   // Anta: uso direttamente il materiale (legno con texture o tinta piena),
   // così la venatura compare su tutte le facce dell'anta.
@@ -952,6 +965,7 @@ function pannello(g, px, py, z, pw, ph, mat) {
   const e = new THREE.LineSegments(new THREE.EdgesGeometry(box), matOro);
   e.position.copy(mesh.position);
   g.add(e);
+  fughe(g, px, py, z, pw, ph);
 }
 
 // Maniglia scelta per categoria (catalogo): progetto.maniglie = { base, pensile, colonna }

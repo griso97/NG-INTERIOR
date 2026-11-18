@@ -12,11 +12,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261119s';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261119s';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261119s';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261119t';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261119t';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261119t';
 import { sfondoDi } from './sfondi.js?v=20261111b';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261119s';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261119t';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -573,6 +573,22 @@ function aggiungiBox(sx, sy, sz, cx, cy, cz, materiale, tipo, strategia) {
   return mesh;
 }
 
+// FUGHE tra le ante (vere, 2 mm): da lontano sono più sottili di un pixel e il 3D le disegnerebbe
+// "a pezzi". Una RIGA scura sul bordo di ogni anta (una linea è sempre larga almeno un pixel:
+// resta continua a qualunque distanza) e, dietro l'anta, un FONDO scuro che si vede solo dentro
+// la fuga (da vicino si vede l'ombra, non la carcassa chiara).
+const matFugaLinea = new THREE.LineBasicMaterial({ color: 0x1c1a17, transparent: true, opacity: 0.6 });
+const matFugaFondo = new THREE.MeshBasicMaterial({ color: 0x15130f });
+function fugheAnta(gruppo, cx, cy, w, h, sp, fondo = 0) {
+  const x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - h / 2, y1 = cy + h / 2, z = sp / 2 + 0.4;
+  const v = [[x0, y0], [x1, y0], [x1, y0], [x1, y1], [x1, y1], [x0, y1], [x0, y1], [x0, y0]].map(([x, y]) => new THREE.Vector3(x, y, z));
+  const l = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(v), matFugaLinea); l.userData.tipo = 'fuga'; gruppo.add(l);
+  if (fondo) {
+    const f = new THREE.Mesh(new THREE.PlaneGeometry(w + fondo, h + fondo), matFugaFondo);
+    f.position.set(cx, cy, -sp / 2 + 0.6); f.userData.tipo = 'fuga'; gruppo.add(f);
+  }
+}
+
 /**
  * Costruisce un singolo modulo (carcassa + schiena + ripiani + ante +
  * eventuali cassettiere) con lo stesso schema delle formule.
@@ -771,6 +787,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       mesh.castShadow = true; mesh.receiveShadow = true;
       mesh.userData.tipo = 'anta';
       pivot.add(mesh);
+      fugheAnta(pivot, mesh.position.x, 0, larAnta, altAnta, sA, 2);
       // maniglia sul bordo che si apre (lontano dal cardine)
       const man = manigliaScelta(config);
       if (man) aggiungiManiglia(pivot, man, cardineSx ? larAnta - 40 : -larAnta + 40, yManiglia(man, altAnta, H / 2 - altAnta / 2, config), sA / 2);
@@ -812,6 +829,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       mesh.castShadow = true; mesh.receiveShadow = true;
       mesh.userData.tipo = 'anta';
       pivot.add(mesh);
+      fugheAnta(pivot, 0, 0, larAntaSc, altAntaSc, sA);
       if (manSc) aggiungiManiglia(pivot, manSc, latoManiglia * (larAntaSc / 2 - 40), yManiglia(manSc, altAntaSc, cy - altAntaSc / 2, config), sA / 2);
       gruppoArmadio.add(pivot);
     };
