@@ -13,18 +13,18 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261119w';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119w';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261119w';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261119w';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261119w';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261119w';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119w';
-import { parametri } from '../parametri.js?v=20261119w';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119w';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119w';
+} from './modello.js?v=20261119x';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119x';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261119x';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261119x';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261119x';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261119x';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119x';
+import { parametri } from '../parametri.js?v=20261119x';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119x';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119w';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119x';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -216,6 +216,12 @@ const MAT_MURO = new THREE.MeshStandardMaterial({ color: 0xece8e0, roughness: 0.
 // soffitto: la luce principale viene dall'alto e non lo tocca; in una stanza vera è illuminato
 // dalla luce che rimbalza dal pavimento e dai muri → un filo di luce propria (bianco caldo, opaco)
 const MAT_SOFFITTO = new THREE.MeshStandardMaterial({ color: 0xf1eee8, roughness: 0.97, metalness: 0, envMapIntensity: 0.4, emissive: 0xd9d4cb, emissiveIntensity: 0.62 });
+// la lastra del soffitto vista DA SOPRA: semitrasparente (si vede che c'è e si vede la cucina sotto),
+// con i fianchi pieni (lo spessore) e i bordi netti
+const MAT_SOFFITTO_SOPRA = new THREE.MeshStandardMaterial({ color: 0xe9e5dd, roughness: 1, metalness: 0, transparent: true, opacity: 0.55, depthWrite: false });
+const MAT_SOFFITTO_FIANCO = new THREE.MeshStandardMaterial({ color: 0xe2ded6, roughness: 0.95, metalness: 0, emissive: 0x6b6862, emissiveIntensity: 0.25 });
+const MAT_SOFFITTO_BORDO = new THREE.LineBasicMaterial({ color: 0x5c5850, transparent: true, opacity: 0.75 });
+const SP_SOFFITTO = 200;   // mm: spessore della lastra
 const H_FORNO = 600;
 const H_MICRO = 380;
 
@@ -2170,15 +2176,24 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
     pavimentoVero(progetto.sfondo || 'chiaro', sf.pav, padW, padD, () => { if (resa) resa.cambiato(); }));
   pav.rotation.x = -Math.PI / 2; pav.position.set(cxF, 0, czF); pav.userData.pavimento = true; gruppo.add(pav);
 
-  // SOFFITTO: un piano bianco opaco all'altezza scelta, rivolto in giù. Da sotto si vede
-  // (le lampade ci sono appese), da sopra no (la faccia di dietro non si disegna), quindi
-  // la vista dall'alto resta libera. Non fa ombra.
-  // Solo con «Tetto sì» (Pianta o Rendering): senza, la cucina resta aperta.
+  // SOFFITTO (solo con «Tetto sì», alla Pianta o nel Rendering): una LASTRA vera, spessa 20 cm,
+  // grande come la stanza (fino alla faccia esterna dei muri; dove non c'è muro 1,2 m oltre i
+  // mobili). Da DENTRO si vede pieno, chiaro (le lampade ci sono appese); da SOPRA si vede
+  // semitrasparente con lo spessore e i bordi netti: si capisce che c'è e la cucina resta visibile.
+  // Non fa ombra.
   const ALT_MURO = altezzaSoffitto(progetto);
   if (progetto.tetto) {
-    const soff = new THREE.Mesh(new THREE.PlaneGeometry(padW, padD), MAT_SOFFITTO);
-    soff.rotation.x = Math.PI / 2; soff.position.set(cxF, ALT_MURO, czF);
-    soff.userData.soffitto = true; soff.userData.senzaOmbra = true; soff.castShadow = false; soff.receiveShadow = false; gruppo.add(soff);
+    const r = rettangoloSoffitto(progetto, vertici), W = r.x1 - r.x0, D = r.y1 - r.y0;
+    const cx = (r.x0 + r.x1) / 2, cz = -(r.y0 + r.y1) / 2, sp = SP_SOFFITTO;
+    const soff = new THREE.Group(); soff.userData.soffitto = true;
+    const sotto = new THREE.Mesh(new THREE.PlaneGeometry(W, D), MAT_SOFFITTO); sotto.rotation.x = Math.PI / 2; sotto.position.set(cx, ALT_MURO, cz); soff.add(sotto);
+    const sopra = new THREE.Mesh(new THREE.PlaneGeometry(W, D), MAT_SOFFITTO_SOPRA); sopra.rotation.x = -Math.PI / 2; sopra.position.set(cx, ALT_MURO + sp, cz); sopra.renderOrder = 5; soff.add(sopra);
+    const nessuno = new THREE.MeshBasicMaterial({ visible: false });
+    const fianchi = new THREE.Mesh(new THREE.BoxGeometry(W, sp, D), [MAT_SOFFITTO_FIANCO, MAT_SOFFITTO_FIANCO, nessuno, nessuno, MAT_SOFFITTO_FIANCO, MAT_SOFFITTO_FIANCO]);
+    fianchi.position.set(cx, ALT_MURO + sp / 2, cz); soff.add(fianchi);
+    const bordi = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(W, sp, D)), MAT_SOFFITTO_BORDO); bordi.position.copy(fianchi.position); bordi.userData.fuga = true; soff.add(bordi);
+    soff.traverse((o) => { o.userData.senzaOmbra = true; o.userData.soffitto = true; if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+    gruppo.add(soff);
   }
 
   // Muri di riferimento
@@ -2996,6 +3011,26 @@ export function coloriZoccolo() {
   return materialiPer('zoccolo').map((m) => ({ id: m.id, nome: m.nome, css: sfondoSwatch(m) }));
 }
 
+/** Il rettangolo (pianta, mm) del SOFFITTO: fino alla faccia esterna dei muri; dove un lato
+ *  non ha un muro, 1,2 m oltre i mobili (lo spazio per muoversi in cucina). */
+function rettangoloSoffitto(progetto, vertici) {
+  const SPM = 60, OLTRE = 1200;
+  const muri = [];
+  (progetto.piano.pareti || []).forEach((p, i) => { if (!p.assente && vertici[i] && vertici[i + 1]) muri.push([vertici[i], vertici[i + 1]]); });
+  const xs = [], ys = [];
+  for (const [a, b] of muri) xs.push(a.x, b.x), ys.push(a.y, b.y);
+  for (const m of (progetto.mobiliLiberi || [])) {
+    const d = dimMobile(m), r = ((m.rot || 0) * Math.PI) / 180, ex = Math.abs(Math.cos(r)) * d.w / 2 + Math.abs(Math.sin(r)) * d.d / 2, ey = Math.abs(Math.sin(r)) * d.w / 2 + Math.abs(Math.cos(r)) * d.d / 2;
+    xs.push(m.x - ex, m.x + ex); ys.push(m.y - ey, m.y + ey);
+  }
+  if (!xs.length) return { x0: -500, x1: 3500, y0: -500, y1: 2500 };
+  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  // c'è un muro lungo questo lato? (un muro dritto che sta sul bordo)
+  const lungo = (asse, v) => muri.some(([a, b]) => Math.abs(a[asse] - v) < 120 && Math.abs(b[asse] - v) < 120 && Math.hypot(b.x - a.x, b.y - a.y) > 400);
+  x0 = lungo('x', x0) ? x0 - SPM : x0 - OLTRE; x1 = lungo('x', x1) ? x1 + SPM : x1 + OLTRE;
+  y0 = lungo('y', y0) ? y0 - SPM : y0 - OLTRE; y1 = lungo('y', y1) ? y1 + SPM : y1 + OLTRE;
+  return { x0, x1, y0, y1 };
+}
 function bbox(progetto, vertici) {
   const xs = [], ys = [];
   (progetto.piano.pareti || []).forEach((p, i) => {
