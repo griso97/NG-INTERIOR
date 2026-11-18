@@ -1184,15 +1184,18 @@ function tavoloInfinito() {
 }
 /** T3 — «Mikado»: aste dorate incrociate, piano in pietra calda. */
 function tavoloMikado() {
-  const g = new THREE.Group(), H = 708;
+  // le aste inclinate scendono di ~19 mm sotto i punti di partenza: tutto più basso di tanto, così
+  // appoggiato a terra il piano sta a 75 cm
+  const g = new THREE.Group(), H = 689;
   const aste = [[-520, -160, 380, 120], [520, -160, -380, 120], [-470, 170, 420, -150], [470, 170, -420, -150], [-300, -40, 520, 40], [300, 40, -520, -40]];
   for (const [x0, z0, x1, z1] of aste) g.add(asta(V3(x0, 0, z0), V3(x1, H, z1), 19, 19, 'oro-satinato', 24));
-  const t = new THREE.Group(); t.add(g); t.add(pianoTavolo(2000, 1000, 'ovale', 'pietra-calda'));
+  const t = new THREE.Group(); t.add(g); t.add(pianoTavolo(2000, 1000, 'ovale', 'pietra-calda', 12, 731));
   return ombre(t);
 }
 /** T4 — «Ics»: gambe a X in metallo nero (sezione quadra), piano spesso in rovere. */
 function tavoloIcs() {
-  const g = new THREE.Group(), H = 700;
+  // le gambe a sezione quadra inclinate scendono di ~45 mm: appoggiato a terra il piano sta a 75 cm
+  const g = new THREE.Group(), H = 655;
   for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
     const a = V3(sx * 760, 0, sz * 300), b = V3(-sx * 640, H, -sz * 250);       // tutte passano dal centro: una X vista da ogni lato
     const m = asta(a, b, 38, 38, 'metallo-nero', 4); m.rotateY(Math.PI / 4); g.add(m);
@@ -1314,23 +1317,23 @@ export const COLLEZIONE = [
   { id: 'lux-lampada-ottone', linea: 'luxury', appeso: true, nome: 'Lampada a sospensione in ottone', es: 'Lámpara colgante de latón', misure: { w: 305, d: 305, h: 2700 }, crea: async (s) => lampada('ottone', s) },
   { id: 'lux-lampada-globo', linea: 'luxury', appeso: true, nome: 'Lampada a sospensione globo opalino', es: 'Lámpara colgante globo opalino', misure: { w: 250, d: 250, h: 2700 }, crea: async (s) => lampada('globo', s) },
   // ---- DESIGN (prova: tavoli scultorei, lampade LED, sgabello e sedia imbottiti) ----
-  { id: 'ds-tavolo-farfalla', nome: 'Tavolo «Farfalla», anelli incrociati e ceramica bianca', es: 'Mesa «Mariposa», aros cruzados y cerámica blanca', misure: { w: 0, d: 0, h: 0 }, crea: async () => tavoloFarfalla() },
-  { id: 'ds-tavolo-infinito', nome: 'Tavolo «Infinito», nastro in bronzo e piano ovale', es: 'Mesa «Infinito», cinta de bronce y tapa ovalada', misure: { w: 0, d: 0, h: 0 }, crea: async () => tavoloInfinito() },
-  { id: 'ds-tavolo-mikado', nome: 'Tavolo «Mikado», aste dorate e pietra calda', es: 'Mesa «Mikado», varillas doradas y piedra cálida', misure: { w: 0, d: 0, h: 0 }, crea: async () => tavoloMikado() },
-  { id: 'ds-tavolo-ics', nome: 'Tavolo a X nero con piano in rovere', es: 'Mesa en X negra con tapa de roble', misure: { w: 0, d: 0, h: 0 }, crea: async () => tavoloIcs() },
-  { id: 'ds-tavolo-ricciolo', nome: 'Tavolo «Ricciolo», lama nera e ceramica nera', es: 'Mesa «Rizo», lámina negra y cerámica negra', misure: { w: 0, d: 0, h: 0 }, crea: async () => tavoloRicciolo() },
-  { id: 'ds-led-anelli', appeso: true, nome: 'Lampada LED, tre anelli intrecciati', es: 'Lámpara LED, tres aros entrelazados', misure: { w: 0, d: 0, h: 2700 }, crea: async (s) => lampadaLed('anelli', s) },
-  { id: 'ds-led-infinito', appeso: true, nome: 'Lampada LED «Infinito»', es: 'Lámpara LED «Infinito»', misure: { w: 0, d: 0, h: 2700 }, crea: async (s) => lampadaLed('infinito', s) },
-  { id: 'ds-led-linee', appeso: true, nome: 'Lampada LED, linee incrociate', es: 'Lámpara LED, líneas cruzadas', misure: { w: 0, d: 0, h: 2700 }, crea: async (s) => lampadaLed('linee', s) },
-  { id: 'ds-led-orbita', appeso: true, nome: 'Lampada LED «Orbita», due anelli', es: 'Lámpara LED «Órbita», dos aros', misure: { w: 0, d: 0, h: 2700 }, crea: async (s) => lampadaLed('orbita', s) },
-  { id: 'ds-sgabello-conchiglia', nome: 'Sgabello «Conchiglia» in velluto e ottone', es: 'Taburete «Concha» de terciopelo y latón', misure: { w: 0, d: 0, h: 0 }, crea: async () => sgabelloConchiglia() },
-  { id: 'ds-sedia-avvolgente', nome: 'Sedia «Avvolgente» in velluto e ottone', es: 'Silla «Envolvente» de terciopelo y latón', misure: { w: 0, d: 0, h: 0 }, crea: async () => sediaAvvolgente() },
-  { id: 'ds-sedia-avvolgente-salvia', nome: 'Sedia «Avvolgente» velluto salvia, gambe nere', es: 'Silla «Envolvente» terciopelo salvia, patas negras', misure: { w: 0, d: 0, h: 0 }, crea: async () => sediaAvvolgente('velluto-salvia', 'metallo-nero') },
+  { id: 'ds-tavolo-farfalla', nome: 'Tavolo «Farfalla», anelli incrociati e ceramica bianca', es: 'Mesa «Mariposa», aros cruzados y cerámica blanca', misure: { w: 1904, d: 954, h: 750 }, crea: async () => tavoloFarfalla() },
+  { id: 'ds-tavolo-infinito', nome: 'Tavolo «Infinito», nastro in bronzo e piano ovale', es: 'Mesa «Infinito», cinta de bronce y tapa ovalada', misure: { w: 2204, d: 1104, h: 750 }, crea: async () => tavoloInfinito() },
+  { id: 'ds-tavolo-mikado', nome: 'Tavolo «Mikado», aste dorate e pietra calda', es: 'Mesa «Mikado», varillas doradas y piedra cálida', misure: { w: 2004, d: 1004, h: 751 }, crea: async () => tavoloMikado() },
+  { id: 'ds-tavolo-ics', nome: 'Tavolo a X nero con piano in rovere', es: 'Mesa en X negra con tapa de roble', misure: { w: 2206, d: 1006, h: 751 }, crea: async () => tavoloIcs() },
+  { id: 'ds-tavolo-ricciolo', nome: 'Tavolo «Ricciolo», lama nera e ceramica nera', es: 'Mesa «Rizo», lámina negra y cerámica negra', misure: { w: 2404, d: 1054, h: 750 }, crea: async () => tavoloRicciolo() },
+  { id: 'ds-led-anelli', appeso: true, nome: 'Lampada LED, tre anelli intrecciati', es: 'Lámpara LED, tres aros entrelazados', misure: { w: 818, d: 792, h: 2700 }, crea: async (s) => lampadaLed('anelli', s) },
+  { id: 'ds-led-infinito', appeso: true, nome: 'Lampada LED «Infinito»', es: 'Lámpara LED «Infinito»', misure: { w: 1144, d: 420, h: 2700 }, crea: async (s) => lampadaLed('infinito', s) },
+  { id: 'ds-led-linee', appeso: true, nome: 'Lampada LED, linee incrociate', es: 'Lámpara LED, líneas cruzadas', misure: { w: 1084, d: 562, h: 2700 }, crea: async (s) => lampadaLed('linee', s) },
+  { id: 'ds-led-orbita', appeso: true, nome: 'Lampada LED «Orbita», due anelli', es: 'Lámpara LED «Órbita», dos aros', misure: { w: 989, d: 982, h: 2700 }, crea: async (s) => lampadaLed('orbita', s) },
+  { id: 'ds-sgabello-conchiglia', nome: 'Sgabello «Conchiglia» in velluto e ottone', es: 'Taburete «Concha» de terciopelo y latón', misure: { w: 492, d: 472, h: 852 }, crea: async () => sgabelloConchiglia() },
+  { id: 'ds-sedia-avvolgente', nome: 'Sedia «Avvolgente» in velluto e ottone', es: 'Silla «Envolvente» de terciopelo y latón', misure: { w: 568, d: 540, h: 794 }, crea: async () => sediaAvvolgente() },
+  { id: 'ds-sedia-avvolgente-salvia', nome: 'Sedia «Avvolgente» velluto salvia, gambe nere', es: 'Silla «Envolvente» terciopelo salvia, patas negras', misure: { w: 568, d: 540, h: 794 }, crea: async () => sediaAvvolgente('velluto-salvia', 'metallo-nero') },
   // ---- FRUTTIERE DI DESIGN ----
-  { id: 'fd-onda', nome: 'Fruttiera a onde in terracotta con frutta mista', es: 'Frutero ondulado de terracota con fruta variada', misure: { w: 0, d: 0, h: 0 }, crea: () => fruttieraDesign('onda') },
-  { id: 'fd-spirale', nome: 'Fruttiera a spirale crema con agrumi', es: 'Frutero en espiral crema con cítricos', misure: { w: 0, d: 0, h: 0 }, crea: () => fruttieraDesign('spirale') },
-  { id: 'fd-verde', nome: 'Fruttiera bassa nera con frutta verde', es: 'Frutero bajo negro con fruta verde', misure: { w: 0, d: 0, h: 0 }, crea: () => fruttieraDesign('verde') },
-  { id: 'fd-ottone', nome: 'Cesto in fili d\'ottone con banane e frutta', es: 'Cesta de alambre de latón con plátanos y fruta', misure: { w: 0, d: 0, h: 0 }, crea: () => fruttieraDesign('ottone') },
+  { id: 'fd-onda', nome: 'Fruttiera a onde in terracotta con frutta mista', es: 'Frutero ondulado de terracota con fruta variada', misure: { w: 348, d: 341, h: 197 }, crea: () => fruttieraDesign('onda') },
+  { id: 'fd-spirale', nome: 'Fruttiera a spirale crema con agrumi', es: 'Frutero en espiral crema con cítricos', misure: { w: 294, d: 296, h: 175 }, crea: () => fruttieraDesign('spirale') },
+  { id: 'fd-verde', nome: 'Fruttiera bassa nera con frutta verde', es: 'Frutero bajo negro con fruta verde', misure: { w: 384, d: 384, h: 153 }, crea: () => fruttieraDesign('verde') },
+  { id: 'fd-ottone', nome: 'Cesto in fili d\'ottone con banane e frutta', es: 'Cesta de alambre de latón con plátanos y fruta', misure: { w: 344, d: 353, h: 198 }, crea: () => fruttieraDesign('ottone') },
   // ---- LEGNO E BAMBÙ ----
   { id: 'lb-taglieri-muro', nome: 'Taglieri in rovere e bambù al muro', es: 'Tablas de roble y bambú contra la pared', misure: { w: 363, d: 171, h: 497 }, crea: async () => taglieriMuro() },
   { id: 'lb-vassoio-bambu', nome: 'Vassoio in bambù con olio, sale e pepe', es: 'Bandeja de bambú con aceite, sal y pimienta', misure: { w: 383, d: 173, h: 302 }, crea: async () => vassoioBambu() },
@@ -1356,7 +1359,13 @@ export function creaModerno(id, soffitto = SOFFITTO) {
   const voce = COLLEZIONE.find((c) => c.id === id), chiave = voce && voce.appeso ? `${id}|${soffitto}` : id;
   if (!_pronti.has(chiave)) {
     if (voce) rnd = generatore(semeDi(id));
-    const p = voce ? Promise.resolve(voce.crea(soffitto)).then((g) => { const b = new THREE.Box3().setFromObject(g); g.userData.dim = { w: b.max.x - b.min.x, h: b.max.y - b.min.y, d: b.max.z - b.min.z }; return g; }) : Promise.reject(new Error('oggetto sconosciuto'));
+    const p = voce ? Promise.resolve(voce.crea(soffitto)).then((g) => {
+      let b = new THREE.Box3().setFromObject(g);
+      // un oggetto APPOGGIA sul suo punto più basso: niente pezzi sotto il piano o sotto il pavimento
+      // (es. le gambe inclinate di un tavolo); le lampade invece pendono dal soffitto
+      if (!voce.appeso && b.min.y < -0.5) { const dy = -b.min.y; for (const c of g.children) c.position.y += dy; g.updateMatrixWorld(true); b = new THREE.Box3().setFromObject(g); }
+      g.userData.dim = { w: b.max.x - b.min.x, h: b.max.y - b.min.y, d: b.max.z - b.min.z }; return g;
+    }) : Promise.reject(new Error('oggetto sconosciuto'));
     p.catch(() => _pronti.delete(chiave));
     _pronti.set(chiave, p);
   }

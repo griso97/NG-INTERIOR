@@ -15,8 +15,8 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261119y';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261119y';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261119z';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261119z';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -318,6 +318,55 @@ export const MATERIALI = [
   { id: 'cm-lb-vini', nome: 'Bottiglie di vino e calici su vassoio', categoria: 'oggetto', sezione: 'oggetti', moderno: 'lb-vini', linea: 'Legno e bambù',
     thumb: 'oggetti/moderni/miniature/lb-vini.jpg', texture: 'oggetti/moderni/miniature/lb-vini.jpg', colore: 0xd8d2c8,
     misure: { w: 444, d: 234, h: 317 }, info: { note: 'Collezione Legno e bambù NG Interior' } },
+  // ---- DESIGN (modellati da noi: tavoli scultura, sedie, sgabello, lampade LED, fruttiere) ----
+  { id: 'cm-ds-tavolo-farfalla', nome: 'Tavolo «Farfalla», anelli incrociati e ceramica bianca', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-tavolo-farfalla', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-tavolo-farfalla.jpg', texture: 'oggetti/moderni/miniature/ds-tavolo-farfalla.jpg', colore: 0xd8d2c8,
+    misure: { w: 1904, d: 954, h: 750 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-tavolo-infinito', nome: 'Tavolo «Infinito», nastro in bronzo e piano ovale', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-tavolo-infinito', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-tavolo-infinito.jpg', texture: 'oggetti/moderni/miniature/ds-tavolo-infinito.jpg', colore: 0xd8d2c8,
+    misure: { w: 2204, d: 1104, h: 750 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-tavolo-mikado', nome: 'Tavolo «Mikado», aste dorate e pietra calda', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-tavolo-mikado', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-tavolo-mikado.jpg', texture: 'oggetti/moderni/miniature/ds-tavolo-mikado.jpg', colore: 0xd8d2c8,
+    misure: { w: 2004, d: 1004, h: 751 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-tavolo-ics', nome: 'Tavolo a X nero con piano in rovere', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-tavolo-ics', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-tavolo-ics.jpg', texture: 'oggetti/moderni/miniature/ds-tavolo-ics.jpg', colore: 0xd8d2c8,
+    misure: { w: 2206, d: 1006, h: 751 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-tavolo-ricciolo', nome: 'Tavolo «Ricciolo», lama nera e ceramica nera', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-tavolo-ricciolo', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-tavolo-ricciolo.jpg', texture: 'oggetti/moderni/miniature/ds-tavolo-ricciolo.jpg', colore: 0xd8d2c8,
+    misure: { w: 2404, d: 1054, h: 750 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-led-anelli', nome: 'Lampada LED, tre anelli intrecciati', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-led-anelli', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-led-anelli.jpg', texture: 'oggetti/moderni/miniature/ds-led-anelli.jpg', colore: 0xd8d2c8,
+    misure: { w: 818, d: 792, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-led-infinito', nome: 'Lampada LED «Infinito»', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-led-infinito', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-led-infinito.jpg', texture: 'oggetti/moderni/miniature/ds-led-infinito.jpg', colore: 0xd8d2c8,
+    misure: { w: 1144, d: 420, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-led-linee', nome: 'Lampada LED, linee incrociate', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-led-linee', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-led-linee.jpg', texture: 'oggetti/moderni/miniature/ds-led-linee.jpg', colore: 0xd8d2c8,
+    misure: { w: 1084, d: 562, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-led-orbita', nome: 'Lampada LED «Orbita», due anelli', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-led-orbita', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-led-orbita.jpg', texture: 'oggetti/moderni/miniature/ds-led-orbita.jpg', colore: 0xd8d2c8,
+    misure: { w: 989, d: 982, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-sgabello-conchiglia', nome: 'Sgabello «Conchiglia» in velluto e ottone', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-sgabello-conchiglia', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-sgabello-conchiglia.jpg', texture: 'oggetti/moderni/miniature/ds-sgabello-conchiglia.jpg', colore: 0xd8d2c8,
+    misure: { w: 492, d: 472, h: 852 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-sedia-avvolgente', nome: 'Sedia «Avvolgente» in velluto e ottone', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-sedia-avvolgente', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-sedia-avvolgente.jpg', texture: 'oggetti/moderni/miniature/ds-sedia-avvolgente.jpg', colore: 0xd8d2c8,
+    misure: { w: 568, d: 540, h: 794 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-sedia-avvolgente-salvia', nome: 'Sedia «Avvolgente» velluto salvia, gambe nere', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-sedia-avvolgente-salvia', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-sedia-avvolgente-salvia.jpg', texture: 'oggetti/moderni/miniature/ds-sedia-avvolgente-salvia.jpg', colore: 0xd8d2c8,
+    misure: { w: 568, d: 540, h: 794 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-fd-onda', nome: 'Fruttiera a onde in terracotta con frutta mista', categoria: 'oggetto', sezione: 'oggetti', moderno: 'fd-onda', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/fd-onda.jpg', texture: 'oggetti/moderni/miniature/fd-onda.jpg', colore: 0xd8d2c8,
+    misure: { w: 348, d: 341, h: 197 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-fd-spirale', nome: 'Fruttiera a spirale crema con agrumi', categoria: 'oggetto', sezione: 'oggetti', moderno: 'fd-spirale', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/fd-spirale.jpg', texture: 'oggetti/moderni/miniature/fd-spirale.jpg', colore: 0xd8d2c8,
+    misure: { w: 294, d: 296, h: 175 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-fd-verde', nome: 'Fruttiera bassa nera con frutta verde', categoria: 'oggetto', sezione: 'oggetti', moderno: 'fd-verde', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/fd-verde.jpg', texture: 'oggetti/moderni/miniature/fd-verde.jpg', colore: 0xd8d2c8,
+    misure: { w: 384, d: 384, h: 153 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-fd-ottone', nome: 'Cesto in fili d\'ottone con banane e frutta', categoria: 'oggetto', sezione: 'oggetti', moderno: 'fd-ottone', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/fd-ottone.jpg', texture: 'oggetti/moderni/miniature/fd-ottone.jpg', colore: 0xd8d2c8,
+    misure: { w: 344, d: 353, h: 198 }, info: { note: 'Collezione Design NG Interior' } },
   // ---- LIBRERIA 3D: prodotti veri (Amazon Berkeley Objects, CC BY 4.0) ----
   ...LIBRERIA.map(voceLibreria),
   // ---- Zoccoli (cucina) ----
@@ -353,7 +402,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261119y');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261119z');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -482,16 +531,20 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261119y';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261119z';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
   'lb-lampada-sfera': 'luci', 'lb-lampada-campana': 'luci', 'lb-sgabello-corda': 'sgabelli', 'lb-ulivo': 'piante', 'lb-erbe': 'piante', 'lb-eucalipto': 'piante',
-  'vaso-scultura': 'decor', 'vaso-ulivo': 'piante', 'lux-vaso-pampas': 'piante', 'lux-vaso-fume': 'decor', 'lux-candelieri': 'decor', 'lux-scultura': 'decor' };
+  'vaso-scultura': 'decor', 'vaso-ulivo': 'piante', 'lux-vaso-pampas': 'piante', 'lux-vaso-fume': 'decor', 'lux-candelieri': 'decor', 'lux-scultura': 'decor',
+  'ds-tavolo-farfalla': 'pranzo', 'ds-tavolo-infinito': 'pranzo', 'ds-tavolo-mikado': 'pranzo', 'ds-tavolo-ics': 'pranzo', 'ds-tavolo-ricciolo': 'pranzo',
+  'ds-sedia-avvolgente': 'pranzo', 'ds-sedia-avvolgente-salvia': 'pranzo', 'ds-sgabello-conchiglia': 'sgabelli',
+  'ds-led-anelli': 'luci', 'ds-led-infinito': 'luci', 'ds-led-linee': 'luci', 'ds-led-orbita': 'luci' };
 for (const m of MATERIALI) {
   if (!m.moderno) continue;
   m.gruppo = GRUPPO_COLLEZIONE[m.moderno] || 'cucina';
-  m.posa = m.appeso ? 'appeso' : m.gruppo === 'sgabelli' || m.moderno === 'lb-ulivo' ? 'terra' : 'piano';
+  // a TERRA: sgabelli, tavoli e sedie, l'ulivo grande; appese le lampade; il resto sul piano
+  m.posa = m.appeso ? 'appeso' : m.gruppo === 'sgabelli' || m.gruppo === 'pranzo' || m.moderno === 'lb-ulivo' ? 'terra' : 'piano';
 }
 /** Gruppo di un oggetto nella lista «Aggiungi oggetti» (quelli aggiunti dall'utente: «I miei oggetti»). */
 export function gruppoOggetto(o) { return (o && o.gruppo) || (o && (o.proprio || o.pronto) ? 'miei' : 'cucina'); }
