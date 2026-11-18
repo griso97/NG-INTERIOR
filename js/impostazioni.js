@@ -8,17 +8,18 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261119u';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119u';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119u';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119u';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119u';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119u';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119u';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119u';
-import { agganciaTema } from './tema.js?v=20261119u';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119u';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261119u';
+} from './catalogo.js?v=20261119v';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261119v';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261119v';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261119v';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261119v';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261119v';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261119v';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261119v';
+import { agganciaTema } from './tema.js?v=20261119v';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261119v';
+import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261119v';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261119v';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -26,8 +27,11 @@ const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
 const CON_AGGIUNTA = ['legno', 'fingerpull', 'encimera', 'pannello', 'zoccolo', 'maniglie', 'binari', 'oggetti'];
 
 let stato = await leggiCatalogo();
+// scheda in più (non è una sezione del catalogo): i PARAMETRI della falegnameria
+const SEZ_PARAMETRI = { id: 'parametri', nome: 'Parametri', desc: 'I numeri del tuo modo di lavorare: aria delle ante, maniglia a J, sistema di cassetti. Li usano la distinta di taglio e il 3D della cucina.' };
+const TUTTE = [...SEZIONI, SEZ_PARAMETRI];
 let sezione = (location.hash || '').slice(1);
-if (!SEZIONI.some((s) => s.id === sezione)) sezione = 'legno';
+if (!TUTTE.some((s) => s.id === sezione)) sezione = 'legno';
 
 agganciaTema();
 // Indietro: torna alla pagina da cui si è arrivati (se è del sito)
@@ -68,10 +72,11 @@ function dettagli(m) {
 }
 
 function render() {
-  const S = SEZIONI.find((s) => s.id === sezione);
-  document.getElementById('imp-schede').innerHTML = SEZIONI.map((s) =>
-    `<button type="button" class="btn-ghost ${s.id === sezione ? 'attivo' : ''}" data-sez="${s.id}">${esc(s.nome)}</button>`).join('');
+  const S = TUTTE.find((s) => s.id === sezione);
+  document.getElementById('imp-schede').innerHTML = TUTTE.map((s) =>
+    `<button type="button" class="btn-ghost ${s.id === sezione ? 'attivo' : ''} ${s.id === 'parametri' ? 'scheda-parametri' : ''}" data-sez="${s.id}">${s.id === 'parametri' ? '⚙ ' : ''}${esc(s.nome)}</button>`).join('');
   document.querySelectorAll('[data-sez]').forEach((b) => b.addEventListener('click', () => vaiSezione(b.dataset.sez)));
+  if (sezione === 'parametri') { renderParametri(S); return; }
 
   const lista = materialiPer(sezione, { tutti: true });
   const visibili = lista.filter((m) => !nascosto(stato, sezione, m.id)).length;
@@ -971,9 +976,90 @@ function apriSchedaPronto(p, o = null, statoRicerca = null) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// PARAMETRI della falegnameria (aria delle ante, maniglia a J, sistema di cassetti)
+// ---------------------------------------------------------------------------
+function renderParametri(S) {
+  const el = document.getElementById('imp-sezione'), P = parametri();
+  const leggi = (path) => path.split('.').reduce((o, k) => (o ? o[k] : undefined), P);
+  const campo = (path, et, aiuto = '', opz = {}) => {
+    const v = leggi(path);
+    return `<label class="par-campo ${opz.largo ? 'largo' : ''}"><span class="par-et">${esc(et)}</span>
+      <span class="par-input"><input type="${opz.testo ? 'text' : 'number'}" ${opz.testo ? '' : 'inputmode="decimal" step="0.1" min="0"'} data-par="${path}" value="${v == null ? '' : esc(v)}" placeholder="${esc(opz.ph || '')}">${opz.testo ? '' : '<em>mm</em>'}</span>
+      ${aiuto ? `<small>${esc(aiuto)}</small>` : ''}</label>`;
+  };
+  el.innerHTML = `
+    <p class="imp-desc">${esc(S.desc)}</p>
+    <p class="imp-desc">Valgono su questo dispositivo; con la «copia completa» li porti anche sugli altri. Si salvano da soli mentre scrivi.</p>
+    <div class="par-gruppo">
+      <h3>Aria delle ante e dei frontali</h3>
+      <div class="par-griglia">
+        ${campo('ante.ariaAltezza', 'Aria in altezza', "tolta all'altezza di ogni anta (sopra e sotto insieme)")}
+        ${campo('ante.ariaLarghezza', 'Aria in larghezza', 'tolta alla larghezza (sui due lati insieme)')}
+        ${campo('ante.ariaTraAnte', 'Aria tra due ante', 'tra le ante dello stesso modulo')}
+        ${campo('ante.ariaCassetti', 'Aria tra i frontali dei cassetti', 'tra un frontale e l\'altro, e sopra e sotto')}
+      </div>
+      <div class="par-esempio" id="par-es-ante" data-no-i18n></div>
+    </div>
+    <div class="par-gruppo">
+      <h3>Maniglia a J (profilo sopra l'anta)</h3>
+      <div class="par-griglia">
+        ${campo('manigliaJ.spessore', 'Spessore del profilo a J', "l'anta si accorcia di questo spessore")}
+      </div>
+      <div class="par-esempio" id="par-es-j" data-no-i18n></div>
+      <p class="imp-desc">Vale per le maniglie con la forma «Profilo (a J)»: le aggiungi in ⚙ Impostazioni → Maniglie e le scegli in cucina.</p>
+    </div>
+    <div class="par-gruppo">
+      <h3>Sistema di cassetti</h3>
+      <div class="par-griglia">
+        ${campo('cassetti.marca', 'Marca', '', { testo: true, ph: 'es. Syscore' })}
+        ${campo('cassetti.profondita', 'Profondità del cassetto (guide)')}
+        ${campo('cassetti.spessore', 'Spessore di fondo e trasera')}
+        ${campo('cassetti.fondoMeno', 'Fondo: larghezza = modulo meno')}
+        ${campo('cassetti.fondoProfondita', 'Fondo: profondità', 'uguale per tutti i cassetti')}
+        ${campo('cassetti.traseraMeno', 'Trasera: larghezza = modulo meno')}
+      </div>
+      <table class="par-tab">
+        <thead><tr><th></th><th>Frontale fino a</th><th>Altezza trasera</th></tr></thead>
+        <tbody>
+          <tr><th>Cassetto piccolo</th><td>${campo('cassetti.piccoloFinoA', '')}</td><td>${campo('cassetti.piccoloTrasera', '')}</td></tr>
+          <tr><th>Cassetto medio</th><td>${campo('cassetti.medioFinoA', '', '', { ph: 'non usato' })}</td><td>${campo('cassetti.medioTrasera', '', '', { ph: 'non usato' })}</td></tr>
+          <tr><th>Cassetto grande</th><td class="par-piu">frontali più alti</td><td>${campo('cassetti.grandeTrasera', '')}</td></tr>
+        </tbody>
+      </table>
+      <p class="imp-desc">Il cassetto medio: lascialo vuoto se il tuo sistema ha solo due altezze.</p>
+      <div class="par-esempio" id="par-es-cass" data-no-i18n></div>
+    </div>
+    <div class="par-azioni">
+      <button type="button" class="btn-ghost" id="par-ripristina">↺ Rimetti i valori di partenza</button>
+      <span class="imp-auto-msg" id="par-msg" hidden>✓ Salvato</span>
+    </div>`;
+  const esempi = () => {
+    const Q = parametri(), A = Q.ante, c = Q.cassetti, f = (n) => String(Math.round(n * 10) / 10);
+    el.querySelector('#par-es-ante').textContent = tr(`Esempio: modulo 600 × 700 → 1 anta ${f(600 - A.ariaLarghezza)} × ${f(700 - A.ariaAltezza)} mm, 2 ante ${f((600 - A.ariaLarghezza - A.ariaTraAnte) / 2)} × ${f(700 - A.ariaAltezza)} mm`);
+    el.querySelector('#par-es-j').textContent = tr(`Esempio: anta da 700 con maniglia a J → 700 − ${f(A.ariaAltezza)} − ${f(Q.manigliaJ.spessore)} = ${f(700 - A.ariaAltezza - Q.manigliaJ.spessore)} mm`);
+    const medio = c.medioFinoA && c.medioTrasera ? `, ${f(600 - c.traseraMeno)} × ${f(c.medioTrasera)} medio` : '';
+    el.querySelector('#par-es-cass').textContent = tr(`Esempio: modulo da 60 → fondo ${f(600 - c.fondoMeno)} × ${f(c.fondoProfondita)} mm · trasera ${f(600 - c.traseraMeno)} × ${f(c.piccoloTrasera)} piccolo${medio}, ${f(600 - c.traseraMeno)} × ${f(c.grandeTrasera)} grande`);
+  };
+  esempi();
+  let timer = null;
+  const msg = el.querySelector('#par-msg');
+  el.querySelectorAll('[data-par]').forEach((inp) => inp.addEventListener('input', () => {
+    const nuovo = JSON.parse(JSON.stringify(parametri()));
+    const [a, b] = inp.dataset.par.split('.');
+    nuovo[a][b] = inp.type === 'number' ? (inp.value === '' ? '' : Number(String(inp.value).replace(',', '.'))) : inp.value;
+    salvaParametri(nuovo); esempi();
+    msg.hidden = false; clearTimeout(timer); timer = setTimeout(() => { msg.hidden = true; }, 1400);
+  }));
+  el.querySelector('#par-ripristina').addEventListener('click', () => {
+    if (!confirm(tr('Rimettere tutti i parametri ai valori di partenza?'))) return;
+    ripristinaParametri(); renderParametri(S);
+  });
+}
+
 window.addEventListener('hashchange', () => {
   const h = (location.hash || '').slice(1);
-  if (h !== sezione && SEZIONI.some((x) => x.id === h)) { sezione = h; render(); }
+  if (h !== sezione && TUTTE.some((x) => x.id === h)) { sezione = h; render(); }
 });
 render();
 

@@ -138,3 +138,24 @@
 .pronti-voce img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #eae7e1; border-radius: 4px; }
 .pronti-voce small { color: var(--testo-dim, #999); font-size: 11px; }
 .pronti-credito { font-size: 11px; color: var(--testo-dim, #999); margin-top: 8px; }
+
+/* ---- ⚙ Parametri della falegnameria ---- */
+.imp-schede .scheda-parametri { border-color: var(--oro, #c9a94a); }
+.par-gruppo { border: 1px solid var(--bordo, rgba(201,169,74,.25)); border-radius: 12px; padding: 14px 16px; margin: 0 0 14px; background: var(--pannello, rgba(255,255,255,.02)); }
+.par-gruppo h3 { margin: 0 0 10px; font-size: 15px; letter-spacing: .04em; color: var(--oro, #c9a94a); }
+.par-griglia { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 16px; }
+.par-campo { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.par-et { color: var(--testo, inherit); font-weight: 500; }
+.par-input { display: flex; align-items: center; gap: 6px; }
+.par-input input { width: 100%; max-width: 160px; font-size: 16px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--bordo, rgba(201,169,74,.35)); background: var(--campo, rgba(0,0,0,.25)); color: inherit; }
+.par-input em { font-style: normal; color: var(--testo-dim); font-size: 12px; }
+.par-campo small { color: var(--testo-dim); font-size: 12px; line-height: 1.35; }
+.par-esempio { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: rgba(201,169,74,.1); font-size: 13px; line-height: 1.45; }
+.par-tab { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+.par-tab th, .par-tab td { text-align: left; padding: 6px 6px; vertical-align: middle; }
+.par-tab thead th { color: var(--testo-dim); font-weight: 500; font-size: 12px; }
+.par-tab tbody th { font-weight: 600; white-space: nowrap; }
+.par-tab .par-campo .par-et:empty { display: none; }
+.par-tab .par-piu { color: var(--testo-dim); }
+.par-azioni { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 24px; }
+@media (max-width: 520px) { .par-tab tbody th { white-space: normal; } .par-input input { max-width: 110px; } }

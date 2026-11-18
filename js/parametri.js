@@ -1,0 +1,100 @@
+// =============================================================================
+// PARAMETRI DELLA FALEGNAMERIA — i numeri del proprio modo di lavorare
+// =============================================================================
+// Ogni carpinteria lavora un po' a modo suo: quanta aria lascia alle ante, che
+// sistema di cassetti usa (fondo e trasera hanno misure diverse da marca a marca),
+// che profilo a J mette sopra le ante. Qui stanno quei numeri: li cambia l'utente in
+// ⚙ Impostazioni → Parametri e li usano la distinta e il 3D della cucina.
+// Salvati sul dispositivo (localStorage 'ng-parametri'); la «copia completa» li porta
+// sull'altro dispositivo insieme a tutto il resto.
+// I valori di partenza sono quelli usati finora dal programma (nessun calcolo cambia
+// finché l'utente non tocca un numero).
+// =============================================================================
+
+const CHIAVE = 'ng-parametri';
+
+export const PARAMETRI_DEFAULT = Object.freeze({
+  ante: {
+    ariaAltezza: 2,       // mm tolti all'altezza di ogni anta (sopra + sotto): 700 → 698
+    ariaLarghezza: 3,     // mm tolti alla larghezza (sui due lati): modulo 600, 1 anta → 597
+    ariaTraAnte: 3,       // mm tra due ante dello stesso modulo
+    ariaCassetti: 2,      // mm tra un frontale di cassetto e l'altro (e sopra e sotto)
+  },
+  manigliaJ: {
+    spessore: 2,          // mm del profilo a J sopra l'anta: l'anta si accorcia di tanto (700 → 698 → 696)
+  },
+  cassetti: {
+    marca: 'Syscore',     // sistema di cassetti usato (scritto nella lista accessori)
+    profondita: 500,      // mm: cassetto / guide
+    spessore: 16,         // mm: fondo e trasera (melaminico)
+    fondoMeno: 53,        // fondo: larghezza = modulo − fondoMeno
+    fondoProfondita: 480, // fondo: profondità (sempre uguale)
+    traseraMeno: 72,      // trasera: larghezza = modulo − traseraMeno
+    piccoloFinoA: 155,    // frontale fino a… mm → cassetto piccolo
+    piccoloTrasera: 59,   // altezza trasera del cassetto piccolo
+    medioFinoA: null,     // frontale fino a… mm → cassetto medio (vuoto = non si usa)
+    medioTrasera: null,   // altezza trasera del cassetto medio
+    grandeTrasera: 155,   // altezza trasera del cassetto grande (frontali più alti)
+  },
+});
+
+const num = (v, d) => { const n = Number(v); return Number.isFinite(n) && v !== '' && v !== null ? n : d; };
+const numVuoto = (v) => { if (v === '' || v === null || v === undefined) return null; const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
+
+/** Unisce i valori salvati con quelli di partenza (un numero mancante o sbagliato → quello di partenza). */
+function completa(s) {
+  const D = PARAMETRI_DEFAULT, a = (s && s.ante) || {}, j = (s && s.manigliaJ) || {}, c = (s && s.cassetti) || {};
+  return {
+    ante: {
+      ariaAltezza: Math.max(0, num(a.ariaAltezza, D.ante.ariaAltezza)),
+      ariaLarghezza: Math.max(0, num(a.ariaLarghezza, D.ante.ariaLarghezza)),
+      ariaTraAnte: Math.max(0, num(a.ariaTraAnte, D.ante.ariaTraAnte)),
+      ariaCassetti: Math.max(0, num(a.ariaCassetti, D.ante.ariaCassetti)),
+    },
+    manigliaJ: { spessore: Math.max(0, num(j.spessore, D.manigliaJ.spessore)) },
+    cassetti: {
+      marca: String(c.marca ?? D.cassetti.marca).trim(),
+      profondita: Math.max(0, num(c.profondita, D.cassetti.profondita)),
+      spessore: Math.max(1, num(c.spessore, D.cassetti.spessore)),
+      fondoMeno: num(c.fondoMeno, D.cassetti.fondoMeno),
+      fondoProfondita: Math.max(1, num(c.fondoProfondita, D.cassetti.fondoProfondita)),
+      traseraMeno: num(c.traseraMeno, D.cassetti.traseraMeno),
+      piccoloFinoA: Math.max(0, num(c.piccoloFinoA, D.cassetti.piccoloFinoA)),
+      piccoloTrasera: Math.max(1, num(c.piccoloTrasera, D.cassetti.piccoloTrasera)),
+      medioFinoA: 'medioFinoA' in c ? numVuoto(c.medioFinoA) : D.cassetti.medioFinoA,
+      medioTrasera: 'medioTrasera' in c ? numVuoto(c.medioTrasera) : D.cassetti.medioTrasera,
+      grandeTrasera: Math.max(1, num(c.grandeTrasera, D.cassetti.grandeTrasera)),
+    },
+  };
+}
+
+let _cache = null;
+/** I parametri in uso (sempre completi). */
+export function parametri() {
+  if (_cache) return _cache;
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(CHIAVE) || 'null'); } catch (_) { s = null; }
+  _cache = completa(s);
+  return _cache;
+}
+/** Salva (e completa) i parametri. */
+export function salvaParametri(p) {
+  _cache = completa(p);
+  try { localStorage.setItem(CHIAVE, JSON.stringify(_cache)); } catch (_) { /* spazio pieno: restano in memoria */ }
+  return _cache;
+}
+/** Torna ai valori di partenza. */
+export function ripristinaParametri() {
+  try { localStorage.removeItem(CHIAVE); } catch (_) { /* niente */ }
+  _cache = null; return parametri();
+}
+// un'altra scheda (o la copia completa) ha cambiato i parametri: si rileggono
+if (typeof window !== 'undefined') window.addEventListener('storage', (e) => { if (e.key === CHIAVE || e.key === null) _cache = null; });
+
+/** Che cassetto è (dall'altezza del frontale): 'piccolo' | 'medio' | 'grande', con l'altezza della trasera. */
+export function tipoCassetto(hFrontale, p = parametri()) {
+  const c = p.cassetti;
+  if (hFrontale <= c.piccoloFinoA) return { tipo: 'piccolo', trasera: c.piccoloTrasera };
+  if (c.medioFinoA && c.medioTrasera && hFrontale <= c.medioFinoA) return { tipo: 'medio', trasera: c.medioTrasera };
+  return { tipo: 'grande', trasera: c.grandeTrasera };
+}

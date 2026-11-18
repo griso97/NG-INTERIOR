@@ -13,17 +13,18 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho,
-} from './modello.js?v=20261119u';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119u';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261119u';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261119u';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261119u';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261119u';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119u';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119u';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119u';
+} from './modello.js?v=20261119v';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119v';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261119v';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261119v';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261119v';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261119v';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119v';
+import { parametri } from '../parametri.js?v=20261119v';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119v';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119v';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119u';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119v';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -1402,7 +1403,17 @@ function pannelloElettro(g, py, z, pw, ph, tipo) {
 // Fronti per categoria. Corpo centrato nell'origine: x[-w/2,w/2] y[-h/2,h/2] z[-d/2,d/2]
 // Fughe reali delle ante: in LARGHEZZA si toglie 3 mm totali (1,5 per lato),
 // in ALTEZZA 2 mm (1 sopra, 1 sotto). GAP = fuga fra due ante/cassetti.
-const FUGA_W = 3, FUGA_H = 2, GAP_ANTE = 3;
+// (valori dai ⚙ Parametri della falegnameria: si rileggono a ogni aggiornamento della scena)
+let FUGA_W = 3, FUGA_H = 2, GAP_ANTE = 3, FUGA_CASS = 2, SP_J = 2;
+function leggiParametriAnte() {
+  const P = parametri();
+  FUGA_W = P.ante.ariaLarghezza; FUGA_H = P.ante.ariaAltezza; GAP_ANTE = P.ante.ariaTraAnte; FUGA_CASS = P.ante.ariaCassetti; SP_J = P.manigliaJ.spessore;
+}
+/** Maniglia a J (profilo sopra l'anta) su questo fronte? → di quanto si accorcia (mm). */
+function riduzioneJ() {
+  if (_fingerPull || _push || formaManiglia() !== 'profilo') return 0;
+  return Number(_maniglia && _maniglia.spessoreJ) > 0 ? Number(_maniglia.spessoreJ) : SP_J;
+}
 // Maniglia ORIZZONTALE su un'anta (bassi e pensili): vicino al bordo alto
 // sui bassi, vicino al bordo basso sui pensili, spostata verso il lato che
 // apre (anta singola) o verso il centro (due ante). Le colonne restano verticali.
@@ -1447,11 +1458,15 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
       pannello(g, px, py + (giu ? CH / 2 : -CH / 2), z, pw, Math.max(60, ph - CH), matAnta || COL.anta);
       canaleFingerPull(g, px, giu ? py - ph / 2 + CH / 2 : py + ph / 2 - CH / 2, z, pw, CH, true, matAnta, giu);
     } else {
-      pannello(g, px, py, z, pw, ph, matAnta || COL.anta);
+      // MANIGLIA A J: il profilo sta sul bordo dell'anta (in alto sui bassi, in basso sui pensili)
+      // e l'anta si accorcia del suo spessore (⚙ Parametri), proprio come in distinta
+      const rJ = sporg ? 0 : riduzioneJ(), inAlto = suAlto ? false : !_anteInBasso;
+      const phJ = ph - rJ, pyJ = py + (inAlto ? -rJ / 2 : rJ / 2);
+      pannello(g, px, pyJ, z, pw, phJ, matAnta || COL.anta);
       if (!sporg) {
         // verso: +1 = maniglia verso destra, −1 = verso sinistra
         const verso = suAlto ? 0 : n === 1 ? (sx ? -1 : 1) : (i === 0 ? 1 : -1);
-        manigliaOrizzAnta(g, px, py, pw, ph, z, verso, suAlto ? false : !_anteInBasso);
+        manigliaOrizzAnta(g, px, pyJ, pw, phJ, z, verso, inAlto);
       }
     }
   }
@@ -1461,13 +1476,14 @@ function cassetti(g, w, h, d, n, matAnta, piccolo = null) {
   const pushPrima = _push; _push = false;        // i CASSETTI non hanno mai il push: maniglia (o finger-pull)
   // Fughe da 2 mm, una in più dei cassetti; frontali tutti uguali oppure uno
   // piccolo in alto e gli altri uguali (stessa regola della distinta)
-  const uw = w - FUGA_W, FC = 2;
+  const uw = w - FUGA_W, FC = FUGA_CASS;
   const alt = frontiCassetti(h, n, piccolo);       // dall'alto in basso
+  const rJ = riduzioneJ();                        // maniglia a J: ogni frontale si accorcia in alto
   let yTop = h / 2 - FC;
   for (let i = 0; i < alt.length; i++) {
-    const ph = alt[i];
-    const py = yTop - ph / 2;
-    yTop -= ph + FC;
+    const ph = alt[i] - rJ;
+    const py = yTop - rJ - ph / 2;
+    yTop -= alt[i] + FC;
     if (_fingerPull) {
       const CH = Math.min(26, ph * 0.35);
       pannello(g, 0, py - CH / 2, z, uw, Math.max(40, ph - CH), matAnta || COL.cassetto);
@@ -2135,6 +2151,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   // L'illuminazione della scena resta sempre al valore pieno (giorno) sia
   // con i LED spenti che accesi: non si vuole che i LED spengano l'ambiente.
   for (const { l, base } of luciAmbiente) l.intensity = base;
+  leggiParametriAnte();
   while (gruppo.children.length) gruppo.remove(gruppo.children[0]);
   const full = progetto.piano.pareti || [];
   const vertici = calcolaVertici(full);

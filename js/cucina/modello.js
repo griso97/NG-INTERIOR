@@ -5,6 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
+import { parametri } from '../parametri.js?v=20261119v';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -2422,7 +2423,8 @@ export function portaBassaColonna(progetto, m) {
  */
 export function frontiCassetti(H, n, piccolo = null) {
   n = Math.max(1, n || 3);
-  const netto = H - (n + 1) * 2;
+  const fc = parametri().ante.ariaCassetti;            // aria tra i frontali (⚙ Parametri)
+  const netto = H - (n + 1) * fc;
   if (!piccolo || n < 2) return Array(n).fill(Math.floor(netto / n));
   const hs = Math.floor(Math.max(60, Math.min(Number(piccolo), netto - (n - 1) * 80)));
   return [hs, ...Array(n - 1).fill(Math.floor((netto - hs) / (n - 1)))];
