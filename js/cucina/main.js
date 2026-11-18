@@ -24,14 +24,14 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
-} from './modello.js?v=20261119z';
-import { renderPianta } from './pianta.js?v=20261119z';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261119z';
-import { calcolaDistintaCucina } from './distinta.js?v=20261119z';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261119z';
-import { agganciaTema } from '../tema.js?v=20261119z';
-import { tendinePannello } from '../tendine-pannello.js?v=20261119z';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261119z';
+} from './modello.js?v=20261120a';
+import { renderPianta } from './pianta.js?v=20261120a';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261120a';
+import { calcolaDistintaCucina } from './distinta.js?v=20261120a';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261120a';
+import { agganciaTema } from '../tema.js?v=20261120a';
+import { tendinePannello } from '../tendine-pannello.js?v=20261120a';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261120a';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1573,7 +1573,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261119z');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261120a');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1598,7 +1598,7 @@ function renderPannelloOggetto(m) {
     <section class="step3-pannello">
       <h3>Oggetto selezionato</h3>
       <div class="mod-row"><span><span data-no-i18n>${escHtml(nomeTipo(m.tipo))}</span> · <strong>${Math.round(dimMobile(m).w / 10)}×${Math.round(dimMobile(m).d / 10)}${m.altezza_mm ? `×${Math.round(m.altezza_mm / 10)}` : ''} cm</strong></span></div>
-      <div class="riga-3d" style="margin:8px 0">Trascinalo dove vuoi.${sulPiano ? ' Se lo lasci sopra un mobile basso si appoggia sul piano di lavoro, altrimenti va a terra.' : ''}</div>
+      <div class="riga-3d" style="margin:8px 0">Trascinalo dove vuoi.${sulPiano ? ' Se lo lasci sopra un mobile basso o un tavolo si appoggia sopra, altrimenti va a terra.' : ''}</div>
       <div class="opzioni-anta">
         <button type="button" class="btn-ghost" id="ogg-ruota">⟳ Ruota 90°</button>
         <button type="button" class="btn-ghost" id="ogg-elimina">Elimina</button>
@@ -2305,13 +2305,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261119z');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261120a');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261119z'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261120a'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

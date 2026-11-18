@@ -1,10 +1,10 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 1 (forma del vano) + navigazione tra i passi
 // =============================================================================
-import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261119z';
-import { renderPasso2, apriDistinta, stiliTema, tastoCubi } from './passo2.js?v=20261119z';
-import { agganciaTema } from '../tema.js?v=20261119z';
-import { tendineAutomatiche } from '../tendine-pannello.js?v=20261119z';
+import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261120a';
+import { renderPasso2, apriDistinta, stiliTema, tastoCubi } from './passo2.js?v=20261120a';
+import { agganciaTema } from '../tema.js?v=20261120a';
+import { tendineAutomatiche } from '../tendine-pannello.js?v=20261120a';
 
 const KEY = 'ng-modulari-v1';
 const pannello = document.getElementById('mod-pannello');
@@ -401,7 +401,7 @@ function aggiorna() {
     mostra3d(true);
     // prima i materiali, poi il 3D (su Safari due caricamenti paralleli dello
     // stesso file possono far partire il 3D prima dei materiali)
-    import('../materiali.js?v=20261119z').then(() => import('./passo3.js?v=20261119z')).then((m) => { passo3 = m; if (stato.step === 3) m.renderPasso3(c); })
+    import('../materiali.js?v=20261120a').then(() => import('./passo3.js?v=20261120a')).then((m) => { passo3 = m; if (stato.step === 3) m.renderPasso3(c); })
       .catch(() => { riepilogo.innerHTML = '<div class="mod-msg err">Non riesco a caricare il 3D. Ricarica la pagina.</div>'; });
     return;
   }

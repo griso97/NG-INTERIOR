@@ -1315,7 +1315,7 @@ window.NG_I18N_ES = {
   "Non riesco a costruire il 3D: controlla la foto davanti.": "No consigo construir el 3D: revisa la foto de frente.",
   "Oggetto selezionato": "Objeto seleccionado",
   "Trascinalo dove vuoi.": "Arrástralo donde quieras.",
-  " Se lo lasci sopra un mobile basso si appoggia sul piano di lavoro, altrimenti va a terra.": " Si lo dejas encima de un mueble bajo se apoya en la encimera, si no va al suelo.",
+  " Se lo lasci sopra un mobile basso o un tavolo si appoggia sopra, altrimenti va a terra.": " Si lo dejas encima de un mueble bajo o de una mesa se apoya encima, si no va al suelo.",
   "Oggetto": "Objeto",
   "Carica le foto dell'oggetto: vanno bene sia quelle del produttore (su bianco) sia quelle ambientate (in una stanza, con altri oggetti attorno): lo sfondo lo toglie il sito, da solo. Il sito": "Sube las fotos del objeto: valen tanto las del fabricante (sobre blanco) como las ambientadas (en una habitación, con otros objetos alrededor): el fondo lo quita la web, sola. La web",
   "riconosce da solo quale foto è davanti, di lato, dietro o da sopra": "reconoce solo qué foto es de frente, de lado, de detrás o desde arriba",

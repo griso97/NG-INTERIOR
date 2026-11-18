@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261119z';
+import { parametri } from '../parametri.js?v=20261120a';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -629,6 +629,8 @@ export function vincolaAiMuri(progetto, m, x, y) {
   const rad = ((m.rot || 0) * Math.PI) / 180;
   const c = Math.cos(rad), s = Math.sin(rad);
   const hw = d.w / 2, hd = d.d / 2;
+  // accessori (sedie, sgabelli, tavoli, oggetti): solo «mai dentro il muro», niente aggancio agli estremi
+  const ogg = categoriaTipo(m.tipo) === 'oggetto';
   for (let pass = 0; pass < 4; pass++) {
     for (let i = 0; i < full.length; i++) {
       const p = full[i];
@@ -641,12 +643,20 @@ export function vincolaAiMuri(progetto, m, x, y) {
       const nx = -dy / L * sgn, ny = dx / L * sgn;    // normale verso l'interno
       const extU = Math.abs(hw * (c * ux + s * uy)) + Math.abs(hd * (-s * ux + c * uy));
       const extN = Math.abs(hw * (c * nx + s * ny)) + Math.abs(hd * (-s * nx + c * ny));
-      // (a) barriera: non attraversare il muro verso l'esterno
+      // IL MURO BLOCCA SOLO DOVE C'È: il mobile deve stare davanti al tratto di muro (non oltre
+      // i suoi estremi) e vicino (dentro il muro o appena dietro). Prima ogni muro bloccava come
+      // una linea infinita: con una parete inclinata o una stanza a gradini, il prolungamento di
+      // un muro corto attraversava la stanza e spingeva via sedie e mobili.
+      // I mobili della cucina, appoggiati a un muro, si fermano ancora alla sua fine (fino a 1,2 m oltre).
+      const tC = (x - a.x) * ux + (y - a.y) * uy, oltre = ogg ? 0 : 1200;
+      if (tC + extU <= -oltre || tC - extU >= L + oltre) continue;
+      // (a) barriera: non attraversare il muro verso l'esterno (solo davanti al tratto di muro)
       const distN = (x - a.x) * nx + (y - a.y) * ny;
-      if (distN < extN) { const sp = extN - distN; x += nx * sp; y += ny * sp; }
+      if (tC + extU > 0 && tC - extU < L && distN < extN && distN > -(extN + 600)) { const sp = extN - distN; x += nx * sp; y += ny * sp; }
+      if (ogg) continue;
       // (b) estremi: se il mobile è appoggiato a questo muro, resta tra 0 e L.
       const distN2 = (x - a.x) * nx + (y - a.y) * ny;
-      if (distN2 <= extN + 150) {
+      if (distN2 <= extN + 150 && distN2 > -(extN + 600)) {
         const tC = (x - a.x) * ux + (y - a.y) * uy;
         const lo = extU, hi = L - extU;
         const target = lo > hi ? L / 2 : Math.min(hi, Math.max(lo, tC));

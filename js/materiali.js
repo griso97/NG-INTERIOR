@@ -15,8 +15,8 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261119z';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261119z';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261120a';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261120a';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -30,6 +30,7 @@ function voceLibreria(v) {
   const foto = `oggetti/libreria/miniature/${v.id}.jpg`;
   return { id: `lib-${v.id}`, nome: v.nome, categoria: 'oggetto', sezione: 'oggetti', libreria: v.id, gruppo: v.gruppo, posa,
     ...(appesa ? { appeso: true } : {}), ...(v.tipo === 'cappa' ? { assoluto: true } : {}), ...(v.ritirato ? { ritirato: true } : {}),
+    ...(v.tavolo ? { tavolo: true } : {}),                     // un tavolo: ci si appoggiano sopra gli oggetti
     thumb: foto, texture: foto, colore: 0xd8d2c8, misure: { ...v.misure },
     info: { note: creditoVoce(v) || CREDITI_LIBRERIA } };
 }
@@ -319,19 +320,19 @@ export const MATERIALI = [
     thumb: 'oggetti/moderni/miniature/lb-vini.jpg', texture: 'oggetti/moderni/miniature/lb-vini.jpg', colore: 0xd8d2c8,
     misure: { w: 444, d: 234, h: 317 }, info: { note: 'Collezione Legno e bambù NG Interior' } },
   // ---- DESIGN (modellati da noi: tavoli scultura, sedie, sgabello, lampade LED, fruttiere) ----
-  { id: 'cm-ds-tavolo-farfalla', nome: 'Tavolo «Farfalla», anelli incrociati e ceramica bianca', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-tavolo-farfalla', linea: 'Design',
+  { id: 'cm-ds-tavolo-farfalla', tavolo: true, nome: 'Tavolo «Farfalla», anelli incrociati e ceramica bianca', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-tavolo-farfalla', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/ds-tavolo-farfalla.jpg', texture: 'oggetti/moderni/miniature/ds-tavolo-farfalla.jpg', colore: 0xd8d2c8,
     misure: { w: 1904, d: 954, h: 750 }, info: { note: 'Collezione Design NG Interior' } },
-  { id: 'cm-ds-tavolo-infinito', nome: 'Tavolo «Infinito», nastro in bronzo e piano ovale', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-tavolo-infinito', linea: 'Design',
+  { id: 'cm-ds-tavolo-infinito', tavolo: true, nome: 'Tavolo «Infinito», nastro in bronzo e piano ovale', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-tavolo-infinito', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/ds-tavolo-infinito.jpg', texture: 'oggetti/moderni/miniature/ds-tavolo-infinito.jpg', colore: 0xd8d2c8,
     misure: { w: 2204, d: 1104, h: 750 }, info: { note: 'Collezione Design NG Interior' } },
-  { id: 'cm-ds-tavolo-mikado', nome: 'Tavolo «Mikado», aste dorate e pietra calda', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-tavolo-mikado', linea: 'Design',
+  { id: 'cm-ds-tavolo-mikado', tavolo: true, nome: 'Tavolo «Mikado», aste dorate e pietra calda', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-tavolo-mikado', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/ds-tavolo-mikado.jpg', texture: 'oggetti/moderni/miniature/ds-tavolo-mikado.jpg', colore: 0xd8d2c8,
     misure: { w: 2004, d: 1004, h: 751 }, info: { note: 'Collezione Design NG Interior' } },
-  { id: 'cm-ds-tavolo-ics', nome: 'Tavolo a X nero con piano in rovere', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-tavolo-ics', linea: 'Design',
+  { id: 'cm-ds-tavolo-ics', tavolo: true, nome: 'Tavolo a X nero con piano in rovere', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-tavolo-ics', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/ds-tavolo-ics.jpg', texture: 'oggetti/moderni/miniature/ds-tavolo-ics.jpg', colore: 0xd8d2c8,
     misure: { w: 2206, d: 1006, h: 751 }, info: { note: 'Collezione Design NG Interior' } },
-  { id: 'cm-ds-tavolo-ricciolo', nome: 'Tavolo «Ricciolo», lama nera e ceramica nera', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-tavolo-ricciolo', linea: 'Design',
+  { id: 'cm-ds-tavolo-ricciolo', tavolo: true, nome: 'Tavolo «Ricciolo», lama nera e ceramica nera', categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-tavolo-ricciolo', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/ds-tavolo-ricciolo.jpg', texture: 'oggetti/moderni/miniature/ds-tavolo-ricciolo.jpg', colore: 0xd8d2c8,
     misure: { w: 2404, d: 1054, h: 750 }, info: { note: 'Collezione Design NG Interior' } },
   { id: 'cm-ds-led-anelli', nome: 'Lampada LED, tre anelli intrecciati', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-led-anelli', linea: 'Design',
@@ -402,7 +403,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261119z');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261120a');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -531,7 +532,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261119z';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261120a';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',

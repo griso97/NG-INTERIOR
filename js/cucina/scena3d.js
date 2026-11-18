@@ -13,18 +13,18 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261119z';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261119z';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261119z';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261119z';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261119z';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261119z';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261119z';
-import { parametri } from '../parametri.js?v=20261119z';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261119z';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261119z';
+} from './modello.js?v=20261120a';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120a';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261120a';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261120a';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261120a';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120a';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120a';
+import { parametri } from '../parametri.js?v=20261120a';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120a';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120a';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261119z';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120a';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
@@ -2209,7 +2209,9 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
     const nx = -dy / L * sgn, ny = dx / L * sgn;
     const muro = new THREE.Mesh(new THREE.BoxGeometry(L, ALT_MURO, 60), MAT_MURO);
     muro.position.set((a.x + b.x) / 2 - nx * 30, ALT_MURO / 2, -((a.y + b.y) / 2 - ny * 30));
-    muro.rotation.y = -Math.atan2(dy, dx);
+    // il muro va da a a b: in 3D la z è −y della pianta, quindi l'angolo è +atan2(dy, dx)
+    // (col segno meno i muri INCLINATI venivano specchiati; quelli dritti non si notava)
+    muro.rotation.y = Math.atan2(dy, dx);
     muro.userData.muroRiferimento = true;
     muro.userData.muroNormale = { x: nx, z: -ny };
     gruppo.add(muro);
@@ -2313,6 +2315,9 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
         : def && def.libreria ? oggettoLibreria(def.libreria, misOgg, reRender, ALT_MURO) : null;
       const r = def && !def.pronto && !def.moderno && !def.libreria && oggettoDaFoto({ ...def, misure: misOgg }, reRender);
       if (pr) {
+        // TAVOLI: il loro piano è una superficie d'appoggio (fruttiere, vasi, lampade da tavolo…),
+        // con la forma vera (tondo, ovale): gli oggetti si posano sopra come sul piano di lavoro
+        if (def.tavolo) pr.traverse((x) => { if (x.isMesh) x.userData.appoggio = true; });
         const og = new THREE.Group(); og.add(pr);
         // come si posa: le LAMPADE e le CAPPE a isola pendono dal soffitto, i QUADRI stanno al muro (centro a 155 cm),
         // sedie, sgabelli e tavoli a TERRA (anche sotto lo sbalzo dell'isola), il resto sul piano
