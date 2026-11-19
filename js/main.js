@@ -5,23 +5,23 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261120p';
+import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261120t';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo, fotoRealisticaArmadio,
   iniziaSpostamentoRipiano, muoviSpostamentoRipiano, fineSpostamentoRipiano,
   toccoArmadio, ripianiCorrenti, posizioneNuovoRipiano, evidenziaRipiano,
-} from './scena3d.js?v=20261120p';
-import { SFONDI_LISTA } from './sfondi.js?v=20261120p';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261120p';
-import { agganciaTema } from './tema.js?v=20261120p';
-import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli } from './interfaccia.js?v=20261120p';
-import { tendinePannello } from './tendine-pannello.js?v=20261120p';
-import { renderDistinta } from './distinta.js?v=20261120p';
-import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261120p';
-import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261120p';
+} from './scena3d.js?v=20261120t';
+import { SFONDI_LISTA } from './sfondi.js?v=20261120t';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261120t';
+import { agganciaTema } from './tema.js?v=20261120t';
+import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli } from './interfaccia.js?v=20261120t';
+import { tendinePannello } from './tendine-pannello.js?v=20261120t';
+import { renderDistinta } from './distinta.js?v=20261120t';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261120t';
+import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261120t';
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js?v=20261120p';
+} from './storage.js?v=20261120t';
 
 // PANNELLO ORDINATO: ogni sezione è una tendina (chiusa, si apre toccando il titolo);
 // la prima volta aperte solo Tipo armadio e Dimensioni. Poi resta come la lasci.
@@ -157,7 +157,7 @@ function agganciaExport(distinta) {
   if (btnMod) btnMod.onclick = () => apriModelloExcel({ pezzi: pezziModello(), progetto: progettoNome });
   const btnFoto = document.getElementById('btn-foto-reale');
   if (btnFoto) btnFoto.onclick = async () => {
-    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261120p');
+    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261120t');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaArmadio(p), tela3d: document.getElementById('canvas3d'), nome: 'armadio' });
   };
   const btnImg = document.getElementById('btn-img');

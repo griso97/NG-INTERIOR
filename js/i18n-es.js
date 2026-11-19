@@ -2036,4 +2036,12 @@ window.NG_I18N_ES = {
  "Lampada lunga, anello LED ovale 150 cm": "Lámpara larga, aro LED ovalado 150 cm",
  "Lampada lunga, tre dischi LED neri": "Lámpara larga, tres discos LED negros",
  "Lampada lunga, cascata di sfere in vetro": "Lámpara larga, cascada de esferas de vidrio",
+ "Lampada di lusso «Mikado», barre LED nere incrociate e oro": "Lámpara de lujo «Mikado», barras LED negras cruzadas y oro",
+ "Lampada di lusso, tre ovali LED dorati intrecciati": "Lámpara de lujo, tres óvalos LED dorados entrelazados",
+ "Lampada di lusso «Onda», nastro LED nero e ottone": "Lámpara de lujo «Onda», cinta LED negra y latón",
+ "Lampada di lusso «Elica», LED oro e nero attorcigliati": "Lámpara de lujo «Hélice», LED oro y negro trenzados",
+ "Lampada di lusso, lastra in noce con LED e ottone": "Lámpara de lujo, lámina de nogal con LED y latón",
+ "Lampada di lusso «Costellazione», gocce di luce e ottone": "Lámpara de lujo «Constelación», gotas de luz y latón",
+ "Lampada di lusso «Prisma», linee LED nere e nodi oro": "Lámpara de lujo «Prisma», líneas LED negras y nudos oro",
+ "Lampada di lusso «Catena», anelli LED oro e neri": "Lámpara de lujo «Cadena», aros LED oro y negros",
 };

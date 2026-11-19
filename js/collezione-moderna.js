@@ -94,6 +94,7 @@ function mat(nome) {
     case 'acciaio': m = new THREE.MeshStandardMaterial({ color: 0xd8d9db, metalness: 1, roughness: 0.25 }); break;
     case 'metallo-nero': m = new THREE.MeshStandardMaterial({ color: 0x151515, metalness: 0.6, roughness: 0.42 }); break;
     case 'metallo-bianco': m = new THREE.MeshStandardMaterial({ color: 0xf1efea, metalness: 0.15, roughness: 0.45 }); break;
+    case 'nero-satinato': m = new THREE.MeshStandardMaterial({ color: 0x0f0f10, metalness: 0.35, roughness: 0.5 }); break;
     // vetro: trasparente vero; i LIQUIDI dentro sono "pieni" (un trasparente dentro un altro non si vedrebbe)
     case 'vetro': m = new THREE.MeshPhysicalMaterial({ color: 0xf4f8f5, metalness: 0, roughness: 0.03, transmission: 1, thickness: 4, ior: 1.5, specularIntensity: 1, envMapIntensity: 1.6, attenuationColor: new THREE.Color(0xdfeee4), attenuationDistance: 120 }); break;
     case 'olio': m = new THREE.MeshPhysicalMaterial({ color: 0xa88a18, roughness: 0.08, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, emissive: 0x3a2c00, emissiveIntensity: 0.35 }); break;
@@ -1364,6 +1365,118 @@ function lampadaLunga(tipo, soffitto = SOFFITTO) {
   g.traverse((x) => { if (x.isMesh) { x.castShadow = false; x.receiveShadow = false; x.userData.senzaOmbra = true; } });
   return g;
 }
+// ---------------------------------------------------------------------------
+// LAMPADE DI LUSSO, LUNGHE (isole e tavoli da 2,5–3 m): LED che si incrociano, nero satinato, oro,
+// noce. Pezzi costruiti come quelli veri: profilo in metallo con il diffusore LED su un lato,
+// giunti e terminali in ottone, cavi d'acciaio fino al soffitto.
+// ---------------------------------------------------------------------------
+/** Profilo LED rettangolare da a a b (larghezza w, altezza h), diffusore acceso sul lato basso. */
+function profiloLed(a, b, w, h, metallo, conLed = true) {
+  const g = new THREE.Group(), dir = b.clone().sub(a), L = dir.length(); dir.normalize();
+  const su = V3(0, 1, 0).sub(dir.clone().multiplyScalar(dir.y)); if (su.lengthSq() < 1e-6) su.set(1, 0, 0); su.normalize();
+  const z = new THREE.Vector3().crossVectors(dir, su);
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(L, h, w), mat(metallo)));
+  if (conLed) { const led = new THREE.Mesh(new THREE.BoxGeometry(L - 8, 6, w - 4), mat('led')); led.position.y = -h / 2 - 2; g.add(led); }
+  g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(dir, su, z));
+  g.position.copy(a).add(b).multiplyScalar(0.5);
+  return g;
+}
+/** Tubo lungo una curva con la striscia LED sotto (stesso percorso, più in basso e più sottile). */
+function tuboLed(curva, r, metallo, chiusa = false, seg = 400) {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(curva, seg, r, 16, chiusa), mat(metallo)));
+  // la linea LED: un po' più larga e sporgente sotto il tubo, così si vede accesa anche di lato
+  const pts = curva.getPoints(seg).map((p) => p.clone().add(V3(0, -r * 0.62, 0)));
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, chiusa), seg, r * 0.55, 10, chiusa), mat('led')));
+  return g;
+}
+/** Anello ovale (pista) come curva chiusa, lungo L e largo D, nel piano XZ. */
+function curvaOvale(L, D) {
+  const R = D / 2, dritto = L - D, pts = [];
+  for (let k = 0; k < 24; k++) { const a = -Math.PI / 2 + (Math.PI * k) / 24; pts.push(V3(dritto / 2 + R * Math.cos(a), 0, R * Math.sin(a))); }
+  for (let k = 0; k < 24; k++) { const a = Math.PI / 2 + (Math.PI * k) / 24; pts.push(V3(-dritto / 2 + R * Math.cos(a), 0, R * Math.sin(a))); }
+  return new THREE.CatmullRomCurve3(pts, true, 'centripetal');
+}
+function giunto(p, r, h, materiale = 'oro-satinato') { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 24), mat(materiale)); m.position.copy(p); return m; }
+function lampadaLusso(tipo, soffitto = SOFFITTO) {
+  const g = new THREE.Group(), attacchi = [];
+  if (tipo === 'mikado') {
+    // barre LED nere che si incrociano a angoli bassi, quasi orizzontali, giunti in oro
+    const barre = [[-900, -60, 40, 880, 70, 120], [-860, 90, 130, 900, -80, 30], [-700, -160, 90, 760, 150, 60], [-940, 10, 200, 620, 30, 0],
+      [-560, 170, 10, 940, -40, 180], [-780, -110, 150, 820, -150, 80]];
+    for (const [x0, z0, y0, x1, z1, y1] of barre) g.add(profiloLed(V3(x0, y0, z0), V3(x1, y1, z1), 26, 26, 'nero-satinato'));
+    for (const [x, y, z] of [[-40, 80, 5], [300, 100, 25], [-380, 120, 10], [520, 60, -40]]) g.add(giunto(V3(x, y, z), 22, 60));
+    attacchi.push(V3(-650, 240, 0), V3(0, 240, 0), V3(650, 240, 0));
+  } else if (tipo === 'ovali') {
+    // tre anelli ovali dorati intrecciati, ognuno inclinato in modo diverso
+    [[1700, 460, 0.18, 0.05, 140], [1450, 400, -0.2, -0.08, 160], [1200, 340, 0.1, 0.16, 180]].forEach(([L, D, rx, rz, y]) => {
+      const a = tuboLed(curvaOvale(L, D), 13, 'oro-satinato', true); a.rotation.set(rx, 0, rz); a.position.y = y; g.add(a);
+    });
+    attacchi.push(V3(-650, 320, 0), V3(650, 320, 0), V3(0, 330, 0));
+  } else if (tipo === 'onda') {
+    // un nastro LED nero che ondeggia (su e giù e di lato) per 1,8 m, terminali in ottone
+    const pts = []; for (let k = 0; k <= 60; k++) { const t = k / 60, x = -900 + 1800 * t; pts.push(V3(x, 90 + 70 * Math.sin(t * Math.PI * 3), 90 * Math.sin(t * Math.PI * 2 + 0.6))); }
+    const curva = new THREE.CatmullRomCurve3(pts);
+    g.add(tuboLed(curva, 16, 'nero-satinato'));
+    for (const t of [0, 1]) { const q = curva.getPoint(t); const c = new THREE.Mesh(new THREE.SphereGeometry(20, 20, 14), mat('ottone-spazzolato')); c.position.copy(q); g.add(c); }
+    attacchi.push(curva.getPoint(0.12).add(V3(0, 18, 0)), curva.getPoint(0.5).add(V3(0, 18, 0)), curva.getPoint(0.88).add(V3(0, 18, 0)));
+  } else if (tipo === 'elica') {
+    // due tubi LED attorcigliati (doppia elica) lungo 1,6 m: uno oro, uno nero
+    for (const [fase, metallo] of [[0, 'oro-satinato'], [Math.PI, 'nero-satinato']]) {
+      const pts = []; for (let k = 0; k <= 120; k++) { const t = k / 120; pts.push(V3(-800 + 1600 * t, 120 + 85 * Math.sin(t * Math.PI * 4 + fase), 85 * Math.cos(t * Math.PI * 4 + fase))); }
+      g.add(tuboLed(new THREE.CatmullRomCurve3(pts), 11, metallo));
+    }
+    for (const x of [-800, 800]) g.add(giunto(V3(x, 120, 0), 26, 30, 'ottone-spazzolato')).children;
+    attacchi.push(V3(-700, 215, 0), V3(700, 215, 0));
+  } else if (tipo === 'noce') {
+    // lastra sospesa in noce con il LED sotto e una linea di luce sopra; aste e terminali in ottone
+    const L = 1700;
+    const lastra = new THREE.Mesh(new THREE.BoxGeometry(L, 36, 190), mat('noce')); lastra.position.y = 60; g.add(lastra);
+    const sotto = new THREE.Mesh(new THREE.BoxGeometry(L - 120, 4, 120), mat('led')); sotto.position.y = 40; g.add(sotto);
+    const sopra = new THREE.Mesh(new THREE.BoxGeometry(L - 200, 4, 18), mat('led')); sopra.position.y = 80; g.add(sopra);
+    for (const sx of [-1, 1]) {
+      const t = new THREE.Mesh(new THREE.BoxGeometry(14, 44, 196), mat('ottone-spazzolato')); t.position.set(sx * (L / 2 + 7), 60, 0); g.add(t);
+      g.add(asta(V3(sx * (L / 2 - 160), 78, 0), V3(sx * (L / 2 - 160), 300, 0), 6, 6, 'ottone-spazzolato', 12));
+    }
+    attacchi.push(V3(-(L / 2 - 160), 300, 0), V3(L / 2 - 160, 300, 0));
+  } else if (tipo === 'costellazione') {
+    // asta in ottone; da lei scendono steli sottili, ognuno con una goccia di luce, a altezze diverse
+    const L = 1700; g.add(asta(V3(-L / 2, 420, 0), V3(L / 2, 420, 0), 8, 8, 'ottone-spazzolato', 16));
+    const n = 15;
+    for (let i = 0; i < n; i++) {
+      const x = -L / 2 + 50 + ((L - 100) * i) / (n - 1), z = Math.sin(i * 2.3) * 70, y = 60 + ((i * 97) % 230);
+      g.add(asta(V3(x, 420, 0), V3(x, y + 34, z), 2, 2, 'ottone-spazzolato', 8));
+      const goccia = new THREE.Mesh(tornio([[0, 0], [10, 6], [16, 20], [13, 34], [0, 40]], 32), mat('led')); goccia.position.set(x, y - 6, z); g.add(goccia);
+      g.add(giunto(V3(x, y + 34, z), 5, 8, 'ottone-spazzolato'));
+    }
+    attacchi.push(V3(-650, 428, 0), V3(650, 428, 0));
+  } else if (tipo === 'prisma') {
+    // prisma esagonale allungato: spigoli in nero satinato con il LED, nodi in oro
+    const L = 1600, R = 170, angoli = Array.from({ length: 6 }, (_, k) => (Math.PI / 3) * k + Math.PI / 6);
+    const P = (x, a) => V3(x, 200 + R * Math.sin(a), R * Math.cos(a));
+    for (const a of angoli) g.add(profiloLed(P(-L / 2, a), P(L / 2, a), 16, 16, 'nero-satinato'));
+    for (const x of [-L / 2, L / 2]) for (let k = 0; k < 6; k++) {
+      g.add(profiloLed(P(x, angoli[k]), P(x, angoli[(k + 1) % 6]), 16, 16, 'nero-satinato', false));
+      const nodo = new THREE.Mesh(new THREE.SphereGeometry(14, 16, 12), mat('oro-satinato')); nodo.position.copy(P(x, angoli[k])); g.add(nodo);
+    }
+    attacchi.push(V3(-L / 2, 200 + R + 10, 0), V3(L / 2, 200 + R + 10, 0));
+  } else {
+    // «catena»: cinque anelli LED dorati concatenati in fila, inclinati alternati
+    const n = 5, R = 210, passo = 320;
+    for (let i = 0; i < n; i++) {
+      const pts = []; for (let k = 0; k < 64; k++) { const t = (k / 64) * Math.PI * 2; pts.push(V3(R * Math.cos(t), 0, R * Math.sin(t))); }
+      const a = tuboLed(new THREE.CatmullRomCurve3(pts, true), 11, i % 2 ? 'nero-satinato' : 'oro-satinato', true, 160);
+      a.rotation.set(i % 2 ? Math.PI / 2 : 0.0, 0, i % 2 ? 0 : 0); a.position.set(-((n - 1) * passo) / 2 + i * passo, 230, 0); g.add(a);
+    }
+    attacchi.push(V3(-((n - 1) * passo) / 2, 245, 0), V3(((n - 1) * passo) / 2, 245, 0));
+  }
+  g.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(g), y0 = Y_LAMPADA;
+  g.children.forEach((c) => { c.position.y += y0 - b.min.y; });
+  caviAlSoffitto(g, attacchi.map((p) => p.clone().add(V3(0, y0 - b.min.y, 0))), soffitto);
+  g.traverse((x) => { if (x.isMesh) { x.castShadow = false; x.receiveShadow = false; x.userData.senzaOmbra = true; } });
+  return g;
+}
 /** Schienale avvolgente imbottito: arco (gradi) di raggio r, alto h, spesso sp. */
 function schienale(r, arco, h, sp, materiale) {
   const s = new THREE.Shape(), a0 = Math.PI / 2 - (arco * Math.PI) / 360, a1 = Math.PI / 2 + (arco * Math.PI) / 360;
@@ -1432,6 +1545,14 @@ export const COLLEZIONE = [
   { id: 'ds-lin-ovale-led', appeso: true, nome: 'Lampada lunga, anello LED ovale 150 cm', es: 'Lámpara larga, aro LED ovalado 150 cm', misure: { w: 1527, d: 536, h: 2700 }, crea: async (s) => lampadaLunga('ovale-led', s) },
   { id: 'ds-lin-dischi', appeso: true, nome: 'Lampada lunga, tre dischi LED neri', es: 'Lámpara larga, tres discos LED negros', misure: { w: 1680, d: 380, h: 2700 }, crea: async (s) => lampadaLunga('dischi', s) },
   { id: 'ds-lin-cascata', appeso: true, nome: 'Lampada lunga, cascata di sfere in vetro', es: 'Lámpara larga, cascada de esferas de vidrio', misure: { w: 1634, d: 282, h: 2700 }, crea: async (s) => lampadaLunga('cascata', s) },
+  { id: 'ds-lux-mikado', appeso: true, nome: 'Lampada di lusso «Mikado», barre LED nere incrociate e oro', es: 'Lámpara de lujo «Mikado», barras LED negras cruzadas y oro', misure: { w: 1885, d: 356, h: 2700 }, crea: async (s) => lampadaLusso('mikado', s) },
+  { id: 'ds-lux-ovali', appeso: true, nome: 'Lampada di lusso, tre ovali LED dorati intrecciati', es: 'Lámpara de lujo, tres óvalos LED dorados entrelazados', misure: { w: 1725, d: 507, h: 2700 }, crea: async (s) => lampadaLusso('ovali', s) },
+  { id: 'ds-lux-onda', appeso: true, nome: 'Lampada di lusso «Onda», nastro LED nero e ottone', es: 'Lámpara de lujo «Onda», cinta LED negra y latón', misure: { w: 1840, d: 212, h: 2700 }, crea: async (s) => lampadaLusso('onda', s) },
+  { id: 'ds-lux-elica', appeso: true, nome: 'Lampada di lusso «Elica», LED oro e nero attorcigliati', es: 'Lámpara de lujo «Hélice», LED oro y negro trenzados', misure: { w: 1652, d: 192, h: 2700 }, crea: async (s) => lampadaLusso('elica', s) },
+  { id: 'ds-lux-noce', appeso: true, nome: 'Lampada di lusso, lastra in noce con LED e ottone', es: 'Lámpara de lujo, lámina de nogal con LED y latón', misure: { w: 1728, d: 196, h: 2700 }, crea: async (s) => lampadaLusso('noce', s) },
+  { id: 'ds-lux-costellazione', appeso: true, nome: 'Lampada di lusso «Costellazione», gocce di luce e ottone', es: 'Lámpara de lujo «Constelación», gotas de luz y latón', misure: { w: 1700, d: 169, h: 2700 }, crea: async (s) => lampadaLusso('costellazione', s) },
+  { id: 'ds-lux-prisma', appeso: true, nome: 'Lampada di lusso «Prisma», linee LED nere e nodi oro', es: 'Lámpara de lujo «Prisma», líneas LED negras y nudos oro', misure: { w: 1636, d: 322, h: 2700 }, crea: async (s) => lampadaLusso('prisma', s) },
+  { id: 'ds-lux-catena', appeso: true, nome: 'Lampada di lusso «Catena», anelli LED oro e neri', es: 'Lámpara de lujo «Cadena», aros LED oro y negros', misure: { w: 1722, d: 442, h: 2700 }, crea: async (s) => lampadaLusso('catena', s) },
   { id: 'ds-led-orbita', appeso: true, nome: 'Lampada LED «Orbita», due anelli', es: 'Lámpara LED «Órbita», dos aros', misure: { w: 989, d: 982, h: 2700 }, crea: async (s) => lampadaLed('orbita', s) },
   { id: 'ds-sgabello-conchiglia', nome: 'Sgabello «Conchiglia» in velluto e ottone', es: 'Taburete «Concha» de terciopelo y latón', misure: { w: 492, d: 472, h: 852 }, crea: async () => sgabelloConchiglia() },
   { id: 'ds-sedia-avvolgente', nome: 'Sedia «Avvolgente» in velluto e ottone', es: 'Silla «Envolvente» de terciopelo y latón', misure: { w: 568, d: 540, h: 794 }, crea: async () => sediaAvvolgente() },

@@ -15,8 +15,8 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261120p';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261120p';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261120t';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261120t';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -368,6 +368,31 @@ export const MATERIALI = [
   { id: 'cm-fd-ottone', nome: 'Cesto in fili d\'ottone con banane e frutta', categoria: 'oggetto', sezione: 'oggetti', moderno: 'fd-ottone', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/fd-ottone.jpg', texture: 'oggetti/moderni/miniature/fd-ottone.jpg', colore: 0xd8d2c8,
     misure: { w: 344, d: 353, h: 198 }, info: { note: 'Collezione Design NG Interior' } },
+  // ---- LAMPADE DI LUSSO, LUNGHE (modellate da noi: LED incrociati, nero satinato, oro, noce) ----
+  { id: 'cm-ds-lux-mikado', nome: 'Lampada di lusso «Mikado», barre LED nere incrociate e oro', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-mikado', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lux-mikado.jpg', texture: 'oggetti/moderni/miniature/ds-lux-mikado.jpg', colore: 0xd8d2c8,
+    misure: { w: 1885, d: 356, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lux-ovali', nome: 'Lampada di lusso, tre ovali LED dorati intrecciati', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-ovali', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lux-ovali.jpg', texture: 'oggetti/moderni/miniature/ds-lux-ovali.jpg', colore: 0xd8d2c8,
+    misure: { w: 1725, d: 507, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lux-onda', nome: 'Lampada di lusso «Onda», nastro LED nero e ottone', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-onda', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lux-onda.jpg', texture: 'oggetti/moderni/miniature/ds-lux-onda.jpg', colore: 0xd8d2c8,
+    misure: { w: 1840, d: 212, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lux-elica', nome: 'Lampada di lusso «Elica», LED oro e nero attorcigliati', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-elica', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lux-elica.jpg', texture: 'oggetti/moderni/miniature/ds-lux-elica.jpg', colore: 0xd8d2c8,
+    misure: { w: 1652, d: 192, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lux-noce', nome: 'Lampada di lusso, lastra in noce con LED e ottone', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-noce', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lux-noce.jpg', texture: 'oggetti/moderni/miniature/ds-lux-noce.jpg', colore: 0xd8d2c8,
+    misure: { w: 1728, d: 196, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lux-costellazione', nome: 'Lampada di lusso «Costellazione», gocce di luce e ottone', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-costellazione', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lux-costellazione.jpg', texture: 'oggetti/moderni/miniature/ds-lux-costellazione.jpg', colore: 0xd8d2c8,
+    misure: { w: 1700, d: 169, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lux-prisma', nome: 'Lampada di lusso «Prisma», linee LED nere e nodi oro', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-prisma', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lux-prisma.jpg', texture: 'oggetti/moderni/miniature/ds-lux-prisma.jpg', colore: 0xd8d2c8,
+    misure: { w: 1636, d: 322, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lux-catena', nome: 'Lampada di lusso «Catena», anelli LED oro e neri', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-catena', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lux-catena.jpg', texture: 'oggetti/moderni/miniature/ds-lux-catena.jpg', colore: 0xd8d2c8,
+    misure: { w: 1722, d: 442, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
   // ---- LAMPADE LUNGHE (modellate da noi: per isole e tavoli lunghi) ----
   { id: 'cm-ds-lin-barra-nera', nome: 'Lampada lunga, barra LED nera 150 cm', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lin-barra-nera', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/ds-lin-barra-nera.jpg', texture: 'oggetti/moderni/miniature/ds-lin-barra-nera.jpg', colore: 0xd8d2c8,
@@ -434,7 +459,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261120p');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261120t');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -563,7 +588,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261120p';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261120t';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
@@ -572,7 +597,8 @@ const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'l
   'ds-tavolo-farfalla': 'pranzo', 'ds-tavolo-infinito': 'pranzo', 'ds-tavolo-mikado': 'pranzo', 'ds-tavolo-ics': 'pranzo', 'ds-tavolo-ricciolo': 'pranzo',
   'ds-sedia-avvolgente': 'pranzo', 'ds-sedia-avvolgente-salvia': 'pranzo', 'ds-sgabello-conchiglia': 'sgabelli',
   'ds-led-anelli': 'luci', 'ds-led-infinito': 'luci', 'ds-led-linee': 'luci', 'ds-led-orbita': 'luci',
-  'ds-lin-barra-nera': 'luci', 'ds-lin-barra-bianca': 'luci', 'ds-lin-tubo-ottone': 'luci', 'ds-lin-coni-neri': 'luci', 'ds-lin-globi-ottone': 'luci', 'ds-lin-cupole-fume': 'luci', 'ds-lin-trave-rovere': 'luci', 'ds-lin-ovale-led': 'luci', 'ds-lin-dischi': 'luci', 'ds-lin-cascata': 'luci' };
+  'ds-lin-barra-nera': 'luci', 'ds-lin-barra-bianca': 'luci', 'ds-lin-tubo-ottone': 'luci', 'ds-lin-coni-neri': 'luci', 'ds-lin-globi-ottone': 'luci', 'ds-lin-cupole-fume': 'luci', 'ds-lin-trave-rovere': 'luci', 'ds-lin-ovale-led': 'luci', 'ds-lin-dischi': 'luci', 'ds-lin-cascata': 'luci',
+  'ds-lux-mikado': 'luci', 'ds-lux-ovali': 'luci', 'ds-lux-onda': 'luci', 'ds-lux-elica': 'luci', 'ds-lux-noce': 'luci', 'ds-lux-costellazione': 'luci', 'ds-lux-prisma': 'luci', 'ds-lux-catena': 'luci' };
 for (const m of MATERIALI) {
   if (!m.moderno) continue;
   m.gruppo = GRUPPO_COLLEZIONE[m.moderno] || 'cucina';
