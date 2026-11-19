@@ -14,28 +14,28 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261121n';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121n';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261121n';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261121n';
+} from './modello.js?v=20261121o';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121o';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261121o';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261121o';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121n').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121o').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121n';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121n';
-import { parametri } from '../parametri.js?v=20261121n';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121n';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121n';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121o';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121o';
+import { parametri } from '../parametri.js?v=20261121o';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121o';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121o';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121n';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121o';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261121n';
+export { telaPavimento } from '../resa.js?v=20261121o';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;

@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261121n';
+import { parametri } from '../parametri.js?v=20261121o';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -1885,6 +1885,88 @@ export function liberoPareti(progetto) {
 
 // Spessore anta standard (per il calcolo della regletta a L d'angolo).
 export const SPESSORE_ANTA = 18;
+
+/**
+ * MODULO FUORI MISURA (pensili e basi): che modulo standard ORDINARE e a quanto TAGLIARLO.
+ * Es. pensile da 630 → si ordina il 700 e va tagliato a 630. null se la misura è standard.
+ */
+export function moduloDaOrdinare(m) {
+  const cat = categoriaTipo(m.tipo);
+  if (cat !== 'pensile' && cat !== 'base') return null;
+  if (/angolo/.test(m.tipo)) return null;
+  const w = Math.round(m.larghezza_mm || 0);
+  if (!w || LARGHEZZE_BASE.includes(w)) return null;
+  const ordina = LARGHEZZE_BASE.find((x) => x >= w) || w;
+  return { ordina, taglio: w };
+}
+/** Dopo aver cambiato la larghezza: misura non standard = da tagliare. */
+export function segnaFuoriMisura(m) {
+  const cat = categoriaTipo(m.tipo);
+  if ((cat === 'pensile' || cat === 'base') && !/angolo/.test(m.tipo)) m.fuoriMisura = !LARGHEZZE_BASE.includes(Math.round(m.larghezza_mm || 0));
+}
+
+/**
+ * SPAZI FRA I PENSILI: un pensile che non arriva al mobile alto accanto (un altro pensile, il pensile
+ * d'angolo, una colonna…) mentre SOTTO il mobile basso continua: va ALLARGATO (es. 600 → 630, modulo
+ * da 700 da tagliare a 630) così sopra e sotto sono allineati. Ritorna [{ id, lato (±1), gap (mm), w }].
+ */
+export function spaziPensili(progetto, max = 150) {
+  const mob = progetto.mobiliLiberi || [];
+  const alti = mob.filter((o) => {
+    const c = categoriaTipo(o.tipo);
+    return c === 'pensile' || c === 'altillo' || c === 'colonna' || c === 'frigo'
+      || (c === 'costado' && ((o.altezza_mm || 0) >= 1500 || (o.profondita_mm || 620) < 500));
+  });
+  const basi = mob.filter((o) => ['base', 'lavastoviglie', 'lavatrice'].includes(categoriaTipo(o.tipo)));
+  const out = [];
+  for (const p of mob) {
+    if (p.tipo !== 'pensile' || p.sottoPonte) continue;
+    const A = aabbMondo(p), oriz = A.horiz;
+    const lo = oriz ? A.x0 : A.y0, hi = oriz ? A.x1 : A.y1;
+    const q0 = oriz ? A.y0 : A.x0, q1 = oriz ? A.y1 : A.x1, qc = (q0 + q1) / 2;
+    for (const lato of [1, -1]) {
+      let gap = Infinity;
+      for (const o of alti) {
+        if (o.id === p.id) continue;
+        const B = aabbMondo(o);
+        const blo = oriz ? B.x0 : B.y0, bhi = oriz ? B.x1 : B.y1, b0 = oriz ? B.y0 : B.x0, b1 = oriz ? B.y1 : B.x1;
+        if (Math.min(q1, b1) - Math.max(q0, b0) < 50) continue;           // non sulla stessa fila
+        const g = lato > 0 ? blo - hi : lo - bhi;
+        if (g > -2 && g < gap) gap = g;
+      }
+      if (!(gap > 5 && gap <= max)) continue;
+      // sotto lo spazio c'è il mobile basso? (allora sopra va chiuso)
+      const mid = lato > 0 ? hi + gap / 2 : lo - gap / 2;
+      // …ed è lo STESSO mobile basso che sta sotto questo pensile (se no lo spazio è del pensile accanto)
+      const sotto = basi.some((b) => {
+        const B = aabbMondo(b), b0 = oriz ? B.x0 : B.y0, b1 = oriz ? B.x1 : B.y1, c0 = oriz ? B.y0 : B.x0, c1 = oriz ? B.y1 : B.x1;
+        return mid > b0 && mid < b1 && qc > c0 - 1 && qc < c1 + 1 && Math.min(b1, hi) - Math.max(b0, lo) > 50;
+      });
+      if (sotto) out.push({ id: p.id, lato, gap: Math.round(gap), w: Math.round(p.larghezza_mm + gap) });
+    }
+  }
+  return out;
+}
+/** Allarga il pensile fino al mobile accanto (dal lato `lato`, di `gap` mm). */
+export function allargaPensile(progetto, id, lato, gap) {
+  const p = (progetto.mobiliLiberi || []).find((o) => o.id === id);
+  if (!p || !(gap > 0)) return false;
+  const oriz = aabbMondo(p).horiz;
+  p.larghezza_mm = Math.round((p.larghezza_mm || 600) + gap);
+  if (oriz) p.x += (lato * gap) / 2; else p.y += (lato * gap) / 2;
+  segnaFuoriMisura(p);
+  return true;
+}
+/** Chiude TUTTI gli spazi fra i pensili (dove sotto c'è il mobile basso). Ritorna quanti pensili ha allargato. */
+export function sistemaSpaziPensili(progetto) {
+  let n = 0;
+  for (let giro = 0; giro < 60; giro++) {                 // uno alla volta: ogni allargamento cambia gli spazi
+    const x = spaziPensili(progetto)[0];
+    if (!x || !allargaPensile(progetto, x.id, x.lato, x.gap)) break;
+    n++;
+  }
+  return n;
+}
 
 /** AABB (assi del mondo) di un mobile: {x0,x1,y0,y1}. */
 function aabbMondo(m) {

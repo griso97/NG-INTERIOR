@@ -12,9 +12,9 @@
 // =============================================================================
 
 import {
-  infoTavolo, spessoreTavolo, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna,
-} from './modello.js?v=20261121n';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261121n';
+  infoTavolo, spessoreTavolo, moduloDaOrdinare, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna,
+} from './modello.js?v=20261121o';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261121o';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -133,8 +133,9 @@ function pezziDiModulo(progetto, m) {
   const L = d.w;
   const H = m.altezza_mm || 720;
   // Etichetta semplice: "Modulo da <altezza>×<larghezza>".
+  const odM = moduloDaOrdinare(m);
   const mod = `Modulo da ${m.altezza_mm ? `${m.altezza_mm}×${L}` : L}`
-    + (m.fuoriMisura ? ' ⚠ da tagliare' : '');
+    + (odM ? ` ⚠ (modulo da ${odM.ordina} tagliato a ${L})` : m.fuoriMisura ? ' ⚠ da tagliare' : '');
   const pz = [];
   // aria delle ante (⚙ Parametri) e maniglia a J: l'anta si accorcia dello spessore del profilo
   const aH = ariaH(), aL = ariaL(), scP = sceltePorte(progetto, m), rJ = riduzioneJ(scP);
@@ -366,9 +367,11 @@ export function calcolaDistintaCucina(progetto) {
     const gruppo = m.tipo === 'colonna-misura' ? null : gruppoModulo(categoriaTipo(m.tipo));   // su misura: la facciamo noi
     if (!gruppo) continue;
     const L = dimMobile(m).w;
-    const misura = m.altezza_mm ? `${m.altezza_mm}×${L}` : `${L}`;
-    const key = `${gruppo}|${m.tipo}|${misura}|${m.fuoriMisura ? 1 : 0}`;
-    if (!modMap.has(key)) modMap.set(key, { gruppo, nome: `${nomeTipo(m.tipo)} · interno ${progetto.coloreInterno === 'antracite' ? 'antracite' : 'bianco'}`, misura, tipo: nomeTipo(m.tipo), fuoriMisura: !!m.fuoriMisura, quantita: 0 });
+    // FUORI MISURA: si ordina il modulo standard più vicino (più grande) e si taglia (es. 700 → 630)
+    const od = moduloDaOrdinare(m), Lo = od ? od.ordina : L;
+    const misura = m.altezza_mm ? `${m.altezza_mm}×${Lo}` : `${Lo}`;
+    const key = `${gruppo}|${m.tipo}|${misura}|${od ? od.taglio : m.fuoriMisura ? 1 : 0}`;
+    if (!modMap.has(key)) modMap.set(key, { gruppo, nome: `${nomeTipo(m.tipo)} · interno ${progetto.coloreInterno === 'antracite' ? 'antracite' : 'bianco'}`, misura, tipo: nomeTipo(m.tipo), fuoriMisura: !!(od || m.fuoriMisura), taglio: od ? od.taglio : null, quantita: 0 });
     modMap.get(key).quantita++;
   }
   const moduli = [...modMap.values()].sort((a, b) => ORDINE_MODULI.indexOf(a.gruppo) - ORDINE_MODULI.indexOf(b.gruppo));

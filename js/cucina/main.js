@@ -11,7 +11,7 @@ import {
   applicaPreset, aggiungiParete, rimuoviParete,
   TIPI_MODULO_BASE, CATALOGO_MOBILI, LARGHEZZE_BASE, nomeTipo,
   infoTipo, altezzeTipo, campiMobile, descrizioneMobile, categoriaTipo, livelloDiMobile, frigoSottoAltillo,
-  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, togliAltiDentroColonne, spazioMancante, baseAMuro, sceltePorteGruppo, COLORI_FRIGO, modoIsola, centroPianta, APPOGGI_TAVOLO, nomeAppoggioTavolo, pontiSopra, cambiaPensileSottoPonte,
+  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, togliAltiDentroColonne, spazioMancante, baseAMuro, sceltePorteGruppo, COLORI_FRIGO, spaziPensili, allargaPensile, sistemaSpaziPensili, moduloDaOrdinare, segnaFuoriMisura, modoIsola, centroPianta, APPOGGI_TAVOLO, nomeAppoggioTavolo, pontiSopra, cambiaPensileSottoPonte,
   spazioLiberoParete, moduliDiParete,
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
@@ -24,17 +24,17 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
-} from './modello.js?v=20261121n';
-import { renderPianta } from './pianta.js?v=20261121n';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121n';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261121n';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121n';
-import { calcolaDistintaCucina } from './distinta.js?v=20261121n';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121n';
-import { agganciaTema } from '../tema.js?v=20261121n';
-import { tendinePannello } from '../tendine-pannello.js?v=20261121n';
+} from './modello.js?v=20261121o';
+import { renderPianta } from './pianta.js?v=20261121o';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121o';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261121o';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121o';
+import { calcolaDistintaCucina } from './distinta.js?v=20261121o';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121o';
+import { agganciaTema } from '../tema.js?v=20261121o';
+import { tendinePannello } from '../tendine-pannello.js?v=20261121o';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261121n');
+const _excel = () => import('../modello-export.js?v=20261121o');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -881,6 +881,7 @@ function attaccaEventiStep2() {
   const autoPensili = (h) => {
     registraStoria();
     const n = generaPensiliAuto(progetto, h);
+    if (n) sistemaSpaziPensili(progetto);             // sopra e sotto allineati (pensili allargati, da tagliare)
     step2.mobSelId = null;
     aggiorna();
     if (n === 0) alert('Aggiungi prima i mobili bassi: i pensili vengono creati sopra le basi.');
@@ -1066,7 +1067,31 @@ function renderRiepilogoModuli() {
     <div class="riep-riga"><span>Mobili liberi sulla pianta</span><strong>${progetto.mobiliLiberi.length}</strong></div>
     <div class="riep-riga"><span>Metri lineari moduli</span><strong>${(lineari / 1000).toFixed(2)} m</strong></div>
     <div class="riep-riga"><span>Stato</span><strong>${progetto.moduliBaseConfermati ? 'Confermato' : 'In modifica'}</strong></div>
+    ${htmlSpaziPensili()}
   `;
+  agganciaSpaziPensili(riepilogo);
+}
+/**
+ * SPAZI FRA I PENSILI: dove sotto il mobile basso è più largo (es. 63) e il pensile sopra è da 60,
+ * resta un buco. Si allarga il pensile (modulo da 70 da tagliare a 63): sopra e sotto allineati.
+ */
+function htmlSpaziPensili() {
+  const sp = spaziPensili(progetto);
+  if (!sp.length) return '';
+  return `
+    <h3 style="margin-top:20px">⚠ Spazi fra i pensili</h3>
+    <div class="riga-3d" style="margin-bottom:6px">Sotto, il mobile basso continua: allarga il pensile così sopra e sotto sono allineati. Se la misura non è standard, in distinta c'è il modulo da ordinare e a quanto tagliarlo.</div>
+    ${sp.map((x) => { const m = trovaMobileLibero(progetto, x.id), od = moduloDaOrdinare({ ...m, larghezza_mm: x.w });
+      return `<div class="riep-riga avviso-taglio"><span>Pensile da ${m.larghezza_mm} → ${x.w} mm (spazio di ${x.gap} mm)${od ? ` · modulo da ${od.ordina} da tagliare` : ''}</span>
+      <button type="button" class="btn-ghost" data-allarga="${x.id}|${x.lato}|${x.gap}" style="padding:4px 10px">Allarga</button></div>`; }).join('')}
+    ${sp.length > 1 ? '<button type="button" id="allarga-tutti" class="btn-oro" style="width:100%;margin-top:8px">Allarga tutti</button>' : ''}`;
+}
+function agganciaSpaziPensili(root) {
+  root.querySelectorAll('[data-allarga]').forEach((b) => b.addEventListener('click', () => {
+    const [id, lato, gap] = b.dataset.allarga.split('|').map(Number);
+    registraStoria(); allargaPensile(progetto, id, lato, gap); aggiorna();
+  }));
+  root.querySelector('#allarga-tutti')?.addEventListener('click', () => { registraStoria(); sistemaSpaziPensili(progetto); aggiorna(); });
 }
 
 // --------- STEP 3 — VISTA 3D ---------
@@ -1748,7 +1773,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121n');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121o');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2222,7 +2247,7 @@ function renderRiepilogoStep3d() {
     ${daTagliare.length ? `
     <h3 style="margin-top:18px">⚠ Da tagliare su misura</h3>
     <div class="riga-3d" style="margin-bottom:6px">Misura non standard: questi moduli vanno tagliati.</div>
-    ${daTagliare.map((m) => `<div class="riep-riga avviso-taglio"><span>⚠ ${nomeTipo(m.tipo)}</span><strong>${m.larghezza_mm} mm</strong></div>`).join('')}
+    ${daTagliare.map((m) => { const od = moduloDaOrdinare(m); return `<div class="riep-riga avviso-taglio"><span>⚠ ${nomeTipo(m.tipo)}${od ? ` · modulo da ${od.ordina}` : ''}</span><strong>${od ? `tagliare a ${od.taglio} mm` : `${m.larghezza_mm} mm`}</strong></div>`; }).join('')}
     ` : ''}
   `;
   document.getElementById('apri-distinta')?.addEventListener('click', mostraDistinta);
@@ -2250,7 +2275,7 @@ function mostraDistinta() {
       <table class="distinta-tab">
         <thead><tr><th>Modulo</th><th class="n">Misura</th><th class="n">Qtà</th></tr></thead>
         <tbody>${righe.map((m) => `<tr>
-          <td>${escHtml(m.nome)}${m.fuoriMisura ? ' <span class="dist-warn">⚠ da tagliare</span>' : ''}</td>
+          <td>${escHtml(m.nome)}${m.taglio ? ` <span class="dist-warn">⚠ va tagliato a ${m.taglio} mm</span>` : m.fuoriMisura ? ' <span class="dist-warn">⚠ da tagliare</span>' : ''}</td>
           <td class="n">${escHtml(m.misura)}</td>
           <td class="n">${m.quantita}</td></tr>`).join('')}</tbody>
       </table>
@@ -2308,7 +2333,7 @@ function esportaDistintaCSV() {
   const qc = (s) => `"${String(tr(s)).replace(/"/g, '""')}"`;
   const righe = [['MODULI DA ORDINARE']];
   righe.push(['Gruppo', 'Modulo', 'Misura', 'Quantita']);
-  for (const m of moduli) righe.push([m.gruppo, m.nome + (m.fuoriMisura ? ' (da tagliare)' : ''), m.misura, m.quantita]);
+  for (const m of moduli) righe.push([m.gruppo, m.nome + (m.taglio ? ` (va tagliato a ${m.taglio} mm)` : m.fuoriMisura ? ' (da tagliare)' : ''), m.misura, m.quantita]);
   righe.push([]);
   righe.push(['PEZZI DA FARE']);
   righe.push(['Gruppo', 'Pezzo', 'Larghezza_mm', 'Altezza_mm', 'Spessore_mm', 'Materiale', 'Quantita']);
@@ -2510,13 +2535,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121n');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121o');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121n'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121o'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2767,7 +2792,11 @@ function htmlPianoTavolo(m) {
       <div class="opzioni-anta">
         ${APPOGGI_TAVOLO.map((a) => `<button type="button" class="btn-ghost opt-tavapp ${a.id === app ? 'attivo' : ''}" data-tavapp="${a.id}">${a.id === app ? '✓ ' : ''}${a.nome}</button>`).join('')}
       </div>
-      <div class="riga-3d" style="margin:10px 0 6px">Materiale: <strong>${escHtml(nomeSel)}</strong></div>
+    </section>
+    <section class="step3-pannello" data-aperta>
+      <h3>Colore del piano / tavolo</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Può essere diverso dal piano della cucina: apri un gruppo (Encimere, Legni, Opachi, Lucidi…) e tocca il colore. Vale anche per i fianchi a cascata.</div>
+      <div class="riga-3d" style="margin:4px 0 6px">Scelto: <strong>${escHtml(nomeSel)}</strong></div>
       <div class="opzioni-anta" style="margin-bottom:6px">
         <button type="button" class="btn-ghost opt-tavmat0 ${sel ? '' : 'attivo'}" data-tavmat0="1">${sel ? '' : '✓ '}Come il piano della cucina</button>
       </div>
@@ -3122,6 +3151,7 @@ function confermaScelta() {
       // CIMA resta dov'è (costadi e pensili fermi), cambia lo spazio sul frigo
       const cimaPrima = categoriaTipo(m.tipo) === 'altillo' ? cimaMobileSopraFrigo(progetto, m) : null;
       Object.assign(m, valori);
+      segnaFuoriMisura(m);                          // misura non standard: modulo da tagliare
       const fr = cimaPrima != null ? frigoSottoAltillo(progetto, m) : null;
       if (fr) m.distanzaFrigo_mm = Math.max(0, cimaPrima - (fr.altezza_mm || 1850) - (m.altezza_mm || 350));
       sincronizzaFrigo(progetto, m);
@@ -3129,6 +3159,7 @@ function confermaScelta() {
     step2.mobSelId = mobId;
   } else {
     step2.mobSelId = aggiungiMobileLibero(progetto, tipoId, valori);
+    { const nm = trovaMobileLibero(progetto, step2.mobSelId); if (nm) segnaFuoriMisura(nm); }
     // Nuovo mobile: se nasce vicino a un muro, orienta le ante verso l'interno
     const nuovo = trovaMobileLibero(progetto, step2.mobSelId);
     const rot = nuovo && rotazioneAutomatica(progetto, nuovo, nuovo.x, nuovo.y);
