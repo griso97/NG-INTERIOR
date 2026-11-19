@@ -84,3 +84,68 @@ sk3da366fa.glb — Tre anelli LED sovrapposti, a soffitto — «Люстра 538
 sk02e49022.glb — Due anelli LED incrociati — «Люстра 5380 Mantra» — fedomo — https://sketchfab.com/3d-models/02e490224a004d4ab230b6b080d1a933 — CC BY 4.0
 sk7e5f8182.glb — Sfera scultura dorata — «Decorative Sphere» — impylse — https://sketchfab.com/3d-models/7e5f818281a14d28aa37c541f308e729 — CC BY 4.0
 sk508da0fb.glb — Volto in filo nero — «Face sculpture» — MaParch — https://sketchfab.com/3d-models/508da0fb0e884519b57db4410160fc50 — CC BY 4.0
+sk5cde9f53.glb — Sedia a guscio nera, gambe in legno — «Eames chair» — ar41k — https://sketchfab.com/3d-models/5cde9f53b44040f596b3f2ebc15a9a8d — CC BY 4.0
+sk4a91ba22.glb — Sedia in cuoio cognac, telaio in metallo — «Leather Dining Chair» — mo_el_5353 — https://sketchfab.com/3d-models/4a91ba2290e54d13b2f881b9f43f1a09 — CC BY 4.0
+skc20ff73f.glb — Sedia a stecche nera — «Simple kitchen chair Lowoply» — sskjellestad — https://sketchfab.com/3d-models/c20ff73f6713422591842e29a698230b — CC BY 4.0
+sk9a6c5472.glb — Sedia in legno curvato scuro con braccioli — «Thonet 209 Chair» — clarusnube — https://sketchfab.com/3d-models/9a6c5472e8d14d388fd53c97c09d4398 — CC BY 4.0
+skafe171f0.glb — Sedia in filo nero con cuscino — «Wired_Chair» — Vitor.Gomes1 — https://sketchfab.com/3d-models/afe171f0464f4f419aac23052266f3c7 — CC BY 4.0
+sk03668a2b.glb — Sedia geometrica in filo nero — «Modern Chair Minimalistic Design» — valterjherson1 — https://sketchfab.com/3d-models/03668a2b845e4f5fbef30b420fa2b5b9 — CC BY 4.0
+sk0a45955e.glb — Sedia a guscio bianca, gambe in rovere — «Vitra Eames Plastic Chair» — furnny — https://sketchfab.com/3d-models/0a45955e2328459d95f403cb00c08b3a — CC BY 4.0
+sk593e9340.glb — Poltroncina a guscio bianca — «Eames Chair» — rachelrietjens — https://sketchfab.com/3d-models/593e9340f632442f805a35d8473e5bd5 — CC BY 4.0
+skc2299031.glb — Poltroncina a tulipano bianca, girevole — «Little Tulip Chair» — axxie3d — https://sketchfab.com/3d-models/c229903168be44998ada48fced69baa7 — CC BY 4.0
+sk7cd8426f.glb — Sedia a Y bianca, seduta intrecciata — «Silla Wishbone» — CAMBEsmart — https://sketchfab.com/3d-models/7cd8426fb9c8450eb246e808f9e18a8f — CC BY 4.0
+sk88f7a757.glb — Sedia cantilever bianca — «Cesca-chair» — Lydia_Vender — https://sketchfab.com/3d-models/88f7a757cd5f4f13bd12dcf514d4bdbf — CC BY 4.0
+ske54f7117.glb — Poltroncina in cannetta e legno scuro — «Midcentury Harvey Probber Armchair» — eireni — https://sketchfab.com/3d-models/e54f711755a54b119b364fe6fcbfd821 — CC BY 4.0
+sk74cd3a7c.glb — Sedia a S bianca in un pezzo — «Panton Chair» — gbb2116 — https://sketchfab.com/3d-models/74cd3a7c7df84091b226efd30766c157 — CC BY 4.0
+skf6928921.glb — Sedia in corda intrecciata gialla — «Woven Rope Dining Chair» — sunny7610 — https://sketchfab.com/3d-models/f6928921a1f8498abeb9401a2318c6d3 — CC BY 4.0
+sk49dd685a.glb — Sedia in compensato curvato — «Eames DCM Chair» — baumeister — https://sketchfab.com/3d-models/49dd685a2bb34989afda9ca4471cf905 — CC BY 4.0
+sk43f13912.glb — Sedia in legno, seduta imbottita beige — «Cadira Aneto. Santiago Pey» — giravolt — https://sketchfab.com/3d-models/43f1391244fc4344a67db1f08b04f459 — CC BY 4.0
+skf9e3d0d0.glb — Sedia in legno curvato bianca, classica — «Thonet chair 14°» — simone_rizzi — https://sketchfab.com/3d-models/f9e3d0d099844aa293d962ab50ec4508 — CC BY 4.0
+sk401d06a1.glb — Sedia trasparente a medaglione — «Ghost Style Side Chair» — allenbranch — https://sketchfab.com/3d-models/401d06a1cf8e401ebcedd978aee05bf6 — CC BY 4.0
+ska906eb96.glb — Sedia imbottita grigia, braccioli in legno — «LumiSource Verdana Dining Chair» — abduoghazaly — https://sketchfab.com/3d-models/a906eb962375444798336e03c445bb9c — CC BY 4.0
+skd6a12459.glb — Poltroncina imbottita grigia — «Dining chair CERVINO By Linteloo» — Navasard — https://sketchfab.com/3d-models/d6a124596fb246bf977d238808d51f27 — CC BY 4.0
+skc24508f8.glb — Sedia imbottita blu-grigio, gambe nere — «Eames Side Chair» — reconlabs — https://sketchfab.com/3d-models/c24508f8bbeb470e8ad97ab9fa7bb07a — CC BY 4.0
+sk9328075d.glb — Sedia in rattan chiaro — «chair» — MaX3Dd — https://sketchfab.com/3d-models/9328075d9f3d417d9d899043e886d3df — CC BY 4.0
+sk4c6c0dfc.glb — Vaso bianco traforato — «Modern Vase» — mfb64 — https://sketchfab.com/3d-models/4c6c0dfc26c545d6b6bf06784e9e19dc — CC BY 4.0
+skd6070a92.glb — Vaso bianco sfaccettato — «Decorative Vase» — 3dsharesg — https://sketchfab.com/3d-models/d6070a92596c460ca6f46331052ee089 — CC BY 4.0
+skaa99fe94.glb — Vaso nero alto decorato — «Black Vase Decorative» — aointeractive — https://sketchfab.com/3d-models/aa99fe94f6fc4b4e9b5b73c73134b388 — CC BY 4.0
+sk43c2296b.glb — Vaso dorato con rami secchi — «Golden Decorative Vase» — CharacterZone — https://sketchfab.com/3d-models/43c2296b6955400ca3de46f32fedcedc — CC BY 4.0
+skadaa658b.glb — Tre vasi in ceramica colorata — «Vase Set» — janexx — https://sketchfab.com/3d-models/adaa658ba1b6473d9a55c10fb248c487 — CC BY 4.0
+skcdc94f95.glb — Vaso in vetro semplice — «Simple Glass Vase» — sousinho — https://sketchfab.com/3d-models/cdc94f959e2f4b5784b60196a98cc354 — CC BY 4.0
+sk975887da.glb — Pila di libri bianchi — «Stack of Books 3D scan» — zdenkoroman — https://sketchfab.com/3d-models/975887dad9a2474bacb9fec3850c48c5 — CC BY 4.0
+sk16c0d36c.glb — Scultura astratta nera — «modern sculpture 48» — legendmodelist — https://sketchfab.com/3d-models/16c0d36c27874b4f93642a9a823d4a4e — CC BY 4.0
+sked29ba19.glb — Scultura in legno chiaro — «Escultura, Museu d’Art Jaume Morera» — giravolt — https://sketchfab.com/3d-models/ed29ba199c82495e80c07d04ec435ea0 — CC BY 4.0
+sk9af2f6a8.glb — Lampada da tavolo a luna — «Moon - Table lamp» — tadenstar — https://sketchfab.com/3d-models/9af2f6a821fe440bbdf6f3819f8168ee — CC BY 4.0
+sk56a68205.glb — Candele a colonna — «Candles Asset Pack» — emarshall — https://sketchfab.com/3d-models/56a68205dae649a388c6e3ba04145a9e — CC BY 4.0
+sk1eec8ed7.glb — Tagliere con formaggi — «Cheese board» — edemaistre — https://sketchfab.com/3d-models/1eec8ed7b73b4b9f869a1eb1c743f1ce — CC BY 4.0
+sk5649b0e9.glb — Decanter con calice di vino — «Wine Decanter and Glass» — jku08 — https://sketchfab.com/3d-models/5649b0e9e72045a88deec9680b902402 — CC BY 4.0
+sk3f646a36.glb — Bollitore elettrico bianco — «Glass Kettle» — halilkantarci — https://sketchfab.com/3d-models/3f646a36c0a142cfa451af70357f4235 — CC BY 4.0
+sk6291580b.glb — Moka per il caffè — «Italian Coffee Machine» — Kirill1991 — https://sketchfab.com/3d-models/6291580b33d54513975db9f6964d8fc3 — CC BY 4.0
+sk0dd62004.glb — Tostapane in acciaio — «Toaster» — temp0.crazy — https://sketchfab.com/3d-models/0dd620043178479db6752ab103b1e04e — CC BY 4.0
+sk5f2adebd.glb — Sale e pepe in vetro — «Salt And Pepper Shakers» — Yanez-Designs — https://sketchfab.com/3d-models/5f2adebdda754e40915d1330a61fa70c — CC BY 4.0
+sk625caf27.glb — Alzata con dolci — «Pink Tea Room - Snacks on Three-Tier Stand» — eibrahim — https://sketchfab.com/3d-models/625caf27d98a485e8621e8aee190f242 — CC BY 4.0
+sk837171e3.glb — Cesto in rattan — «rattan fruit basket» — prasetyoheru10 — https://sketchfab.com/3d-models/837171e3015b43498b087f3852f9b8cc — CC BY 4.0
+sk3d0cc41c.glb — Macinacaffè in legno — «Coffee Grinder» — infogades — https://sketchfab.com/3d-models/3d0cc41c9e7e43b0b3981920844711e1 — CC BY 4.0
+sk78d7e61d.glb — Macinacaffè elettrico nero — «Canarian Cafe - Coffee Grinder» — lanzaboy — https://sketchfab.com/3d-models/78d7e61da65c4b368074c978e742bdfc — CC BY 4.0
+sk252c2859.glb — Teiera in ghisa — «Japanese teapot» — James.Harness — https://sketchfab.com/3d-models/252c28595d3c45fb87095faf71466113 — CC BY 4.0
+sk7731af44.glb — Cappuccino in tazza — «Capuchino in a cup» — rakshaan — https://sketchfab.com/3d-models/7731af440e614f8eaf62644b056b9b32 — CC BY 4.0
+sk8b1baf5f.glb — Cactus a candelabro — «Tree-like Cactus Cereus peruvianus» — matousekfoto — https://sketchfab.com/3d-models/8b1baf5ffe894d95b8411c6bfec9042b — CC BY 4.0
+sk6ca018d9.glb — Dracena in vaso nero — «Plant» — Boxroom_3D — https://sketchfab.com/3d-models/6ca018d9886941aa8a63cf2236216762 — CC BY 4.0
+skbe65b876.glb — Ficus in vaso nero — «Ficus» — jherberhold — https://sketchfab.com/3d-models/be65b876e67e48e7a2085101c4d788ec — CC BY 4.0
+skdd6c9d90.glb — Alberello in vaso grigio — «Potted Tree» — dylanheyes — https://sketchfab.com/3d-models/dd6c9d90421b4a99acdfebbddd4ccf75 — CC BY 4.0
+sk4531ac6e.glb — Sansevieria in vaso scuro — «Sansevieria Bacularis Plant» — twinsis — https://sketchfab.com/3d-models/4531ac6e4b6340468473b7846b869ff7 — CC BY 4.0
+sk811d99a7.glb — Dracena in vaso blu — «Potted dracaena plant - FREE» — AMurderOfCrows — https://sketchfab.com/3d-models/811d99a7989641f3920f0318a4a5217f — CC BY 4.0
+sk9cf12658.glb — Dieffenbachia — «Indoor Plant Dieffenbachia» — anatolyropaev — https://sketchfab.com/3d-models/9cf12658f38341d38843278d634d45c5 — CC BY 4.0
+sk0a61f21d.glb — Piantina in vaso blu — «ZZ Plant» — jackirwinmiller — https://sketchfab.com/3d-models/0a61f21d69c54260ab89a93b03a9b541 — CC BY 4.0
+skfa479faa.glb — Fico d'India in vaso bianco — «Prickly Pear in a Pot» — anezka — https://sketchfab.com/3d-models/fa479faaff0c4133aa9e6720cfd9aab7 — CC BY 4.0
+skb565e460.glb — Vasi verde scuro con spighe — «Vase and Wheat Branches Variations (Free)» — frkngnl — https://sketchfab.com/3d-models/b565e460f3c747c3a564fae416f1f4d5 — CC BY 4.0
+sk68b2ec30.glb — Erba ornamentale in coppa bianca — «Simple Potted plant» — Blender3D — https://sketchfab.com/3d-models/68b2ec30fdbf4780a12aa7333a9e5188 — CC BY 4.0
+sk8bd83c9a.glb — Piante grasse in ciotola di cemento — «Cactus Concrete Pot» — 3dwalkabout — https://sketchfab.com/3d-models/8bd83c9adb8640628ff4f69689d358ac — CC BY 4.0
+sk9e351f19.glb — Orchidea rosa — «Orchidea» — Rox3d — https://sketchfab.com/3d-models/9e351f19b3ba4910b7d15954e49ae178 — CC BY 4.0
+sk6e6e2ac8.glb — Orchidea bianca — «Orchid» — fakefurfetishferre — https://sketchfab.com/3d-models/6e6e2ac8986e4fc1bb7c046208e2dacd — CC BY 4.0
+sk92c7cbe8.glb — Tulipani bianchi in vaso — «Tulips» — moshecaine — https://sketchfab.com/3d-models/92c7cbe8472e481398c641e3e5e5ddc2 — CC BY 4.0
+sk9b403961.glb — Vaso con fiori secchi — «Vase of dried flowers - photogrammetry» — nicolasdiolez — https://sketchfab.com/3d-models/9b4039619bca402abd89e0765910567b — CC BY 4.0
+sk66b98066.glb — Aloe in vaso bianco — «Potted Plant 04 4k» — mohamedhussien — https://sketchfab.com/3d-models/66b9806658784317834f8d702f720b91 — CC BY 4.0
+sk627b8fd7.glb — Giacinto in vaso — «Hyacinth» — scadl — https://sketchfab.com/3d-models/627b8fd770b643c6a547eedd3d4d3f14 — CC BY 4.0
+skf011d24c.glb — Fiori gialli in vaso bianco — «Flower With Vase» — Vighneshn_TS — https://sketchfab.com/3d-models/f011d24ce98a4de49dbb68a2472a8580 — CC BY 4.0
+sk4dca1b25.glb — Terrario in barattolo — «Forest In a Jar - Terrarium» — hectopod — https://sketchfab.com/3d-models/4dca1b2513394d0fa0ed12041ff30ddc — CC BY 4.0

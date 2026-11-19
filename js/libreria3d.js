@@ -13,9 +13,9 @@
 // TAVOLI: il piano è una superficie d'appoggio (un vaso ci si posa sopra).
 // =============================================================================
 import * as THREE from 'three';
-import { LIBRERIA } from './libreria3d-dati.js?v=20261120d';
+import { LIBRERIA } from './libreria3d-dati.js?v=20261120f';
 
-export { LIBRERIA, GRUPPI_OGGETTI, CREDITI_LIBRERIA, creditoVoce } from './libreria3d-dati.js?v=20261120d';
+export { LIBRERIA, GRUPPI_OGGETTI, CREDITI_LIBRERIA, creditoVoce } from './libreria3d-dati.js?v=20261120f';
 export const SOFFITTO = 2700, Y_LAMPADA = 1650, Y_QUADRO = 1550, Y_CAPPA = 1600;
 
 const qui = (p) => new URL(p, import.meta.url).href;
@@ -94,6 +94,14 @@ export function creaLibreria(id, soffitto = SOFFITTO) {
     const p = !voce ? Promise.reject(new Error('oggetto sconosciuto')) : caricatore()
       .then((gl) => gl.loadAsync(qui(`../oggetti/libreria/${id}.glb`)))
       .then((gltf) => {
+        // modelli SENZA NORMALI (alcune scansioni): le calcola il programma. Senza, le ombre di
+        // contatto della vista 3D (che leggono le normali) li coloravano di nero
+        gltf.scene.traverse((x) => {
+          if (x.isMesh && x.geometry && !x.geometry.attributes.normal) {
+            x.geometry.computeVertexNormals();
+            for (const m of [].concat(x.material)) if (m) { m.flatShading = false; m.needsUpdate = true; }
+          }
+        });
         const g = inMillimetri(gltf.scene, voce.scala || 1);
         const luce = voce.tipo === 'appeso' || voce.tipo === 'soffitto';
         if (eLuce(voce)) appendi(g, voce, soffitto);
