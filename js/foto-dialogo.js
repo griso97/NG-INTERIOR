@@ -6,7 +6,7 @@
 // anteprima → salva con il logo. Ogni pagina passa la sua funzione `calcola`
 // (quella della sua scena 3D).
 // =============================================================================
-import { componiConLogo, salvaImmagineCanvas } from './logo.js?v=20261121v';
+import { componiConLogo, salvaImmagineCanvas } from './logo.js?v=20261121w';
 
 const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
 function dataFile() {

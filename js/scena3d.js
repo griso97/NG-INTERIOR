@@ -11,12 +11,12 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado } from './calcoli.js?v=20261121v';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261121v';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261121v';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261121v';
-import { sfondoDi } from './sfondi.js?v=20261121v';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261121v';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado } from './calcoli.js?v=20261121w';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261121w';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261121w';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261121w';
+import { sfondoDi } from './sfondi.js?v=20261121w';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261121w';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -204,8 +204,8 @@ export function inizializzaScena(canvas) {
   camera.position.set(3000, 2200, 3800);
 
   // Renderer: resa realistica (tone mapping cinematografico + colori sRGB)
-  // preserveDrawingBuffer: serve per salvare l'immagine (toDataURL).
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  // niente preserveDrawingBuffer (più leggero): l'immagine si legge subito dopo averla disegnata.
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(w, h, false);
   renderer.shadowMap.enabled = true;

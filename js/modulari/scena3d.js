@@ -9,9 +9,9 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261121v';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121v';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121v';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261121w';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121w';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121w';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -61,7 +61,7 @@ export function monta(canvas) {
   scene.background = new THREE.Color(0xe9e6df);
   const w = canvas.clientWidth || 800, h = canvas.clientHeight || 600;
   camera = new THREE.PerspectiveCamera(40, w / h, 10, 60000);
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });   // niente preserveDrawingBuffer: più leggero; scheda grafica più potente
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.setSize(w, h, false);
   renderer.shadowMap.enabled = true;
@@ -442,6 +442,6 @@ export function salvaImmagine(nome = 'mobili-modulari.png') {
   const c = renderer.domElement;
   const cw = c.clientWidth || c.width, ch = c.clientHeight || c.height;
   let out = null;
-  try { out = senzaSelezione(() => componiConLogo(resa ? resa.foto(latoMaxExport()) : c)); } catch { out = null; }
+  try { out = senzaSelezione(() => componiConLogo(resa ? resa.foto(latoMaxExport()) : (renderer.render(scene, camera), c))); } catch { out = null; }
   return out ? salvaImmagineCanvas(out, nome) : false;
 }

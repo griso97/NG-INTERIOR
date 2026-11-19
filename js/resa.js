@@ -14,7 +14,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261121v';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261121w';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
@@ -66,6 +66,9 @@ function vetroSulloSfondo(renderer) {
 export function creaResa(opz) {
   const { renderer, scene, camera } = opz;
   vetroSulloSfondo(renderer);
+  // niente controllo degli errori a ogni nuovo «programma» della scheda grafica: obbligava ad
+  // aspettare la fine della preparazione (un attimo di blocco a ogni materiale nuovo)
+  renderer.debug.checkShaderErrors = false;
   const tel = eTelefono();
   const DPR = window.devicePixelRatio || 1;
   // Nitidezza: sempre quella piena di prima mentre si gira.
@@ -208,7 +211,6 @@ export function creaResa(opz) {
     return (ang + p.distanceTo(camera.position) / dist) / pxAng;
   }
   // misura del disegno nitido (da fermo, computer): quanto ci mette davvero la scheda grafica
-  const _px = new Uint8Array(4);
   let veloci = 0;
   function misuraFermo(dt) {
     let nuovo = livello;
@@ -220,13 +222,15 @@ export function creaResa(opz) {
     try { localStorage.setItem('ng-3d-livello-fermo', String(livello)); } catch (_) { /* niente */ }
     if (nitido) { dimensiona(dprFermo()); sporco = true; }                 // il prossimo disegno nitido è più leggero
   }
+  // Il tempo del disegno nitido si misura al giro SUCCESSIVO (il browser aspetta che la scheda
+  // grafica abbia finito prima di dare il giro dopo). Prima si leggeva un pixel subito dopo il
+  // disegno: il programma restava FERMO ad aspettare la scheda grafica a ogni pausa (scatti sul computer).
+  let misuraDa = 0;
   function disegnaOra(leggero) {
     if (!leggero && !tel) {
-      const t0 = performance.now();
+      misuraDa = performance.now();
       disegna(false);
-      try { const gl = renderer.getContext(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, _px); } catch (_) { /* niente */ }
-      misuraFermo(performance.now() - t0);
-    } else disegna(leggero);
+    } else { misuraDa = 0; disegna(leggero); }
     sporco = false;
     posDis.copy(camera.position); quatDis.copy(camera.quaternion);
   }
@@ -263,6 +267,10 @@ export function creaResa(opz) {
    */
   function tick(moto = false) {
     const ora = performance.now();
+    if (misuraDa) {                                            // quanto è durato l'ultimo disegno nitido
+      const dt = ora - misuraDa; misuraDa = 0;
+      if (dt < 3000 && !document.hidden) misuraFermo(dt);
+    }
     if (primo) { primo = false; posPrec.copy(camera.position); quatPrec.copy(camera.quaternion); }
     const passo = scarto(posPrec, quatPrec);
     posPrec.copy(camera.position); quatPrec.copy(camera.quaternion);

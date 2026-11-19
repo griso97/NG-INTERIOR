@@ -14,28 +14,28 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261121v';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121v';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261121v';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261121v';
+} from './modello.js?v=20261121w';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121w';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261121w';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261121w';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121v').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121w').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121v';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121v';
-import { parametri } from '../parametri.js?v=20261121v';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121v';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121v';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121w';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121w';
+import { parametri } from '../parametri.js?v=20261121w';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121w';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121w';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121v';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121w';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261121v';
+export { telaPavimento } from '../resa.js?v=20261121w';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -749,7 +749,9 @@ export function montaScena3d(canvas, progetto) {
   scene.background = new THREE.Color(0xe9e6df);
   const w = canvas.clientWidth || 800, h = canvas.clientHeight || 600;
   camera = new THREE.PerspectiveCamera(50, w / h, 10, 60000);
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+  // niente preserveDrawingBuffer: obbligava la scheda grafica a tenere una copia di ogni immagine
+  // (pesante su Mac e iPhone). Le foto si leggono subito dopo il disegno, quindi non serve.
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   // Pixel ratio limitato a 1.5: su schermi ad alta densità (retina/telefoni)
   // 2x significa 4× pixel da disegnare ogni frame → scatti. 1.5 è fluido e
   // resta nitido (l'export immagine usa un percorso separato ad alta qualità).

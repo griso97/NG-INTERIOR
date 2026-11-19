@@ -63,9 +63,9 @@ function dataURLtoBlob(dataURL) {
 
 /**
  * Salva/condivide l'immagine di un canvas 2D.
+ * - Su COMPUTER scarica il file (cartella Download), senza menù «Condividi».
  * - Su TELEFONO usa la condivisione nativa (menù "Salva immagine/foto"),
  *   perché il download via link spesso non salva nulla (specie su iPhone).
- * - Su desktop scarica il file PNG.
  * Tutto resta sincrono fino alla chiamata di share/click, così non si perde
  * il "gesto utente" richiesto dai browser.
  */
@@ -75,7 +75,21 @@ export function salvaImmagineCanvas(canvas, nomeFile, tipo = 'image/png', qualit
   let blob;
   try { blob = dataURLtoBlob(dataURL); } catch (e) { blob = null; }
 
-  // 1) Condivisione nativa con file (ideale su mobile → "Salva su Foto").
+  // 1) COMPUTER: download diretto del file (va nella cartella Download). Prima veniva la
+  //    condivisione: su Mac (Safari, Chrome) e Windows si apriva il menù «Condividi» e la foto
+  //    non si salvava.
+  if (!isMobile()) {
+    try {
+      const url = blob ? URL.createObjectURL(blob) : dataURL;
+      const a = document.createElement('a');
+      a.href = url; a.download = nomeFile; a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); a.remove();
+      if (blob) setTimeout(() => URL.revokeObjectURL(url), 60000);
+      return true;
+    } catch (e) { /* overlay sotto */ }
+  }
+
+  // 2) TELEFONO / TABLET: condivisione nativa con file (menù «Salva immagine» → Foto).
   if (blob && navigator.canShare && navigator.share) {
     try {
       const file = new File([blob], nomeFile, { type: blob.type || tipo });
@@ -85,18 +99,6 @@ export function salvaImmagineCanvas(canvas, nomeFile, tipo = 'image/png', qualit
         return true;
       }
     } catch (e) { /* fallback sotto */ }
-  }
-
-  // 2) Desktop: download diretto del file.
-  if (!isMobile()) {
-    try {
-      const url = blob ? URL.createObjectURL(blob) : dataURL;
-      const a = document.createElement('a');
-      a.href = url; a.download = nomeFile; a.rel = 'noopener';
-      document.body.appendChild(a); a.click(); a.remove();
-      if (blob) setTimeout(() => URL.revokeObjectURL(url), 5000);
-      return true;
-    } catch (e) { /* overlay sotto */ }
   }
 
   // 3) Fallback universale (mobile senza condivisione, o errori): mostro
