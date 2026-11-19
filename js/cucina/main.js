@@ -23,17 +23,17 @@ import {
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro, rotazioneAutomatica, migraRotazioni,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
-  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, internoAperto } from './modello.js?v=20261121x';
-import { renderPianta } from './pianta.js?v=20261121x';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121x';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261121x';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121x';
-import { calcolaDistintaCucina } from './distinta.js?v=20261121x';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121x';
-import { agganciaTema } from '../tema.js?v=20261121x';
-import { tendinePannello } from '../tendine-pannello.js?v=20261121x';
+  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, internoAperto, latoApertoDi, latiLiberi } from './modello.js?v=20261121y';
+import { renderPianta } from './pianta.js?v=20261121y';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121y';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261121y';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121y';
+import { calcolaDistintaCucina } from './distinta.js?v=20261121y';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121y';
+import { agganciaTema } from '../tema.js?v=20261121y';
+import { tendinePannello } from '../tendine-pannello.js?v=20261121y';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261121x');
+const _excel = () => import('../modello-export.js?v=20261121y');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -1833,7 +1833,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121x');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121y');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2619,13 +2619,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121x');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121y');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121x'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121y'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -3096,10 +3096,21 @@ function agganciaDistanzaFrigo(root, m) {
 function htmlMobileAperto(m) {
   const n = ripianiAperto(m), int = internoAperto(m);
   const lista = (scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer('legno') : [];
-  const op = (attr, val, et, on) => `<button type="button" class="btn-ghost opt-ap ${on ? 'attivo' : ''}" ${attr}="${val}" style="flex:1;min-width:60px">${on ? '✓ ' : ''}${et}</button>`;
+  const op = (attr, val, et, on, min = '60px') => `<button type="button" class="btn-ghost opt-ap ${on ? 'attivo' : ''}" ${attr}="${val}" style="flex:1 1 ${min};min-width:${min}">${on ? '✓ ' : ''}${et}</button>`;
+  // fianco aperto: automatico = il lato libero se è l'ultimo modulo della fila (si dice quale)
+  const scLato = ['sx', 'dx', 'no'].includes(m.aperto && m.aperto.lato) ? m.aperto.lato : 'auto';
+  const libAuto = latoApertoDi(progetto, { ...m, aperto: { ...(m.aperto || {}), lato: 'auto' } });
+  const autoEt = libAuto === 'dx' ? 'Automatico (destro)' : libAuto === 'sx' ? 'Automatico (sinistro)' : 'Automatico (nessuno)';
   return `
       <div class="riga-3d" style="margin:10px 0 6px">Ripiani:</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">${[0, 1, 2, 3].map((k) => op('data-aprip', k, String(k), n === k)).join('')}</div>
+      <div class="riga-3d" style="margin:10px 0 6px">Fianco aperto (ultimo modulo della fila):</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${op('data-aplato', 'auto', autoEt, scLato === 'auto', '40%')}
+        ${op('data-aplato', 'sx', 'Sinistro', scLato === 'sx', '40%')}
+        ${op('data-aplato', 'dx', 'Destro', scLato === 'dx', '40%')}
+        ${op('data-aplato', 'no', 'Nessuno', scLato === 'no', '40%')}
+      </div>
       <div class="riga-3d" style="margin:10px 0 6px">Dentro (fondo, fianchi, schiena e ripiani):</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${op('data-apint', 'ante', 'Come le ante', int === 'ante')}
@@ -3107,11 +3118,14 @@ function htmlMobileAperto(m) {
       </div>
       <div style="margin-top:8px">${htmlTendineColori(lista, (mt) => `<button type="button" class="swatch ${mt.id === int ? 'sel' : ''}" data-apint="${mt.id}" title="${escHtml(mt.nome)}" style="background-image:url('${mt.thumb}')"></button>`,
         { sel: int, chiave: 'cucina-aperto-interno' })}</div>
-      <div class="riga-3d" style="margin-top:6px">Il bordo davanti (cornice) è del colore delle ante. Dentro ci puoi mettere gli oggetti: trascinali nel mobile e lasciali sul ripiano che vuoi. In distinta: cornice, rivestimento interno e ripiani (niente ante).</div>`;
+      <div class="riga-3d" style="margin-top:6px">Il bordo davanti (cornice) è del colore delle ante. Se è l'ultimo modulo della fila, dal lato libero non ha il fianco (fondo, cielo e ripiani arrivano al bordo). Dentro ci puoi mettere gli oggetti: trascinali nel mobile e lasciali sul ripiano che vuoi. In distinta: cornice, rivestimento interno e ripiani (niente ante).</div>`;
 }
 function agganciaMobileAperto(root, m) {
   root.querySelectorAll('[data-aprip]').forEach((b) => b.addEventListener('click', () => {
     registraStoria(); m.aperto = { ...(m.aperto || {}), ripiani: Number(b.dataset.aprip) }; aggiorna();
+  }));
+  root.querySelectorAll('[data-aplato]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria(); m.aperto = { ...(m.aperto || {}), lato: b.dataset.aplato }; aggiorna();
   }));
   root.querySelectorAll('[data-apint]').forEach((b) => b.addEventListener('click', () => {
     registraStoria(); m.aperto = { ...(m.aperto || {}), interno: b.dataset.apint }; aggiorna();

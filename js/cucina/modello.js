@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261121x';
+import { parametri } from '../parametri.js?v=20261121y';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -106,24 +106,86 @@ export function ripianiAperto(m) {
 }
 /** Dentro del mobile aperto: 'ante' (come le ante), 'struttura' (niente rivestimento) o l'id di un materiale. */
 export function internoAperto(m) { const a = apertoDi(m); return a ? (a.interno || 'ante') : null; }
-/** Pezzi del mobile aperto (cornice, rivestimento, ripiani): { nome, larghezza, altezza, spessore, quantita, parte }. */
-export function pezziMobileAperto(m) {
+/** Pezzi del mobile aperto (cornice, rivestimento, ripiani): { nome, larghezza, altezza, spessore, quantita, parte }.
+ *  lato = 'sx' | 'dx': ultimo modulo della fila, aperto anche di fianco (senza quel fianco). */
+export function pezziMobileAperto(m, lato = null) {
   if (!apertoDi(m)) return [];
   const L = m.larghezza_mm || 600, H = m.altezza_mm || 700, P = dimMobile(m).d;
   const T = SP_STRUTTURA_APERTO, S = SP_PEZZI_APERTO, riv = internoAperto(m) !== 'struttura';
+  const nF = lato ? 1 : 2;                                 // fianchi che ci sono
   const pz = [
-    { nome: 'Cornice mobile aperto (montante)', larghezza: T, altezza: H, spessore: S, quantita: 2, parte: 'cornice' },
-    { nome: 'Cornice mobile aperto (traverso)', larghezza: L - 2 * T, altezza: T, spessore: S, quantita: 2, parte: 'cornice' },
+    { nome: 'Cornice mobile aperto (montante)', larghezza: T, altezza: H, spessore: S, quantita: nF, parte: 'cornice' },
+    { nome: 'Cornice mobile aperto (traverso)', larghezza: L - nF * T, altezza: T, spessore: S, quantita: 2, parte: 'cornice' },
   ];
   const pd = P - T - 2;                                    // dalla schiena della struttura al filo davanti
   if (riv) {
-    pz.push({ nome: 'Fondo e cielo interni (mobile aperto)', larghezza: L - 2 * T, altezza: pd, spessore: S, quantita: 2, parte: 'interno' });
-    pz.push({ nome: 'Fianchetto interno (mobile aperto)', larghezza: pd, altezza: H - 2 * T - 2 * S, spessore: S, quantita: 2, parte: 'interno' });
-    pz.push({ nome: 'Schiena interna (mobile aperto)', larghezza: L - 2 * T - 2 * S, altezza: H - 2 * T - 2 * S, spessore: S, quantita: 1, parte: 'interno' });
+    pz.push({ nome: 'Fondo e cielo interni (mobile aperto)', larghezza: L - nF * T, altezza: pd, spessore: S, quantita: 2, parte: 'interno' });
+    pz.push({ nome: 'Fianchetto interno (mobile aperto)', larghezza: pd, altezza: H - 2 * T - 2 * S, spessore: S, quantita: nF, parte: 'interno' });
+    pz.push({ nome: 'Schiena interna (mobile aperto)', larghezza: L - nF * (T + S), altezza: H - 2 * T - 2 * S, spessore: S, quantita: 1, parte: 'interno' });
   }
   const n = ripianiAperto(m);
-  if (n > 0) pz.push({ nome: 'Ripiano (mobile aperto)', larghezza: L - 2 * T - (riv ? 2 * S : 0) - 2, altezza: P - T - (riv ? S : 0) - 20, spessore: S, quantita: n, parte: 'interno' });
+  if (n > 0) pz.push({ nome: 'Ripiano (mobile aperto)', larghezza: L - nF * (T + (riv ? S : 0)) - (lato ? 1 : 2), altezza: P - T - (riv ? S : 0) - 20, spessore: S, quantita: n, parte: 'interno' });
   return pz;
+}
+/** Asse del mobile in pianta: x = verso la SUA destra (guardandolo davanti), z = verso il davanti (come nel 3D). */
+export function assiMobile(m) {
+  const th = ((m.rot || 0) * Math.PI) / 180;
+  return { ux: { x: Math.cos(th), y: -Math.sin(th) }, uz: { x: -Math.sin(th), y: -Math.cos(th) } };
+}
+/** Altezze (da terra) che un mobile occupa, per sapere se due mobili si toccano davvero di fianco. */
+function fasciaAltezza(o) {
+  const cat = categoriaTipo(o.tipo), liv = livelloDiMobile(o);
+  if (cat === 'colonna' || cat === 'frigo') return [0, o.altezza_mm || 2200];
+  if (liv === 'alto') return [1300, 2600];
+  if (cat === 'costado') return [0, o.altezza_mm || 900];
+  return [0, 950];
+}
+/**
+ * Lati LIBERI di un mobile ({ sx, dx }): niente mobile accanto (alla stessa altezza) e niente muro.
+ * Serve al mobile aperto: l'ultimo modulo della fila non ha il fianco sul lato libero.
+ */
+export function latiLiberi(progetto, m) {
+  const d = dimMobile(m), { ux, uz } = assiMobile(m), [a0, a1] = fasciaAltezza(m);
+  const altri = (progetto.mobiliLiberi || []).filter((o) => o !== m && !posaLibera(o.tipo)
+    && (() => { const [b0, b1] = fasciaAltezza(o); return b0 < a1 && b1 > a0; })());
+  const dentro = (o, px, py) => {
+    const od = dimMobile(o), th = ((o.rot || 0) * Math.PI) / 180, c = Math.cos(th), s = Math.sin(th);
+    const dx = px - o.x, dy = py - o.y;
+    return Math.abs(dx * c + dy * s) <= od.w / 2 + 5 && Math.abs(-dx * s + dy * c) <= od.d / 2 + 5;
+  };
+  const full = (progetto.piano && progetto.piano.pareti) || [];
+  const V = full.length ? calcolaVertici(full) : [];
+  const distMuro = (px, py) => {
+    let best = Infinity;
+    full.forEach((p, i) => {
+      if (p.assente) return;
+      const A = V[i], B = V[i + 1]; if (!A || !B) return;
+      const ex = B.x - A.x, ey = B.y - A.y, L2 = ex * ex + ey * ey || 1;
+      const t = Math.max(0, Math.min(1, ((px - A.x) * ex + (py - A.y) * ey) / L2));
+      best = Math.min(best, Math.hypot(px - (A.x + t * ex), py - (A.y + t * ey)));
+    });
+    return best;
+  };
+  const libero = (sgn) => {
+    const fx = m.x + ux.x * sgn * d.w / 2, fy = m.y + ux.y * sgn * d.w / 2;      // centro del fianco
+    if (distMuro(fx, fy) < 60) return false;                                   // contro il muro
+    for (const t of [-0.3, 0, 0.3]) {
+      const px = fx + ux.x * sgn * 25 + uz.x * t * d.d, py = fy + ux.y * sgn * 25 + uz.y * t * d.d;
+      if (altri.some((o) => dentro(o, px, py))) return false;                  // un mobile accanto
+    }
+    return true;
+  };
+  return { sx: libero(-1), dx: libero(1) };
+}
+/** Fianco APERTO del mobile aperto: 'sx' | 'dx' | null. Automatico = il lato libero dell'ultimo
+ *  modulo della fila (se tutti e due i lati sono liberi è un mobile da solo: restano i due fianchi). */
+export function latoApertoDi(progetto, m) {
+  const a = apertoDi(m);
+  if (!a) return null;
+  if (a.lato === 'sx' || a.lato === 'dx') return a.lato;
+  if (a.lato === 'no') return null;
+  const lib = latiLiberi(progetto, m);
+  return lib.sx && !lib.dx ? 'sx' : lib.dx && !lib.sx ? 'dx' : null;
 }
 /** Ripiani della colonna su misura: quelli scelti, 4 se non è stato scelto niente. */
 export function ripianiColonnaMisura(m) { return m.ripiani != null ? Number(m.ripiani) || 0 : 4; }
