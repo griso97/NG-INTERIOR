@@ -13,20 +13,20 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261120t';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120t';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261120t';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261120t';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261120t';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120t';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120t';
-import { parametri } from '../parametri.js?v=20261120t';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120t';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120t';
+} from './modello.js?v=20261120v';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120v';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261120v';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261120v';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261120v';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120v';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120v';
+import { parametri } from '../parametri.js?v=20261120v';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120v';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120v';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120t';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120v';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261120t';
+export { telaPavimento } from '../resa.js?v=20261120v';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -1943,6 +1943,8 @@ const PAROLE_LUCE = /glass|vetro|bulb|globe|opal|diffus|emiss|lampadin|paralum|n
 function materialeAcceso(m, nomeMesh) {
   if (!m || !m.isMaterial) return null;
   if (_matAcceso.has(m)) return _matAcceso.get(m);
+  // vetro che resta trasparente a lampada accesa (la luce è dentro: lucine, filamento)
+  if (m.userData && m.userData.restaChiaro) { _matAcceso.set(m, null); return null; }
   const nome = `${m.name || ''} ${nomeMesh || ''}`.toLowerCase();
   const giaLuce = m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b > 0.05 || m.emissiveMap);
   const trasp = (m.transparent && m.opacity < 0.97) || m.transmission > 0;

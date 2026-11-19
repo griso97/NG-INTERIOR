@@ -2044,4 +2044,11 @@ window.NG_I18N_ES = {
  "Lampada di lusso «Costellazione», gocce di luce e ottone": "Lámpara de lujo «Constelación», gotas de luz y latón",
  "Lampada di lusso «Prisma», linee LED nere e nodi oro": "Lámpara de lujo «Prisma», líneas LED negras y nudos oro",
  "Lampada di lusso «Catena», anelli LED oro e neri": "Lámpara de lujo «Cadena», aros LED oro y negros",
+ "Lampada di lusso «Nastro», onde LED bianche": "Lámpara de lujo «Cinta», ondas LED blancas",
+ "Lampada di lusso «Nastro», onde LED nere": "Lámpara de lujo «Cinta», ondas LED negras",
+ "Lampada di lusso «Nastro», onde LED champagne": "Lámpara de lujo «Cinta», ondas LED champán",
+ "Lampada di lusso «Nastro ritorto», LED nero": "Lámpara de lujo «Cinta trenzada», LED negra",
+ "Lampada di lusso «Nastro ritorto», LED oro": "Lámpara de lujo «Cinta trenzada», LED oro",
+ "Lampada di lusso, onda oro con sfere di vetro luminose": "Lámpara de lujo, onda oro con esferas de vidrio luminosas",
+ "Lampada di lusso, onda nera con sfere di vetro luminose": "Lámpara de lujo, onda negra con esferas de vidrio luminosas",
 };
