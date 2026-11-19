@@ -2177,4 +2177,9 @@ window.NG_I18N_ES = {
  "Lunghezza della maniglia": "Largo del tirador",
  "Alta come l'anta": "Alta como la puerta",
  "Altra misura (cm)": "Otra medida (cm)",
+ "Maniglia profilo sul bordo, nera (L dietro la porta)": "Tirador perfil en el canto, negro (L detrás de la puerta)",
+ "Profilo sul bordo (L dietro la porta)": "Perfil en el canto (L detrás de la puerta)",
+ "Anta · maniglia sul bordo (−{0} mm)": "Puerta · tirador en el canto (−{0} mm)",
+ "Fronte cassetto · maniglia sul bordo (−{0} mm)": "Frente de cajón · tirador en el canto (−{0} mm)",
+ "maniglia sul bordo (−{0} mm)": "tirador en el canto (−{0} mm)",
 };

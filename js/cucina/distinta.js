@@ -13,8 +13,8 @@
 
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna,
-} from './modello.js?v=20261121s';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261121s';
+} from './modello.js?v=20261121t';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261121t';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -35,10 +35,13 @@ function dimAnta(L, H, N, rJ = 0) {
 }
 const ariaH = () => parametri().ante.ariaAltezza, ariaL = () => parametri().ante.ariaLarghezza;
 /** Maniglia a J (profilo sopra l'anta) con queste scelte di porta? → di quanto si accorcia l'anta (mm). */
+/** Come si chiama la maniglia che accorcia l'anta (per la distinta). */
+let _nomeRid = 'maniglia a J';
 function riduzioneJ(scelte) {
   if (!scelte || scelte.fp || scelte.push) return 0;
   const def = scelte.maniglia && typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === scelte.maniglia);
-  if (!def || def.forma !== 'profilo') return 0;
+  if (!def || !['profilo', 'bordol'].includes(def.forma)) return 0;      // a J o profilo sul bordo
+  _nomeRid = def.forma === 'bordol' ? 'maniglia sul bordo' : 'maniglia a J';
   return Number(def.spessoreJ) > 0 ? Number(def.spessoreJ) : parametri().manigliaJ.spessore;
 }
 
@@ -69,7 +72,7 @@ function anteModulo(pz, mod, L, H, N, lato, altAnta, sporg, vetrina, rJ = 0) {
     }
     return;
   }
-  pz.push({ modulo: mod, nome: `Anta${nota}${rJ ? ` · maniglia a J (−${rJ} mm)` : ''}`, larghezza: a.w, altezza: altAnta != null ? altAnta : a.h, spessore: SP, materiale: 'anta', quantita: N });
+  pz.push({ modulo: mod, nome: `Anta${nota}${rJ ? ` · ${_nomeRid} (−${rJ} mm)` : ''}`, larghezza: a.w, altezza: altAnta != null ? altAnta : a.h, spessore: SP, materiale: 'anta', quantita: N });
 }
 
 function zoccolo(pz, mod, L, H) {
@@ -162,7 +165,7 @@ function pezziDiModulo(progetto, m) {
       for (const [hf, q] of perH) {
         const piccolo = m.cassettoPiccolo_mm && alt.length > 1 && hf === alt[0] && hf !== alt[1];
         const hJ = hf - rJ;                          // con la maniglia a J il frontale si accorcia
-        pz.push({ modulo: mod, nome: (piccolo ? 'Fronte cassetto piccolo' : 'Fronte cassetto') + (rJ ? ` · maniglia a J (−${rJ} mm)` : ''), larghezza: round(L - aL), altezza: hJ, spessore: SP, materiale: 'anta', quantita: q });
+        pz.push({ modulo: mod, nome: (piccolo ? 'Fronte cassetto piccolo' : 'Fronte cassetto') + (rJ ? ` · ${_nomeRid} (−${rJ} mm)` : ''), larghezza: round(L - aL), altezza: hJ, spessore: SP, materiale: 'anta', quantita: q });
         // parti per fare i cassetti: fondo e trasera in melaminico (sistema dei ⚙ Parametri)
         cassettoMelaminico(pz, mod, L, hJ, q);
       }
@@ -202,7 +205,7 @@ function pezziDiModulo(progetto, m) {
       const fpP = o.fp != null ? !!o.fp : fpGr, pushP = o.push != null ? !!o.push : pushGr;
       const lato = o.lato || (m.antaLato === 'sx' ? 'sx' : 'dx');
       const rJp = riduzioneJ({ ...scP, fp: fpP, push: pushP });
-      const desc = ` (apertura ${lato === 'alto' ? "verso l'alto" : lato}${fpP ? ' · finger-pull' : ''}${pushP ? ' · push' : ''}${rJp ? ` · maniglia a J (−${rJp} mm)` : ''})`;
+      const desc = ` (apertura ${lato === 'alto' ? "verso l'alto" : lato}${fpP ? ' · finger-pull' : ''}${pushP ? ' · push' : ''}${rJp ? ` · ${_nomeRid} (−${rJp} mm)` : ''})`;
       pz.push({ modulo: mod, nome: `${nome}${desc}`, larghezza: aw, altezza: round(alt - rJp), spessore: SP, materiale: 'anta', quantita: 1, fp: fpP, push: pushP, lato });
     };
     porta('bassa', 'Anta bassa', ab - aH);

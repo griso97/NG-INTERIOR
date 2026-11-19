@@ -15,8 +15,8 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261121s';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261121s';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261121t';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261121t';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -485,6 +485,11 @@ export const MATERIALI = [
   // ---- Maniglie ----
   { id: 'maniglia-standard', nome: 'Maniglia standard (barra)', categoria: 'maniglia', css: 'linear-gradient(135deg,#e2e3e6,#a9acb1)',
     colore: 0xcfcfcf, solido: true, roughness: 0.35, metalness: 0.6 },
+  // PROFILO SUL BORDO (nero): si vede solo il labbro arrotondato davanti, la parte a L va dietro
+  // la porta; con questa maniglia le ante sono 2 mm più basse (70 → 69,8 → 69,6)
+  { id: 'maniglia-bordo-l-nera', nome: 'Maniglia profilo sul bordo, nera (L dietro la porta)', categoria: 'maniglia',
+    thumb: 'materials/maniglia-bordo-l-nera.jpg', texture: 'materials/maniglia-bordo-l-nera.jpg',
+    forma: 'bordol', formaV: 1, finitura: 'nero', colore: 0x1c1c1e, lunghezzaMm: 200, spessoreJ: 2 },
   // ---- Binari degli armadi scorrevoli (grigio = quello di sempre) ----
   { id: 'binario-grigio', nome: 'Grigio', categoria: 'binario', css: 'linear-gradient(135deg,#7a7a7a,#4f4f4f)',
     colore: 0x5f5f5f, solido: true, roughness: 0.55, metalness: 0.4 },
@@ -508,7 +513,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261121s');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261121t');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -637,7 +642,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261121s';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261121t';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',

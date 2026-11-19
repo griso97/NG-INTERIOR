@@ -14,28 +14,28 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261121s';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121s';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261121s';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261121s';
+} from './modello.js?v=20261121t';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121t';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261121t';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261121t';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121s').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121t').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121s';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121s';
-import { parametri } from '../parametri.js?v=20261121s';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121s';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121s';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121t';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121t';
+import { parametri } from '../parametri.js?v=20261121t';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121t';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121t';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121s';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121t';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261121s';
+export { telaPavimento } from '../resa.js?v=20261121t';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -1587,7 +1587,7 @@ function leggiParametriAnte() {
 }
 /** Maniglia a J (profilo sopra l'anta) su questo fronte? → di quanto si accorcia (mm). */
 function riduzioneJ() {
-  if (_fingerPull || _push || formaManiglia() !== 'profilo') return 0;
+  if (_fingerPull || _push || !['profilo', 'bordol'].includes(formaManiglia())) return 0;
   return Number(_maniglia && _maniglia.spessoreJ) > 0 ? Number(_maniglia.spessoreJ) : SP_J;
 }
 // Maniglia ORIZZONTALE su un'anta (bassi e pensili): vicino al bordo alto
@@ -1600,8 +1600,8 @@ function manigliaOrizzAnta(g, px, py, pw, ph, z, verso, inAlto) {
   const L = lungManiglia(Math.min(pw * 0.5, 320));
   const off = verso ? Math.max(0, pw / 2 - L / 2 - 40) : 0;   // verso il lato che apre (0 = centrata)
   // profilo / a bordo: attaccati al bordo dell'anta; le altre a 45 mm dal bordo
-  const aBordo = ['profilo', 'bordo'].includes(formaManiglia());
-  const dB = aBordo ? 17 : 45;
+  const aBordo = ['profilo', 'bordo', 'bordol'].includes(formaManiglia());
+  const dB = formaManiglia() === 'bordol' ? 0 : aBordo ? 17 : 45;     // profilo sul bordo: proprio sul bordo
   const y = inAlto ? py + ph / 2 - dB : py - ph / 2 + dB;
   maniglia(g, px + verso * off, y, z, true, Math.min(pw * 0.5, 320), !inAlto, pw);
 }
@@ -1666,7 +1666,9 @@ function cassetti(g, w, h, d, n, matAnta, piccolo = null) {
       canaleFingerPull(g, 0, py + ph / 2 - CH / 2, z, uw, CH, true, matAnta);
     } else {
       pannello(g, 0, py, z, uw, ph, matAnta || COL.cassetto);
-      maniglia(g, 0, py + ph / 2 - Math.min(28, ph * 0.3), z, true, Math.min(uw * 0.5, 320), false, uw);
+      // profilo sul bordo: proprio sul bordo alto del frontale; le altre un po' sotto
+      const dBc = formaManiglia() === 'bordol' ? 0 : Math.min(28, ph * 0.3);
+      maniglia(g, 0, py + ph / 2 - dBc, z, true, Math.min(uw * 0.5, 320), false, uw);
     }
   }
   _push = pushPrima;
