@@ -15,8 +15,8 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261120m';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261120m';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261120p';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261120p';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -368,6 +368,37 @@ export const MATERIALI = [
   { id: 'cm-fd-ottone', nome: 'Cesto in fili d\'ottone con banane e frutta', categoria: 'oggetto', sezione: 'oggetti', moderno: 'fd-ottone', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/fd-ottone.jpg', texture: 'oggetti/moderni/miniature/fd-ottone.jpg', colore: 0xd8d2c8,
     misure: { w: 344, d: 353, h: 198 }, info: { note: 'Collezione Design NG Interior' } },
+  // ---- LAMPADE LUNGHE (modellate da noi: per isole e tavoli lunghi) ----
+  { id: 'cm-ds-lin-barra-nera', nome: 'Lampada lunga, barra LED nera 150 cm', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lin-barra-nera', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lin-barra-nera.jpg', texture: 'oggetti/moderni/miniature/ds-lin-barra-nera.jpg', colore: 0xd8d2c8,
+    misure: { w: 1506, d: 54, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lin-barra-bianca', nome: 'Lampada lunga, barra LED bianca 180 cm', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lin-barra-bianca', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lin-barra-bianca.jpg', texture: 'oggetti/moderni/miniature/ds-lin-barra-bianca.jpg', colore: 0xd8d2c8,
+    misure: { w: 1806, d: 54, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lin-tubo-ottone', nome: 'Lampada lunga, tubo LED in ottone 130 cm', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lin-tubo-ottone', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lin-tubo-ottone.jpg', texture: 'oggetti/moderni/miniature/ds-lin-tubo-ottone.jpg', colore: 0xd8d2c8,
+    misure: { w: 1340, d: 40, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lin-coni-neri', nome: 'Lampada lunga, cinque coni neri e ottone', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lin-coni-neri', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lin-coni-neri.jpg', texture: 'oggetti/moderni/miniature/ds-lin-coni-neri.jpg', colore: 0xd8d2c8,
+    misure: { w: 1604, d: 164, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lin-globi-ottone', nome: 'Lampada lunga, sei globi opalini su barra in ottone', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lin-globi-ottone', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lin-globi-ottone.jpg', texture: 'oggetti/moderni/miniature/ds-lin-globi-ottone.jpg', colore: 0xd8d2c8,
+    misure: { w: 1710, d: 150, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lin-cupole-fume', nome: 'Lampada lunga, quattro cupole in vetro fumé', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lin-cupole-fume', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lin-cupole-fume.jpg', texture: 'oggetti/moderni/miniature/ds-lin-cupole-fume.jpg', colore: 0xd8d2c8,
+    misure: { w: 1504, d: 264, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lin-trave-rovere', nome: 'Lampada lunga, trave in rovere con paralumi in vetro', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lin-trave-rovere', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lin-trave-rovere.jpg', texture: 'oggetti/moderni/miniature/ds-lin-trave-rovere.jpg', colore: 0xd8d2c8,
+    misure: { w: 1600, d: 124, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lin-ovale-led', nome: 'Lampada lunga, anello LED ovale 150 cm', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lin-ovale-led', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lin-ovale-led.jpg', texture: 'oggetti/moderni/miniature/ds-lin-ovale-led.jpg', colore: 0xd8d2c8,
+    misure: { w: 1527, d: 536, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lin-dischi', nome: 'Lampada lunga, tre dischi LED neri', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lin-dischi', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lin-dischi.jpg', texture: 'oggetti/moderni/miniature/ds-lin-dischi.jpg', colore: 0xd8d2c8,
+    misure: { w: 1680, d: 380, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lin-cascata', nome: 'Lampada lunga, cascata di sfere in vetro', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lin-cascata', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lin-cascata.jpg', texture: 'oggetti/moderni/miniature/ds-lin-cascata.jpg', colore: 0xd8d2c8,
+    misure: { w: 1634, d: 282, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
   // ---- LIBRERIA 3D: prodotti veri (Amazon Berkeley Objects, CC BY 4.0) ----
   ...LIBRERIA.map(voceLibreria),
   // ---- Zoccoli (cucina) ----
@@ -403,7 +434,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261120m');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261120p');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -532,7 +563,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261120m';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261120p';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
@@ -540,7 +571,8 @@ const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'l
   'vaso-scultura': 'decor', 'vaso-ulivo': 'piante', 'lux-vaso-pampas': 'piante', 'lux-vaso-fume': 'decor', 'lux-candelieri': 'decor', 'lux-scultura': 'decor',
   'ds-tavolo-farfalla': 'pranzo', 'ds-tavolo-infinito': 'pranzo', 'ds-tavolo-mikado': 'pranzo', 'ds-tavolo-ics': 'pranzo', 'ds-tavolo-ricciolo': 'pranzo',
   'ds-sedia-avvolgente': 'pranzo', 'ds-sedia-avvolgente-salvia': 'pranzo', 'ds-sgabello-conchiglia': 'sgabelli',
-  'ds-led-anelli': 'luci', 'ds-led-infinito': 'luci', 'ds-led-linee': 'luci', 'ds-led-orbita': 'luci' };
+  'ds-led-anelli': 'luci', 'ds-led-infinito': 'luci', 'ds-led-linee': 'luci', 'ds-led-orbita': 'luci',
+  'ds-lin-barra-nera': 'luci', 'ds-lin-barra-bianca': 'luci', 'ds-lin-tubo-ottone': 'luci', 'ds-lin-coni-neri': 'luci', 'ds-lin-globi-ottone': 'luci', 'ds-lin-cupole-fume': 'luci', 'ds-lin-trave-rovere': 'luci', 'ds-lin-ovale-led': 'luci', 'ds-lin-dischi': 'luci', 'ds-lin-cascata': 'luci' };
 for (const m of MATERIALI) {
   if (!m.moderno) continue;
   m.gruppo = GRUPPO_COLLEZIONE[m.moderno] || 'cucina';

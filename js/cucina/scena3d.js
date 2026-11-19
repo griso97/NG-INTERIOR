@@ -13,20 +13,20 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261120m';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120m';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261120m';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261120m';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261120m';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120m';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120m';
-import { parametri } from '../parametri.js?v=20261120m';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120m';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120m';
+} from './modello.js?v=20261120p';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120p';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261120p';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261120p';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261120p';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120p';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120p';
+import { parametri } from '../parametri.js?v=20261120p';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120p';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120p';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120m';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120p';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261120m';
+export { telaPavimento } from '../resa.js?v=20261120p';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -609,9 +609,9 @@ function applicaLuceEsterna(v) {
   if (_sfondoBase) scene.background = _sfondoBase.clone().multiplyScalar(0.1 + 0.9 * v);
   const notte = 1 - v;
   if (gruppo) gruppo.traverse((o) => {
-    if (o.userData.luceLampada) o.intensity = 6500 + 5500 * notte;
+    if (o.userData.luceLampada) o.intensity = (6500 + 5500 * notte) * (+o.userData.luceLampada || 1);
     else if (o.userData.riverbero) o.intensity = 500 + 1100 * notte;
-    else if (o.userData.alone && o.material) o.material.opacity = 0.3 + 0.35 * notte;
+    else if (o.userData.alone && o.material) o.material.opacity = (o.userData.alone === 'lungo' ? 0.18 : 0.3) + 0.35 * notte;
   });
   if (renderer.shadowMap) renderer.shadowMap.needsUpdate = true;
 }
@@ -1936,8 +1936,8 @@ const LED_COLORI = {
 // I materiali «accesi» sono copie fatte una volta sola (il modello in memoria non cambia).
 // ---------------------------------------------------------------------------
 const LUCE_CALDA = 0xffeede;                          // ~3700 K: neutra con un filo di caldo (tra i LED «neutro» e «caldo»)
-const MAX_LUCI_LAMPADE = 6;                           // oltre, brillano ma senza luce vera (telefono)
-let _luciLampade = 0, _aloni = [];                 // aloni delle lampade: fuori dalle ombre di contatto
+const MAX_LUCI_LAMPADE = 8;                           // coni di luce vera in tutto (oltre: brillano soltanto; telefono)
+let _luciLampade = 0, _riverberi = 0, _aloni = [];                 // aloni delle lampade: fuori dalle ombre di contatto
 const _matAcceso = new WeakMap();
 const PAROLE_LUCE = /glass|vetro|bulb|globe|opal|diffus|emiss|lampadin|paralum|neon|\bled\b|flame|candle|frost/;   // NON «lamp»/«light»: spesso è tutta la lampada
 function materialeAcceso(m, nomeMesh) {
@@ -1977,43 +1977,66 @@ function texAlone() {
 /** Accende una lampada (gruppo og già alle sue misure; plafoniera = attaccata al soffitto). */
 function accendiLampada(og) {
   og.updateMatrixWorld(true);
-  const corpo = new THREE.Box3(), tmp = new THREE.Box3(), sz = new THREE.Vector3();
+  const tmp = new THREE.Box3(), sz = new THREE.Vector3(), pezzi = [];
   let parti = 0;
   og.traverse((o) => {
     if (!o.isMesh || !o.geometry) return;
     tmp.setFromObject(o); tmp.getSize(sz);
-    if (Math.max(sz.x, sz.z) >= 25) corpo.union(tmp);            // i cavi (sottili) non contano
+    if (Math.max(sz.x, sz.z) >= 25) pezzi.push(tmp.clone());      // i cavi (sottili) non contano
     const mats = [].concat(o.material), nuovi = mats.map((m) => materialeAcceso(m, o.name) || m);
     if (nuovi.some((m, i) => m !== mats[i])) { o.material = Array.isArray(o.material) ? nuovi : nuovi[0]; parti++; }
   });
-  if (corpo.isEmpty()) return;
+  if (!pezzi.length) return;
+  // il CORPO della lampada: i pezzi della metà bassa (l'attacco al soffitto e il rosone, in alto, no:
+  // con loro la lampadina finiva 30 cm sopra la lampada)
+  const tutto = new THREE.Box3(); for (const b of pezzi) tutto.union(b);
+  const meta = tutto.min.y + (tutto.max.y - tutto.min.y) * 0.5, corpo = new THREE.Box3();
+  for (const b of pezzi) if (b.min.y <= meta) corpo.union(b);
+  if (corpo.isEmpty()) corpo.copy(tutto);
   const c = corpo.getCenter(new THREE.Vector3()), dim = corpo.getSize(new THREE.Vector3());
-  // la lampadina: in basso nel corpo (dentro il paralume); per le plafoniere basse, al centro
-  const p = new THREE.Vector3(c.x, dim.y > 260 ? corpo.min.y + dim.y * 0.3 : c.y, c.z);
-  og.worldToLocal(p);
-  const largo = Math.max(dim.x, dim.z);
+  // le lampadine: in basso nel corpo (dentro il paralume); per le plafoniere basse, al centro.
+  // LAMPADE LUNGHE (barre, file di paralumi): 2–4 punti di luce lungo la lunghezza, così la luce
+  // copre tutta l'isola o il tavolo (non un solo cono al centro)
+  const largo = Math.max(dim.x, dim.z), lungoX = dim.x >= dim.z;
+  const n = largo > 900 ? Math.min(4, Math.max(2, Math.round(largo / 520))) : 1;
+  const yL = dim.y > 260 ? corpo.min.y + Math.min(dim.y * 0.3, 160) : c.y;
+  const punti = Array.from({ length: n }, (_, i) => {
+    const t = n === 1 ? 0 : -largo / 2 + (largo * (i + 0.5)) / n;
+    return og.worldToLocal(new THREE.Vector3(c.x + (lungoX ? t : 0), yL, c.z + (lungoX ? 0 : t)));
+  });
+  const passo = largo / n;
   if (!parti) {
-    const bulbo = new THREE.Mesh(new THREE.SphereGeometry(Math.min(28, Math.max(14, largo * 0.06)), 16, 12),
-      new THREE.MeshBasicMaterial({ color: 0xfff1d8 }));
-    bulbo.position.copy(p); bulbo.userData.senzaOmbra = true; og.add(bulbo);
-  }
-  const alone = new THREE.Sprite(new THREE.SpriteMaterial({ map: texAlone(), color: LUCE_CALDA, transparent: true, opacity: 0.3,
-    blending: THREE.AdditiveBlending, depthWrite: false }));
-  const r = Math.min(420, Math.max(140, largo * 0.7));
-  alone.scale.set(r, r, 1); alone.position.copy(p); alone.userData.alone = true; alone.userData.senzaOmbra = true; alone.renderOrder = 6;
-  og.add(alone); _aloni.push(alone);
-  if (_luciLampade < MAX_LUCI_LAMPADE) {
-    _luciLampade++;
-    // cono verso il basso, largo e morbido (come il LED sotto il pensile, ma da più in alto)
-    const luce = new THREE.SpotLight(LUCE_CALDA, 6500, 4500, Math.PI / 2.6, 1, 1.0);
-    luce.position.copy(p); luce.target.position.set(p.x, p.y - 1000, p.z);
-    luce.castShadow = false; luce.userData.luceLampada = true; og.add(luce); og.add(luce.target);
-    // riverbero: un filo di luce tutt'attorno (muri, soffitto), come la luce che rimbalza in una
-    // stanza vera; solo per le prime lampade (il telefono non calcola troppe luci)
-    if (_luciLampade <= 3) {
-      const spill = new THREE.PointLight(LUCE_CALDA, 500, 5000, 1.0);
-      spill.position.copy(p); spill.castShadow = false; spill.userData.riverbero = true; og.add(spill);
+    for (const p of punti) {
+      const bulbo = new THREE.Mesh(new THREE.SphereGeometry(Math.min(28, Math.max(14, passo * 0.06)), 16, 12),
+        new THREE.MeshBasicMaterial({ color: 0xfff1d8 }));
+      bulbo.position.copy(p); bulbo.userData.senzaOmbra = true; og.add(bulbo);
     }
+  }
+  const r = n === 1 ? Math.min(420, Math.max(140, passo * 0.7)) : Math.min(300, Math.max(120, passo * 0.45));
+  for (const p of punti) {
+    const alone = new THREE.Sprite(new THREE.SpriteMaterial({ map: texAlone(), color: LUCE_CALDA, transparent: true, opacity: n === 1 ? 0.3 : 0.18,
+      blending: THREE.AdditiveBlending, depthWrite: false }));
+    alone.scale.set(r, r, 1); alone.position.copy(p); alone.userData.alone = n === 1 ? true : 'lungo'; alone.userData.senzaOmbra = true; alone.renderOrder = 6;
+    og.add(alone); _aloni.push(alone);
+  }
+  // coni verso il basso, larghi e morbidi (come il LED sotto il pensile, ma da più in alto);
+  // una lampada lunga ha più coni, ognuno un po' meno forte
+  const fattore = n === 1 ? 1 : 0.75;
+  let messe = 0;
+  for (const p of punti) {
+    if (_luciLampade >= MAX_LUCI_LAMPADE) break;
+    _luciLampade++; messe++;
+    const luce = new THREE.SpotLight(LUCE_CALDA, 6500 * fattore, 4500, Math.PI / 2.6, 1, 1.0);
+    luce.position.copy(p); luce.target.position.set(p.x, p.y - 1000, p.z);
+    luce.castShadow = false; luce.userData.luceLampada = fattore; og.add(luce); og.add(luce.target);
+  }
+  // riverbero: un filo di luce tutt'attorno (muri, soffitto), come la luce che rimbalza in una
+  // stanza vera; solo per le prime lampade (il telefono non calcola troppe luci)
+  if (messe && _riverberi < 3) {
+    _riverberi++;
+    const centro = og.worldToLocal(new THREE.Vector3(c.x, yL, c.z));
+    const spill = new THREE.PointLight(LUCE_CALDA, 500, 5000, 1.0);
+    spill.position.copy(centro); spill.castShadow = false; spill.userData.riverbero = true; og.add(spill);
   }
 }
 
@@ -2298,7 +2321,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   for (const g of libera) g.dispose();
 }
 function costruisciScena3d(progetto, reframe = false, selezionato = null) {
-  _luciLampade = 0; _aloni = [];
+  _luciLampade = 0; _riverberi = 0; _aloni = [];
   if (!scene) return;
   selId = selezionato;
   _lastProgetto = progetto;

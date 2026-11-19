@@ -93,6 +93,7 @@ function mat(nome) {
     case 'ottone': m = new THREE.MeshStandardMaterial({ color: 0xc8a565, metalness: 1, roughness: 0.32 }); break;
     case 'acciaio': m = new THREE.MeshStandardMaterial({ color: 0xd8d9db, metalness: 1, roughness: 0.25 }); break;
     case 'metallo-nero': m = new THREE.MeshStandardMaterial({ color: 0x151515, metalness: 0.6, roughness: 0.42 }); break;
+    case 'metallo-bianco': m = new THREE.MeshStandardMaterial({ color: 0xf1efea, metalness: 0.15, roughness: 0.45 }); break;
     // vetro: trasparente vero; i LIQUIDI dentro sono "pieni" (un trasparente dentro un altro non si vedrebbe)
     case 'vetro': m = new THREE.MeshPhysicalMaterial({ color: 0xf4f8f5, metalness: 0, roughness: 0.03, transmission: 1, thickness: 4, ior: 1.5, specularIntensity: 1, envMapIntensity: 1.6, attenuationColor: new THREE.Color(0xdfeee4), attenuationDistance: 120 }); break;
     case 'olio': m = new THREE.MeshPhysicalMaterial({ color: 0xa88a18, roughness: 0.08, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, emissive: 0x3a2c00, emissiveIntensity: 0.35 }); break;
@@ -1267,6 +1268,102 @@ function lampadaLed(tipo, soffitto = SOFFITTO) {
   g.traverse((x) => { if (x.isMesh) { x.castShadow = false; x.receiveShadow = false; x.userData.senzaOmbra = true; } });
   return g;
 }
+const _lati = new Map();
+/** Lo stesso materiale visto da un lato diverso: una copia (fatta una volta), il materiale comune non cambia. */
+function lato(m, side) { const k = `${m.uuid}|${side}`; if (!_lati.has(k)) { const c = m.clone(); c.side = side; _lati.set(k, c); } return _lati.get(k); }
+/** Scatola (mm) centrata, con un materiale. */
+function scatola(w, h, d, materiale) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(materiale)); }
+/**
+ * LAMPADE LUNGHE (per isole e tavoli lunghi, 1,2–1,8 m): il corpo con il fondo a 165 cm, appese con
+ * cavi d'acciaio al soffitto. Forme generiche di design (barre LED, coni, globi, cupole, trave,
+ * anello ovale, dischi, cascata di sfere).
+ */
+function lampadaLunga(tipo, soffitto = SOFFITTO) {
+  const g = new THREE.Group(), attacchi = [];
+  const fila = (n, L) => Array.from({ length: n }, (_, i) => -L / 2 + (L / (n - 1)) * i);
+  const barraLed = (L, metallo) => {
+    const corpo = scatola(L, 42, 52, metallo); corpo.position.y = 21; g.add(corpo);
+    const diff = scatola(L - 16, 5, 38, 'led'); diff.position.y = -1; g.add(diff);
+    for (const sx of [-1, 1]) { const tappo = scatola(4, 44, 54, metallo); tappo.position.set(sx * (L / 2 + 1), 21, 0); g.add(tappo); }
+    attacchi.push(V3(-L / 2 + 120, 42, 0), V3(L / 2 - 120, 42, 0));
+  };
+  if (tipo === 'barra-nera') barraLed(1500, 'metallo-nero');
+  else if (tipo === 'barra-bianca') barraLed(1800, 'metallo-bianco');
+  else if (tipo === 'tubo-ottone') {
+    const L = 1300, tubo = new THREE.Mesh(new THREE.CylinderGeometry(19, 19, L, 32), mat('oro-satinato'));
+    tubo.rotation.z = Math.PI / 2; tubo.position.y = 20; g.add(tubo);
+    const led = scatola(L - 30, 4, 16, 'led'); led.position.y = 1; g.add(led);
+    for (const sx of [-1, 1]) { const t = new THREE.Mesh(new THREE.SphereGeometry(20, 20, 12), mat('oro-satinato')); t.position.set(sx * L / 2, 20, 0); g.add(t); }
+    attacchi.push(V3(-L / 2 + 100, 39, 0), V3(L / 2 - 100, 39, 0));
+  } else if (tipo === 'coni-neri') {
+    const L = 1600; const barra = scatola(L, 22, 22, 'metallo-nero'); barra.position.y = 300; g.add(barra);
+    for (const x of fila(5, L - 160)) {
+      g.add(asta(V3(x, 290, 0), V3(x, 190, 0), 4, 4, 'metallo-nero', 8));
+      // (copie dei materiali: il lato visibile cambia solo qui, non negli altri oggetti)
+      const fuori = new THREE.Mesh(tornio([[0, 190], [18, 190], [30, 170], [80, 20], [82, 0]], 64, false), lato(mat('metallo-nero'), THREE.DoubleSide)); fuori.position.x = x; g.add(fuori);
+      const dentro = new THREE.Mesh(tornio([[0, 186], [16, 186], [27, 168], [76, 22], [78, 3]], 64, false), lato(mat('oro-satinato'), THREE.DoubleSide)); dentro.position.x = x; g.add(dentro);
+      const bulbo = new THREE.Mesh(new THREE.SphereGeometry(26, 20, 14), mat('opalino')); bulbo.position.set(x, 55, 0); g.add(bulbo);
+    }
+    attacchi.push(V3(-L / 2 + 80, 311, 0), V3(L / 2 - 80, 311, 0));
+  } else if (tipo === 'globi-ottone') {
+    const L = 1700; const barra = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, L, 20), mat('oro-satinato')); barra.rotation.z = Math.PI / 2; barra.position.y = 260; g.add(barra);
+    for (const x of fila(6, L - 140)) {
+      g.add(asta(V3(x, 252, 0), V3(x, 160, 0), 5, 5, 'oro-satinato', 10));
+      const attacco = new THREE.Mesh(new THREE.CylinderGeometry(16, 20, 26, 20), mat('oro-satinato')); attacco.position.set(x, 160, 0); g.add(attacco);
+      const globo = new THREE.Mesh(new THREE.SphereGeometry(75, 32, 22), mat('opalino')); globo.position.set(x, 75, 0); g.add(globo);
+    }
+    attacchi.push(V3(-L / 2 + 60, 269, 0), V3(L / 2 - 60, 269, 0));
+  } else if (tipo === 'cupole-fume') {
+    const L = 1500; const barra = scatola(L, 24, 24, 'metallo-nero'); barra.position.y = 330; g.add(barra);
+    for (const x of fila(4, L - 260)) {
+      g.add(asta(V3(x, 318, 0), V3(x, 175, 0), 4, 4, 'metallo-nero', 8));
+      const cupola = new THREE.Mesh(tornio([[0, 175], [20, 175], [70, 160], [112, 110], [130, 40], [132, 0]], 64), lato(mat('vetro-fume'), THREE.DoubleSide)); cupola.position.x = x; g.add(cupola);
+      const port = new THREE.Mesh(new THREE.CylinderGeometry(16, 16, 40, 16), mat('metallo-nero')); port.position.set(x, 150, 0); g.add(port);
+      const bulbo = new THREE.Mesh(new THREE.SphereGeometry(32, 20, 14), mat('opalino')); bulbo.position.set(x, 105, 0); g.add(bulbo);
+    }
+    attacchi.push(V3(-L / 2 + 90, 342, 0), V3(L / 2 - 90, 342, 0));
+  } else if (tipo === 'trave-rovere') {
+    const L = 1600; const trave = scatola(L, 70, 90, 'rovere'); trave.position.y = 480; g.add(trave);
+    for (const x of fila(4, L - 300)) {
+      g.add(asta(V3(x, 445, 0), V3(x, 230, 0), 2.5, 2.5, 'cavo', 8));
+      const port = new THREE.Mesh(new THREE.CylinderGeometry(18, 18, 34, 16), mat('ottone')); port.position.set(x, 215, 0); g.add(port);
+      const vetro = new THREE.Mesh(new THREE.CylinderGeometry(62, 62, 200, 40, 1, true), lato(mat('vetro'), THREE.DoubleSide)); vetro.position.set(x, 100, 0); g.add(vetro);
+      const bulbo = new THREE.Mesh(new THREE.SphereGeometry(30, 20, 14), mat('opalino')); bulbo.position.set(x, 120, 0); g.add(bulbo);
+    }
+    attacchi.push(V3(-L / 2 + 120, 515, 0), V3(L / 2 - 120, 515, 0));
+  } else if (tipo === 'ovale-led') {
+    // anello ovale allungato (pista): due tratti dritti e due mezzi cerchi
+    const L = 1500, R = 250, dritto = L - 2 * R, pts = [];
+    for (let k = 0; k <= 24; k++) { const a = -Math.PI / 2 + (Math.PI * k) / 24; pts.push(V3(dritto / 2 + R * Math.cos(a), 0, R * Math.sin(a))); }
+    for (let k = 0; k <= 24; k++) { const a = Math.PI / 2 + (Math.PI * k) / 24; pts.push(V3(-dritto / 2 + R * Math.cos(a), 0, R * Math.sin(a))); }
+    const curva = new THREE.CatmullRomCurve3(pts, true, 'centripetal');
+    const tubo = new THREE.Mesh(new THREE.TubeGeometry(curva, 300, 14, 14, true), mat('champagne')); tubo.position.y = 30; g.add(tubo);
+    const led = new THREE.Mesh(new THREE.TubeGeometry(curva, 300, 6, 10, true), mat('led')); led.position.y = 15; g.add(led);
+    attacchi.push(V3(-dritto / 2, 44, -R), V3(dritto / 2, 44, -R), V3(-dritto / 2, 44, R), V3(dritto / 2, 44, R));
+  } else if (tipo === 'dischi') {
+    for (const x of fila(3, 1300)) {
+      const disco = new THREE.Mesh(new THREE.CylinderGeometry(190, 190, 24, 64), mat('metallo-nero')); disco.position.set(x, 12, 0); g.add(disco);
+      const luce = new THREE.Mesh(new THREE.CylinderGeometry(178, 178, 3, 64), mat('led')); luce.position.set(x, -1, 0); g.add(luce);
+      attacchi.push(V3(x, 24, 0));
+    }
+  } else {
+    // «cascata»: sfere di vetro con la lampadina, a altezze diverse lungo 1,5 m, ognuna col suo cavo
+    const xs = fila(8, 1500), alt = [0, 160, 60, 240, 30, 200, 90, 260], rag = [70, 60, 78, 62, 72, 58, 76, 64];
+    xs.forEach((x, i) => {
+      const z = (i % 2 ? 1 : -1) * 70, y = alt[i] + rag[i];
+      const sfera = new THREE.Mesh(new THREE.SphereGeometry(rag[i], 32, 22), mat('vetro')); sfera.position.set(x, y, z); g.add(sfera);
+      const bulbo = new THREE.Mesh(new THREE.SphereGeometry(rag[i] * 0.35, 18, 12), mat('opalino')); bulbo.position.set(x, y, z); g.add(bulbo);
+      const port = new THREE.Mesh(new THREE.CylinderGeometry(12, 12, 26, 14), mat('ottone')); port.position.set(x, y + rag[i] + 8, z); g.add(port);
+      attacchi.push(V3(x, y + rag[i] + 21, z));
+    });
+  }
+  g.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(g), y0 = Y_LAMPADA;
+  g.children.forEach((c) => { c.position.y += y0 - b.min.y; });
+  caviAlSoffitto(g, attacchi.map((p) => p.clone().add(V3(0, y0 - b.min.y, 0))), soffitto);
+  g.traverse((x) => { if (x.isMesh) { x.castShadow = false; x.receiveShadow = false; x.userData.senzaOmbra = true; } });
+  return g;
+}
 /** Schienale avvolgente imbottito: arco (gradi) di raggio r, alto h, spesso sp. */
 function schienale(r, arco, h, sp, materiale) {
   const s = new THREE.Shape(), a0 = Math.PI / 2 - (arco * Math.PI) / 360, a1 = Math.PI / 2 + (arco * Math.PI) / 360;
@@ -1325,6 +1422,16 @@ export const COLLEZIONE = [
   { id: 'ds-led-anelli', appeso: true, nome: 'Lampada LED, tre anelli intrecciati', es: 'Lámpara LED, tres aros entrelazados', misure: { w: 818, d: 792, h: 2700 }, crea: async (s) => lampadaLed('anelli', s) },
   { id: 'ds-led-infinito', appeso: true, nome: 'Lampada LED «Infinito»', es: 'Lámpara LED «Infinito»', misure: { w: 1144, d: 420, h: 2700 }, crea: async (s) => lampadaLed('infinito', s) },
   { id: 'ds-led-linee', appeso: true, nome: 'Lampada LED, linee incrociate', es: 'Lámpara LED, líneas cruzadas', misure: { w: 1084, d: 562, h: 2700 }, crea: async (s) => lampadaLed('linee', s) },
+  { id: 'ds-lin-barra-nera', appeso: true, nome: 'Lampada lunga, barra LED nera 150 cm', es: 'Lámpara larga, barra LED negra 150 cm', misure: { w: 1506, d: 54, h: 2700 }, crea: async (s) => lampadaLunga('barra-nera', s) },
+  { id: 'ds-lin-barra-bianca', appeso: true, nome: 'Lampada lunga, barra LED bianca 180 cm', es: 'Lámpara larga, barra LED blanca 180 cm', misure: { w: 1806, d: 54, h: 2700 }, crea: async (s) => lampadaLunga('barra-bianca', s) },
+  { id: 'ds-lin-tubo-ottone', appeso: true, nome: 'Lampada lunga, tubo LED in ottone 130 cm', es: 'Lámpara larga, tubo LED de latón 130 cm', misure: { w: 1340, d: 40, h: 2700 }, crea: async (s) => lampadaLunga('tubo-ottone', s) },
+  { id: 'ds-lin-coni-neri', appeso: true, nome: 'Lampada lunga, cinque coni neri e ottone', es: 'Lámpara larga, cinco conos negros y latón', misure: { w: 1604, d: 164, h: 2700 }, crea: async (s) => lampadaLunga('coni-neri', s) },
+  { id: 'ds-lin-globi-ottone', appeso: true, nome: 'Lampada lunga, sei globi opalini su barra in ottone', es: 'Lámpara larga, seis globos opalinos en barra de latón', misure: { w: 1710, d: 150, h: 2700 }, crea: async (s) => lampadaLunga('globi-ottone', s) },
+  { id: 'ds-lin-cupole-fume', appeso: true, nome: 'Lampada lunga, quattro cupole in vetro fumé', es: 'Lámpara larga, cuatro cúpulas de vidrio ahumado', misure: { w: 1504, d: 264, h: 2700 }, crea: async (s) => lampadaLunga('cupole-fume', s) },
+  { id: 'ds-lin-trave-rovere', appeso: true, nome: 'Lampada lunga, trave in rovere con paralumi in vetro', es: 'Lámpara larga, viga de roble con pantallas de vidrio', misure: { w: 1600, d: 124, h: 2700 }, crea: async (s) => lampadaLunga('trave-rovere', s) },
+  { id: 'ds-lin-ovale-led', appeso: true, nome: 'Lampada lunga, anello LED ovale 150 cm', es: 'Lámpara larga, aro LED ovalado 150 cm', misure: { w: 1527, d: 536, h: 2700 }, crea: async (s) => lampadaLunga('ovale-led', s) },
+  { id: 'ds-lin-dischi', appeso: true, nome: 'Lampada lunga, tre dischi LED neri', es: 'Lámpara larga, tres discos LED negros', misure: { w: 1680, d: 380, h: 2700 }, crea: async (s) => lampadaLunga('dischi', s) },
+  { id: 'ds-lin-cascata', appeso: true, nome: 'Lampada lunga, cascata di sfere in vetro', es: 'Lámpara larga, cascada de esferas de vidrio', misure: { w: 1634, d: 282, h: 2700 }, crea: async (s) => lampadaLunga('cascata', s) },
   { id: 'ds-led-orbita', appeso: true, nome: 'Lampada LED «Orbita», due anelli', es: 'Lámpara LED «Órbita», dos aros', misure: { w: 989, d: 982, h: 2700 }, crea: async (s) => lampadaLed('orbita', s) },
   { id: 'ds-sgabello-conchiglia', nome: 'Sgabello «Conchiglia» in velluto e ottone', es: 'Taburete «Concha» de terciopelo y latón', misure: { w: 492, d: 472, h: 852 }, crea: async () => sgabelloConchiglia() },
   { id: 'ds-sedia-avvolgente', nome: 'Sedia «Avvolgente» in velluto e ottone', es: 'Silla «Envolvente» de terciopelo y latón', misure: { w: 568, d: 540, h: 794 }, crea: async () => sediaAvvolgente() },
