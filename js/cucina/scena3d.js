@@ -13,20 +13,20 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261120w';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120w';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261120w';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261120w';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261120w';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120w';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120w';
-import { parametri } from '../parametri.js?v=20261120w';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120w';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120w';
+} from './modello.js?v=20261120x';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120x';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261120x';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261120x';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261120x';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120x';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120x';
+import { parametri } from '../parametri.js?v=20261120x';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120x';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120w';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120x';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261120w';
+export { telaPavimento } from '../resa.js?v=20261120x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;

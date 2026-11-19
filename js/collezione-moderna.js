@@ -1446,6 +1446,7 @@ function nastroLed(curva, w, sp, metallo, giro = () => 0, n = 420, bordo = 0, fa
 }
 function lampadaNastro(tipo, metallo, soffitto = SOFFITTO) {
   const g = new THREE.Group(), attacchi = [];
+  let bilanciere = false;
   if (tipo === 'onde') {
     // nastro che parte dritto, poi onde strette di altezze diverse (la più alta al centro), e finisce dritto
     const xs = [-860, -700, -580, -490, -410, -330, -250, -160, -60, 40, 150, 260, 380, 520, 680, 860];
@@ -1461,6 +1462,25 @@ function lampadaNastro(tipo, metallo, soffitto = SOFFITTO) {
     const curva = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
     g.add(nastroLed(curva, 44, 9, metallo, (t) => Math.PI * 2.2 * t + 0.4 * Math.sin(t * 9)));
     attacchi.push(V3(-640, 262, 0), V3(-190, 515, 10), V3(660, 272, 0));
+  } else if (tipo === 'doppio') {
+    // «doppia onda» (1,20 m, alta 14 cm): due nastri LED a onda (un'onda e mezza) in controfase che si
+    // incrociano tre volte; uno ha la faccia luminosa verso il davanti e un po' in basso, l'altro verso
+    // il dietro, così da ogni lato si vede un nastro acceso e uno scuro. Appesa a un bilanciere con due
+    // cavi a V.
+    const L = 1200, A = 58, sfasa = (u) => 0.3 * Math.sin(3 * Math.PI * u + 0.7);
+    const y = (u, v) => v * A * Math.cos(3 * Math.PI * u);
+    for (const v of [1, -1]) {
+      const pts = [];
+      for (let k = 0; k <= 60; k++) { const u = k / 60; pts.push(V3(-L / 2 + L * u, 200 + y(u, v), v * 18)); }
+      const curva = new THREE.CatmullRomCurve3(pts);
+      g.add(nastroLed(curva, 30, 10, metallo, (t, p) => v * ((2 * Math.PI) / 3 + sfasa((p.x + L / 2) / L)), 360));
+    }
+    // i due cavi a V prendono il nastro più alto in quel punto
+    for (const u of [0.18, 0.82]) {
+      const v = y(u, 1) >= y(u, -1) ? 1 : -1;
+      attacchi.push(V3(-L / 2 + L * u, 200 + y(u, v) + 12, v * 18));
+    }
+    bilanciere = true;
   } else {
     // «onda con sfere» (lampada da isola di 1,30 m): asta dritta, nastro a onda che gira su sé stesso
     // (scende con la faccia LED verso di te, risale con il metallo; sulle creste la luce guarda in basso),
@@ -1503,9 +1523,26 @@ function lampadaNastro(tipo, metallo, soffitto = SOFFITTO) {
   g.updateMatrixWorld(true);
   const b = new THREE.Box3().setFromObject(g), y0 = Y_LAMPADA;
   g.children.forEach((c) => { c.position.y += y0 - b.min.y; });
-  caviAlSoffitto(g, attacchi.map((p) => p.clone().add(V3(0, y0 - b.min.y, 0))), soffitto);
+  const punti = attacchi.map((p) => p.clone().add(V3(0, y0 - b.min.y, 0)));
+  if (bilanciere) bilanciereAlSoffitto(g, punti, soffitto, metallo); else caviAlSoffitto(g, punti, soffitto);
   g.traverse((x) => { if (x.isMesh) { x.castShadow = false; x.receiveShadow = false; x.userData.senzaOmbra = true; } });
   return g;
+}
+/**
+ * Sospensione «a bilanciere»: piastra rettangolare sottile al soffitto, due cavi dritti fino a una
+ * barretta orizzontale e da lì due cavi a V che scendono ai due attacchi della lampada.
+ */
+function bilanciereAlSoffitto(g, [A, B], soffitto, colore) {
+  const sp = 36, yTop = soffitto - sp, yAtt = Math.max(A.y, B.y);
+  if (yTop - yAtt < 120) { caviAlSoffitto(g, [A, B], soffitto); return; }
+  const piastra = new THREE.Mesh(new THREE.BoxGeometry(250, sp, 68), mat(colore)); piastra.position.set(0, soffitto - sp / 2, 0); g.add(piastra);
+  const yB = yTop - 0.31 * (yTop - yAtt);
+  const barra = new THREE.Mesh(new THREE.BoxGeometry(190, 11, 11), mat('acciaio-satinato')); barra.position.set(0, yB, 0); g.add(barra);
+  for (const x of [-75, 75]) g.add(asta(V3(x, yB + 5, 0), V3(x, yTop, 0), 0.9, 0.9, 'acciaio', 6));
+  for (const [P, x] of [[A, -90], [B, 90]]) {
+    g.add(asta(V3(x, yB, 0), P, 0.9, 0.9, 'acciaio', 6));
+    const morsetto = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 12, 10), mat('acciaio-satinato')); morsetto.position.copy(P).add(V3(0, 4, 0)); g.add(morsetto);
+  }
 }
 function lampadaLusso(tipo, soffitto = SOFFITTO) {
   const g = new THREE.Group(), attacchi = [];
@@ -1667,6 +1704,9 @@ export const COLLEZIONE = [
   { id: 'ds-lux-nastro-onde-oro', appeso: true, nome: 'Lampada di lusso «Nastro», onde LED champagne', es: 'Lámpara de lujo «Cinta», ondas LED champán', misure: { w: 1720, d: 60, h: 2700 }, crea: async (s) => lampadaNastro('onde', 'champagne', s) },
   { id: 'ds-lux-nastro-ritorto-nero', appeso: true, nome: 'Lampada di lusso «Nastro ritorto», LED nero', es: 'Lámpara de lujo «Cinta trenzada», LED negra', misure: { w: 1538, d: 187, h: 2700 }, crea: async (s) => lampadaNastro('ritorto', 'nero-satinato', s) },
   { id: 'ds-lux-nastro-ritorto-oro', appeso: true, nome: 'Lampada di lusso «Nastro ritorto», LED oro', es: 'Lámpara de lujo «Cinta trenzada», LED oro', misure: { w: 1538, d: 187, h: 2700 }, crea: async (s) => lampadaNastro('ritorto', 'oro-satinato', s) },
+  { id: 'ds-lux-nastro-doppio-nero', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, nera, 120 cm', es: 'Lámpara de lujo «Doble onda» LED, negra, 120 cm', misure: { w: 1200, d: 70, h: 2700 }, crea: async (s) => lampadaNastro('doppio', 'nero-satinato', s) },
+  { id: 'ds-lux-nastro-doppio-bianco', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, bianca, 120 cm', es: 'Lámpara de lujo «Doble onda» LED, blanca, 120 cm', misure: { w: 1200, d: 70, h: 2700 }, crea: async (s) => lampadaNastro('doppio', 'metallo-bianco', s) },
+  { id: 'ds-lux-nastro-doppio-oro', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, oro, 120 cm', es: 'Lámpara de lujo «Doble onda» LED, oro, 120 cm', misure: { w: 1200, d: 70, h: 2700 }, crea: async (s) => lampadaNastro('doppio', 'oro-satinato', s) },
   { id: 'ds-lux-onda-sfere-oro', appeso: true, nome: 'Lampada di lusso, onda oro con sfere di vetro luminose', es: 'Lámpara de lujo, onda oro con esferas de vidrio luminosas', misure: { w: 1295, d: 100, h: 2700 }, crea: async (s) => lampadaNastro('sfere', 'oro-satinato', s) },
   { id: 'ds-lux-onda-sfere-nero', appeso: true, nome: 'Lampada di lusso, onda nera con sfere di vetro luminose', es: 'Lámpara de lujo, onda negra con esferas de vidrio luminosas', misure: { w: 1295, d: 100, h: 2700 }, crea: async (s) => lampadaNastro('sfere', 'nero-satinato', s) },
   { id: 'ds-led-orbita', appeso: true, nome: 'Lampada LED «Orbita», due anelli', es: 'Lámpara LED «Órbita», dos aros', misure: { w: 989, d: 982, h: 2700 }, crea: async (s) => lampadaLed('orbita', s) },
