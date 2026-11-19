@@ -13,20 +13,20 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261120x';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120x';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261120x';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261120x';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261120x';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120x';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120x';
-import { parametri } from '../parametri.js?v=20261120x';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120x';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120x';
+} from './modello.js?v=20261120y';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120y';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261120y';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261120y';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261120y';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120y';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120y';
+import { parametri } from '../parametri.js?v=20261120y';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120y';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120y';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120x';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120y';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261120x';
+export { telaPavimento } from '../resa.js?v=20261120y';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -2001,7 +2001,9 @@ function accendiLampada(og) {
   // copre tutta l'isola o il tavolo (non un solo cono al centro)
   const largo = Math.max(dim.x, dim.z), lungoX = dim.x >= dim.z;
   const n = largo > 900 ? Math.min(4, Math.max(2, Math.round(largo / 520))) : 1;
-  const yL = dim.y > 260 ? corpo.min.y + Math.min(dim.y * 0.3, 160) : c.y;
+  // lampade LUNGHE: la luce parte da sotto il corpo (non dal centro: nelle forme aperte, come le
+  // eliche di nastri LED, illuminava l'interno scuro della lampada e lo faceva sembrare lucido)
+  const yL = n > 1 ? corpo.min.y - 5 : dim.y > 260 ? corpo.min.y + Math.min(dim.y * 0.3, 160) : c.y;
   const punti = Array.from({ length: n }, (_, i) => {
     const t = n === 1 ? 0 : -largo / 2 + (largo * (i + 0.5)) / n;
     return og.worldToLocal(new THREE.Vector3(c.x + (lungoX ? t : 0), yL, c.z + (lungoX ? 0 : t)));

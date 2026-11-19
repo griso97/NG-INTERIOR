@@ -15,8 +15,8 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261120x';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261120x';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261120y';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261120y';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -386,13 +386,22 @@ export const MATERIALI = [
     misure: { w: 1538, d: 187, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
   { id: 'cm-ds-lux-nastro-doppio-nero', nome: 'Lampada di lusso «Doppia onda» LED, nera, 120 cm', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-nastro-doppio-nero', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/ds-lux-nastro-doppio-nero.jpg', texture: 'oggetti/moderni/miniature/ds-lux-nastro-doppio-nero.jpg', colore: 0xd8d2c8,
-    misure: { w: 1200, d: 70, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+    misure: { w: 1210, d: 140, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
   { id: 'cm-ds-lux-nastro-doppio-bianco', nome: 'Lampada di lusso «Doppia onda» LED, bianca, 120 cm', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-nastro-doppio-bianco', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/ds-lux-nastro-doppio-bianco.jpg', texture: 'oggetti/moderni/miniature/ds-lux-nastro-doppio-bianco.jpg', colore: 0xd8d2c8,
-    misure: { w: 1200, d: 70, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+    misure: { w: 1210, d: 140, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
   { id: 'cm-ds-lux-nastro-doppio-oro', nome: 'Lampada di lusso «Doppia onda» LED, oro, 120 cm', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-nastro-doppio-oro', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/ds-lux-nastro-doppio-oro.jpg', texture: 'oggetti/moderni/miniature/ds-lux-nastro-doppio-oro.jpg', colore: 0xd8d2c8,
-    misure: { w: 1200, d: 70, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+    misure: { w: 1210, d: 140, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lux-nastro-doppio-160-nero', nome: 'Lampada di lusso «Doppia onda» LED, nera, 160 cm', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-nastro-doppio-160-nero', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lux-nastro-doppio-160-nero.jpg', texture: 'oggetti/moderni/miniature/ds-lux-nastro-doppio-160-nero.jpg', colore: 0xd8d2c8,
+    misure: { w: 1610, d: 180, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lux-nastro-doppio-160-bianco', nome: 'Lampada di lusso «Doppia onda» LED, bianca, 160 cm', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-nastro-doppio-160-bianco', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lux-nastro-doppio-160-bianco.jpg', texture: 'oggetti/moderni/miniature/ds-lux-nastro-doppio-160-bianco.jpg', colore: 0xd8d2c8,
+    misure: { w: 1610, d: 180, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lux-nastro-doppio-160-oro', nome: 'Lampada di lusso «Doppia onda» LED, oro, 160 cm', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-nastro-doppio-160-oro', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lux-nastro-doppio-160-oro.jpg', texture: 'oggetti/moderni/miniature/ds-lux-nastro-doppio-160-oro.jpg', colore: 0xd8d2c8,
+    misure: { w: 1610, d: 180, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
   { id: 'cm-ds-lux-onda-sfere-oro', nome: 'Lampada di lusso, onda oro con sfere di vetro luminose', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-onda-sfere-oro', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/ds-lux-onda-sfere-oro.jpg', texture: 'oggetti/moderni/miniature/ds-lux-onda-sfere-oro.jpg', colore: 0xd8d2c8,
     misure: { w: 1295, d: 100, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
@@ -490,7 +499,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261120x');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261120y');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -619,7 +628,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261120x';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261120y';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
@@ -631,7 +640,8 @@ const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'l
   'ds-lin-barra-nera': 'luci', 'ds-lin-barra-bianca': 'luci', 'ds-lin-tubo-ottone': 'luci', 'ds-lin-coni-neri': 'luci', 'ds-lin-globi-ottone': 'luci', 'ds-lin-cupole-fume': 'luci', 'ds-lin-trave-rovere': 'luci', 'ds-lin-ovale-led': 'luci', 'ds-lin-dischi': 'luci', 'ds-lin-cascata': 'luci',
   'ds-lux-mikado': 'luci', 'ds-lux-ovali': 'luci', 'ds-lux-onda': 'luci', 'ds-lux-elica': 'luci', 'ds-lux-noce': 'luci', 'ds-lux-costellazione': 'luci', 'ds-lux-prisma': 'luci', 'ds-lux-catena': 'luci',
   'ds-lux-nastro-onde-bianco': 'luci', 'ds-lux-nastro-onde-nero': 'luci', 'ds-lux-nastro-onde-oro': 'luci', 'ds-lux-nastro-ritorto-nero': 'luci', 'ds-lux-nastro-ritorto-oro': 'luci', 'ds-lux-onda-sfere-oro': 'luci', 'ds-lux-onda-sfere-nero': 'luci',
-  'ds-lux-nastro-doppio-nero': 'luci', 'ds-lux-nastro-doppio-bianco': 'luci', 'ds-lux-nastro-doppio-oro': 'luci' };
+  'ds-lux-nastro-doppio-nero': 'luci', 'ds-lux-nastro-doppio-bianco': 'luci', 'ds-lux-nastro-doppio-oro': 'luci',
+  'ds-lux-nastro-doppio-160-nero': 'luci', 'ds-lux-nastro-doppio-160-bianco': 'luci', 'ds-lux-nastro-doppio-160-oro': 'luci' };
 for (const m of MATERIALI) {
   if (!m.moderno) continue;
   m.gruppo = GRUPPO_COLLEZIONE[m.moderno] || 'cucina';

@@ -2052,6 +2052,9 @@ window.NG_I18N_ES = {
  "Lampada di lusso «Doppia onda» LED, nera, 120 cm": "Lámpara de lujo «Doble onda» LED, negra, 120 cm",
  "Lampada di lusso «Doppia onda» LED, bianca, 120 cm": "Lámpara de lujo «Doble onda» LED, blanca, 120 cm",
  "Lampada di lusso «Doppia onda» LED, oro, 120 cm": "Lámpara de lujo «Doble onda» LED, oro, 120 cm",
+ "Lampada di lusso «Doppia onda» LED, nera, 160 cm": "Lámpara de lujo «Doble onda» LED, negra, 160 cm",
+ "Lampada di lusso «Doppia onda» LED, bianca, 160 cm": "Lámpara de lujo «Doble onda» LED, blanca, 160 cm",
+ "Lampada di lusso «Doppia onda» LED, oro, 160 cm": "Lámpara de lujo «Doble onda» LED, oro, 160 cm",
  "Lampada di lusso, onda oro con sfere di vetro luminose": "Lámpara de lujo, onda oro con esferas de vidrio luminosas",
  "Lampada di lusso, onda nera con sfere di vetro luminose": "Lámpara de lujo, onda negra con esferas de vidrio luminosas",
 };

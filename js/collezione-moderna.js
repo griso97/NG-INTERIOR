@@ -94,6 +94,7 @@ function mat(nome) {
     case 'acciaio': m = new THREE.MeshStandardMaterial({ color: 0xd8d9db, metalness: 1, roughness: 0.25 }); break;
     case 'metallo-nero': m = new THREE.MeshStandardMaterial({ color: 0x151515, metalness: 0.6, roughness: 0.42 }); break;
     case 'metallo-bianco': m = new THREE.MeshStandardMaterial({ color: 0xf1efea, metalness: 0.15, roughness: 0.45 }); break;
+    case 'alluminio-nero': m = new THREE.MeshStandardMaterial({ color: 0x1b1a19, metalness: 0.2, roughness: 0.66 }); break;   // profilo verniciato a polvere, opaco
     case 'nero-satinato': m = new THREE.MeshStandardMaterial({ color: 0x0f0f10, metalness: 0.35, roughness: 0.5 }); break;
     // vetro: trasparente vero; i LIQUIDI dentro sono "pieni" (un trasparente dentro un altro non si vedrebbe)
     case 'vetro': m = new THREE.MeshPhysicalMaterial({ color: 0xf4f8f5, metalness: 0, roughness: 0.03, transmission: 1, thickness: 4, ior: 1.5, specularIntensity: 1, envMapIntensity: 1.6, attenuationColor: new THREE.Color(0xdfeee4), attenuationDistance: 120 }); break;
@@ -1415,7 +1416,10 @@ function nastroLed(curva, w, sp, metallo, giro = () => 0, n = 420, bordo = 0, fa
     const t = i / n, p = curva.getPointAt(t), T = curva.getTangentAt(t).normalize();
     let w0 = V3(0, 0, 1).sub(T.clone().multiplyScalar(T.z)); if (w0.lengthSq() < 1e-6) w0.set(0, 1, 0); w0.normalize();
     const b0 = new THREE.Vector3().crossVectors(T, w0), a = giro(t, p);
-    const wv = w0.clone().multiplyScalar(Math.cos(a)).add(b0.clone().multiplyScalar(Math.sin(a))).normalize();
+    // giro: un angolo (rotazione del nastro attorno alla sua linea) oppure direttamente la direzione
+    // della larghezza del nastro (un vettore)
+    const wv = a && a.isVector3 ? a.clone().addScaledVector(T, -a.dot(T)).normalize()
+      : w0.clone().multiplyScalar(Math.cos(a)).add(b0.clone().multiplyScalar(Math.sin(a))).normalize();
     P.push(p); W.push(wv); N.push(new THREE.Vector3().crossVectors(T, wv).normalize());
   }
   // una striscia fra due bordi (lista di punti): triangoli + normali
@@ -1462,23 +1466,29 @@ function lampadaNastro(tipo, metallo, soffitto = SOFFITTO) {
     const curva = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
     g.add(nastroLed(curva, 44, 9, metallo, (t) => Math.PI * 2.2 * t + 0.4 * Math.sin(t * 9)));
     attacchi.push(V3(-640, 262, 0), V3(-190, 515, 10), V3(660, 272, 0));
-  } else if (tipo === 'doppio') {
-    // «doppia onda» (1,20 m, alta 14 cm): due nastri LED a onda (un'onda e mezza) in controfase che si
-    // incrociano tre volte; uno ha la faccia luminosa verso il davanti e un po' in basso, l'altro verso
-    // il dietro, così da ogni lato si vede un nastro acceso e uno scuro. Appesa a un bilanciere con due
-    // cavi a V.
-    const L = 1200, A = 58, sfasa = (u) => 0.3 * Math.sin(3 * Math.PI * u + 0.7);
-    const y = (u, v) => v * A * Math.cos(3 * Math.PI * u);
-    for (const v of [1, -1]) {
+  } else if (tipo === 'doppio' || tipo === 'doppio-160') {
+    // «doppia onda»: DOPPIA ELICA, come le foto del prodotto. Due nastri piatti avvolti attorno all'asse
+    // della lampada (un giro e mezzo), uno di fronte all'altro (mezzo giro di sfasamento). Il nastro sta
+    // appoggiato sul cilindro: la faccia luminosa guarda FUORI. Così, guardando da davanti, la metà
+    // davanti di ogni giro (che scende) mostra la luce e passa davanti all'altro nastro, la metà dietro
+    // (che risale) mostra il retro scuro: tre tratti bianchi in discesa e tre scuri in salita.
+    // 120 cm: alta 14 cm; 160 cm: stesse proporzioni (alta 18,5 cm), il profilo resta 28 × 9 mm.
+    const k = tipo === 'doppio-160' ? 1600 / 1200 : 1, L = 1200 * k, R = 63 * k, passo = 800 * k, Y = 200;
+    for (const fase of [0, Math.PI]) {
       const pts = [];
-      for (let k = 0; k <= 60; k++) { const u = k / 60; pts.push(V3(-L / 2 + L * u, 200 + y(u, v), v * 18)); }
+      for (let i = 0; i <= 240; i++) {
+        const x = -L / 2 + (L * i) / 240, f = (2 * Math.PI * (x + L / 2)) / passo + fase;
+        pts.push(V3(x, Y + R * Math.cos(f), R * Math.sin(f)));
+      }
       const curva = new THREE.CatmullRomCurve3(pts);
-      g.add(nastroLed(curva, 30, 10, metallo, (t, p) => v * ((2 * Math.PI) / 3 + sfasa((p.x + L / 2) / L)), 360));
+      // larghezza del nastro = tangente × raggio: il nastro resta adagiato sul cilindro, la luce fuori
+      g.add(nastroLed(curva, 28, 9, metallo, (t, p) => curva.getTangentAt(t).cross(V3(0, p.y - Y, p.z).normalize()), 600));
     }
-    // i due cavi a V prendono il nastro più alto in quel punto
-    for (const u of [0.18, 0.82]) {
-      const v = y(u, 1) >= y(u, -1) ? 1 : -1;
-      attacchi.push(V3(-L / 2 + L * u, 200 + y(u, v) + 12, v * 18));
+    // i due cavi a V prendono il nastro che passa DIETRO, a un terzo della lunghezza (sopra il suo bordo)
+    for (const x of [-L / 3, L / 3]) {
+      const f = (2 * Math.PI * (x + L / 2)) / passo, fasi = [f, f + Math.PI];
+      const fd = fasi.find((q) => Math.sin(q) < 0) ?? f;
+      attacchi.push(V3(x, Y + R * Math.cos(fd) + 14, R * Math.sin(fd)));
     }
     bilanciere = true;
   } else {
@@ -1704,9 +1714,12 @@ export const COLLEZIONE = [
   { id: 'ds-lux-nastro-onde-oro', appeso: true, nome: 'Lampada di lusso «Nastro», onde LED champagne', es: 'Lámpara de lujo «Cinta», ondas LED champán', misure: { w: 1720, d: 60, h: 2700 }, crea: async (s) => lampadaNastro('onde', 'champagne', s) },
   { id: 'ds-lux-nastro-ritorto-nero', appeso: true, nome: 'Lampada di lusso «Nastro ritorto», LED nero', es: 'Lámpara de lujo «Cinta trenzada», LED negra', misure: { w: 1538, d: 187, h: 2700 }, crea: async (s) => lampadaNastro('ritorto', 'nero-satinato', s) },
   { id: 'ds-lux-nastro-ritorto-oro', appeso: true, nome: 'Lampada di lusso «Nastro ritorto», LED oro', es: 'Lámpara de lujo «Cinta trenzada», LED oro', misure: { w: 1538, d: 187, h: 2700 }, crea: async (s) => lampadaNastro('ritorto', 'oro-satinato', s) },
-  { id: 'ds-lux-nastro-doppio-nero', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, nera, 120 cm', es: 'Lámpara de lujo «Doble onda» LED, negra, 120 cm', misure: { w: 1200, d: 70, h: 2700 }, crea: async (s) => lampadaNastro('doppio', 'nero-satinato', s) },
-  { id: 'ds-lux-nastro-doppio-bianco', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, bianca, 120 cm', es: 'Lámpara de lujo «Doble onda» LED, blanca, 120 cm', misure: { w: 1200, d: 70, h: 2700 }, crea: async (s) => lampadaNastro('doppio', 'metallo-bianco', s) },
-  { id: 'ds-lux-nastro-doppio-oro', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, oro, 120 cm', es: 'Lámpara de lujo «Doble onda» LED, oro, 120 cm', misure: { w: 1200, d: 70, h: 2700 }, crea: async (s) => lampadaNastro('doppio', 'oro-satinato', s) },
+  { id: 'ds-lux-nastro-doppio-nero', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, nera, 120 cm', es: 'Lámpara de lujo «Doble onda» LED, negra, 120 cm', misure: { w: 1210, d: 140, h: 2700 }, crea: async (s) => lampadaNastro('doppio', 'alluminio-nero', s) },
+  { id: 'ds-lux-nastro-doppio-bianco', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, bianca, 120 cm', es: 'Lámpara de lujo «Doble onda» LED, blanca, 120 cm', misure: { w: 1210, d: 140, h: 2700 }, crea: async (s) => lampadaNastro('doppio', 'metallo-bianco', s) },
+  { id: 'ds-lux-nastro-doppio-oro', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, oro, 120 cm', es: 'Lámpara de lujo «Doble onda» LED, oro, 120 cm', misure: { w: 1210, d: 140, h: 2700 }, crea: async (s) => lampadaNastro('doppio', 'oro-satinato', s) },
+  { id: 'ds-lux-nastro-doppio-160-nero', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, nera, 160 cm', es: 'Lámpara de lujo «Doble onda» LED, negra, 160 cm', misure: { w: 1610, d: 180, h: 2700 }, crea: async (s) => lampadaNastro('doppio-160', 'alluminio-nero', s) },
+  { id: 'ds-lux-nastro-doppio-160-bianco', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, bianca, 160 cm', es: 'Lámpara de lujo «Doble onda» LED, blanca, 160 cm', misure: { w: 1610, d: 180, h: 2700 }, crea: async (s) => lampadaNastro('doppio-160', 'metallo-bianco', s) },
+  { id: 'ds-lux-nastro-doppio-160-oro', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, oro, 160 cm', es: 'Lámpara de lujo «Doble onda» LED, oro, 160 cm', misure: { w: 1610, d: 180, h: 2700 }, crea: async (s) => lampadaNastro('doppio-160', 'oro-satinato', s) },
   { id: 'ds-lux-onda-sfere-oro', appeso: true, nome: 'Lampada di lusso, onda oro con sfere di vetro luminose', es: 'Lámpara de lujo, onda oro con esferas de vidrio luminosas', misure: { w: 1295, d: 100, h: 2700 }, crea: async (s) => lampadaNastro('sfere', 'oro-satinato', s) },
   { id: 'ds-lux-onda-sfere-nero', appeso: true, nome: 'Lampada di lusso, onda nera con sfere di vetro luminose', es: 'Lámpara de lujo, onda negra con esferas de vidrio luminosas', misure: { w: 1295, d: 100, h: 2700 }, crea: async (s) => lampadaNastro('sfere', 'nero-satinato', s) },
   { id: 'ds-led-orbita', appeso: true, nome: 'Lampada LED «Orbita», due anelli', es: 'Lámpara LED «Órbita», dos aros', misure: { w: 989, d: 982, h: 2700 }, crea: async (s) => lampadaLed('orbita', s) },
