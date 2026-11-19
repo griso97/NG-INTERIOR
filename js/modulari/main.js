@@ -1,15 +1,15 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 1 (forma del vano) + navigazione tra i passi
 // =============================================================================
-import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261121p';
-import { renderPasso2, apriDistinta, stiliTema, tastoCubi } from './passo2.js?v=20261121p';
-import { agganciaTema } from '../tema.js?v=20261121p';
-import { tendineAutomatiche } from '../tendine-pannello.js?v=20261121p';
+import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261121q';
+import { renderPasso2, apriDistinta, stiliTema, tastoCubi } from './passo2.js?v=20261121q';
+import { agganciaTema } from '../tema.js?v=20261121q';
+import { tendineAutomatiche } from '../tendine-pannello.js?v=20261121q';
 
 const KEY = 'ng-modulari-v1';
 const pannello = document.getElementById('mod-pannello');
 // PANNELLO ORDINATO: sezioni a tendina (aperte la prima volta solo quelle dei passi principali)
-tendineAutomatiche(pannello, 'modulari', { aperte: ['1 ·', '2 ·', '3 ·', 'Modalità', 'Cubo selezionato', 'Nuovo cubo', 'Moduli'] });
+tendineAutomatiche(pannello, 'modulari', { aperte: ['Cubo selezionato'] });   // all'apertura chiuse (aperto solo il cubo che tocchi)
 const riepilogo = document.getElementById('mod-riepilogo');
 const svg = document.getElementById('mod-svg');
 
@@ -401,7 +401,7 @@ function aggiorna() {
     mostra3d(true);
     // prima i materiali, poi il 3D (su Safari due caricamenti paralleli dello
     // stesso file possono far partire il 3D prima dei materiali)
-    import('../materiali.js?v=20261121p').then(() => import('./passo3.js?v=20261121p')).then((m) => { passo3 = m; if (stato.step === 3) m.renderPasso3(c); })
+    import('../materiali.js?v=20261121q').then(() => import('./passo3.js?v=20261121q')).then((m) => { passo3 = m; if (stato.step === 3) m.renderPasso3(c); })
       .catch(() => { riepilogo.innerHTML = '<div class="mod-msg err">Non riesco a caricare il 3D. Ricarica la pagina.</div>'; });
     return;
   }

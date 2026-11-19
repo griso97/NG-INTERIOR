@@ -24,17 +24,17 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
-} from './modello.js?v=20261121p';
-import { renderPianta } from './pianta.js?v=20261121p';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121p';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261121p';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121p';
-import { calcolaDistintaCucina } from './distinta.js?v=20261121p';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121p';
-import { agganciaTema } from '../tema.js?v=20261121p';
-import { tendinePannello } from '../tendine-pannello.js?v=20261121p';
+} from './modello.js?v=20261121q';
+import { renderPianta } from './pianta.js?v=20261121q';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121q';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261121q';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121q';
+import { calcolaDistintaCucina } from './distinta.js?v=20261121q';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121q';
+import { agganciaTema } from '../tema.js?v=20261121q';
+import { tendinePannello } from '../tendine-pannello.js?v=20261121q';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261121p');
+const _excel = () => import('../modello-export.js?v=20261121q');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -251,14 +251,15 @@ document.addEventListener('keydown', (e) => {
 });
 
 // --------- PANNELLO DIETRO IL PIANO (schienale / paraschizzi) ---------
-function htmlSchienale() {
+function htmlSchienale(dentro = false) {
   const tutti = (scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer('pannello') : [];
   const sc = progetto.schienale || {};
   const att = !!sc.attivo, mat = sc.materiale || null;
   const def = mat ? tutti.find((x) => x.id === mat) : null;
+  // dentro = nella sezione del piano di lavoro (titolo piccolo, niente sezione a parte)
   return `
-    <section class="step3-pannello">
-      <h3>Pannello dietro il piano</h3>
+    ${dentro ? '<div class="riga-3d" style="margin:16px 0 6px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--oro,#c9a961)">Pannello dietro il piano</div>' : `<section class="step3-pannello">
+      <h3>Pannello dietro il piano</h3>`}
       <div class="riga-3d" style="margin-bottom:6px">Il pannello sul muro tra il piano di lavoro e i pensili (solo dove dietro c'è un muro).</div>
       <div style="display:flex;gap:8px">
         <button type="button" class="btn-ghost opt-sch ${!att ? 'attivo' : ''}" data-sch="no" style="flex:1">${!att ? '✓ ' : ''}No</button>
@@ -270,7 +271,7 @@ function htmlSchienale() {
           data-sch-mat="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`, {
         sel: mat, chiave: 'cucina-aplacado',
         prima: `<button type="button" class="swatch swatch-none ${!mat ? 'sel' : ''}" data-sch-mat="" title="Uguale al piano di lavoro">=</button>` })}` : ''}
-    </section>`;
+    ${dentro ? '' : '</section>'}`;
 }
 function agganciaSchienale(root) {
   root.querySelectorAll('.opt-sch').forEach((b) => b.addEventListener('click', () => {
@@ -295,15 +296,32 @@ function renderPannelloPasso() {
 }
 // PANNELLO ORDINATO: ogni sezione è una tendina (chiusa, si apre toccando il titolo).
 // Aperte la prima volta solo quelle che servono di più a ogni passo; poi resta come la lasci.
+// All'apertura del sito sono TUTTE CHIUSE; si apre da sola solo la parte di ciò che tocchi
+// (il mobile o l'oggetto selezionato, con il suo colore) e ciò che va sistemato.
 const TENDINE_APERTE = {
-  1: ['Carica progetto', 'Tipologia', 'Pareti'],
-  2: ['Mobile selezionato', 'Aggiungi modulo', 'Moduli su parete', 'Parete attiva', 'Da sistemare', 'Ponte'],
-  3: ['Mobile selezionato', 'Aggiungi modulo', 'Moduli su parete', 'Parete attiva', 'Da sistemare', 'Ponte'],
-  4: ['Accessori', 'Oggetto selezionato'],
+  1: [],
+  2: ['Mobile selezionato', 'Da sistemare'],
+  3: ['Mobile selezionato', 'Da sistemare'],
+  4: ['Oggetto selezionato'],
   5: ['Da sistemare', 'Modulo selezionato', 'Oggetto selezionato', 'Colore ante', 'Colore ·'],
 };
+/** SFONDO del 3D: tre pallini in alto a destra sopra la vista (chiaro, neutro, scuro). */
+function renderPalliniSfondo() {
+  const box = document.getElementById('sfondo-pallini');
+  if (!box) return;
+  const lista = (scena3dMod && scena3dMod.SFONDI_LISTA) || [];
+  box.hidden = progetto.stepCorrente !== P_3D || !lista.length;
+  if (box.hidden) return;
+  const sel = progetto.sfondo || 'chiaro';
+  box.innerHTML = lista.map((x) => `<button type="button" class="pallino-sfondo ${x.id === sel ? 'sel' : ''}" data-sfondo-p="${x.id}" title="${escHtml(x.nome)}" aria-label="${escHtml(x.nome)}" style="background:${x.css}"></button>`).join('');
+  box.querySelectorAll('[data-sfondo-p]').forEach((b) => b.addEventListener('click', () => {
+    if ((progetto.sfondo || 'chiaro') === b.dataset.sfondoP) return;
+    progetto.sfondo = b.dataset.sfondoP; aggiorna();
+  }));
+}
 function renderPannello() {
   renderPannelloPasso();
+  renderPalliniSfondo();
   tendinePannello(pannello, `cucina-${progetto.stepCorrente}`, { aperte: TENDINE_APERTE[progetto.stepCorrente] || [] });
 }
 function renderRiepilogo() {
@@ -1058,7 +1076,9 @@ function renderRiepilogoModuli() {
         <strong class="${liberoCm === 0 ? 'ok' : ''}">${liberoCm === 0 ? '✓ pieno' : `${liberoCm} liberi`}${info && info.regletta ? ` <small style="opacity:.75">(+${(info.regletta / 10).toLocaleString('it-IT')} regletta)</small>` : ''}</strong></div>`;
     }).join('')}
 
-    <h3 style="margin-top:20px">Moduli</h3>
+    ${htmlSpaziPensili()}
+    <section data-tendina="moduli" style="margin-top:20px">
+    <h3>Moduli</h3>
     ${Object.keys(conteggio).length === 0
       ? '<div class="riep-riga"><span>Nessun modulo</span><strong>—</strong></div>'
       : Object.entries(conteggio).map(([k, n]) =>
@@ -1067,9 +1087,10 @@ function renderRiepilogoModuli() {
     <div class="riep-riga"><span>Mobili liberi sulla pianta</span><strong>${progetto.mobiliLiberi.length}</strong></div>
     <div class="riep-riga"><span>Metri lineari moduli</span><strong>${(lineari / 1000).toFixed(2)} m</strong></div>
     <div class="riep-riga"><span>Stato</span><strong>${progetto.moduliBaseConfermati ? 'Confermato' : 'In modifica'}</strong></div>
-    ${htmlSpaziPensili()}
+    </section>
   `;
   agganciaSpaziPensili(riepilogo);
+  tendinePannello(riepilogo, 'cucina-riepilogo', { aperte: [] });
 }
 /**
  * SPAZI FRA I PENSILI: dove sotto il mobile basso è più largo (es. 63) e il pensile sopra è da 60,
@@ -1567,12 +1588,15 @@ function renderRiepilogoAccessori() {
   const ogg = (progetto.mobiliLiberi || []).filter((m) => categoriaTipo(m.tipo) === 'oggetto');
   const T = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
   riepilogo.innerHTML = `
-    <h3>Accessori in cucina</h3>
+    <section data-tendina="accessori">
+    <h3>Accessori in cucina · ${ogg.length}</h3>
     ${ogg.length ? ogg.map((m) => `<div class="riep-riga riep-acc ${m.id === step2.mobSelId ? 'sel' : ''}">
       <button type="button" class="riep-acc-nome" data-accsel="${m.id}" data-no-i18n>${escHtml(T(nomeTipo(m.tipo)))}</button>
       <button type="button" class="riep-acc-x" data-acctogli="${m.id}" title="Togli">✕</button></div>`).join('')
     : '<div class="riga-3d">Ancora nessun accessorio: aprine una categoria a sinistra.</div>'}
+    </section>
   `;
+  tendinePannello(riepilogo, 'cucina-riepilogo', { aperte: [] });
   riepilogo.querySelectorAll('[data-accsel]').forEach((b) => b.addEventListener('click', () => { step2.mobSelId = Number(b.dataset.accsel); aggiorna(); }));
   riepilogo.querySelectorAll('[data-acctogli]').forEach((b) => b.addEventListener('click', () => {
     registraStoria(); rimuoviMobileLibero(progetto, Number(b.dataset.acctogli));
@@ -1600,29 +1624,18 @@ function renderPannelloStep3d() {
       <h3>Da sistemare</h3>
       ${avvisi.map((x) => `<div class="avviso-pannello">${x.messaggio}</div>`).join('')}
     </section>` : ''}
-    <section class="step3-pannello">
-      <h3>Vista 3D</h3>
-      <div class="riga-3d">
-        <strong>Tocca un mobile</strong> per vedere cos'è e modificarlo
-        (aggiungere lavello o piano cottura).<br><br>
-        Trascina per <strong>ruotare</strong>, due dita o rotella per lo
-        <strong>zoom</strong>, due dita/tasto destro per <strong>spostare</strong>.<br><br>
-        <strong>Sgabelli e arredo</strong>: trascinali per metterli dove vuoi
-        (i moduli restano fissi).
-      </div>
-    </section>
     ${htmlTetto('step3-pannello')}
-    ${materialiEnc.length ? `
     <section class="step3-pannello">
-      <h3>Piano di lavoro (encimera)</h3>
+      <h3>Piano di lavoro e pannello dietro</h3>
+      ${materialiEnc.length ? `
       <div class="riga-3d" style="margin-bottom:6px">Il piano cambia su tutta la cucina. Lo spessore lo scegli qui sotto.</div>
       ${htmlTendineColori(materialiEnc, (mt) => `<button type="button" class="swatch ${mt.id === encAttuale ? 'sel' : ''}"
           data-enc="${mt.id}" title="${mt.nome} (${mt.spessore || 40} mm)" style="background-image:url('${mt.thumb}')"></button>`, {
         sel: encAttuale, chiave: 'cucina-encimera',
         prima: `<button type="button" class="swatch swatch-none ${!encAttuale ? 'sel' : ''}" data-enc="" title="Nero standard (4 cm)">—</button>` })}
-      ${htmlSpessorePiano()}
-    </section>` : ''}
-    ${htmlSchienale()}
+      ${htmlSpessorePiano()}` : ''}
+      ${htmlSchienale(true)}
+    </section>
     ${htmlFiniture()}
     <section class="step3-pannello">
       <h3>Interno degli armadi</h3>
@@ -1642,14 +1655,6 @@ function renderPannelloStep3d() {
       </div>
     </section>
     ${htmlPavimento()}
-    <section class="step3-pannello">
-      <h3>Sfondo</h3>
-      <div class="palette-zoccolo">
-        ${((scena3dMod && scena3dMod.SFONDI_LISTA) || []).map((s) => `<button type="button" class="swatch-zocc ${s.id === (progetto.sfondo || 'chiaro') ? 'sel' : ''}"
-          data-sfondo="${s.id}" title="${s.nome}" style="background:${s.css}"></button>
-          <span class="et-zocc">${s.nome}</span>`).join('')}
-      </div>
-    </section>
     <section class="step3-pannello">
       <h3>Lampade e luce</h3>
       <div class="riga-3d" style="margin-bottom:6px">Le lampade del catalogo si vedono accese: il vetro e i paralumi brillano e illuminano il tavolo e l'isola. Abbassando la luce esterna si vede ancora meglio.</div>
@@ -1773,7 +1778,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121p');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121q');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2060,17 +2065,18 @@ function renderPannelloModificaMobile(m) {
       })() : ''}
     </section>`;
     })()}
-    ${isBase && materialiEncimera.length ? `
+    ${isBase ? `
     <section class="step3-pannello">
-      <h3>Piano di lavoro (encimera)</h3>
+      <h3>Piano di lavoro e pannello dietro</h3>
+      ${materialiEncimera.length ? `
       <div class="riga-3d" style="margin-bottom:6px">Il piano cambia su tutta la cucina. Lo spessore lo scegli qui sotto.</div>
       ${htmlTendineColori(materialiEncimera, (mt) => `<button type="button" class="swatch ${mt.id === encAttuale ? 'sel' : ''}"
           data-enc="${mt.id}" title="${mt.nome} (${mt.spessore || 40} mm)" style="background-image:url('${mt.thumb}')"></button>`, {
         sel: encAttuale, chiave: 'cucina-encimera',
         prima: `<button type="button" class="swatch swatch-none ${!encAttuale ? 'sel' : ''}" data-enc="" title="Nero standard (4 cm)">—</button>` })}
-      ${htmlSpessorePiano()}
+      ${htmlSpessorePiano()}` : ''}
+      ${htmlSchienale(true)}
     </section>` : ''}
-    ${isBase ? htmlSchienale() : ''}
     ${cat === 'pensile' ? `
     <section class="step3-pannello">
       <h3>Ante pensili</h3>
@@ -2235,12 +2241,14 @@ function renderRiepilogoStep3d() {
   // Moduli fuori misura (da tagliare): larghezza non standard.
   const daTagliare = (progetto.mobiliLiberi || []).filter((m) => m.fuoriMisura);
   riepilogo.innerHTML = `
-    <h3>Mobili in scena</h3>
+    <section data-tendina="mobili">
+    <h3>Mobili in scena · ${(progetto.mobiliLiberi || []).length}</h3>
     ${Object.keys(conta).length === 0
       ? '<div class="riep-riga"><span>Nessun mobile</span><strong>—</strong></div>'
       : Object.entries(conta).map(([k, v]) =>
         `<div class="riep-riga"><span>${k}</span><strong>×${v}</strong></div>`).join('')}
     <div class="riep-riga"><span>Totale pezzi</span><strong>${(progetto.mobiliLiberi || []).length}</strong></div>
+    </section>
     ${(progetto.mobiliLiberi || []).length ? `
     <button id="apri-distinta" class="btn-oro" type="button" style="width:100%;margin-top:14px">📋 Distinta di taglio</button>
     <div class="riga-3d" style="margin-top:6px">Moduli da ordinare, ante e pezzi da fare con le misure, accessori (piedini…).</div>` : ''}
@@ -2251,6 +2259,7 @@ function renderRiepilogoStep3d() {
     ` : ''}
   `;
   document.getElementById('apri-distinta')?.addEventListener('click', mostraDistinta);
+  tendinePannello(riepilogo, 'cucina-riepilogo', { aperte: [] });       // la lista dei mobili: tendina chiusa
 }
 
 // --------- DISTINTA DI TAGLIO (lista moduli + lista pezzi per tipo) ---------
@@ -2535,13 +2544,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121p');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121q');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121p'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121q'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

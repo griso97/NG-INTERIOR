@@ -1,19 +1,15 @@
 // =============================================================================
 // PANNELLI ORDINATI — ogni sezione con un titolo (<section><h3>Titolo</h3>…</section>)
 // diventa una TENDINA: chiusa all'inizio (tranne quelle indicate), si apre toccando
-// il titolo. Quello che apri o chiudi resta così su questo dispositivo, anche quando
-// il pannello si ridisegna. Vale per cucina, armadi e modulari.
+// il titolo. Quello che apri o chiudi resta così mentre lavori, anche quando il pannello si
+// ridisegna; a ogni nuova visita si riparte chiuse. Vale per cucina, armadi e modulari.
 // =============================================================================
+// Quello che apri o chiudi resta così mentre lavori (anche quando il pannello si ridisegna), ma
+// OGNI VOLTA CHE ENTRI NEL SITO si riparte con le tendine chiuse: niente memoria fra una visita e l'altra.
 const _mem = {};
-function stato(chiave) {
-  if (!_mem[chiave]) {
-    try { _mem[chiave] = JSON.parse(localStorage.getItem('ng-tendine-' + chiave) || '{}') || {}; } catch (e) { _mem[chiave] = {}; }
-  }
-  return _mem[chiave];
-}
-function salva(chiave) {
-  try { localStorage.setItem('ng-tendine-' + chiave, JSON.stringify(_mem[chiave])); } catch (e) { /* va bene anche senza memoria */ }
-}
+try { Object.keys(localStorage).filter((k) => k.startsWith('ng-tendine-')).forEach((k) => localStorage.removeItem(k)); } catch (e) { /* niente */ }
+function stato(chiave) { return (_mem[chiave] ||= {}); }
+function salva() { /* solo in memoria */ }
 /**
  * @param {Element} root   il pannello
  * @param {string} chiave  nome della memoria (es. 'armadio', 'cucina-5')

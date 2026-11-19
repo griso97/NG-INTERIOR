@@ -2170,4 +2170,7 @@ window.NG_I18N_ES = {
  "Colore del piano / tavolo": "Color del tablero / mesa",
  "Può essere diverso dal piano della cucina: apri un gruppo (Encimere, Legni, Opachi, Lucidi…) e tocca il colore. Vale anche per i fianchi a cascata.": "Puede ser distinto de la encimera de la cocina: abre un grupo (Encimeras, Maderas, Mates, Brillos…) y toca el color. Vale también para los costados en cascada.",
  "Scelto:": "Elegido:",
+ "Piano di lavoro e pannello dietro": "Encimera y panel trasero",
+ "Mobili in scena · {0}": "Muebles en escena · {0}",
+ "Accessori in cucina · {0}": "Accesorios en la cocina · {0}",
 };
