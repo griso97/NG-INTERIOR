@@ -24,17 +24,17 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
-} from './modello.js?v=20261121t';
-import { renderPianta } from './pianta.js?v=20261121t';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121t';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261121t';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121t';
-import { calcolaDistintaCucina } from './distinta.js?v=20261121t';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121t';
-import { agganciaTema } from '../tema.js?v=20261121t';
-import { tendinePannello } from '../tendine-pannello.js?v=20261121t';
+} from './modello.js?v=20261121u';
+import { renderPianta } from './pianta.js?v=20261121u';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121u';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261121u';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121u';
+import { calcolaDistintaCucina } from './distinta.js?v=20261121u';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121u';
+import { agganciaTema } from '../tema.js?v=20261121u';
+import { tendinePannello } from '../tendine-pannello.js?v=20261121u';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261121t');
+const _excel = () => import('../modello-export.js?v=20261121u');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -1805,7 +1805,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121t');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121u');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2581,13 +2581,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121t');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121u');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121t'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121u'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2795,6 +2795,16 @@ function htmlAperturaColonna(m) {
           <label>Apertura${sel(p.k, 'push', [['', 'Come le colonne'], ['false', 'Maniglia'], ['true', 'Push']])}</label>
           <label>Verso${sel(p.k, 'lato', [['', 'Come la colonna'], ['sx', '← Sinistra'], ['dx', 'Destra →'], ['alto', "↑ Verso l'alto"]])}</label>
         </div>
+        ${(() => {
+          // PORTA IN VETRO (vetrina), come nei pensili: telaio in legno (vano fresato) o telaio da ordinare
+          const v = ((m.porte || {})[p.k] || {}).vetro || null;
+          const s2 = (campo, opz, val) => `<select class="porta-vetro" data-porta="${p.k}" data-campo="${campo}" style="width:100%">${opz.map(([o, t]) => `<option value="${o}" ${o === val ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
+          return `
+        <div class="ra-campi" style="margin-top:6px">
+          <label>Anta${s2('telaio', [['', 'Piena'], ['legno', 'Vetrina · telaio come l\'anta'], ['alluminio', 'Vetrina · telaio alluminio'], ['nero', 'Vetrina · telaio nero']], v ? (v.telaio || 'legno') : '')}</label>
+          ${v ? `<label>Vetro${s2('tipo', [['trasparente', 'Trasparente'], ['satinato', 'Satinato'], ['fume', 'Fumé']], v.vetro || 'trasparente')}</label>` : ''}
+        </div>`;
+        })()}
       </div>`).join('')}
     </section>`;
 }
@@ -2809,6 +2819,16 @@ function agganciaAperturaColonna(root, m) {
     const porte = { ...(m.porte || {}) }, o = { ...(porte[k] || {}) };
     if (v === '') delete o[campo];
     else o[campo] = campo === 'lato' ? v : v === 'true';
+    if (Object.keys(o).length) porte[k] = o; else delete porte[k];
+    if (Object.keys(porte).length) m.porte = porte; else delete m.porte;
+    aggiorna();
+  }));
+  root.querySelectorAll('select.porta-vetro').forEach((el) => el.addEventListener('change', () => {
+    registraStoria();
+    const k = el.dataset.porta, campo = el.dataset.campo, v = el.value;
+    const porte = { ...(m.porte || {}) }, o = { ...(porte[k] || {}) };
+    if (campo === 'telaio') { if (!v) delete o.vetro; else o.vetro = { vetro: 'trasparente', ...(o.vetro || {}), telaio: v }; }
+    else if (o.vetro) o.vetro = { ...o.vetro, vetro: v };
     if (Object.keys(o).length) porte[k] = o; else delete porte[k];
     if (Object.keys(porte).length) m.porte = porte; else delete m.porte;
     aggiorna();

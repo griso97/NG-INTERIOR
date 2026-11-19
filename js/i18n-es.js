@@ -2182,4 +2182,10 @@ window.NG_I18N_ES = {
  "Anta · maniglia sul bordo (−{0} mm)": "Puerta · tirador en el canto (−{0} mm)",
  "Fronte cassetto · maniglia sul bordo (−{0} mm)": "Frente de cajón · tirador en el canto (−{0} mm)",
  "maniglia sul bordo (−{0} mm)": "tirador en el canto (−{0} mm)",
+ "Piena": "Ciega",
+ "Vetrina · telaio come l'anta": "Vitrina · marco como la puerta",
+ "Vetrina · telaio alluminio": "Vitrina · marco aluminio",
+ "Vetrina · telaio nero": "Vitrina · marco negro",
+ "Vetro": "Vidrio",
+ "{0} vetrina (telaio 50 mm, vano vetro da fresare){1}": "{0} vitrina (marco 50 mm, hueco del vidrio a fresar){1}",
 };

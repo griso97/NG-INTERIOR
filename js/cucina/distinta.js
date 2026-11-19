@@ -13,8 +13,8 @@
 
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna,
-} from './modello.js?v=20261121t';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261121t';
+} from './modello.js?v=20261121u';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261121u';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -206,6 +206,14 @@ function pezziDiModulo(progetto, m) {
       const lato = o.lato || (m.antaLato === 'sx' ? 'sx' : 'dx');
       const rJp = riduzioneJ({ ...scP, fp: fpP, push: pushP });
       const desc = ` (apertura ${lato === 'alto' ? "verso l'alto" : lato}${fpP ? ' · finger-pull' : ''}${pushP ? ' · push' : ''}${rJp ? ` · ${_nomeRid} (−${rJp} mm)` : ''})`;
+      if (o.vetro) {
+        // PORTA IN VETRO: come le ante vetrina dei pensili (telaio in legno con il vano per il vetro, o telaio da ordinare)
+        const ah = round(alt - rJp), vt = NOMI_VETRO[o.vetro.vetro] || 'trasparente';
+        if ((o.vetro.telaio || 'legno') === 'legno') pz.push({ modulo: mod, nome: `${nome} vetrina (telaio 50 mm, vano vetro da fresare)${desc}`, larghezza: aw, altezza: ah, spessore: SP, materiale: 'anta', quantita: 1, lato,
+          vetro: { w: Math.max(10, aw - 80), h: Math.max(10, ah - 80), tipo: vt } });
+        else { const tel = o.vetro.telaio === 'nero' ? 'nero' : 'alluminio'; pz.push({ modulo: mod, nome: `${nome} vetrina telaio ${tel} + vetro ${vt} (da ordinare)${desc}`, larghezza: aw, altezza: ah, spessore: 20, materiale: 'vetrina', quantita: 1, lato, materialeNome: `Telaio ${tel} + vetro ${vt}` }); }
+        return;
+      }
       pz.push({ modulo: mod, nome: `${nome}${desc}`, larghezza: aw, altezza: round(alt - rJp), spessore: SP, materiale: 'anta', quantita: 1, fp: fpP, push: pushP, lato });
     };
     porta('bassa', 'Anta bassa', ab - aH);

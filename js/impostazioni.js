@@ -8,18 +8,18 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261121t';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261121t';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261121t';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261121t';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261121t';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261121t';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261121t';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261121t';
-import { agganciaTema } from './tema.js?v=20261121t';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261121t';
-import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261121t';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261121t';
+} from './catalogo.js?v=20261121u';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261121u';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261121u';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261121u';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261121u';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261121u';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261121u';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261121u';
+import { agganciaTema } from './tema.js?v=20261121u';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261121u';
+import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261121u';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261121u';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);

@@ -14,28 +14,28 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261121t';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121t';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261121t';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261121t';
+} from './modello.js?v=20261121u';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121u';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261121u';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261121u';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121t').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121u').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121t';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121t';
-import { parametri } from '../parametri.js?v=20261121t';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121t';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121t';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121u';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121u';
+import { parametri } from '../parametri.js?v=20261121u';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121u';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121u';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121t';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121u';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261121t';
+export { telaPavimento } from '../resa.js?v=20261121u';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -1606,6 +1606,7 @@ function manigliaOrizzAnta(g, px, py, pw, ph, z, verso, inAlto) {
   maniglia(g, px + verso * off, y, z, true, Math.min(pw * 0.5, 320), !inAlto, pw);
 }
 let _anteInBasso = false;    // pensili: maniglia vicino al bordo basso
+let _coloreCorpoCol = null;  // colore dell'interno della colonna che si sta costruendo (ripiani dietro il vetro)
 let _vetrina = null;         // ante a vetro del mobile che si sta costruendo ({ telaio, vetro })
 function ante(g, w, h, d, n, matAnta, sporg, lato) {
   const z = d / 2;
@@ -1724,14 +1725,26 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
   const scelte = (chiave) => {
     const o = (m && m.porte && m.porte[chiave]) || {};
     return { fp: o.fp != null ? !!o.fp : _fingerPull, push: o.push != null ? !!o.push : _push,
-      lato: o.lato || (m && m.antaLato === 'sx' ? 'sx' : 'dx') };
+      lato: o.lato || (m && m.antaLato === 'sx' ? 'sx' : 'dx'), vetro: o.vetro || null };
   };
   const porta = (yB, segH, chiave = 'alta') => {
     const cyc = yB + segH / 2;
     const ph = segH - FUGA_H;
     const c = scelte(chiave), s = c.lato === 'sx' ? -1 : 1, alto = c.lato === 'alto';
     const pushPrima = _push; _push = c.push;
-    if (c.fp && alto) {
+    if (c.vetro) {
+      // PORTA IN VETRO (vetrina): telaio + vetro, e dietro i RIPIANI della colonna (la cassa è aperta)
+      antaVetro(g, 0, cyc, z, pw, ph, matAnta, c.vetro);
+      if (alto) manigliaOrizzAnta(g, 0, cyc, pw, ph, z, 0, false);
+      else maniglia(g, s * (pw / 2 - 30), cyc, z, false, Math.min(260, ph * 0.4), false, ph);
+      const t = 18, nR = Math.max(1, Math.round(segH / 380) - 1);
+      const matR = new THREE.MeshStandardMaterial({ color: _coloreCorpoCol != null && !(_coloreCorpoCol && _coloreCorpoCol.isMaterial) ? _coloreCorpoCol : COL.corpo || 0xe8e4dc, roughness: 0.7, metalness: 0.05 });
+      for (let k = 1; k <= nR; k++) {
+        const r = new THREE.Mesh(new THREE.BoxGeometry(w - 2 * t, t, d - t - 25), matR);
+        r.position.set(0, yB + (segH * k) / (nR + 1), (t + 25) / 2 - 25 + 12);
+        r.castShadow = true; r.receiveShadow = true; g.add(r);
+      }
+    } else if (c.fp && alto) {
       const CH = 30;                                 // canale orizzontale sul bordo basso (si apre verso l'alto)
       pannello(g, 0, cyc + CH / 2, z, pw, ph - CH, matAnta || COL.anta);
       canaleFingerPull(g, 0, cyc - ph / 2 + CH / 2, z, pw, CH, true, matAnta, true);
@@ -2362,7 +2375,8 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   if (tipo === 'base-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, Math.min((m && m.profBraccio_mm) || PROFONDITA_BASE, Math.min(w, d) - 10), true); return g; }
   // Colonna con VANO APERTO: carcassa a fronte aperto (si vede dentro);
   // le altre colonne/mobili restano scatola piena.
-  const colonnaVano = cat === 'colonna' && m && m.variante === 'vano';
+  const colonnaVano = cat === 'colonna' && m && (m.variante === 'vano'
+    || Object.values(m.porte || {}).some((o) => o && o.vetro));          // porta in vetro: si vede dentro
   // Mobile del LAVELLO: aperto sopra (come nella realtà), sennò il blocco
   // pieno arriva sotto il piano e copre la vasca: nel foro si vedrebbe solo
   // il coperchio del mobile, non la profondità.
@@ -2376,7 +2390,7 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   if (cat === 'regletta') return g;
   if (opt.cieco && opt.cieco.coperto) { anteCieche(g, w, h, d, matAnta, opt.cieco); return g; }
   if (tipo === 'pensile-angolo-45') { pensileAngoloFronte(g, w, h, d, matAnta); return g; }
-  if (cat === 'colonna') { colonnaFronte(g, w, h, d, m, matAnta); return g; }
+  if (cat === 'colonna') { _coloreCorpoCol = coloreCorpo; colonnaFronte(g, w, h, d, m, matAnta); return g; }
   if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta, m.cassettoPiccolo_mm); return g; }
   if (tipo === 'lavello') { ante(g, w, h, d, w >= 600 ? 2 : 1, matAnta); return g; } // lavello disegnato sopra il top
   if (tipo === 'lavastoviglie') {
