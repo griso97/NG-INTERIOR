@@ -24,17 +24,17 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
-} from './modello.js?v=20261121u';
-import { renderPianta } from './pianta.js?v=20261121u';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121u';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261121u';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121u';
-import { calcolaDistintaCucina } from './distinta.js?v=20261121u';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121u';
-import { agganciaTema } from '../tema.js?v=20261121u';
-import { tendinePannello } from '../tendine-pannello.js?v=20261121u';
+} from './modello.js?v=20261121v';
+import { renderPianta } from './pianta.js?v=20261121v';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121v';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261121v';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121v';
+import { calcolaDistintaCucina } from './distinta.js?v=20261121v';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121v';
+import { agganciaTema } from '../tema.js?v=20261121v';
+import { tendinePannello } from '../tendine-pannello.js?v=20261121v';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261121u');
+const _excel = () => import('../modello-export.js?v=20261121v');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -151,6 +151,8 @@ let step2 = {
   mobSelId: null,        // mobile libero selezionato sulla pianta
   movePending: null,     // { id, prima:{x,y,rot,posManuale} } spostamento da confermare
   nudgeCm: 1,            // ultimo passo (cm) usato dalle frecce di spostamento
+  multiSel: [],          // SELEZIONE MULTIPLA: id dei mobili selezionati insieme (Ctrl/Cmd + clic)
+  multiModo: false,      // telefono: «Seleziona più mobili» (ogni tocco aggiunge o toglie)
 };
 let pareteSelId = null;  // muro toccato nello Step 1
 // --- PIANTA A MANO LIBERA (Step 1) ---
@@ -227,6 +229,22 @@ document.addEventListener('keydown', (e) => {
   if (ctrl && k === 'z' && !e.shiftKey) { e.preventDefault(); annullaStoria(); return; }
   if (ctrl && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); rifaiStoria(); return; }
 
+  // SELEZIONE MULTIPLA: Ctrl/Cmd + A seleziona tutto il passo; frecce, Canc, R ed Esc valgono per il gruppo
+  const stMob = progetto.stepCorrente === 2 || progetto.stepCorrente === 3 || progetto.stepCorrente === P_ACC;
+  if (ctrl && k === 'a' && stMob) {
+    e.preventDefault();
+    step2.multiSel = (progetto.mobiliLiberi || []).filter(spostabileQui).map((x) => x.id);
+    step2.mobSelId = step2.multiSel[step2.multiSel.length - 1] ?? null;
+    if (step2.multiSel.length < 2) step2.multiSel = [];
+    step2.movePending = null; aggiorna(); return;
+  }
+  if (stMob && gruppoAttivo()) {
+    if (k === 'delete' || k === 'backspace') { e.preventDefault(); eliminaGruppo(); return; }
+    if (k === 'r' && !ctrl) { e.preventDefault(); ruotaGruppo(); return; }
+    if (k === 'escape') { svuotaMulti(); step2.mobSelId = null; step2.movePending = null; aggiorna(); return; }
+    const d = { arrowup: [0, 1], arrowdown: [0, -1], arrowleft: [-1, 0], arrowright: [1, 0] }[k];
+    if (d) { e.preventDefault(); nudgeGruppo(d[0] * 10, d[1] * 10); return; }   // 1 cm
+  }
   const m = trovaMobileLibero(progetto, step2.mobSelId);
 
   if (ctrl && k === 'c') { if (m) clipboardMobile = JSON.parse(JSON.stringify(m)); e.preventDefault(); return; }
@@ -300,9 +318,9 @@ function renderPannelloPasso() {
 // (il mobile o l'oggetto selezionato, con il suo colore) e ciò che va sistemato.
 const TENDINE_APERTE = {
   1: [],
-  2: ['Mobile selezionato', 'Da sistemare'],
-  3: ['Mobile selezionato', 'Da sistemare'],
-  4: ['Oggetto selezionato'],
+  2: ['Mobile selezionato', 'Mobili selezionati', 'Da sistemare'],
+  3: ['Mobile selezionato', 'Mobili selezionati', 'Da sistemare'],
+  4: ['Oggetto selezionato', 'Oggetti selezionati'],
   5: ['Da sistemare', 'Modulo selezionato', 'Oggetto selezionato', 'Colore ante', 'Colore ·'],
 };
 /** SFONDO del 3D: tre pallini in alto a destra sopra la vista (chiaro, neutro, scuro). */
@@ -676,7 +694,7 @@ function renderPannelloModuli() {
       <div class="barra-progresso"><div class="riempita" style="width:${perc}%"></div></div>
     </section>
 
-    ${blocMobileSelezionato()}
+    ${gruppoAttivo() ? blocMultiSel() : blocMobileSelezionato()}
 
     ${spaziGaps.length ? `
     <section>
@@ -971,8 +989,10 @@ function attaccaEventiStep2() {
     if (n === 0) alert('Nessuno spazio da riempire.');
   });
 
-  const mobSel = trovaMobileLibero(progetto, step2.mobSelId);
+  if (gruppoAttivo()) agganciaMultiSel();
+  const mobSel = gruppoAttivo() ? null : trovaMobileLibero(progetto, step2.mobSelId);
   if (mobSel) {
+    agganciaModoMulti();
     agganciaBaseAngolo(pannello, mobSel);
     agganciaDistanzaFrigo(pannello, mobSel);
     agganciaColoreFrigo(pannello, mobSel);
@@ -1594,6 +1614,13 @@ function agganciaCatalogoAccessori(root) {
 }
 /** PASSO 4 — ACCESSORI: catalogo a tendine; nella pianta si vedono e si spostano solo gli oggetti. */
 function renderPannelloAccessori() {
+  if (gruppoAttivo()) {
+    pannello.innerHTML = blocMultiSel();
+    document.getElementById('sposta-ok')?.addEventListener('click', confermaSpostamento);
+    document.getElementById('sposta-annulla')?.addEventListener('click', annullaSpostamento);
+    agganciaMultiSel();
+    return;
+  }
   const sel = trovaMobileLibero(progetto, step2.mobSelId);
   if (sel && categoriaTipo(sel.tipo) === 'oggetto') return renderPannelloOggetto(sel);
   pannello.innerHTML = `
@@ -1805,7 +1832,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121u');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121v');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1855,6 +1882,7 @@ function renderPannelloOggetto(m) {
       <div class="opzioni-anta">
         <button type="button" class="btn-ghost" id="ogg-ruota">⟳ Ruota 90°</button>
         <button type="button" class="btn-ghost" id="ogg-elimina">Elimina</button>
+        ${htmlModoMulti()}
       </div>
     </section>
     <section class="actions">
@@ -1866,7 +1894,8 @@ function renderPannelloOggetto(m) {
   }));
   document.getElementById('ogg-ruota').addEventListener('click', () => { registraStoria(); ruotaMobileLibero(progetto, m.id); aggiorna(); });
   document.getElementById('ogg-elimina').addEventListener('click', () => { registraStoria(); rimuoviMobileLibero(progetto, m.id); step2.mobSelId = null; aggiorna(); });
-  document.getElementById('mob-deseleziona').addEventListener('click', () => { step2.mobSelId = null; aggiorna(); });
+  document.getElementById('mob-deseleziona').addEventListener('click', () => { step2.mobSelId = null; svuotaMulti(); aggiorna(); });
+  agganciaModoMulti();
 }
 
 function renderPannelloModificaMobile(m) {
@@ -2461,6 +2490,7 @@ function disegna() {
       pareteAttivaId: st === 2 ? step2.pareteAttivaId : null,
       pareteSelId: st === 1 ? pareteSelId : null,
       mobSelId: step2.mobSelId,
+      multiSel: (st === 2 || st === 3 || st === P_ACC) ? step2.multiSel : [],
       manoLibera: st === 1 && manoLibera,
       aggiunta: aggiuntaParete,
       verticeSel,
@@ -2581,13 +2611,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121u');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121v');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121u'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121v'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -3078,6 +3108,7 @@ function blocMobileSelezionato() {
         ${categoriaTipo(m.tipo) === 'base' && cieco ? `<button id="mob-cieco" class="btn-ghost attivo" type="button">✓ ⌐ Angolo cieco (auto) — togli</button>` : (categoriaTipo(m.tipo) === 'base' ? `<button id="mob-cieco" class="btn-ghost" type="button">⌐ Forza angolo cieco qui</button>` : '')}
         <button id="mob-misura" class="btn-ghost" type="button">Cambia misura</button>
         <button id="mob-elimina" class="btn-ghost" type="button">Elimina</button>
+        ${htmlModoMulti()}
       </div>
       ${htmlBaseAngolo(m)}
       ${htmlPianoTavolo(m)}
@@ -3286,14 +3317,194 @@ function confermaSpostamento() {
 function annullaSpostamento() {
   const mp = step2.movePending;
   if (mp) {
-    const m = trovaMobileLibero(progetto, mp.id);
-    if (m) {
-      m.x = mp.prima.x; m.y = mp.prima.y; m.rot = mp.prima.rot;
-      if (mp.prima.posManuale) m.posManuale = true; else delete m.posManuale;
+    for (const { id, prima } of (mp.gruppo || [{ id: mp.id, prima: mp.prima }])) {
+      const m = trovaMobileLibero(progetto, id);
+      if (!m) continue;
+      m.x = prima.x; m.y = prima.y; m.rot = prima.rot;
+      if (prima.posManuale) m.posManuale = true; else delete m.posManuale;
+      if (mp.gruppo) { if (prima.rotManuale) m.rotManuale = true; else delete m.rotManuale; }
     }
   }
   step2.movePending = null;
   aggiorna();
+}
+
+// --------- SELEZIONE MULTIPLA (Ctrl / Cmd + clic, o «Seleziona più mobili» sul telefono) ---------
+// Si scelgono più mobili e si spostano tutti insieme: trascinandone uno, con le frecce
+// «Sposta di X cm», con i tasti freccia, o si girano / eliminano insieme.
+/** Il mobile si può spostare a questo passo? (bassi / alti / accessori, come il trascinamento) */
+function spostabileQui(m) {
+  if (!m) return false;
+  const st = progetto.stepCorrente;
+  if (!(st === 2 || st === 3 || st === P_ACC)) return false;
+  const eOgg = categoriaTipo(m.tipo) === 'oggetto';
+  return st === P_ACC ? eOgg : (!eOgg && livelloDiMobile(m) === livelloStep());
+}
+/** Mobili della selezione multipla (solo quelli che esistono ancora e si spostano a questo passo). */
+function mobiliMulti() {
+  step2.multiSel = (step2.multiSel || []).filter((id) => spostabileQui(trovaMobileLibero(progetto, id)));
+  if (!step2.multiSel.length && !spostabileQui(trovaMobileLibero(progetto, step2.mobSelId))) step2.multiModo = false;
+  return step2.multiSel.map((id) => trovaMobileLibero(progetto, id));
+}
+/** Più di un mobile selezionato: il pannello mostra il gruppo. */
+function gruppoAttivo() { return mobiliMulti().length > 1; }
+/** Aggiunge o toglie un mobile dalla selezione multipla. */
+function cambiaMulti(m) {
+  const s = step2.multiSel;
+  // il mobile già selezionato da solo entra nel gruppo
+  if (!s.length && step2.mobSelId != null && step2.mobSelId !== m.id && spostabileQui(trovaMobileLibero(progetto, step2.mobSelId))) s.push(step2.mobSelId);
+  const i = s.indexOf(m.id);
+  if (i >= 0) s.splice(i, 1); else s.push(m.id);
+  step2.mobSelId = s.length ? s[s.length - 1] : null;
+  if (s.length < 2 && !step2.multiModo) step2.multiSel = [];
+  step2.movePending = null;
+}
+function svuotaMulti() { step2.multiSel = []; step2.multiModo = false; }
+const fotoPos = (m) => ({ x: m.x, y: m.y, rot: m.rot, posManuale: !!m.posManuale, rotManuale: !!m.rotManuale });
+/**
+ * Sposta il gruppo di (ddx, ddy) mm rispetto alla partenza: resta RIGIDO (le distanze fra i
+ * mobili non cambiano) e nessuno esce dalla stanza — se uno tocca il muro, si ferma tutto il gruppo.
+ * gruppo: [{ id, prima:{x,y} }]. Ritorna true se qualcosa si è mosso.
+ */
+function spostaGruppo(gruppo, ddx, ddy) {
+  const membri = gruppo.map((g) => ({ g, m: trovaMobileLibero(progetto, g.id) })).filter((x) => x.m);
+  if (!membri.length) return false;
+  // Si parte da dove il gruppo è ORA (già dentro la stanza) e si va verso il dito a piccoli passi
+  // (8 cm): così un muro ferma sempre il gruppo, anche col dito veloce o molto oltre il muro.
+  let ox = membri[0].m.x - membri[0].g.prima.x, oy = membri[0].m.y - membri[0].g.prima.y;
+  const n = Math.max(1, Math.ceil(Math.hypot(ddx - ox, ddy - oy) / 80));
+  const sx = (ddx - ox) / n, sy = (ddy - oy) / n;    // passo fisso: se il muro blocca, il resto non salta oltre
+  for (let i = 0; i < n; i++) {
+    let wx = ox + sx, wy = oy + sy;
+    // correzione comune: il gruppo resta RIGIDO, nessuno entra nel muro
+    for (let pass = 0; pass < 4; pass++) {
+      let ex = 0, ey = 0;
+      for (const { g, m } of membri) {
+        const px = g.prima.x + wx, py = g.prima.y + wy;
+        const v = posizionaVincolata(progetto, { ...m, x: px, y: py }, px, py, true);
+        if (Math.abs(v.x - px) > Math.abs(ex)) ex = v.x - px;
+        if (Math.abs(v.y - py) > Math.abs(ey)) ey = v.y - py;
+      }
+      if (Math.abs(ex) < 0.5 && Math.abs(ey) < 0.5) break;
+      wx += ex; wy += ey;
+    }
+    ox = wx; oy = wy;
+  }
+  let cambiato = false;
+  for (const { g, m } of membri) {
+    const nx = Math.round(g.prima.x + ox), ny = Math.round(g.prima.y + oy);
+    if (nx !== m.x || ny !== m.y) { m.x = nx; m.y = ny; cambiato = true; }
+  }
+  return cambiato;
+}
+/** Spostamento del gruppo da confermare (barra Conferma / Annulla, come per un mobile solo). */
+function avviaSpostamentoGruppo(membri) {
+  if (!step2.movePending || !step2.movePending.gruppo) {
+    step2.movePending = { id: membri[0].id, prima: fotoPos(membri[0]), gruppo: membri.map((m) => ({ id: m.id, prima: fotoPos(m) })) };
+  }
+  membri.forEach((m) => { m.posManuale = true; });
+}
+function nudgeGruppo(dx, dy) {
+  const membri = mobiliMulti();
+  if (membri.length < 2 || (!dx && !dy)) return;
+  registraStoria();
+  avviaSpostamentoGruppo(membri);
+  spostaGruppo(membri.map((m) => ({ id: m.id, prima: { x: m.x, y: m.y } })), dx, dy);
+  aggiorna();
+}
+/** Gira tutto il gruppo di 90° attorno al suo centro (come un pezzo unico: isola + tavolo + sgabelli). */
+function ruotaGruppo() {
+  const membri = mobiliMulti();
+  if (membri.length < 2) return;
+  registraStoria();
+  avviaSpostamentoGruppo(membri);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const m of membri) { x0 = Math.min(x0, m.x); x1 = Math.max(x1, m.x); y0 = Math.min(y0, m.y); y1 = Math.max(y1, m.y); }
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  for (const m of membri) {
+    const rx = m.x - cx, ry = m.y - cy;           // +90° (antiorario, y della pianta in su)
+    m.x = Math.round(cx - ry); m.y = Math.round(cy + rx);
+    m.rot = ((m.rot || 0) + 90) % 360;
+    if (categoriaTipo(m.tipo) !== 'oggetto') m.rotManuale = true;
+  }
+  spostaGruppo(membri.map((m) => ({ id: m.id, prima: { x: m.x, y: m.y } })), 0, 0);   // dentro la stanza
+  aggiorna();
+}
+function eliminaGruppo() {
+  const membri = mobiliMulti();
+  if (!membri.length) return;
+  registraStoria();
+  membri.forEach((m) => rimuoviMobileLibero(progetto, m.id));
+  svuotaMulti(); step2.mobSelId = null; step2.movePending = null;
+  aggiorna();
+}
+/** Pannello del gruppo selezionato. */
+function blocMultiSel() {
+  const membri = mobiliMulti();
+  const acc = progetto.stepCorrente === P_ACC;
+  const pend = step2.movePending && step2.movePending.gruppo;
+  const tasto = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '') ? 'Cmd' : 'Ctrl';
+  return `
+    ${pend ? `
+    <section class="sposta-conferma">
+      <div class="sposta-conferma-txt">✋ Hai spostato <strong>${membri.length} ${acc ? 'oggetti' : 'mobili'}</strong>. Confermi la nuova posizione?</div>
+      <div class="orienta-row" style="margin-top:8px">
+        <button id="sposta-ok" class="btn-oro" type="button" style="flex:1">✓ Conferma spostamento</button>
+        <button id="sposta-annulla" class="btn-ghost" type="button" style="flex:1">↩ Annulla</button>
+      </div>
+    </section>` : ''}
+    <section>
+      <h3>${acc ? 'Oggetti selezionati' : 'Mobili selezionati'}</h3>
+      <div class="riga-3d"><strong>${membri.length}</strong> ${acc ? 'oggetti selezionati' : 'mobili selezionati'}: trascinane uno e si spostano tutti insieme.</div>
+      <div class="multi-lista">${membri.map((m) => `<span class="multi-pill">${escHtml(nomeTipo(m.tipo))}${dimMobile(m).w ? `<span data-no-i18n> ${Math.round(dimMobile(m).w / 10)}</span>` : ''}</span>`).join('')}</div>
+      <div class="mob-azioni-grid" style="margin-top:8px">
+        <button id="multi-ruota" class="btn-ghost" type="button">⟳ Ruota insieme 90°</button>
+        <button id="multi-elimina" class="btn-ghost" type="button">Elimina tutti</button>
+        <button id="multi-fine" class="btn-ghost" type="button">Deseleziona</button>
+        ${htmlModoMulti()}
+      </div>
+      <div class="nudge">
+        <label class="nudge-cm">Sposta di <input id="nudge-cm" type="number" value="${step2.nudgeCm ?? 1}" min="0.1" step="0.5" inputmode="decimal"> cm</label>
+        <div class="nudge-grid">
+          <button id="nudge-su" class="btn-ghost" type="button" title="Su">↑</button>
+          <button id="nudge-sx" class="btn-ghost" type="button" title="Sinistra">←</button>
+          <button id="nudge-dx" class="btn-ghost" type="button" title="Destra">→</button>
+          <button id="nudge-giu" class="btn-ghost" type="button" title="Giù">↓</button>
+        </div>
+      </div>
+      <div class="mod-vuoto"><span data-no-i18n>${tasto}</span> ${acc
+        ? '+ clic su un oggetto: lo aggiungi o lo togli dal gruppo. Sul telefono: «Seleziona più oggetti» e tocca gli oggetti. Tocca un punto vuoto per deselezionare.'
+        : '+ clic su un mobile: lo aggiungi o lo togli dal gruppo. Sul telefono: «Seleziona più mobili» e tocca i mobili. Tocca un punto vuoto per deselezionare.'}</div>
+    </section>`;
+}
+/** Pulsante «Seleziona più mobili» (sul telefono non c'è Ctrl: ogni tocco aggiunge o toglie). */
+function htmlModoMulti() {
+  const parola = progetto.stepCorrente === P_ACC ? 'oggetti' : 'mobili';
+  return `<button id="multi-modo" class="btn-ghost ${step2.multiModo ? 'attivo' : ''}" type="button">${step2.multiModo ? '✓ ' : ''}☐ Seleziona più ${parola}</button>`;
+}
+function agganciaModoMulti(root = pannello) {
+  root.querySelector('#multi-modo')?.addEventListener('click', () => {
+    step2.multiModo = !step2.multiModo;
+    if (step2.multiModo && !step2.multiSel.length && spostabileQui(trovaMobileLibero(progetto, step2.mobSelId))) step2.multiSel = [step2.mobSelId];
+    if (!step2.multiModo && step2.multiSel.length < 2) step2.multiSel = [];
+    aggiorna();
+  });
+}
+function agganciaMultiSel(root = pannello) {
+  root.querySelector('#multi-ruota')?.addEventListener('click', ruotaGruppo);
+  root.querySelector('#multi-elimina')?.addEventListener('click', eliminaGruppo);
+  agganciaModoMulti(root);
+  root.querySelector('#multi-fine')?.addEventListener('click', () => { svuotaMulti(); step2.mobSelId = null; step2.movePending = null; aggiorna(); });
+  const nudge = (dx, dy) => {
+    const cm = parseFloat(root.querySelector('#nudge-cm')?.value) || 0;
+    step2.nudgeCm = cm || step2.nudgeCm;
+    const mm = Math.round(cm * 10);
+    if (mm) nudgeGruppo(dx * mm, dy * mm);
+  };
+  root.querySelector('#nudge-su')?.addEventListener('click', () => nudge(0, 1));
+  root.querySelector('#nudge-giu')?.addEventListener('click', () => nudge(0, -1));
+  root.querySelector('#nudge-sx')?.addEventListener('click', () => nudge(-1, 0));
+  root.querySelector('#nudge-dx')?.addEventListener('click', () => nudge(1, 0));
 }
 
 // --------- PIANTA A MANO LIBERA (Step 1) ---------
@@ -3504,18 +3715,24 @@ svg.addEventListener('pointerdown', (e) => {
     if (!m) return;
     // Solo i mobili del livello attivo sono spostabili: gli altri sono bloccati.
     // Al passo Accessori si spostano SOLO gli oggetti; ai passi dei moduli gli oggetti non ci sono.
-    const eOgg = categoriaTipo(m.tipo) === 'oggetto';
-    if (progetto.stepCorrente === P_ACC ? !eOgg : (eOgg || livelloDiMobile(m) !== livelloStep())) return;
-    // Spostamento in sospeso su un ALTRO mobile: resta confermato (posManuale).
-    if (step2.movePending && step2.movePending.id !== m.id) step2.movePending = null;
+    if (!spostabileQui(m)) return;
+    // SELEZIONE MULTIPLA: Ctrl / Cmd (o «Seleziona più mobili» sul telefono). Un clic senza
+    // trascinare aggiunge o toglie il mobile dal gruppo (si decide al rilascio).
+    const aggiungi = !!(e.ctrlKey || e.metaKey) || step2.multiModo;
+    const membri = mobiliMulti();
+    const inGruppo = membri.length > 1 && step2.multiSel.includes(m.id);
+    // Spostamento in sospeso su un ALTRO mobile (o gruppo): resta confermato (posManuale).
+    if (step2.movePending && (inGruppo ? !step2.movePending.gruppo : (step2.movePending.gruppo || step2.movePending.id !== m.id))) step2.movePending = null;
     const p = puntoMm(e);
     registraStoria();
     vbFisso = svg.getAttribute('viewBox');          // la vista resta FERMA mentre lo sposti (niente zoom che scappa)
-    trascinamento = { id: m.id, dx: m.x - p.x, dy: m.y - p.y, mosso: false,
-      prima: { x: m.x, y: m.y, rot: m.rot, posManuale: !!m.posManuale } };
+    trascinamento = { id: m.id, dx: m.x - p.x, dy: m.y - p.y, mosso: false, aggiungi,
+      prima: { x: m.x, y: m.y, rot: m.rot, posManuale: !!m.posManuale },
+      // trascinando un mobile del gruppo si spostano tutti insieme
+      gruppo: inGruppo ? membri.map((x) => ({ id: x.id, prima: fotoPos(x) })) : null };
     try { svg.setPointerCapture(e.pointerId); } catch (_) { /* puntatore non attivo */ }
     e.preventDefault();
-    step2.mobSelId = m.id;
+    if (!aggiungi && !inGruppo) { step2.mobSelId = m.id; step2.multiSel = []; }
     return;
   }
   const hit = e.target.closest && e.target.closest('[data-parete-id]');
@@ -3525,9 +3742,9 @@ svg.addEventListener('pointerdown', (e) => {
     aggiorna();
     return;
   }
-  // tocco sul vuoto: deseleziona
-  if (step2.mobSelId !== null || pareteSelId !== null || step2.movePending) {
-    step2.mobSelId = null; pareteSelId = null; step2.movePending = null; aggiorna();
+  // tocco sul vuoto: deseleziona (anche il gruppo)
+  if (step2.mobSelId !== null || pareteSelId !== null || step2.movePending || step2.multiSel.length || step2.multiModo) {
+    step2.mobSelId = null; pareteSelId = null; step2.movePending = null; svuotaMulti(); aggiorna();
   }
 });
 svg.addEventListener('pointermove', (e) => {
@@ -3535,6 +3752,15 @@ svg.addEventListener('pointermove', (e) => {
   const m = trovaMobileLibero(progetto, trascinamento.id);
   if (!m) return;
   const p = puntoMm(e);
+  // GRUPPO: tutti i mobili selezionati seguono il dito, insieme e alla stessa distanza
+  if (trascinamento.gruppo) {
+    const ddx = snap(p.x + trascinamento.dx) - trascinamento.prima.x;
+    const ddy = snap(p.y + trascinamento.dy) - trascinamento.prima.y;
+    if (spostaGruppo(trascinamento.gruppo, ddx, ddy)) { trascinamento.mosso = true; disegna(); }
+    return;
+  }
+  // Ctrl + trascina un mobile fuori dal gruppo: si sposta lui solo (libero), e diventa il selezionato
+  if (trascinamento.aggiungi && !trascinamento.mosso && !step2.multiModo) { step2.mobSelId = m.id; step2.multiSel = []; }
   // Aggancio alla griglia fine SOLO sulla posizione del dito; dopo i vincoli
   // (muri e collisioni) non ri-aggancio, così il mobile tocca il vicino esatto.
   const rx = snap(p.x + trascinamento.dx), ry = snap(p.y + trascinamento.dy);
@@ -3570,10 +3796,24 @@ const fineTrascinamento = () => {
   const prima = trascinamento.prima;
   const id = trascinamento.id;
   const trascinamento_ultimo = trascinamento.ultimo;
+  const aggiungi = trascinamento.aggiungi, gruppo = trascinamento.gruppo;
   trascinamento = null;
   if (!mosso) {
     // Tap senza spostamento: annullo lo snapshot registrato al pointerdown
     if (storiaPast.length) storiaPast.pop();
+    // Ctrl / Cmd + clic (o «Seleziona più mobili»): aggiunge o toglie il mobile dal gruppo
+    const mt = trovaMobileLibero(progetto, id);
+    if (aggiungi && mt) cambiaMulti(mt);
+    // clic semplice (senza trascinare) su un mobile del gruppo: resta selezionato solo lui
+    else if (gruppo && mt) { step2.multiSel = []; step2.mobSelId = mt.id; step2.movePending = null; }
+    aggiorna();
+    return;
+  }
+  if (gruppo) {
+    // GRUPPO spostato: posizioni bloccate (posManuale) e barra Conferma / Annulla
+    const membri = gruppo.map((g) => trovaMobileLibero(progetto, g.id)).filter(Boolean);
+    membri.forEach((x) => { if (categoriaTipo(x.tipo) === 'oggetto') mettiNelVano(progetto, x); x.posManuale = true; });
+    if (!step2.movePending || !step2.movePending.gruppo) step2.movePending = { id, prima, gruppo };
     aggiorna();
     return;
   }

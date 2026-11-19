@@ -11,7 +11,7 @@ import {
   moduliDiParete, nomeTipo, PROFONDITA_BASE, PROFONDITA_PENSILE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
   dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili, angoloInternoVertice, rettangoloSoffitto,
-} from './modello.js?v=20261121u';
+} from './modello.js?v=20261121v';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -30,7 +30,7 @@ const PASSO_GRIGLIA = 100;     // mm (passo primario)
 const PASSO_GRIGLIA_MAGG = 1000; // mm (linea più visibile ogni 1 m)
 
 /**
- * opts: { pareteAttivaId, pareteSelId, mobSelId, interattivo }
+ * opts: { pareteAttivaId, pareteSelId, mobSelId, multiSel, interattivo }
  *  - pareteAttivaId: muro su cui si lavora nello Step 2 (evidenziato)
  *  - pareteSelId: muro toccato nello Step 1 (per toglierlo/rimetterlo)
  *  - mobSelId: mobile libero selezionato
@@ -38,6 +38,7 @@ const PASSO_GRIGLIA_MAGG = 1000; // mm (linea più visibile ogni 1 m)
  */
 export function renderPianta(svg, progetto, opts = {}) {
   const { pareteAttivaId = null, pareteSelId = null, mobSelId = null, interattivo = false, livelloAttivo = null } = opts;
+  const multiSel = opts.multiSel || [];   // selezione multipla (Ctrl / Cmd + clic): tutti evidenziati
   const pareti = progetto.piano.pareti || [];
   const vertici = calcolaVertici(pareti);
 
@@ -253,7 +254,7 @@ export function renderPianta(svg, progetto, opts = {}) {
       // Colonne, frigo e costadi alti arrivano fin su: restano anche nascondendo i bassi.
       if (opts.nascondiLivello && livelloDiMobile(m) === opts.nascondiLivello && !(opts.nascondiLivello === 'basso' && arrivaInAlto(m))) return;
       const bloccato = opts.oggetti === 'attivi' ? !eOgg(m) : (livelloAttivo !== null && livelloDiMobile(m) !== livelloAttivo);
-      gMob.appendChild(renderMobileLibero(m, m.id === mobSelId, interattivo && !bloccato, bloccato));
+      gMob.appendChild(renderMobileLibero(m, m.id === mobSelId || multiSel.includes(m.id), interattivo && !bloccato, bloccato));
     });
     svg.appendChild(gMob);
 

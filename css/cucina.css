@@ -771,3 +771,16 @@
 .sfondo-pallini[hidden] { display: none; }
 .pallino-sfondo { width: 20px; height: 20px; border-radius: 50%; padding: 0; cursor: pointer; border: 1px solid rgba(255,255,255,.35); box-shadow: 0 0 0 2px transparent; }
 .pallino-sfondo.sel { box-shadow: 0 0 0 2px #c9a961; border-color: #c9a961; }
+
+/* SELEZIONE MULTIPLA: elenco dei mobili del gruppo */
+.multi-lista { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.multi-pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(201, 169, 74, .55); color: inherit; background: rgba(201, 169, 74, .12); }
+
+/* TELEFONO / TABLET: la pianta resta SEMPRE grande e la barra dei mobili va sotto, senza
+   rubarle lo spazio (con tanti mobili la barra va su 5 righe e la pianta spariva, alta 0). */
+@media (max-width: 980px) {
+  .cucina-app { grid-template-rows: auto auto auto; }
+  .cucina-vista { min-height: 62vh; overflow: visible; }
+  #pianta-svg { flex: 1 0 auto; height: 52vh; min-height: 300px; }
+  #cucina-3d { flex: 1 0 auto; height: 58vh; min-height: 320px; }
+}
