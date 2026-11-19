@@ -98,6 +98,8 @@ function mat(nome) {
     // sfera di vetro CROMATA (specchiata fuori e dentro)
     case 'vetro-cromato': m = new THREE.MeshStandardMaterial({ color: 0xd4d6d8, metalness: 1, roughness: 0.3, side: THREE.DoubleSide }); break;
     // il bordo del vetro dove è tagliato (si vede come un anello chiaro)
+    // vetro della lampadina: trasparente, si accende caldo con la lampada
+    case 'vetro-lampadina': m = new THREE.MeshPhysicalMaterial({ color: 0xfff6ea, metalness: 0, roughness: 0.05, transmission: 1, thickness: 0, ior: 1.5 }); break;
     case 'vetro-bordo': m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0.25, transmission: 0.55, thickness: 0, ior: 1.5 }); break;
     case 'alluminio-nero': m = new THREE.MeshStandardMaterial({ color: 0x1b1a19, metalness: 0.2, roughness: 0.66 }); break;   // profilo verniciato a polvere, opaco
     case 'nero-satinato': m = new THREE.MeshStandardMaterial({ color: 0x0f0f10, metalness: 0.35, roughness: 0.5 }); break;
@@ -1585,17 +1587,18 @@ function lampadaSfereVetro(vetri, interasse, binario, soffitto = SOFFITTO) {
     p.add(tubo(8.5, 8.5, R + 9, R + 128, 'cromo'));
     p.add(tubo(9.5, 9.5, R + 128, R + 131, 'cromo'));
     // dentro la sfera: tubo, portalampada e anello in ottone
-    p.add(tubo(6.5, 6.5, 20, R - 2, 'cromo'));
-    p.add(tubo(12, 12, 0, 20, 'cromo'));
-    p.add(tubo(12.6, 12.6, -5, 0, 'ottone'));
-    // lampadina a globo (Ø 48) con il filamento LED a U
-    const bulbo = new THREE.Mesh(new THREE.SphereGeometry(24, 28, 20), mat('vetro-stellato')); bulbo.position.y = -30; p.add(bulbo);
-    p.add(tubo(9, 11, -9, -5, 'vetro-stellato', 16));
+    p.add(tubo(6.5, 6.5, 26, R - 2, 'cromo'));
+    p.add(tubo(12.5, 12.5, 6, 26, 'cromo'));
+    p.add(tubo(13.5, 13.5, 0, 6, 'ottone'));
+    // lampadina a globo (Ø 54, come nella foto: un terzo della sfera) con il filamento LED a U;
+    // il suo vetro si accende caldo
+    const bulbo = new THREE.Mesh(new THREE.SphereGeometry(27, 30, 22), mat('vetro-lampadina')); bulbo.position.y = -27; p.add(bulbo);
+    p.add(tubo(10, 12, -4, 0, 'vetro-lampadina', 16));
     for (const s of [-1, 1]) {
-      const f = new THREE.CatmullRomCurve3([V3(s * 2, -10, 0), V3(s * 5, -22, 0), V3(s * 7, -36, 0), V3(s * 3, -44, 0), V3(0, -45, 0)]);
-      p.add(new THREE.Mesh(new THREE.TubeGeometry(f, 24, 0.9, 6), mat('led-caldo')));
+      const f = new THREE.CatmullRomCurve3([V3(s * 2, -6, 0), V3(s * 6, -20, 0), V3(s * 8, -34, 0), V3(s * 4, -44, 0), V3(0, -45, 0)]);
+      p.add(new THREE.Mesh(new THREE.TubeGeometry(f, 24, 1, 6), mat('led-caldo')));
     }
-    const luce = new THREE.Object3D(); luce.position.y = -30; luce.userData.puntoLuce = true; p.add(luce);
+    const luce = new THREE.Object3D(); luce.position.y = -27; luce.userData.puntoLuce = true; p.add(luce);
     g.add(p);
     attacchi.push(V3(x, Yc + R + 131, 0));
   });
