@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261121i';
+import { parametri } from '../parametri.js?v=20261121j';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -220,7 +220,7 @@ export function nomeVarianteColonna(id) {
  * Serve alla distinta (il 3D fa lo stesso conto con i suoi pezzi).
  */
 export function infoTavolo(progetto, m, spTop = 40) {
-  const w = m.larghezza_mm || 1800, d = m.profondita_mm || 900, sp = Math.max(6, m.spessore_mm || 40);
+  const w = m.larghezza_mm || 1800, d = m.profondita_mm || 900, sp = spessoreTavolo(m);
   const r = ((m.rot || 0) * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r);
   const P = (lx, ly) => ({ x: m.x + lx * c - ly * s, y: m.y + lx * s + ly * c });
   const basi = (progetto.mobiliLiberi || []).filter((b) => ['base', 'lavastoviglie', 'lavatrice'].includes(categoriaTipo(b.tipo)));
@@ -266,8 +266,12 @@ export const APPOGGI_TAVOLO = [
   { id: 'vetro',       nome: 'Gamba in vetro' },
   { id: 'gambe-nere',  nome: 'Due gambe in metallo nero' },
   { id: 'gambe-oro',   nome: 'Due gambe in ottone' },
+  { id: 'una-nera',    nome: 'Una gamba in metallo nero' },
+  { id: 'una-oro',     nome: 'Una gamba in ottone' },
   { id: 'nessuno',     nome: 'Nessuno (a sbalzo)' },
 ];
+/** Spessore TOTALE del piano / tavolo: un pannello × quanti ne metti uno sopra l'altro. */
+export function spessoreTavolo(m) { return Math.max(6, m.spessore_mm || 40) * Math.max(1, Math.min(3, m.strati || 1)); }
 export function nomeAppoggioTavolo(id) { return (APPOGGI_TAVOLO.find((a) => a.id === id) || APPOGGI_TAVOLO[0]).nome; }
 /** Pezzi che si posano LIBERI come l'arredo: non spingono e non sono spinti dai mobili (il piano/tavolo entra nell'isola). */
 export function posaLibera(tipo) { const c = categoriaTipo(tipo); return c === 'oggetto' || c === 'tavolo'; }
@@ -304,7 +308,8 @@ export function campiMobile(tipoId) {
       { campo: 'profondita_mm', et: 'Larghezza del piano (mm)', tipo: 'numero', min: 150, step: 10, opzioni: [600, 800, 900, 1000, 1200], default: 900 },
       { campo: 'quota',         et: 'Altezza', opzioni: [{ v: 'misura', l: 'Quella scritta qui sotto' }, { v: 'filo', l: 'A filo del piano della cucina' }], default: 'misura' },
       { campo: 'altezza_mm',    et: 'Altezza da terra del piano finito (mm)', tipo: 'numero', min: 200, step: 10, opzioni: [750, 900, 1050, 1100], default: 750 },
-      { campo: 'spessore_mm',   et: 'Spessore (mm)', tipo: 'numero', min: 6, step: 1, opzioni: [12, 20, 30, 40, 60, 80, 100], default: 40 },
+      { campo: 'spessore_mm',   et: 'Spessore di un pannello (mm)', tipo: 'numero', min: 6, step: 1, opzioni: [12, 16, 19, 20, 30, 40, 60, 80, 100], default: 40 },
+      { campo: 'strati',        et: 'Pannelli uno sopra l\'altro', opzioni: [1, 2, 3], default: 1 },
       { campo: 'appoggio',      et: 'Appoggio dove il piano è libero', opzioni: APPOGGI_TAVOLO.map((a) => ({ v: a.id, l: a.nome })), default: 'cascata' },
     ];
   }
@@ -383,7 +388,8 @@ export function descrizioneMobile(m) {
     return `${m.altezza_mm}×${m.profondita_mm} · sp ${m.spessore_mm}`;
   }
   if (cat === 'tavolo') {
-    return `${m.larghezza_mm}×${m.profondita_mm || 900} · sp ${m.spessore_mm || 40} · ${m.quota === 'filo' ? 'a filo del piano' : `h ${m.altezza_mm || 750}`}`;
+    const st = Math.max(1, m.strati || 1), spD = st > 1 ? `${st}×${m.spessore_mm || 40}` : `${m.spessore_mm || 40}`;
+    return `${m.larghezza_mm}×${m.profondita_mm || 900} · sp ${spD} · ${m.quota === 'filo' ? 'a filo del piano' : `h ${m.altezza_mm || 750}`}`;
   }
   if (m.tipo === 'colonna-misura') {
     return `${m.larghezza_mm}×${m.altezza_mm} · p ${m.profStruttura_mm || PROF_STRUTTURA_MISURA} · ${nomeVarianteColonna(m.variante)}`;

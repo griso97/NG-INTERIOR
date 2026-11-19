@@ -13,28 +13,28 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261121i';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121i';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261121i';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261121i';
+} from './modello.js?v=20261121j';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121j';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261121j';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261121j';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121i').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121j').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121i';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121i';
-import { parametri } from '../parametri.js?v=20261121i';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121i';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121i';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121j';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121j';
+import { parametri } from '../parametri.js?v=20261121j';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121j';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121j';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121i';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121j';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261121i';
+export { telaPavimento } from '../resa.js?v=20261121j';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -43,9 +43,10 @@ const SP_TOP = 40;
 function zoccoloPerAltezza(h) { return h >= 800 ? 100 : 150; }
 /** Spessore del piano di lavoro: scelto a mano per questa cucina, se no quello del materiale (nero standard 40). */
 function spessorePianoDi(progetto, encDef) {
-  const mano = progetto && progetto.encimera && Number(progetto.encimera.spessore);
-  if (mano > 0) return mano;
-  return (encDef && encDef.spessore != null) ? encDef.spessore : SP_TOP;
+  const enc = (progetto && progetto.encimera) || {};
+  const mano = Number(enc.spessore);
+  const uno = mano > 0 ? mano : (encDef && encDef.spessore != null) ? encDef.spessore : SP_TOP;
+  return uno * Math.max(1, Math.min(3, Number(enc.strati) || 1));          // pannelli uno sopra l'altro
 }
 
 // Altezza dominante dei mobili BASSI della cucina (quelli che poggiano a terra
@@ -271,7 +272,10 @@ function dimVasca(w, d) {
 }
 
 /** Misura del vetro del piano cottura (e del suo foro nel piano di lavoro). */
-function dimPlacca(w, d) { return { pw: Math.min(w - 40, 580), pd: Math.min(d - 80, 480) }; }
+// PLACCA a 2 fuochi = «domino» stretto (29 × 51 cm, zone una dietro l'altra); a 4 fuochi = 58 × 48
+function dimPlacca(w, d, fuochi = 4) {
+  return fuochi === 2 ? { pw: Math.min(w - 40, 290), pd: Math.min(d - 80, 510) } : { pw: Math.min(w - 40, 580), pd: Math.min(d - 80, 480) };
+}
 
 /** Lavello / piano cottura / rubinetto posati SOPRA la superficie del top.
  *  fin = { lavello: 'acciaio'|'nero', rubinetto: 'acciaio'|'nero' } */
@@ -359,7 +363,7 @@ function aggiungiAccessorioTop(a, fin = {}) {
   if (a.placca) {
     // Piano a induzione in VETROCERAMICA: vetro nero lucido con le zone e i
     // comandi disegnati sul vetro (come quelli veri), riflessi dell'ambiente
-    const { pw, pd } = dimPlacca(a.w, a.d);
+    const { pw, pd } = dimPlacca(a.w, a.d, a.fuochi);
     const sopra = new THREE.MeshPhysicalMaterial({ map: texPiano(pw, pd, a.fuochi), color: 0xffffff, roughness: 0.12,
       metalness: 0.0, clearcoat: 0.7, clearcoatRoughness: 0.05, envMapIntensity: 0.28 });
     // vetro da 6 mm sopra il piano fino a 20 mm dentro il foro; sopra la texture
@@ -545,7 +549,7 @@ function texPiano(pw, pd, fuochi) {
     // striscia comandi touch davanti (in basso nella texture = verso la stanza)
     const yc = h * 0.91; g.fillStyle = 'rgba(190,190,196,0.38)';
     g.font = `${Math.round(h * 0.045)}px Arial, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-    ['−', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+'].forEach((t, i, a) => g.fillText(t, w * (0.22 + (0.56 * i) / (a.length - 1)), yc));
+    (fuochi === 2 ? ['−', '1', '3', '5', '7', '9', '+'] : ['−', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+']).forEach((t, i, a) => g.fillText(t, w * (0.22 + (0.56 * i) / (a.length - 1)), yc));
     g.beginPath(); g.arc(w * 0.1, yc, h * 0.022, 0, Math.PI * 2); g.lineWidth = 1.4; g.strokeStyle = 'rgba(190,190,196,0.38)'; g.stroke();
   });
 }
@@ -2495,7 +2499,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       if (mm.tipo === 'forno' || mm.tipo === 'lavello') {
         accessori.push({ id: mm.id, x: px, y: py, rot: p.angolo_gradi, w: mm.larghezza_mm, d: PROFONDITA_BASE,
           surfaceY: zocc + porta + spTop, placca: mm.tipo === 'forno', lavello: mm.tipo === 'lavello',
-          fuochi: fuochiPerLarghezza(mm.larghezza_mm) });
+          fuochi: mm.fuochi || fuochiPerLarghezza(mm.larghezza_mm) });
       }
     }
   });
@@ -2718,7 +2722,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       if (hasPlacca || hasLavello) {
         accessori.push({ id: m.id, x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d,
           surfaceY: zocc + porta + spTop, placca: hasPlacca, lavello: hasLavello,
-          fuochi: fuochiPerLarghezza(dim.w) });
+          fuochi: m.fuochi || fuochiPerLarghezza(dim.w) });
       }
     }
     if (g3d) { g3d.userData.mobId = m.id; if (m.id === selId) evidenzia(g3d); gruppo.add(g3d); }
@@ -3058,10 +3062,12 @@ function slabRitagliata(len, thickness, depth, mat, fori, tagli) {
 const _matVetroTavolo = new THREE.MeshStandardMaterial({ color: 0xdbe8e3, roughness: 0.06, metalness: 0, transparent: true, opacity: 0.22, depthWrite: false });
 _matVetroTavolo.userData.vetro = true;
 const _matBordoVetro = new THREE.LineBasicMaterial({ color: 0x8fb3a6, transparent: true, opacity: 0.75 });
+const _matGiunta = new THREE.LineBasicMaterial({ color: 0x2a2520, transparent: true, opacity: 0.45 });
 const _matGambe = {
   'gambe-nere': new THREE.MeshStandardMaterial({ color: 0x1b1a19, roughness: 0.55, metalness: 0.35 }),
-  'gambe-oro': new THREE.MeshStandardMaterial({ color: 0xb08d57, roughness: 0.28, metalness: 1 }),
+  'gambe-oro': new THREE.MeshStandardMaterial({ color: 0xe2bf72, roughness: 0.3, metalness: 0.75 }),      // come le maniglie «Oro spazzolato»
 };
+_matGambe['una-nera'] = _matGambe['gambe-nere']; _matGambe['una-oro'] = _matGambe['gambe-oro'];
 function renderTavoli(tavoli, basiTop, spTop, matTop, muri, selId, reRender) {
   const tagli = [];
   if (!tavoli.length) return tagli;
@@ -3072,7 +3078,8 @@ function renderTavoli(tavoli, basiTop, spTop, matTop, muri, selId, reRender) {
     return Math.abs(lx) <= b.w / 2 + 1 && Math.abs(lz) <= (b.d || PROFONDITA_BASE) / 2 + 1;
   };
   for (const m of tavoli) {
-    const w = Math.max(100, m.larghezza_mm || 1800), d = Math.max(100, m.profondita_mm || 900), sp = Math.max(6, m.spessore_mm || 40);
+    const w = Math.max(100, m.larghezza_mm || 1800), d = Math.max(100, m.profondita_mm || 900);
+    const strati = Math.max(1, Math.min(3, m.strati || 1)), sp = Math.max(6, m.spessore_mm || 40) * strati;
     const g = new THREE.Group();
     g.position.set(m.x, 0, -m.y); g.rotation.y = -(m.rot || 0) * Math.PI / 180; g.updateMatrixWorld(true);
     const inPianta = (lx, lz) => { const v = g.localToWorld(new THREE.Vector3(lx, 0, lz)); return { x: v.x, y: -v.z }; };
@@ -3100,6 +3107,13 @@ function renderTavoli(tavoli, basiTop, spTop, matTop, muri, selId, reRender) {
     lastra.position.y = quota - sp / 2;
     lastra.traverse((o) => { if (o.isMesh) { o.userData.appoggio = true; o.castShadow = true; o.receiveShadow = true; } if (o.isLineSegments) o.visible = false; });
     g.add(lastra);
+    // PANNELLI INCOLLATI uno sopra l'altro: la riga di giunta si vede sul bordo, tutto intorno
+    for (let k = 1; k < strati; k++) {
+      const y = quota - (sp * k) / strati, e = 0.6;
+      const pts = [[-w / 2 - e, -d / 2 - e], [w / 2 + e, -d / 2 - e], [w / 2 + e, d / 2 + e], [-w / 2 - e, d / 2 + e]];
+      const geo = new THREE.BufferGeometry().setFromPoints(pts.flatMap((p, i) => { const q = pts[(i + 1) % 4]; return [new THREE.Vector3(p[0], y, p[1]), new THREE.Vector3(q[0], y, q[1])]; }));
+      g.add(new THREE.LineSegments(geo, _matGiunta));
+    }
     // APPOGGI: alle estremità libere (non dentro i mobili, non contro un muro)
     const app = m.appoggio || 'cascata';
     const hGamba = quota - sp;
@@ -3122,6 +3136,11 @@ function renderTavoli(tavoli, basiTop, spTop, matTop, muri, selId, reRender) {
         v.position.set(xE - e * 90, hGamba / 2, 0);
         v.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), _matBordoVetro));
         g.add(v);
+      } else if (app === 'una-nera' || app === 'una-oro') {
+        // UNA gamba sola, al centro dell'estremità libera
+        const gm = new THREE.Mesh(new THREE.BoxGeometry(80, hGamba, 80), _matGambe[app]);
+        gm.position.set(xE - e * 140, hGamba / 2, 0); gm.castShadow = true;
+        g.add(gm);
       } else if (_matGambe[app]) {
         for (const lz of [-d / 2 + 90, d / 2 - 90]) {
           const gm = new THREE.Mesh(new THREE.BoxGeometry(50, hGamba, 50), _matGambe[app]);
@@ -3299,7 +3318,7 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
         } else if (lv.placca) {
           // piano cottura INCASSATO: il vetro sta nel foro, così si vede da
           // qualsiasi distanza (sopra il piano "spariva" da lontano)
-          const { pw, pd } = dimPlacca(lv.w, lv.d);
+          const { pw, pd } = dimPlacca(lv.w, lv.d, lv.fuochi);
           fori.push({ u: k * (alongS - centerAlong), v: k * (perpTop - perpS), w: pw - 12, d: pd - 12 });
         }
       }

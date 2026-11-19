@@ -24,17 +24,17 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
-} from './modello.js?v=20261121i';
-import { renderPianta } from './pianta.js?v=20261121i';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121i';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261121i';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121i';
-import { calcolaDistintaCucina } from './distinta.js?v=20261121i';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121i';
-import { agganciaTema } from '../tema.js?v=20261121i';
-import { tendinePannello } from '../tendine-pannello.js?v=20261121i';
+} from './modello.js?v=20261121j';
+import { renderPianta } from './pianta.js?v=20261121j';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121j';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261121j';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121j';
+import { calcolaDistintaCucina } from './distinta.js?v=20261121j';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121j';
+import { agganciaTema } from '../tema.js?v=20261121j';
+import { tendinePannello } from '../tendine-pannello.js?v=20261121j';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261121i');
+const _excel = () => import('../modello-export.js?v=20261121j');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -1675,7 +1675,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121i');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121j');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1748,7 +1748,7 @@ function renderPannelloModificaMobile(m) {
   const puoAnte = m.tipo === 'base-ante' || m.tipo === 'pensile' || m.tipo === 'sopra-frigo' || m.tipo === 'ponte';
   const nAnte = anteDiMobile(m);
   const latoAnta = m.antaLato === 'sx' ? 'sx' : m.antaLato === 'alto' ? 'alto' : 'dx';
-  const fuochi = (m.larghezza_mm || 600) < 600 ? 2 : 4;
+  const fuochi = m.fuochi || ((m.larghezza_mm || 600) < 600 ? 2 : 4);
   const sinkCm = Math.max(30, Math.round(((m.larghezza_mm || 600) - 100) / 10));
   const gruppoColore = cat === 'pensile' ? 'pensile' : (cat === 'colonna' || cat === 'altillo') ? 'colonna'
     : cat === 'costado' ? 'costado' : isBase ? 'base' : null;
@@ -1877,6 +1877,7 @@ function renderPannelloModificaMobile(m) {
           ${m.lavello ? '✓ ' : ''}Lavello (${sinkCm} cm)
         </button>
       </div>
+      ${htmlFuochi(m)}
       <div class="riga-3d" style="margin-top:6px">La dimensione di piano cottura e lavello si adatta alla larghezza del modulo.</div>
     </section>` : `
     <section class="step3-pannello"><div class="riga-3d">${
@@ -2436,13 +2437,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121i');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121j');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121i'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121j'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2685,7 +2686,7 @@ function htmlPianoTavolo(m) {
     <section class="step3-pannello" data-aperta>
       <h3>Piano / tavolo</h3>
       <div class="riga-3d">Misure: <strong>${m.larghezza_mm || 1800} × ${m.profondita_mm || 900} mm</strong></div>
-      <div class="riga-3d">Spessore: <strong>${m.spessore_mm || 40} mm</strong></div>
+      <div class="riga-3d">Spessore: <strong>${(m.strati || 1) > 1 ? `${m.strati} pannelli da ${m.spessore_mm || 40} mm = ${(m.strati) * (m.spessore_mm || 40)} mm` : `${m.spessore_mm || 40} mm`}</strong></div>
       <div class="riga-3d">${m.quota === 'filo' ? 'Altezza: <strong>a filo del piano della cucina</strong>' : `Altezza da terra: <strong>${m.altezza_mm || 750} mm</strong>`}</div>
       <div class="riga-3d" style="margin-bottom:6px">Le misure si cambiano con «Cambia misura».</div>
       <div class="riga-3d" style="margin-bottom:8px">Mettilo DENTRO l'isola: se è più basso dei moduli ci entra (i moduli restano più alti); se è a filo del piano lo attraversa e il piano dell'isola si apre dove passa.</div>
@@ -2712,15 +2713,20 @@ function htmlSpessorePiano() {
   const def = enc.materiale && mod && mod.MATERIALI ? mod.MATERIALI.find((x) => x.id === enc.materiale) : null;
   const delMat = def && def.spessore != null ? def.spessore : 40;
   const mano = Number(enc.spessore) > 0 ? Number(enc.spessore) : null;
-  const sp = mano || delMat;
+  const uno = mano || delMat, strati = Math.max(1, Math.min(3, Number(enc.strati) || 1));
   return `
-      <div class="riga-3d" style="margin:12px 0 6px">Spessore del piano: <strong>${sp} mm</strong></div>
+      <div class="riga-3d" style="margin:12px 0 6px">Spessore del piano: <strong>${strati > 1 ? `${strati} pannelli da ${uno} mm = ${strati * uno} mm` : `${uno} mm`}</strong></div>
+      <div class="riga-3d" style="margin:4px 0">Pannelli uno sopra l'altro</div>
+      <div class="opzioni-anta">
+        ${[1, 2, 3].map((v) => `<button type="button" class="btn-ghost opt-strati ${strati === v ? 'attivo' : ''}" data-strati="${v}">${strati === v ? '✓ ' : ''}${v}</button>`).join('')}
+      </div>
+      <div class="riga-3d" style="margin:8px 0 4px">Spessore di un pannello</div>
       <div class="opzioni-anta">
         <button type="button" class="btn-ghost opt-sptop ${mano ? '' : 'attivo'}" data-sptop="">${mano ? '' : '✓ '}Quello del materiale (${delMat} mm)</button>
-        ${[12, 20, 30, 40, 60, 80].map((v) => `<button type="button" class="btn-ghost opt-sptop ${mano === v ? 'attivo' : ''}" data-sptop="${v}">${mano === v ? '✓ ' : ''}${v} mm</button>`).join('')}
+        ${[12, 16, 19, 20, 30, 40, 60, 80].map((v) => `<button type="button" class="btn-ghost opt-sptop ${mano === v ? 'attivo' : ''}" data-sptop="${v}">${mano === v ? '✓ ' : ''}${v} mm</button>`).join('')}
       </div>
       <label class="riga-3d" style="display:block;margin-top:8px">Altra misura (mm)
-        <input type="number" id="sptop-num" class="modale-num" min="6" max="200" step="1" value="${sp}" inputmode="numeric" style="width:100%;margin-top:4px" /></label>`;
+        <input type="number" id="sptop-num" class="modale-num" min="6" max="200" step="1" value="${uno}" inputmode="numeric" style="width:100%;margin-top:4px" /></label>`;
 }
 function agganciaSpessorePiano(root) {
   const imposta = (v) => {
@@ -2730,8 +2736,26 @@ function agganciaSpessorePiano(root) {
     aggiorna();
   };
   root.querySelectorAll('.opt-sptop[data-sptop]').forEach((b) => b.addEventListener('click', () => imposta(Number(b.dataset.sptop) || 0)));
+  root.querySelectorAll('.opt-strati[data-strati]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    if (!progetto.encimera) progetto.encimera = {};
+    const v = Number(b.dataset.strati) || 1;
+    if (v > 1) progetto.encimera.strati = v; else delete progetto.encimera.strati;
+    aggiorna();
+  }));
   const inp = root.querySelector('#sptop-num');
   if (inp) inp.addEventListener('change', () => { const v = Number(inp.value); if (v >= 6) imposta(v); });
+}
+
+/** PIANO COTTURA: 2 fuochi (placca stretta, «domino») o 4 fuochi. Solo dove c'è la placca. */
+function htmlFuochi(m) {
+  if (!(m.placca || m.tipo === 'forno')) return '';
+  const f = m.fuochi || ((m.larghezza_mm || 600) < 600 ? 2 : 4);
+  return `
+      <div class="riga-3d" style="margin:10px 0 6px">Piano cottura</div>
+      <div class="opzioni-anta">
+        ${[[2, '2 fuochi (stretto, 29 cm)'], [4, '4 fuochi (58 cm)']].map(([v, l]) => `<button type="button" class="btn-ghost opt-fuochi ${f === v ? 'attivo' : ''}" data-fuochi="${v}">${f === v ? '✓ ' : ''}${l}</button>`).join('')}
+      </div>`;
 }
 
 /** FRIGO: colore (bianco, nero, acciaio) e misure, a portata di tocco. */
@@ -2773,6 +2797,11 @@ function htmlColoreLavastoviglie(m) {
     </section>`;
 }
 function agganciaColoreFrigo(root, m) {
+  root.querySelectorAll('.opt-fuochi[data-fuochi]').forEach((b) => b.addEventListener('click', () => {
+    const v = Number(b.dataset.fuochi);
+    if ((m.fuochi || ((m.larghezza_mm || 600) < 600 ? 2 : 4)) === v) return;
+    registraStoria(); m.fuochi = v; aggiorna();
+  }));
   // PIANO / TAVOLO: materiale e appoggio
   root.querySelectorAll('.swatch[data-tavmat]').forEach((b) => b.addEventListener('click', () => {
     if (m.materiale === b.dataset.tavmat) return;
@@ -2894,6 +2923,7 @@ function blocMobileSelezionato() {
         <button id="mob-placca" class="btn-ghost ${m.placca ? 'attivo' : ''}" type="button">${m.placca ? '✓ ' : ''}🔥 Piano cottura</button>
         <button id="mob-lavello" class="btn-ghost ${m.lavello ? 'attivo' : ''}" type="button">${m.lavello ? '✓ ' : ''}🚰 Lavello</button>
       </div>` : ''}
+      ${htmlFuochi(m)}
       <div class="nudge">
         <label class="nudge-cm">Sposta di <input id="nudge-cm" type="number" value="${step2.nudgeCm ?? 1}" min="0.1" step="0.5" inputmode="decimal"> cm</label>
         <div class="nudge-grid">

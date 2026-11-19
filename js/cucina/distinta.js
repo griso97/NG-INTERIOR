@@ -12,9 +12,9 @@
 // =============================================================================
 
 import {
-  infoTavolo, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna,
-} from './modello.js?v=20261121i';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261121i';
+  infoTavolo, spessoreTavolo, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna,
+} from './modello.js?v=20261121j';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261121j';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -220,20 +220,23 @@ function pezziDiModulo(progetto, m) {
   } else if (cat === 'tavolo') {
     // PIANO / TAVOLO: la lastra e i suoi appoggi (dove il piano è libero)
     const enc = progetto.encimera && progetto.encimera.materiale;
-    const spTop = Number(progetto.encimera && progetto.encimera.spessore) > 0 ? Number(progetto.encimera.spessore)
-      : (() => { const def = enc && typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === enc); return def && def.spessore != null ? def.spessore : 40; })();
+    const spTop = (Number(progetto.encimera && progetto.encimera.spessore) > 0 ? Number(progetto.encimera.spessore)
+      : (() => { const def = enc && typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === enc); return def && def.spessore != null ? def.spessore : 40; })())
+      * Math.max(1, Math.min(3, Number(progetto.encimera && progetto.encimera.strati) || 1));
     const info = infoTavolo(progetto, m, spTop);
-    const sp = Math.max(6, m.spessore_mm || 40), P = m.profondita_mm || 900;
+    // pannelli uno sopra l'altro: ogni strato è un pezzo (spessore di un pannello)
+    const strati = Math.max(1, Math.min(3, m.strati || 1)), sp = Math.max(6, m.spessore_mm || 40), P = m.profondita_mm || 900;
     const nomeMat = m.materiale ? nomeMateriale(m.materiale, 'Materiale da scegliere') : nomeMateriale(enc, 'Come il piano di lavoro');
     const modT = `Piano / tavolo ${L}×${P}`;
-    pz.push({ modulo: modT, nome: 'Piano / tavolo', larghezza: round(L), altezza: round(P), spessore: sp, materiale: 'tavolo', quantita: 1, materialeNome: nomeMat });
+    pz.push({ modulo: modT, nome: strati > 1 ? `Piano / tavolo (${strati} pannelli incollati)` : 'Piano / tavolo', larghezza: round(L), altezza: round(P), spessore: sp, materiale: 'tavolo', quantita: strati, materialeNome: nomeMat });
     const app = m.appoggio || 'cascata';
     const liberi = info.estremi.filter((x) => x.libero).length;
     const n = app === 'cascata-due' ? 2 : app === 'nessuno' ? 0 : liberi;
     const hG = round(info.gamba);
     if (n && hG > 30) {
-      if (app === 'cascata' || app === 'cascata-due') pz.push({ modulo: modT, nome: 'Fianco a cascata', larghezza: round(P), altezza: hG, spessore: sp, materiale: 'tavolo', quantita: n, materialeNome: nomeMat });
+      if (app === 'cascata' || app === 'cascata-due') pz.push({ modulo: modT, nome: strati > 1 ? `Fianco a cascata (${strati} pannelli incollati)` : 'Fianco a cascata', larghezza: round(P), altezza: hG, spessore: sp, materiale: 'tavolo', quantita: n * strati, materialeNome: nomeMat });
       else if (app === 'vetro') pz.push({ modulo: modT, nome: 'Gamba in vetro (da ordinare)', larghezza: Math.max(100, round(P - 160)), altezza: hG, spessore: 12, materiale: 'vetro', quantita: n, materialeNome: 'Vetro temperato extrachiaro 12 mm' });
+      else if (app === 'una-nera' || app === 'una-oro') pz.push({ modulo: modT, nome: 'Gamba 80×80 (da ordinare)', larghezza: 80, altezza: hG, spessore: 80, materiale: 'gambe', quantita: n, materialeNome: app === 'una-oro' ? 'Metallo ottone' : 'Metallo nero' });
       else pz.push({ modulo: modT, nome: 'Gamba 50×50 (da ordinare)', larghezza: 50, altezza: hG, spessore: 50, materiale: 'gambe', quantita: n * 2, materialeNome: app === 'gambe-oro' ? 'Metallo ottone' : 'Metallo nero' });
     }
   } else if (cat === 'costado') {
