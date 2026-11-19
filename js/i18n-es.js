@@ -2007,4 +2007,10 @@ window.NG_I18N_ES = {
  "Giacinto in vaso": "Jacinto en maceta",
  "Fiori gialli in vaso bianco": "Flores amarillas en jarrón blanco",
  "Terrario in barattolo": "Terrario en tarro",
+ "Lampade e luce": "Lámparas y luz",
+ "Le lampade del catalogo si vedono accese: il vetro e i paralumi brillano e illuminano il tavolo e l'isola. Con «Sera» la luce del giorno si abbassa e si vede ancora meglio.": "Las lámparas del catálogo se ven encendidas: el vidrio y las pantallas brillan e iluminan la mesa y la isla. Con «Noche» la luz del día baja y se ve aún mejor.",
+ "💡 Lampade accese": "💡 Lámparas encendidas",
+ "Lampade spente": "Lámparas apagadas",
+ "☀ Giorno": "☀ Día",
+ "🌙 Sera": "🌙 Noche",
 };

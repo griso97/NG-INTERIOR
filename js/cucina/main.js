@@ -24,15 +24,15 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
-} from './modello.js?v=20261120f';
-import { renderPianta } from './pianta.js?v=20261120f';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261120f';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261120f';
-import { calcolaDistintaCucina } from './distinta.js?v=20261120f';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261120f';
-import { agganciaTema } from '../tema.js?v=20261120f';
-import { tendinePannello } from '../tendine-pannello.js?v=20261120f';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261120f';
+} from './modello.js?v=20261120i';
+import { renderPianta } from './pianta.js?v=20261120i';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261120i';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261120i';
+import { calcolaDistintaCucina } from './distinta.js?v=20261120i';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261120i';
+import { agganciaTema } from '../tema.js?v=20261120i';
+import { tendinePannello } from '../tendine-pannello.js?v=20261120i';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261120i';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1510,6 +1510,18 @@ function renderPannelloStep3d() {
       </div>
     </section>
     <section class="step3-pannello">
+      <h3>Lampade e luce</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Le lampade del catalogo si vedono accese: il vetro e i paralumi brillano e illuminano il tavolo e l'isola. Con «Sera» la luce del giorno si abbassa e si vede ancora meglio.</div>
+      <div class="opzioni-anta">
+        <button type="button" class="btn-ghost ${progetto.lampadeAccese !== false ? 'attivo' : ''}" data-lampade="si">${progetto.lampadeAccese !== false ? '✓ ' : ''}💡 Lampade accese</button>
+        <button type="button" class="btn-ghost ${progetto.lampadeAccese === false ? 'attivo' : ''}" data-lampade="no">${progetto.lampadeAccese === false ? '✓ ' : ''}Lampade spente</button>
+      </div>
+      <div class="opzioni-anta" style="margin-top:6px">
+        <button type="button" class="btn-ghost ${progetto.atmosfera !== 'sera' ? 'attivo' : ''}" data-atmosfera="giorno">${progetto.atmosfera !== 'sera' ? '✓ ' : ''}☀ Giorno</button>
+        <button type="button" class="btn-ghost ${progetto.atmosfera === 'sera' ? 'attivo' : ''}" data-atmosfera="sera">${progetto.atmosfera === 'sera' ? '✓ ' : ''}🌙 Sera</button>
+      </div>
+    </section>
+    <section class="step3-pannello">
       <h3>LED sotto i pensili</h3>
       <div class="riga-3d" style="margin-bottom:6px">Striscia di luce sotto ogni pensile. Scegli la temperatura della luce.</div>
       <div class="opzioni-anta">
@@ -1591,6 +1603,12 @@ function renderPannelloStep3d() {
     progetto.zoccoloColore = b.dataset.zocc;
     aggiorna();
   }));
+  pannello.querySelectorAll('[data-lampade]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria(); progetto.lampadeAccese = b.dataset.lampade === 'si'; aggiorna();
+  }));
+  pannello.querySelectorAll('[data-atmosfera]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria(); progetto.atmosfera = b.dataset.atmosfera; aggiorna();
+  }));
   pannello.querySelectorAll('[data-pav]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     progetto.pavimento = b.dataset.pav || null;
@@ -1622,7 +1640,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261120f');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261120i');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2354,13 +2372,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261120f');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261120i');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261120f'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261120i'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
