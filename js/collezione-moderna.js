@@ -138,6 +138,8 @@ function mat(nome) {
     case 'bronzo': m = new THREE.MeshStandardMaterial({ color: 0x5e4733, metalness: 1, roughness: 0.38, roughnessMap: grana(127, 10) }); break;
     case 'oro-satinato': m = new THREE.MeshStandardMaterial({ color: 0xc9a85e, metalness: 1, roughness: 0.27 }); break;
     case 'pietra-calda': m = new THREE.MeshStandardMaterial({ map: tex('compacto-siena.jpg', 0.0022), color: 0xc49a78, roughness: 0.3 }); break;
+    case 'rame': m = new THREE.MeshStandardMaterial({ color: 0xb87348, metalness: 1, roughness: 0.35 }); break;
+    case 'led-caldo': m = new THREE.MeshStandardMaterial({ color: 0xffe2b0, emissive: 0xffb860, emissiveIntensity: 0.75, roughness: 0.4 }); break;
     case 'led': m = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff0d2, emissiveIntensity: 1.8, roughness: 0.4 }); break;
     case 'velluto-sabbia': m = new THREE.MeshPhysicalMaterial({ color: 0xc9b79c, roughness: 0.92, sheen: 1, sheenRoughness: 0.45, sheenColor: new THREE.Color(0xf2e6d2), bumpMap: grana(131, 30), bumpScale: 0.4 }); break;
     case 'velluto-salvia': m = new THREE.MeshPhysicalMaterial({ color: 0x8e9a82, roughness: 0.92, sheen: 1, sheenRoughness: 0.45, sheenColor: new THREE.Color(0xd8e2cc), bumpMap: grana(137, 30), bumpScale: 0.4 }); break;
@@ -1412,7 +1414,7 @@ function nastroLed(curva, w, sp, metallo, giro = () => 0, n = 420, bordo = 0, fa
   for (let i = 0; i <= n; i++) {
     const t = i / n, p = curva.getPointAt(t), T = curva.getTangentAt(t).normalize();
     let w0 = V3(0, 0, 1).sub(T.clone().multiplyScalar(T.z)); if (w0.lengthSq() < 1e-6) w0.set(0, 1, 0); w0.normalize();
-    const b0 = new THREE.Vector3().crossVectors(T, w0), a = giro(t);
+    const b0 = new THREE.Vector3().crossVectors(T, w0), a = giro(t, p);
     const wv = w0.clone().multiplyScalar(Math.cos(a)).add(b0.clone().multiplyScalar(Math.sin(a))).normalize();
     P.push(p); W.push(wv); N.push(new THREE.Vector3().crossVectors(T, wv).normalize());
   }
@@ -1460,28 +1462,43 @@ function lampadaNastro(tipo, metallo, soffitto = SOFFITTO) {
     g.add(nastroLed(curva, 44, 9, metallo, (t) => Math.PI * 2.2 * t + 0.4 * Math.sin(t * 9)));
     attacchi.push(V3(-640, 262, 0), V3(-190, 515, 10), V3(660, 272, 0));
   } else {
-    // «onda con sfere»: nastro a onda che ruota, un'asta dritta e sei sfere di vetro con le lucine dentro
-    const L = 1500, pts = [];
-    for (let k = 0; k <= 40; k++) { const t = k / 40; pts.push(V3(-L / 2 + L * t, 260 + 95 * Math.sin(t * Math.PI * 4 + 0.3), 0)); }
+    // «onda con sfere» (lampada da isola di 1,30 m): asta dritta, nastro a onda che gira su sé stesso
+    // (scende con la faccia LED verso di te, risale con il metallo; sulle creste la luce guarda in basso),
+    // cinque sfere di vetro soffiato (Ø 10 cm) con il filo di rame e le lucine calde dentro:
+    // tre appese sotto l'asta, sotto le creste dell'onda, e due sopra, sopra le valli
+    const Y = 300, P = 520, pts = [];        // P: lunghezza d'onda (creste a -520, 0, +520; valli a ±260)
+    const onda = (x) => Y - 42 + 54 * Math.cos((2 * Math.PI * x) / P);
+    for (let k = 0; k <= 64; k++) { const x = -645 + (1290 * k) / 64; pts.push(V3(x, onda(x), 0)); }
     const curva = new THREE.CatmullRomCurve3(pts);
-    g.add(nastroLed(curva, 30, 6, metallo, (t) => 0.9 * Math.sin(t * Math.PI * 4 + 0.3)));
-    const asta0 = asta(V3(-L / 2 + 120, 260, 0), V3(L / 2 - 120, 260, 0), 5, 5, metallo, 12); g.add(asta0);
-    const xs = [-600, -360, -120, 120, 360, 600], sopra = [false, true, false, true, false, false];
-    const stelle = new THREE.SphereGeometry(3.6, 6, 4);
-    xs.forEach((x, i) => {
-      const y = sopra[i] ? 260 + 115 : 260 - 105;
-      g.add(asta(V3(x, 260, 0), V3(x, sopra[i] ? y - 62 : y + 62, 0), 4, 4, metallo, 10));
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(15, 17, 16, 20), mat(metallo)); cap.position.set(x, sopra[i] ? y - 64 : y + 64, 0); g.add(cap);
-      const sfera = new THREE.Mesh(new THREE.SphereGeometry(66, 36, 24), mat('vetro-stellato')); sfera.position.set(x, y, 0); g.add(sfera);
-      // le lucine dentro (come una piccola via lattea)
-      const lucine = new THREE.InstancedMesh(stelle, mat('led'), 46), m4 = new THREE.Matrix4(), r = generatore(semeDi('sfera' + i));
-      for (let k = 0; k < 46; k++) {
-        const u = r() * 2 - 1, a = r() * Math.PI * 2, d = 18 + r() * 34, q = Math.sqrt(1 - u * u);
-        m4.makeTranslation(x + d * q * Math.cos(a), y + d * u, d * q * Math.sin(a)); lucine.setMatrixAt(k, m4);
+    g.add(nastroLed(curva, 30, 5, metallo, (t, p) => Math.PI - (2 * Math.PI * p.x) / P, 520));
+    g.add(asta(V3(-540, Y, 0), V3(540, Y, 0), 7, 7, metallo, 20));
+    for (const x of [-540, 540]) { const t = new THREE.Mesh(new THREE.CylinderGeometry(7.6, 7.6, 3, 20), mat(metallo)); t.rotation.z = Math.PI / 2; t.position.set(x, Y, 0); g.add(t); }
+    // i due attacchi dei cavi sull'asta
+    for (const x of [-150, 150]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(8.5, 8.5, 30, 20), mat(metallo)); c.position.set(x, Y + 8, 0); g.add(c); }
+    const R = 50, gocce = new THREE.SphereGeometry(2.3, 6, 4);
+    [[-520, -1], [-260, 1], [0, -1], [260, 1], [520, -1]].forEach(([x, v], i) => {
+      const yc = Y + v * 66;
+      // collo e coppetta in metallo fra l'asta e la sfera
+      g.add(asta(V3(x, Y, 0), V3(x, Y + v * 12, 0), 5, 5, metallo, 14));
+      const cop = new THREE.Mesh(new THREE.CylinderGeometry(v > 0 ? 17 : 11, v > 0 ? 11 : 17, 7, 24), mat(metallo)); cop.position.set(x, Y + v * 14.5, 0); g.add(cop);
+      const sfera = new THREE.Mesh(new THREE.SphereGeometry(R, 40, 28), mat('vetro-stellato')); sfera.position.set(x, yc, 0); g.add(sfera);
+      // il filo di rame aggrovigliato con le lucine (come le catenelle di micro-LED)
+      const r = generatore(semeDi('sfera-filo' + i)), m4 = new THREE.Matrix4(), posti = [];
+      for (let f = 0; f < 3; f++) {
+        const nodi = [];
+        for (let k = 0; k < 9; k++) {
+          const u = r() * 2 - 1, a = r() * Math.PI * 2, d = 14 + r() * 26, q = Math.sqrt(1 - u * u);
+          nodi.push(V3(x + d * q * Math.cos(a), yc + d * u, d * q * Math.sin(a)));
+        }
+        const filo = new THREE.CatmullRomCurve3(nodi, true);
+        g.add(new THREE.Mesh(new THREE.TubeGeometry(filo, 90, 0.5, 3, true), mat('rame')));
+        for (let k = 0; k < 11; k++) posti.push(filo.getPointAt((k + r() * 0.5) / 11));
       }
+      const lucine = new THREE.InstancedMesh(gocce, mat('led-caldo'), posti.length);
+      posti.forEach((q, k) => { m4.makeTranslation(q.x, q.y, q.z); lucine.setMatrixAt(k, m4); });
       g.add(lucine);
     });
-    attacchi.push(V3(-L / 2 + 200, 268, 0), V3(L / 2 - 200, 268, 0));
+    attacchi.push(V3(-150, Y + 23, 0), V3(150, Y + 23, 0));
   }
   g.updateMatrixWorld(true);
   const b = new THREE.Box3().setFromObject(g), y0 = Y_LAMPADA;
@@ -1650,8 +1667,8 @@ export const COLLEZIONE = [
   { id: 'ds-lux-nastro-onde-oro', appeso: true, nome: 'Lampada di lusso «Nastro», onde LED champagne', es: 'Lámpara de lujo «Cinta», ondas LED champán', misure: { w: 1720, d: 60, h: 2700 }, crea: async (s) => lampadaNastro('onde', 'champagne', s) },
   { id: 'ds-lux-nastro-ritorto-nero', appeso: true, nome: 'Lampada di lusso «Nastro ritorto», LED nero', es: 'Lámpara de lujo «Cinta trenzada», LED negra', misure: { w: 1538, d: 187, h: 2700 }, crea: async (s) => lampadaNastro('ritorto', 'nero-satinato', s) },
   { id: 'ds-lux-nastro-ritorto-oro', appeso: true, nome: 'Lampada di lusso «Nastro ritorto», LED oro', es: 'Lámpara de lujo «Cinta trenzada», LED oro', misure: { w: 1538, d: 187, h: 2700 }, crea: async (s) => lampadaNastro('ritorto', 'oro-satinato', s) },
-  { id: 'ds-lux-onda-sfere-oro', appeso: true, nome: 'Lampada di lusso, onda oro con sfere di vetro luminose', es: 'Lámpara de lujo, onda oro con esferas de vidrio luminosas', misure: { w: 1508, d: 132, h: 2700 }, crea: async (s) => lampadaNastro('sfere', 'oro-satinato', s) },
-  { id: 'ds-lux-onda-sfere-nero', appeso: true, nome: 'Lampada di lusso, onda nera con sfere di vetro luminose', es: 'Lámpara de lujo, onda negra con esferas de vidrio luminosas', misure: { w: 1508, d: 132, h: 2700 }, crea: async (s) => lampadaNastro('sfere', 'nero-satinato', s) },
+  { id: 'ds-lux-onda-sfere-oro', appeso: true, nome: 'Lampada di lusso, onda oro con sfere di vetro luminose', es: 'Lámpara de lujo, onda oro con esferas de vidrio luminosas', misure: { w: 1295, d: 100, h: 2700 }, crea: async (s) => lampadaNastro('sfere', 'oro-satinato', s) },
+  { id: 'ds-lux-onda-sfere-nero', appeso: true, nome: 'Lampada di lusso, onda nera con sfere di vetro luminose', es: 'Lámpara de lujo, onda negra con esferas de vidrio luminosas', misure: { w: 1295, d: 100, h: 2700 }, crea: async (s) => lampadaNastro('sfere', 'nero-satinato', s) },
   { id: 'ds-led-orbita', appeso: true, nome: 'Lampada LED «Orbita», due anelli', es: 'Lámpara LED «Órbita», dos aros', misure: { w: 989, d: 982, h: 2700 }, crea: async (s) => lampadaLed('orbita', s) },
   { id: 'ds-sgabello-conchiglia', nome: 'Sgabello «Conchiglia» in velluto e ottone', es: 'Taburete «Concha» de terciopelo y latón', misure: { w: 492, d: 472, h: 852 }, crea: async () => sgabelloConchiglia() },
   { id: 'ds-sedia-avvolgente', nome: 'Sedia «Avvolgente» in velluto e ottone', es: 'Silla «Envolvente» de terciopelo y latón', misure: { w: 568, d: 540, h: 794 }, crea: async () => sediaAvvolgente() },

@@ -15,8 +15,8 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261120v';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261120v';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261120w';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261120w';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -386,10 +386,10 @@ export const MATERIALI = [
     misure: { w: 1538, d: 187, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
   { id: 'cm-ds-lux-onda-sfere-oro', nome: 'Lampada di lusso, onda oro con sfere di vetro luminose', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-onda-sfere-oro', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/ds-lux-onda-sfere-oro.jpg', texture: 'oggetti/moderni/miniature/ds-lux-onda-sfere-oro.jpg', colore: 0xd8d2c8,
-    misure: { w: 1508, d: 132, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+    misure: { w: 1295, d: 100, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
   { id: 'cm-ds-lux-onda-sfere-nero', nome: 'Lampada di lusso, onda nera con sfere di vetro luminose', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-onda-sfere-nero', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/ds-lux-onda-sfere-nero.jpg', texture: 'oggetti/moderni/miniature/ds-lux-onda-sfere-nero.jpg', colore: 0xd8d2c8,
-    misure: { w: 1508, d: 132, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+    misure: { w: 1295, d: 100, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
   // ---- LAMPADE DI LUSSO, LUNGHE (modellate da noi: LED incrociati, nero satinato, oro, noce) ----
   { id: 'cm-ds-lux-mikado', nome: 'Lampada di lusso «Mikado», barre LED nere incrociate e oro', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-mikado', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/ds-lux-mikado.jpg', texture: 'oggetti/moderni/miniature/ds-lux-mikado.jpg', colore: 0xd8d2c8,
@@ -481,7 +481,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261120v');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261120w');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -610,7 +610,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261120v';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261120w';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',

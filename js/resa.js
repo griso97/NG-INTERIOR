@@ -14,7 +14,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261120v';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261120w';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
@@ -42,8 +42,30 @@ export function nearSegueLaVista(camera, controls) {
   regola();
   return regola;
 }
+/**
+ * Vetro trasparente davanti allo SFONDO: three.js (r161), per sapere cosa c'è dietro al vetro,
+ * ridisegna la scena in un'immagine a parte e prima la pulisce con il colore di pulizia, ma nei
+ * valori dello schermo invece che in quelli «di calcolo»: lo sfondo grigio visto attraverso una
+ * sfera di vetro usciva quasi bianco. Qui, solo durante il disegno della scena, quella pulizia
+ * usa il colore dello sfondo nei valori giusti.
+ */
+function vetroSulloSfondo(renderer) {
+  if (renderer._ngPulisci) return;
+  const pulisci = renderer.clear;
+  renderer._ngPulisci = pulisci;
+  renderer._ngSfondo = null;
+  renderer.clear = function (...a) {
+    const sf = this._ngSfondo, rt = sf ? this.getRenderTarget() : null;
+    // solo l'immagine «dietro il vetro» (con le mipmap); NON le mappe delle ombre (vanno pulite in bianco)
+    if (rt && rt.texture && rt.texture.generateMipmaps && rt.texture.minFilter === THREE.LinearMipmapLinearFilter &&
+        !/shadowMap$/.test(rt.texture.name || '')) this.setClearColor(sf, 1);   // ora converte nei valori di calcolo
+    return pulisci.apply(this, a);
+  };
+}
+
 export function creaResa(opz) {
   const { renderer, scene, camera } = opz;
+  vetroSulloSfondo(renderer);
   const tel = eTelefono();
   const DPR = window.devicePixelRatio || 1;
   // Nitidezza: sempre quella piena di prima mentre si gira.
@@ -134,8 +156,14 @@ export function creaResa(opz) {
   /** Disegna adesso: scena + ombre di contatto sopra (leggero = mentre si gira). */
   function disegna(leggero = false) {
     if (opz.prima) opz.prima();
+    // il vetro trasparente (sfere, bicchieri) «vede» dietro di sé solo un'immagine della scena fatta
+    // senza lo sfondo: dove dietro c'è lo sfondo, la riempie col colore di pulizia (bianco se non
+    // detto). Con il colore dello sfondo, il vetro davanti allo sfondo resta trasparente.
+    const sfondo = scene.background && scene.background.isColor ? scene.background : null;
+    if (sfondo) renderer.setClearColor(sfondo, 1);
     renderer.setRenderTarget(null);
-    renderer.render(scene, camera);
+    renderer._ngSfondo = sfondo;
+    try { renderer.render(scene, camera); } finally { renderer._ngSfondo = null; }
     if (!ao || guasto || opz.senzaAO?.()) return;
     try {
       const s = renderer.getDrawingBufferSize(_s);
