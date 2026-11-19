@@ -2,7 +2,7 @@
 // ESPORTAZIONE DISTINTA — CSV e PDF
 // =============================================================================
 // CSV: generato in-browser, nessuna libreria.
-// PDF: usa jsPDF caricato come globale (vedi index.html). Il PDF è impaginato
+// PDF: usa jsPDF (globale), scaricato solo quando serve (caricaJsPDF). Il PDF è impaginato
 // in A4 con intestazione (dati lavoro + misure armadio) e tabella pezzi.
 // =============================================================================
 
@@ -37,7 +37,7 @@ function csvEscape(v) {
   return s;
 }
 
-import { trovaMateriale } from './materiali.js?v=20261121d';
+import { trovaMateriale } from './materiali.js?v=20261121f';
 const T = (s) => (typeof s === 'string' && window.NGI18N ? window.NGI18N.t(s) : s);   // lingua (i18n.js)
 
 export function nomeMaterialeCsv(pezzo, config) {
@@ -55,10 +55,26 @@ export function nomeMaterialeCsv(pezzo, config) {
   return m ? m.nome : (pezzo.materiale || '—');
 }
 
-export function esportaPDF(distinta, config, meta = {}) {
-  // jsPDF: UMD globale
-  const jsPDF = window.jspdf?.jsPDF;
-  if (!jsPDF) {
+/** jsPDF (360 KB) si scarica solo la prima volta che si esporta un PDF, non all'apertura della pagina. */
+let _jspdf = null;
+function caricaJsPDF() {
+  if (window.jspdf?.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
+  if (!_jspdf) {
+    _jspdf = new Promise((ok, ko) => {
+      const s = document.createElement('script');
+      s.src = new URL('../vendor/jspdf/jspdf.umd.min.js', import.meta.url).href;
+      s.onload = () => (window.jspdf?.jsPDF ? ok(window.jspdf.jsPDF) : ko(new Error('jsPDF')));
+      s.onerror = () => ko(new Error('jsPDF'));
+      document.head.appendChild(s);
+    });
+    _jspdf.catch(() => { _jspdf = null; });
+  }
+  return _jspdf;
+}
+
+export async function esportaPDF(distinta, config, meta = {}) {
+  let jsPDF;
+  try { jsPDF = await caricaJsPDF(); } catch (e) {
     alert('jsPDF non caricato. Verifica la connessione al CDN.');
     return;
   }

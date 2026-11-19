@@ -47,9 +47,26 @@ export function numeriNormali(scena) {
   return scena;
 }
 
-/** Carica un .glb e lo restituisce con i numeri normali. */
+const TELEFONO = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '')
+  || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent || ''));
+/** Sul TELEFONO il vetro «vero» dei modelli (trasmissione: la scena disegnata due volte) diventa
+ *  vetro trasparente semplice. */
+function vetroLeggero(scena) {
+  if (!TELEFONO) return;
+  scena.traverse((o) => {
+    if (!o.isMesh) return;
+    for (const m of [].concat(o.material)) {
+      if (!m || !(m.transmission > 0)) continue;
+      m.transmission = 0; m.transparent = true; m.depthWrite = false;
+      m.opacity = Math.min(m.opacity ?? 1, 0.3); m.userData.vetro = true; m.needsUpdate = true;
+    }
+  });
+}
+
+/** Carica un .glb e lo restituisce con i numeri normali (e il vetro leggero sul telefono). */
 export async function caricaGLB(url) {
   const gl = await (await caricatoreGLB()).loadAsync(url);
   numeriNormali(gl.scene);
+  vetroLeggero(gl.scene);
   return gl;
 }

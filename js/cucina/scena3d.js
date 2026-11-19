@@ -13,20 +13,20 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261121d';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121d';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261121d';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261121d';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261121d';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121d';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121d';
-import { parametri } from '../parametri.js?v=20261121d';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121d';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121d';
+} from './modello.js?v=20261121f';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121f';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261121f';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261121f';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261121f';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121f';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121f';
+import { parametri } from '../parametri.js?v=20261121f';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121f';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121f';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121d';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121f';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261121d';
+export { telaPavimento } from '../resa.js?v=20261121f';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -1936,7 +1936,11 @@ const LED_COLORI = {
 // I materiali «accesi» sono copie fatte una volta sola (il modello in memoria non cambia).
 // ---------------------------------------------------------------------------
 const LUCE_CALDA = 0xffeede;                          // ~3700 K: neutra con un filo di caldo (tra i LED «neutro» e «caldo»)
-const MAX_LUCI_LAMPADE = 8;                           // coni di luce vera in tutto (oltre: brillano soltanto; telefono)
+const TELEFONO_3D = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '')
+  || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent || ''));
+// coni di luce vera in tutto (oltre: brillano soltanto). Sul TELEFONO meno luci: ogni luce in più
+// pesa su ogni punto dello schermo
+const MAX_LUCI_LAMPADE = TELEFONO_3D ? 4 : 8, MAX_RIVERBERI = TELEFONO_3D ? 1 : 3;
 let _luciLampade = 0, _riverberi = 0, _aloni = [];                 // aloni delle lampade: fuori dalle ombre di contatto
 // VETRO trasparente (sfere delle lampade, bicchieri, vasi): fuori dalle ombre di contatto. Le ombre di
 // contatto si calcolano dalla forma delle superfici: l'interno di una sfera di vetro risultava un
@@ -1950,7 +1954,8 @@ function vetriInScena() {
     scene.traverse((o) => {
       if (!o.isMesh) return;
       const m = o.material;
-      if (m && (Array.isArray(m) ? m.some((x) => x && x.transmission > 0) : m.transmission > 0)) _vetri.push(o);
+      const vetro = (x) => x && (x.transmission > 0 || (x.userData && x.userData.vetro));
+      if (m && (Array.isArray(m) ? m.some(vetro) : vetro(m))) _vetri.push(o);
     });
   }
   return _vetri;
@@ -2059,7 +2064,7 @@ function accendiLampada(og) {
   }
   // riverbero: un filo di luce tutt'attorno (muri, soffitto), come la luce che rimbalza in una
   // stanza vera; solo per le prime lampade (il telefono non calcola troppe luci)
-  if (messe && _riverberi < 3) {
+  if (messe && _riverberi < MAX_RIVERBERI) {
     _riverberi++;
     const centro = og.worldToLocal(new THREE.Vector3(c.x, yL, c.z));
     const spill = new THREE.PointLight(LUCE_CALDA, 500, 5000, 1.0);

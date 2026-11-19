@@ -7,7 +7,7 @@
 // Assi: x larghezza, y altezza (0 = appoggio), z profondità (+ = davanti).
 // =============================================================================
 import * as THREE from 'three';
-import { coloreLampada } from './colori-lampade.js?v=20261121d';
+import { coloreLampada } from './colori-lampade.js?v=20261121f';
 
 const qui = (p) => new URL(p, import.meta.url).href;
 
@@ -78,6 +78,18 @@ function legnoDisegnato(tipo, rip, ripXY = null) {
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   if (ripXY) t.repeat.set(...ripXY); else t.repeat.set(rip, rip);
   _tex.set(k, t); return t;
+}
+// TELEFONO: il vetro «vero» (trasmissione) obbliga a disegnare la scena due volte per ogni immagine;
+// sul telefono diventa vetro trasparente semplice (stessi riflessi, una volta sola): il 3D resta fluido
+const TELEFONO = typeof navigator !== 'undefined' && (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '')
+  || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent || '')));
+const OPACITA_VETRO = { 'vetro-fume': 0.5, 'vetro-verde': 0.65, 'vetro-bordo': 0.55, 'vetro-lampadina': 0.3, 'vetro-stellato': 0.16, cristallo: 0.18 };
+function vetroLeggero(m, nome) {
+  if (!TELEFONO || !m || !(m.transmission > 0)) return m;
+  m.transmission = 0; m.transparent = true; m.depthWrite = false;
+  m.opacity = OPACITA_VETRO[nome] ?? 0.22;
+  m.userData.vetro = true;
+  return m;
 }
 const _mat = new Map();
 function mat(nome) {
@@ -174,6 +186,7 @@ function mat(nome) {
     case 'oliva': m = new THREE.MeshStandardMaterial({ color: 0x3d4a22, roughness: 0.3 }); break;
     default: m = new THREE.MeshStandardMaterial({ color: 0x999999 });
   }
+  vetroLeggero(m, nome);
   _mat.set(nome, m); return m;
 }
 const ombre = (o) => { o.traverse((x) => { if (x.isMesh) { x.castShadow = true; x.receiveShadow = true; } }); return o; };
@@ -227,7 +240,7 @@ async function frutto(id) {
       if (id.startsWith('lib:')) {
         // un modello della LIBRERIA (es. il pane), intero, alla scala chiesta: "lib:<id>@<scala>"
         const [nome, sc] = id.slice(4).split('@');
-        const { caricaGLB } = await import('./carica-glb.js?v=20261121d');
+        const { caricaGLB } = await import('./carica-glb.js?v=20261121f');
         const gl = await caricaGLB(qui(`../oggetti/libreria/${nome}.glb`));
         gl.scene.updateMatrixWorld(true);
         const g0 = new THREE.Group();

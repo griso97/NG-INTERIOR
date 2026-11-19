@@ -1314,6 +1314,7 @@ window.NG_I18N_ES = {
   "Le misure vanno in centimetri: forse le hai scritte in millimetri?": "Las medidas van en centímetros: ¿quizá las has escrito en milímetros?",
   "Non riesco a costruire il 3D: controlla la foto davanti.": "No consigo construir el 3D: revisa la foto de frente.",
   "Oggetto selezionato": "Objeto seleccionado",
+ "Scorri": "Desliza",
  "Per gli armadi non incassati: il fianco a vista, alto quanto tutto l'armadio, dal retro della schiena fino a poco davanti alle ante.": "Para los armarios no empotrados: el costado visto, alto como todo el armario, desde detrás de la trasera hasta un poco por delante de las puertas.",
  "Solo sinistro": "Solo izquierdo",
  "Solo destro": "Solo derecho",

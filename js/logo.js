@@ -10,7 +10,7 @@ let logoPronto = false;
 logoImg.onload = () => { logoPronto = true; };
 logoImg.onerror = () => { logoPronto = false; };
 // Percorso relativo alla PAGINA (cucina.html / configuratore.html sono in root)
-logoImg.src = 'img/logo.png';
+logoImg.src = 'img/logo.webp';             // WebP: 1/5 del PNG, stessa trasparenza
 
 /** Il logo è stato caricato? */
 export function logoCaricato() { return logoPronto; }
