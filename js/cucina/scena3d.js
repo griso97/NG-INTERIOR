@@ -14,28 +14,28 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261121o';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121o';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261121o';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261121o';
+} from './modello.js?v=20261121p';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121p';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261121p';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261121p';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121o').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121p').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121o';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121o';
-import { parametri } from '../parametri.js?v=20261121o';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121o';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121o';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121p';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121p';
+import { parametri } from '../parametri.js?v=20261121p';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121p';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121p';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121o';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121p';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261121o';
+export { telaPavimento } from '../resa.js?v=20261121p';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -1105,8 +1105,9 @@ function carcassaVetrina(w, h, d, coloreCorpo, nRip) {
 // disegnerebbe "a pezzi". Allora: una RIGA scura netta sul bordo di ogni fronte (una linea è
 // sempre larga almeno un pixel, quindi resta continua a qualunque distanza) e un FONDO scuro
 // dietro l'anta, che si vede solo dentro la fuga (da vicino si vede l'ombra, non la cassa chiara).
-const matFugaLinea = new THREE.LineBasicMaterial({ color: 0x1c1a17, transparent: true, opacity: 0.62 });
-const matFugaFondo = new THREE.MeshBasicMaterial({ color: 0x15130f });
+// (un pelo meno marcate: si capisce che c'è la fuga, senza la riga nera evidente)
+const matFugaLinea = new THREE.LineBasicMaterial({ color: 0x2c2925, transparent: true, opacity: 0.4 });
+const matFugaFondo = new THREE.MeshBasicMaterial({ color: 0x24211d });
 function fughe(g, px, py, z, pw, ph, sp = 20) {
   const x0 = px - pw / 2, x1 = px + pw / 2, y0 = py - ph / 2, y1 = py + ph / 2, zf = z + sp + 0.4;
   const v = [[x0, y0], [x1, y0], [x1, y0], [x1, y1], [x1, y1], [x0, y1], [x0, y1], [x0, y0]].map(([x, y]) => new THREE.Vector3(x, y, zf));
