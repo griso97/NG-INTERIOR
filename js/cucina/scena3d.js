@@ -13,20 +13,20 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261120k';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120k';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261120k';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261120k';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261120k';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120k';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120k';
-import { parametri } from '../parametri.js?v=20261120k';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120k';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120k';
+} from './modello.js?v=20261120m';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120m';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261120m';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261120m';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261120m';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120m';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120m';
+import { parametri } from '../parametri.js?v=20261120m';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120m';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120m';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120k';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120m';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261120k';
+export { telaPavimento } from '../resa.js?v=20261120m';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -585,7 +585,7 @@ let _envGiorno = null, _envSera = null, _sfondoBase = null;
 // le lampade accese e i LED; le lampade si fanno più forti e l'alone più visibile (come all'occhio
 // al buio). Si regola dal vivo con lo slider, senza rifare la scena.
 // ---------------------------------------------------------------------------
-const LUCE_NOTTE = [0.03, 0.035, 0, 0.02, 0.02];          // emisfero, ambiente, sole, riempimento, controluce
+const LUCE_NOTTE = [0.05, 0.05, 0, 0.03, 0.03];          // (un minimo: la luce che rimbalza in casa)          // emisfero, ambiente, sole, riempimento, controluce
 const _envLuce = new Map();
 export function luceEsternaDi(progetto) {
   const v = Number(progetto && progetto.luceEsterna);
@@ -609,8 +609,9 @@ function applicaLuceEsterna(v) {
   if (_sfondoBase) scene.background = _sfondoBase.clone().multiplyScalar(0.1 + 0.9 * v);
   const notte = 1 - v;
   if (gruppo) gruppo.traverse((o) => {
-    if (o.userData.luceLampada) o.intensity = 1800 + 3800 * notte;
-    else if (o.userData.alone && o.material) o.material.opacity = 0.45 + 0.4 * notte;
+    if (o.userData.luceLampada) o.intensity = 6500 + 5500 * notte;
+    else if (o.userData.riverbero) o.intensity = 500 + 1100 * notte;
+    else if (o.userData.alone && o.material) o.material.opacity = 0.3 + 0.35 * notte;
   });
   if (renderer.shadowMap) renderer.shadowMap.needsUpdate = true;
 }
@@ -1927,12 +1928,14 @@ const LED_COLORI = {
 // ---------------------------------------------------------------------------
 // LAMPADE ACCESE: ogni lampada del catalogo (sospensioni, plafoniere, LED) si vede accesa.
 //  1) le parti che fanno luce (vetro, opalino, paralume, lampadina, LED, quelle già luminose nel
-//     modello) brillano di luce calda (2700 K); se non se ne riconosce nessuna, c'è una lampadina
-//  2) una luce vera nel punto della lampadina: illumina il tavolo, l'isola, il pavimento, i muri
-//  3) un alone morbido attorno (come lo vede l'occhio)
+//     modello) brillano di luce neutra un filo calda (~3700 K); se non se ne riconosce nessuna, c'è
+//     una lampadina
+//  2) come i LED sotto i pensili: un CONO di luce vera verso il basso, dalla lampadina, morbido ai
+//     bordi: la pozza di luce sul tavolo, sull'isola, sul pavimento
+//  3) un alone leggero attorno (come lo vede l'occhio)
 // I materiali «accesi» sono copie fatte una volta sola (il modello in memoria non cambia).
 // ---------------------------------------------------------------------------
-const LUCE_CALDA = 0xffcf96;                          // 2700 K
+const LUCE_CALDA = 0xffeede;                          // ~3700 K: neutra con un filo di caldo (tra i LED «neutro» e «caldo»)
 const MAX_LUCI_LAMPADE = 6;                           // oltre, brillano ma senza luce vera (telefono)
 let _luciLampade = 0, _aloni = [];                 // aloni delle lampade: fuori dalle ombre di contatto
 const _matAcceso = new WeakMap();
@@ -1965,8 +1968,8 @@ function texAlone() {
   if (_texAlone) return _texAlone;
   const c = document.createElement('canvas'); c.width = c.height = 128;
   const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  gr.addColorStop(0, 'rgba(255,236,200,1)'); gr.addColorStop(0.18, 'rgba(255,214,160,0.55)');
-  gr.addColorStop(0.5, 'rgba(255,196,130,0.14)'); gr.addColorStop(1, 'rgba(255,190,120,0)');
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.18, 'rgba(255,255,255,0.5)');
+  gr.addColorStop(0.5, 'rgba(255,255,255,0.12)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
   _texAlone = new THREE.CanvasTexture(c); _texAlone.colorSpace = THREE.SRGBColorSpace;
   return _texAlone;
@@ -1994,15 +1997,23 @@ function accendiLampada(og) {
       new THREE.MeshBasicMaterial({ color: 0xfff1d8 }));
     bulbo.position.copy(p); bulbo.userData.senzaOmbra = true; og.add(bulbo);
   }
-  const alone = new THREE.Sprite(new THREE.SpriteMaterial({ map: texAlone(), color: 0xffffff, transparent: true, opacity: 0.45,
+  const alone = new THREE.Sprite(new THREE.SpriteMaterial({ map: texAlone(), color: LUCE_CALDA, transparent: true, opacity: 0.3,
     blending: THREE.AdditiveBlending, depthWrite: false }));
-  const r = Math.min(520, Math.max(160, largo * 0.85));
+  const r = Math.min(420, Math.max(140, largo * 0.7));
   alone.scale.set(r, r, 1); alone.position.copy(p); alone.userData.alone = true; alone.userData.senzaOmbra = true; alone.renderOrder = 6;
   og.add(alone); _aloni.push(alone);
   if (_luciLampade < MAX_LUCI_LAMPADE) {
     _luciLampade++;
-    const luce = new THREE.PointLight(LUCE_CALDA, 1800, 5000, 1.0);
-    luce.position.copy(p); luce.castShadow = false; luce.userData.luceLampada = true; og.add(luce);
+    // cono verso il basso, largo e morbido (come il LED sotto il pensile, ma da più in alto)
+    const luce = new THREE.SpotLight(LUCE_CALDA, 6500, 4500, Math.PI / 2.6, 1, 1.0);
+    luce.position.copy(p); luce.target.position.set(p.x, p.y - 1000, p.z);
+    luce.castShadow = false; luce.userData.luceLampada = true; og.add(luce); og.add(luce.target);
+    // riverbero: un filo di luce tutt'attorno (muri, soffitto), come la luce che rimbalza in una
+    // stanza vera; solo per le prime lampade (il telefono non calcola troppe luci)
+    if (_luciLampade <= 3) {
+      const spill = new THREE.PointLight(LUCE_CALDA, 500, 5000, 1.0);
+      spill.position.copy(p); spill.castShadow = false; spill.userData.riverbero = true; og.add(spill);
+    }
   }
 }
 
