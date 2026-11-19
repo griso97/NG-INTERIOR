@@ -24,17 +24,17 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
-} from './modello.js?v=20261121q';
-import { renderPianta } from './pianta.js?v=20261121q';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121q';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261121q';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121q';
-import { calcolaDistintaCucina } from './distinta.js?v=20261121q';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121q';
-import { agganciaTema } from '../tema.js?v=20261121q';
-import { tendinePannello } from '../tendine-pannello.js?v=20261121q';
+} from './modello.js?v=20261121r';
+import { renderPianta } from './pianta.js?v=20261121r';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121r';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261121r';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121r';
+import { calcolaDistintaCucina } from './distinta.js?v=20261121r';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121r';
+import { agganciaTema } from '../tema.js?v=20261121r';
+import { tendinePannello } from '../tendine-pannello.js?v=20261121r';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261121q');
+const _excel = () => import('../modello-export.js?v=20261121r');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -1131,8 +1131,9 @@ canvas3d.addEventListener('click', (e) => {
   if (_giuXY && Math.hypot(e.clientX - _giuXY[0], e.clientY - _giuXY[1]) > 6) return;
   if (progetto.stepCorrente !== P_3D || !scena3dMod || !scena3dMod.pickMobile) return;
   const id = scena3dMod.pickMobile(e.clientX, e.clientY);
-  if (id === step2.mobSelId) return;
-  step2.mobSelId = id;
+  const parte = scena3dMod.parteToccata ? scena3dMod.parteToccata() : null;
+  if (id === step2.mobSelId && parte === (step2.parteSel && step2.parteSel.parte)) return;
+  step2.mobSelId = id; step2.parteSel = id != null && parte ? { id, parte } : null;
   renderPannello();
   renderRiepilogo();
   scena3dMod.aggiornaScena3d(progetto, false, id); // evidenzia il modulo toccato
@@ -1230,7 +1231,7 @@ function agganciaBaseAngolo(root, m) {
 }
 
 // Lavello e rubinetto: acciaio o nero
-function htmlFiniture() {
+function htmlFiniture(solo = null) {
   const f = progetto.finiture || {};
   const riga = (chiave, titolo) => `
       <div class="riga-3d" style="margin:8px 0 6px">${titolo}</div>
@@ -1245,8 +1246,34 @@ function htmlFiniture() {
   const modRub = (scena3dMod && scena3dMod.MODELLI_RUBINETTO) || [];
   const rubSel = f.rubinetto === 'acciaio' || !f.rubinetto ? 'cromo' : f.rubinetto;
   const modSel = f.rubinettoModello || 'cigno';
+  const rubColore = `
+      <div class="riga-3d" style="margin:10px 0 6px">Rubinetto · colore</div>
+      <div class="palette-zoccolo">
+        ${finRub.map((x) => `<button type="button" class="swatch-zocc opt-fin ${rubSel === x.id ? 'sel' : ''}" data-fin="rubinetto" data-val="${x.id}" title="${x.nome}" style="background:${x.css}"></button>
+          <span class="et-zocc">${x.nome}</span>`).join('')}
+      </div>`;
+  const forn = `
+    <section class="step3-pannello"${solo ? ' data-aperta' : ''}>
+      <h3>Forno e microonde</h3>
+      <div style="display:flex;gap:8px">
+        ${[['inox', 'Inox'], ['nero', 'Nero'], ['bianco', 'Bianco']].map(([v, et]) =>
+          `<button type="button" class="btn-ghost opt-fin ${forno === v ? 'attivo' : ''}" data-fin="forno" data-val="${v}" style="flex:1">${forno === v ? '✓ ' : ''}${et}</button>`).join('')}
+      </div>
+    </section>`;
+  if (solo === 'forno') return forn;
+  // toccato il RUBINETTO: per primo il suo colore, poi il modello, poi il lavello
+  if (solo === 'rubinetto') return `
+    <section class="step3-pannello" data-aperta>
+      <h3>Rubinetto e lavello</h3>
+      ${rubColore}
+      <div class="riga-3d" style="margin:10px 0 6px">Rubinetto · modello</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${modRub.map((x) => `<button type="button" class="btn-ghost opt-fin ${modSel === x.id ? 'attivo' : ''}" data-fin="rubinettoModello" data-val="${x.id}" style="flex:1;min-width:110px">${modSel === x.id ? '✓ ' : ''}${x.nome}</button>`).join('')}
+      </div>
+      ${riga('lavello', 'Lavello')}
+    </section>`;
   return `
-    <section class="step3-pannello">
+    <section class="step3-pannello"${solo ? ' data-aperta' : ''}>
       <h3>Lavello e rubinetto</h3>
       ${riga('lavello', 'Lavello')}
       <div class="riga-3d" style="margin:10px 0 6px">Rubinetto · modello</div>
@@ -1778,7 +1805,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121q');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121r');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1820,6 +1847,7 @@ function htmlColoreLampada(m) {
 function renderPannelloOggetto(m) {
   const sulPiano = String(m.tipo).startsWith('ogg:');
   pannello.innerHTML = `
+    ${htmlColoreLampada(m)}
     <section class="step3-pannello">
       <h3>Oggetto selezionato</h3>
       <div class="mod-row"><span><span data-no-i18n>${escHtml(nomeTipo(m.tipo))}</span> · <strong>${Math.round(dimMobile(m).w / 10)}×${Math.round(dimMobile(m).d / 10)}${m.altezza_mm ? `×${Math.round(m.altezza_mm / 10)}` : ''} cm</strong></span></div>
@@ -1829,7 +1857,6 @@ function renderPannelloOggetto(m) {
         <button type="button" class="btn-ghost" id="ogg-elimina">Elimina</button>
       </div>
     </section>
-    ${htmlColoreLampada(m)}
     <section class="actions">
       <button id="mob-deseleziona" class="btn-ghost" type="button" style="flex:1">Chiudi</button>
     </section>`;
@@ -1876,7 +1903,16 @@ function renderPannelloModificaMobile(m) {
     : soloQuesto ? (m.coloreFronte || null)
       : parteP ? ((progetto.coloriPonte || {})[parteP] || null) : (progetto.coloriFronti || {})[gruppoColore];
   const encAttuale = (progetto.encimera || {}).materiale || null;
+  // TOCCATO nel 3D il lavello, il rubinetto, il piano cottura o il forno: le SUE opzioni per prime
+  // (il colore in cima), aperte; poi il resto del modulo
+  const parteT = step2.parteSel && step2.parteSel.id === m.id ? step2.parteSel.parte : null;
+  const primaDiTutto = parteT === 'lavello' || parteT === 'rubinetto' || parteT === 'forno' ? htmlFiniture(parteT)
+    : parteT === 'placca' && (m.placca || m.tipo === 'forno') ? `
+    <section class="step3-pannello" data-aperta>
+      <h3>Piano cottura</h3>${htmlFuochi(m)}
+    </section>` : '';
   pannello.innerHTML = `
+    ${primaDiTutto}
     <section class="step3-pannello">
       <h3>Modulo selezionato</h3>
       <div class="mod-row ${m.tipo}"><span>${nomeTipo(m.tipo)} · <strong>${descrizioneMobile(m)}</strong></span></div>
@@ -2099,6 +2135,7 @@ function renderPannelloModificaMobile(m) {
     </section>`;
   agganciaDistanzaFrigo(pannello, m);
   agganciaColoreFrigo(pannello, m);
+  if (primaDiTutto && parteT !== 'placca') agganciaFiniture(pannello);
   agganciaAperturaColonna(pannello, m);
   agganciaColoriPonte(pannello);
   agganciaPortePonte(pannello);
@@ -2544,13 +2581,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121q');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121r');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121q'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121r'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

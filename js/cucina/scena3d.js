@@ -14,28 +14,28 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261121q';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121q';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261121q';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261121q';
+} from './modello.js?v=20261121r';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121r';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261121r';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261121r';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121q').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121r').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121q';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121q';
-import { parametri } from '../parametri.js?v=20261121q';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121q';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121q';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121r';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121r';
+import { parametri } from '../parametri.js?v=20261121r';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121r';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121r';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121q';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121r';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261121q';
+export { telaPavimento } from '../resa.js?v=20261121r';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -498,8 +498,13 @@ function aggiungiAccessorioTop(a, fin = {}) {
     scarico.position.set(0, -prof + 8, zc); g.add(scarico);
     // RUBINETTO (modello e finitura scelti): dietro la vasca, la bocca sopra il centro della vasca
     const zr = -a.d * 0.34;
+    const n0 = g.children.length;
     rubinetto(g, fin.rubinettoModello || 'cigno', fin.rubinetto || 'cromo', zr, Math.max(150, Math.min(260, zc - zr)));
+    // i pezzi del rubinetto: toccandoli si aprono per prime le sue opzioni (colore, modello)
+    g.children.slice(n0).forEach((o) => o.traverse((x) => { x.userData.parte = 'rubinetto'; }));
   }
+  // cosa si tocca: il rubinetto (sopra), se no il lavello o il piano cottura
+  g.traverse((x) => { if (!x.userData.parte) x.userData.parte = a.lavello ? 'lavello' : 'placca'; });
   gruppo.add(g);
 }
 
@@ -903,14 +908,19 @@ export function pickMobile(clientX, clientY) {
   );
   rayPick.setFromCamera(mouse, camera);
   const hits = rayPick.intersectObjects(gruppo.children, true);
+  _ultimaParte = null;
   for (const hit of hits) {
     if (hit.object.userData.portaleVano) continue;       // l'apertura del vano non copre gli oggetti dentro
     let o = hit.object;
+    for (let x = o; x; x = x.parent) if (x.userData.parte) { _ultimaParte = x.userData.parte; break; }
     while (o && o.userData.mobId === undefined) o = o.parent;
     if (o && o.userData.mobId !== undefined) return o.userData.mobId;
   }
   return null;
 }
+/** Che parte del mobile si è toccata con l'ultimo pickMobile: 'lavello', 'rubinetto', 'placca', 'forno' o null. */
+let _ultimaParte = null;
+export function parteToccata() { return _ultimaParte; }
 
 // ---------------------------------------------------------------------------
 // SPOSTARE GLI OGGETTI NEL RENDERING (sgabelli, arredo): si trascinano sul
@@ -1557,6 +1567,8 @@ function pannelloElettro(g, py, z, pw, ph, tipo) {
   } else {
     microondeVero(grp, pw, ph, Z0, _stileForno);
   }
+  // toccando il forno / il microonde si aprono per prime le loro opzioni (colore)
+  grp.traverse((o) => { o.userData.parte = 'forno'; });
   g.add(grp);
 }
 

@@ -15,8 +15,8 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261121q';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261121q';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261121r';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261121r';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -508,7 +508,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261121q');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261121r');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -637,7 +637,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261121q';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261121r';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
@@ -1061,6 +1061,36 @@ function legnoContinuo(img, { raddrizza = true } = {}) {
       if (w < 1) { const i0 = px(prima, x, t); for (let q = 0; q < 3; q++) o[j + q] = mesc(C[i0 + q], C[i1 + q], w, q); }
       else for (let q = 0; q < 3; q++) o[j + q] = C[i1 + q];
       o[j + 3] = 255;
+    }
+  }
+  // TONO UNIFORME: le zone più chiare o più scure della foto (luce del fotografo, una doga più
+  // scura) ripetute una sopra l'altra su una colonna alta facevano i «BLOCCHI». Tolgo le
+  // variazioni larghe (più grandi di ~1/5 della foto) e lascio intatte venature, nodi e fiammature:
+  // la ripetizione non si nota più. (Il legno è già continuo da tutti i lati: sfocatura «a giro».)
+  {
+    const L = new Float32Array(Q * HT);
+    for (let i = 0; i < Q * HT; i++) L[i] = 0.3 * o[i * 4] + 0.59 * o[i * 4 + 1] + 0.11 * o[i * 4 + 2];
+    let media = 0; for (let i = 0; i < L.length; i++) media += L[i]; media /= L.length;
+    const sfoca = (src, rx, ry) => {                       // box blur separabile, a giro (3 passate ≈ gaussiana)
+      let a = src, b = new Float32Array(src.length);
+      for (let pass = 0; pass < 3; pass++) {
+        for (let y = 0; y < HT; y++) {                      // orizzontale
+          let acc = 0; for (let k = -rx; k <= rx; k++) acc += a[y * Q + ((k % Q) + Q) % Q];
+          for (let x = 0; x < Q; x++) { b[y * Q + x] = acc / (2 * rx + 1); acc += a[y * Q + (x + rx + 1) % Q] - a[y * Q + ((x - rx) % Q + Q) % Q]; }
+        }
+        [a, b] = [b, a];
+        for (let x = 0; x < Q; x++) {                       // verticale
+          let acc = 0; for (let k = -ry; k <= ry; k++) acc += a[(((k % HT) + HT) % HT) * Q + x];
+          for (let y = 0; y < HT; y++) { b[y * Q + x] = acc / (2 * ry + 1); acc += a[((y + ry + 1) % HT) * Q + x] - a[(((y - ry) % HT + HT) % HT) * Q + x]; }
+        }
+        [a, b] = [b, a];
+      }
+      return a;
+    };
+    const lento = sfoca(L, Math.max(4, Math.round(Q / 10)), Math.max(4, Math.round(P / 10)));
+    for (let i = 0; i < Q * HT; i++) {
+      const k = Math.pow(media / Math.max(6, lento[i]), 0.85);
+      for (let q = 0; q < 3; q++) o[i * 4 + q] = Math.max(0, Math.min(255, o[i * 4 + q] * k));
     }
   }
   go.putImageData(im, 0, 0);

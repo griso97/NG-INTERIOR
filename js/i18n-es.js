@@ -2173,4 +2173,5 @@ window.NG_I18N_ES = {
  "Piano di lavoro e pannello dietro": "Encimera y panel trasero",
  "Mobili in scena · {0}": "Muebles en escena · {0}",
  "Accessori in cucina · {0}": "Accesorios en la cocina · {0}",
+ "Rubinetto e lavello": "Grifo y fregadero",
 };
