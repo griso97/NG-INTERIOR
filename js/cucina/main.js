@@ -11,7 +11,7 @@ import {
   applicaPreset, aggiungiParete, rimuoviParete,
   TIPI_MODULO_BASE, CATALOGO_MOBILI, LARGHEZZE_BASE, nomeTipo,
   infoTipo, altezzeTipo, campiMobile, descrizioneMobile, categoriaTipo, livelloDiMobile, frigoSottoAltillo,
-  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, togliAltiDentroColonne, spazioMancante, baseAMuro, sceltePorteGruppo, COLORI_FRIGO, APPOGGI_TAVOLO, nomeAppoggioTavolo, pontiSopra, cambiaPensileSottoPonte,
+  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, togliAltiDentroColonne, spazioMancante, baseAMuro, sceltePorteGruppo, COLORI_FRIGO, modoIsola, centroPianta, APPOGGI_TAVOLO, nomeAppoggioTavolo, pontiSopra, cambiaPensileSottoPonte,
   spazioLiberoParete, moduliDiParete,
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
@@ -24,17 +24,17 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
-} from './modello.js?v=20261121l';
-import { renderPianta } from './pianta.js?v=20261121l';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121l';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261121l';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121l';
-import { calcolaDistintaCucina } from './distinta.js?v=20261121l';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121l';
-import { agganciaTema } from '../tema.js?v=20261121l';
-import { tendinePannello } from '../tendine-pannello.js?v=20261121l';
+} from './modello.js?v=20261121n';
+import { renderPianta } from './pianta.js?v=20261121n';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121n';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261121n';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121n';
+import { calcolaDistintaCucina } from './distinta.js?v=20261121n';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121n';
+import { agganciaTema } from '../tema.js?v=20261121n';
+import { tendinePannello } from '../tendine-pannello.js?v=20261121n';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261121l');
+const _excel = () => import('../modello-export.js?v=20261121n');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -1241,6 +1241,7 @@ function posaDi(tipo) {
   return matMod && matMod.posaOggetto ? matMod.posaOggetto(def) : 'piano';
 }
 function postoPerOggetto(m) {
+  if (posaDi(m.tipo) === 'appeso') return postoPerLampada(m);
   const basi = (progetto.mobiliLiberi || []).filter((b) => ['base'].includes(categoriaTipo(b.tipo)) && b.tipo !== 'base-angolo' && !b.lavello && b.tipo !== 'lavello');
   const posa = posaDi(m.tipo);
   // occupato solo da oggetti che si posano allo stesso modo (una lampada sopra un vaso va bene)
@@ -1268,6 +1269,47 @@ function postoPerOggetto(m) {
     }
   }
   return {};
+}
+
+/**
+ * LAMPADE (e cappe a isola): sopra l'ISOLA, se c'è (lungo l'isola, una accanto all'altra), se no al
+ * CENTRO DELLA STANZA. Mai sopra i pensili: lì si sovrapponevano ai mobili alti ed era difficile prenderle.
+ */
+function postoPerLampada(m) {
+  const mob = progetto.mobiliLiberi || [];
+  const dm0 = dimMobile(m), ds = Math.max(450, (dm0.w || 300) + 150);
+  const altri = mob.filter((o) => o.id !== m.id && categoriaTipo(o.tipo) === 'oggetto' && posaDi(o.tipo) === 'appeso');
+  const pensili = mob.filter((p) => ['pensile', 'colonna', 'altillo'].includes(categoriaTipo(p.tipo)));
+  const libero = (x, y) => !altri.some((o) => Math.hypot(o.x - x, o.y - y) < ds * 0.8)
+    && !pensili.some((p) => { const d = dimMobile(p); return Math.abs(p.x - x) < Math.max(d.w, d.d) / 2 + 150 && Math.abs(p.y - y) < Math.max(d.w, d.d) / 2 + 150; });
+  // l'isola: i mobili a terra lontani dai muri
+  const isola = mob.filter((b) => ['base', 'lavastoviglie', 'lavatrice', 'tavolo'].includes(categoriaTipo(b.tipo)) && (categoriaTipo(b.tipo) === 'tavolo' || modoIsola(progetto, b, b.x, b.y)));
+  let cx, cy, lungoX = true;
+  if (isola.length) {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const b of isola) {
+      const d = dimMobile(b), r = ((Math.round((b.rot || 0) / 90) * 90) % 180 + 180) % 180;
+      const hx = (r === 0 ? d.w : d.d) / 2, hy = (r === 0 ? d.d : d.w) / 2;
+      x0 = Math.min(x0, b.x - hx); x1 = Math.max(x1, b.x + hx); y0 = Math.min(y0, b.y - hy); y1 = Math.max(y1, b.y + hy);
+    }
+    cx = (x0 + x1) / 2; cy = (y0 + y1) / 2; lungoX = x1 - x0 >= y1 - y0;
+  } else {
+    // centro della stanza; con un muro solo il «centro» sarebbe sul muro: 1,5 m dentro la stanza
+    const c = centroPianta(progetto); cx = c.x; cy = c.y;
+    const pareti = (progetto.piano.pareti || []).filter((p) => !p.assente), V = calcolaVertici(progetto.piano.pareti || []);
+    if (pareti.length === 1 && V.length >= 2) {
+      const a = V[0], b = V[1], L = Math.hypot(b.x - a.x, b.y - a.y) || 1, sgn = pareti[0].latoInterno === 'interno' ? 1 : -1;
+      cx += (-(b.y - a.y) / L) * sgn * 1500; cy += ((b.x - a.x) / L) * sgn * 1500;
+      lungoX = Math.abs(b.x - a.x) >= Math.abs(b.y - a.y);
+    }
+  }
+  // le lampade lunghe girate come l'isola (lungo il suo lato lungo)
+  const rot = (dm0.w || 0) > (dm0.d || 0) * 1.5 && !lungoX ? 90 : 0;
+  for (const k of [0, 1, -1, 2, -2, 3, -3, 4, -4]) {
+    const x = cx + (lungoX ? k * ds : 0), y = cy + (lungoX ? 0 : k * ds);
+    if (libero(x, y)) return { x: Math.round(x), y: Math.round(y), rot };
+  }
+  return { x: Math.round(cx), y: Math.round(cy), rot };
 }
 
 // --------- LUCE ESTERNA: dal pieno giorno (100%) alla notte (0%: solo lampade accese e LED) ---------
@@ -1706,7 +1748,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121l');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121n');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2468,13 +2510,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121l');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121n');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121l'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121n'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

@@ -10,31 +10,32 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111x';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261121l';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121l';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261121l';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261121l';
+} from './modello.js?v=20261121n';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121n';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261121n';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261121n';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121l').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121n').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121l';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121l';
-import { parametri } from '../parametri.js?v=20261121l';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121l';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121l';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121n';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121n';
+import { parametri } from '../parametri.js?v=20261121n';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121n';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121n';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121l';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121n';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261121l';
+export { telaPavimento } from '../resa.js?v=20261121n';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -250,6 +251,68 @@ let luciAmbiente = [];        // luci di scena con la loro intensita' base
 const texCache = {};
 
 /** Evidenzia un gruppo: bordi bianchi + leggero bagliore sul corpo. */
+/**
+ * MENO DISEGNI = 3D PIÙ FLUIDO. Un cassettone erano ~28 pezzi (fianchi, frontali, maniglie, cassetti…):
+ * ognuno un «disegno» separato per la scheda grafica, e una cucina intera arrivava a 1.700 disegni per
+ * immagine (×3: scena, vetro, ombre di contatto). Qui i pezzi di un mobile con lo STESSO materiale
+ * diventano un pezzo solo: a vista identico, 3–5 disegni per mobile. I pezzi speciali (LED, luci,
+ * trasparenti, superfici d'appoggio, segnaposti) restano come sono.
+ */
+function unisciPerMateriale(root) {
+  if (!root) return;
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const buono = (m) => m && !m.transparent && !(m.transmission > 0) && m.visible !== false;
+  const gruppi = new Map(), via = new Set();
+  const metti = (o, geo, mat, r) => {
+    const attr = Object.keys(geo.attributes).sort().map((k) => `${k}${geo.attributes[k].itemSize}${geo.attributes[k].array.constructor.name}`).join(',');
+    const key = `${mat.uuid}|${o.castShadow ? 1 : 0}${o.receiveShadow ? 1 : 0}|${geo.index ? 1 : 0}|${attr}`;
+    (gruppi.get(key) || gruppi.set(key, []).get(key)).push({ geo, mat, o, r });
+  };
+  root.traverse((o) => {
+    if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || !o.visible || o.children.length || o.renderOrder) return;
+    if (Object.keys(o.userData).length) return;                       // pezzi con un compito: restano soli
+    const g = o.geometry;
+    if (!g || !g.attributes.position || (g.morphAttributes && Object.keys(g.morphAttributes).length)) return;
+    if (Object.values(g.attributes).some((a) => a.isInterleavedBufferAttribute)) return;
+    for (let x = o.parent; x && x !== root; x = x.parent) if (!x.visible) return;
+    const r = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+    if (r.determinant() < 0) return;                                  // specchiato: girerebbe le facce
+    if (!Array.isArray(o.material)) {
+      if (!buono(o.material)) return;
+      metti(o, g, o.material, r); via.add(o); return;
+    }
+    // più materiali sullo stesso pezzo (es. una faccia di un altro colore): un pezzo per materiale
+    if (!g.groups.length || !g.groups.every((gr) => buono(o.material[gr.materialIndex]))) return;
+    for (const gr of g.groups) {
+      let sub;
+      if (g.index) { sub = g.clone(); sub.setIndex(Array.from(g.index.array.slice(gr.start, gr.start + gr.count))); }
+      else {
+        sub = new THREE.BufferGeometry();
+        for (const k in g.attributes) { const at = g.attributes[k]; sub.setAttribute(k, new THREE.BufferAttribute(at.array.slice(gr.start * at.itemSize, (gr.start + gr.count) * at.itemSize), at.itemSize, at.normalized)); }
+      }
+      sub.clearGroups(); sub.userData._tmp = true;
+      metti(o, sub, o.material[gr.materialIndex], r);
+    }
+    via.add(o);
+  });
+  // un pezzo solo che non viene da più materiali: inutile rifarlo
+  for (const [k, lista] of gruppi) if (lista.length === 1 && !Array.isArray(lista[0].o.material)) { via.delete(lista[0].o); gruppi.delete(k); }
+  const nuovi = [];
+  for (const lista of gruppi.values()) {
+    const geos = lista.map((x) => (x.geo.userData._tmp ? x.geo : x.geo.clone()).applyMatrix4(x.r));
+    let unita = null;
+    try { unita = geos.length === 1 ? geos[0] : mergeGeometries(geos, false); } catch (_) { unita = null; }
+    if (geos.length > 1) geos.forEach((g) => g.dispose());
+    if (!unita) { for (const x of lista) via.delete(x.o); continue; }
+    const mesh = new THREE.Mesh(unita, lista[0].mat);
+    mesh.castShadow = lista[0].o.castShadow; mesh.receiveShadow = lista[0].o.receiveShadow;
+    nuovi.push(mesh);
+  }
+  for (const o of via) o.parent && o.parent.remove(o);
+  for (const m of nuovi) root.add(m);
+}
+
 function evidenzia(g) {
   g.traverse((o) => {
     if (o.isLineSegments && !o.userData.fuga) {
@@ -764,6 +827,15 @@ function muriVisibili() {
     if (!n) continue;
     o.visible = (camera.position.x - o.position.x) * n.x + (camera.position.z - o.position.z) * n.z > -40;
   }
+}
+/** Quanto lavoro fa il disegno (per le prove): disegni, triangoli, luci accese, pixel. */
+export function scenaPerProve() { return { scene, renderer, camera }; }
+export function info3d(conta = false) {
+  if (!renderer || !scene) return null;
+  if (conta) { const ar = renderer.info.autoReset; renderer.info.autoReset = false; renderer.info.reset(); renderer.render(scene, camera); renderer.info.autoReset = ar; }
+  let luci = 0, spot = 0, punti = 0; scene.traverse((o) => { if (o.isLight && o.visible && !o.isAmbientLight && !o.isHemisphereLight) { luci++; if (o.isSpotLight) spot++; if (o.isPointLight) punti++; } });
+  const s = renderer.getDrawingBufferSize(new THREE.Vector2());
+  return { calls: renderer.info.render.calls, tri: renderer.info.render.triangles, luci, spot, punti, prog: (renderer.info.programs || []).length, px: s.x * s.y };
 }
 /** Memoria della scheda grafica (per le prove): geometrie, texture, programmi. */
 export function memoria3d() { return renderer ? { geo: renderer.info.memory.geometries, tex: renderer.info.memory.textures, prog: (renderer.info.programs || []).length } : null; }
@@ -2527,6 +2599,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
         continue;
       }
       const g = costruisciMobile('base', mm.tipo, { ...mm, altezza_mm: porta }, mm.larghezza_mm, porta, PROFONDITA_BASE, matBase);
+      unisciPerMateriale(g);
       gruppo.add(collocaMobile(g, px, zocc, -py, porta, p.angolo_gradi));
       if (mm.tipo === 'forno' || mm.tipo === 'lavello') {
         accessori.push({ id: mm.id, x: px, y: py, rot: p.angolo_gradi, w: mm.larghezza_mm, d: PROFONDITA_BASE,
@@ -2753,7 +2826,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
           fuochi: m.fuochi || fuochiPerLarghezza(dim.w) });
       }
     }
-    if (g3d) { g3d.userData.mobId = m.id; if (m.id === selId) evidenzia(g3d); gruppo.add(g3d); }
+    if (g3d) { unisciPerMateriale(g3d); g3d.userData.mobId = m.id; if (m.id === selId) evidenzia(g3d); gruppo.add(g3d); }
   }
 
   // PANNELLO SOTTO IL PONTE: copre il fondo dei moduli del ponte, per tutta la

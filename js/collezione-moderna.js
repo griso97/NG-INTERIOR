@@ -7,7 +7,7 @@
 // Assi: x larghezza, y altezza (0 = appoggio), z profondità (+ = davanti).
 // =============================================================================
 import * as THREE from 'three';
-import { coloreLampada } from './colori-lampade.js?v=20261121l';
+import { coloreLampada } from './colori-lampade.js?v=20261121n';
 
 const qui = (p) => new URL(p, import.meta.url).href;
 
@@ -79,11 +79,11 @@ function legnoDisegnato(tipo, rip, ripXY = null) {
   if (ripXY) t.repeat.set(...ripXY); else t.repeat.set(rip, rip);
   _tex.set(k, t); return t;
 }
-// TELEFONO: il vetro «vero» (trasmissione) obbliga a disegnare la scena due volte per ogni immagine;
-// sul telefono diventa vetro trasparente semplice (stessi riflessi, una volta sola): il 3D resta fluido
-const TELEFONO = typeof navigator !== 'undefined' && (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '')
-  || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent || '')));
-const OPACITA_VETRO = { 'vetro-fume': 0.5, 'vetro-verde': 0.65, 'vetro-bordo': 0.55, 'vetro-lampadina': 0.3, 'vetro-stellato': 0.16, cristallo: 0.18 };
+// VETRO: quello «vero» (trasmissione) obbliga a disegnare la scena due volte per ogni immagine (sul
+// computer era metà del lavoro di una cucina con le lampade di vetro): ovunque diventa vetro trasparente
+// semplice, con gli stessi riflessi, disegnato una volta sola. Il 3D resta fluido anche sul computer.
+const TELEFONO = true;
+const OPACITA_VETRO = { 'vetro-fume': 0.5, 'vetro-verde': 0.65, 'vetro-bordo': 0.55, 'vetro-lampadina': 0.3, 'vetro-stellato': 0.21, cristallo: 0.18 };
 function vetroLeggero(m, nome) {
   if (!TELEFONO || !m || !(m.transmission > 0)) return m;
   m.transmission = 0; m.transparent = true; m.depthWrite = false;
@@ -239,7 +239,7 @@ async function frutto(id) {
       if (id.startsWith('lib:')) {
         // un modello della LIBRERIA (es. il pane), intero, alla scala chiesta: "lib:<id>@<scala>"
         const [nome, sc] = id.slice(4).split('@');
-        const { caricaGLB } = await import('./carica-glb.js?v=20261121l');
+        const { caricaGLB } = await import('./carica-glb.js?v=20261121n');
         const gl = await caricaGLB(qui(`../oggetti/libreria/${nome}.glb`));
         gl.scene.updateMatrixWorld(true);
         const g0 = new THREE.Group();
@@ -251,7 +251,7 @@ async function frutto(id) {
         return [g];
       }
       // file unico compresso (geometria meshopt, texture WebP 512): pochi KB invece di 0,5-2,4 MB
-      const { caricaGLB } = await import('./carica-glb.js?v=20261121l');
+      const { caricaGLB } = await import('./carica-glb.js?v=20261121n');
       const gl = await caricaGLB(qui(`../oggetti/moderni/frutta/${id}.glb`));
       gl.scene.updateMatrixWorld(true);
       const pezzi = [];

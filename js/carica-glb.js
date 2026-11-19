@@ -47,10 +47,10 @@ export function numeriNormali(scena) {
   return scena;
 }
 
-const TELEFONO = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '')
-  || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent || ''));
-/** Sul TELEFONO il vetro «vero» dei modelli (trasmissione: la scena disegnata due volte) diventa
- *  vetro trasparente semplice. */
+// (prima solo sul telefono; ora ovunque: sul computer il vetro «vero» raddoppiava il lavoro)
+const TELEFONO = true;
+/** Il vetro «vero» dei modelli (trasmissione: la scena disegnata due volte) diventa vetro trasparente
+ *  semplice, con gli stessi riflessi. */
 function vetroLeggero(scena) {
   if (!TELEFONO) return;
   scena.traverse((o) => {

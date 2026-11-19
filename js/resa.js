@@ -14,7 +14,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261121l';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261121n';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
@@ -91,8 +91,13 @@ export function creaResa(opz) {
   // ricorda), alleggerisce solo le ombre di contatto, la parte più pesante:
   // metà dei campioni per pixel (a occhio, mentre si muove, non cambia niente).
   // Da fermo: tutto a piena qualità. Il telefono resta com'è.
-  let aoLeggera = false;
-  if (!tel) { try { aoLeggera = localStorage.getItem('ng-3d-ao-leggera') === '1'; } catch (_) { /* niente */ } }
+  // LIVELLI MENTRE SI GIRA (si regola da solo, e se lo ricorda): 0 = ombre di contatto piene;
+  // 1 = ombre di contatto leggere; 2 = niente ombre di contatto mentre si gira (tornano appena ti fermi);
+  // 3 = anche meno pixel mentre si gira. Da fermo la qualità resta sempre piena.
+  let livMoto = tel ? 1 : 0;
+  try { const v = localStorage.getItem('ng-3d-moto-livello'); if (v != null) livMoto = Math.min(3, Math.max(tel ? 1 : 0, Number(v) || 0)); else if (!tel && localStorage.getItem('ng-3d-ao-leggera') === '1') livMoto = 1; } catch (_) { /* niente */ }
+  let aoLeggera = livMoto >= 1;
+  const dprMoto = () => (livMoto >= 3 ? 1 : DPR_MOTO);
   let ao = null, aoMoto = null, quad = null, guasto = false;
   const nuovoAO = (w, h) => {
     const a = new GTAOPass(scene, camera, Math.max(2, w), Math.max(2, h));
@@ -148,7 +153,7 @@ export function creaResa(opz) {
   /** Ombre di contatto del movimento: 16 campioni per pixel, o 8 se la scheda grafica è lenta. */
   function campioniMoto() {
     if (!aoMoto) return;
-    const n = aoLeggera || tel ? 8 : 16;                       // telefono: leggero mentre si gira
+    const n = aoLeggera ? 8 : 16;                              // telefono: leggero mentre si gira
     aoMoto.updateGtaoMaterial({ samples: n });
     aoMoto.updatePdMaterial({ samples: n });
   }
@@ -165,6 +170,7 @@ export function creaResa(opz) {
     renderer._ngSfondo = sfondo;
     try { renderer.render(scene, camera); } finally { renderer._ngSfondo = null; }
     if (!ao || guasto || opz.senzaAO?.()) return;
+    if (leggero && livMoto >= 2) return;                       // mentre si gira, su una scheda grafica lenta: senza
     try {
       const s = renderer.getDrawingBufferSize(_s);
       const a = (leggero && aoMoto) ? aoMoto : ao;
@@ -230,20 +236,25 @@ export function creaResa(opz) {
   // mentre si gira; molto veloce → di nuovo piene. La nitidezza non cambia mai.
   let tPrec = 0, nMoto = 0, lenti = 0;
   const campioni = [];
+  let veloceMoto = 0;
   function misura(ora, consecutivo) {
     const dt = ora - tPrec; tPrec = ora;
-    if (!aoMoto || !consecutivo || tel) return;
+    if (!consecutivo) return;
     if (++nMoto < 20) return;                                  // i primi fotogrammi (preparazione) non contano
     campioni.push(dt);
     if (campioni.length < 12) return;
     campioni.sort((x, y) => x - y);
     const med = campioni[6]; campioni.length = 0;
-    let nuova = aoLeggera;
-    if (!aoLeggera) { lenti = med > 26 ? lenti + 1 : 0; if (lenti >= 2) nuova = true; }   // sotto i ~38 fotogrammi al secondo
-    else if (med < 10) nuova = false;                                                    // scheda grafica molto veloce
-    if (nuova === aoLeggera) return;
-    aoLeggera = nuova; lenti = 0; campioniMoto();
-    try { localStorage.setItem('ng-3d-ao-leggera', nuova ? '1' : '0'); } catch (_) { /* niente */ }
+    // lento (sotto i ~38 fotogrammi al secondo) due volte di fila → un gradino più leggero;
+    // molto veloce tre volte di fila → un gradino più bello
+    let nuovo = livMoto;
+    if (med > 26) { lenti++; veloceMoto = 0; if (lenti >= 2 && livMoto < 3) { nuovo = livMoto + 1; lenti = 0; } }
+    else if (med < 12) { veloceMoto++; lenti = 0; if (veloceMoto >= 3 && livMoto > (tel ? 1 : 0)) { nuovo = livMoto - 1; veloceMoto = 0; } }
+    else { lenti = 0; veloceMoto = 0; }
+    if (nuovo === livMoto) return;
+    livMoto = nuovo; aoLeggera = livMoto >= 1; campioniMoto();
+    if (!nitido) dimensiona(dprMoto());
+    try { localStorage.setItem('ng-3d-moto-livello', String(livMoto)); } catch (_) { /* niente */ }
   }
 
   /**
@@ -257,7 +268,7 @@ export function creaResa(opz) {
     posPrec.copy(camera.position); quatPrec.copy(camera.quaternion);
     if (moto || passo > 0.25) {
       ultimoMoto = ora;
-      if (nitido) { dimensiona(DPR_MOTO); nitido = false; misura(ora, false); }
+      if (nitido) { dimensiona(dprMoto()); nitido = false; misura(ora, false); }
       else misura(ora, motoPrec);
       disegnaOra(true); motoPrec = true;
       return;
@@ -303,8 +314,8 @@ export function creaResa(opz) {
     window.removeEventListener('blur', svuota);
   }
 
-  dimensiona(DPR_MOTO);
-  return { disegna, cambiato, tick, dimensiona: () => dimensiona(nitido ? dprFermo() : DPR_MOTO), foto, dispose };
+  dimensiona(dprMoto());
+  return { disegna, cambiato, tick, dimensiona: () => dimensiona(nitido ? dprFermo() : dprMoto()), foto, dispose };
 }
 
 // -----------------------------------------------------------------------------
