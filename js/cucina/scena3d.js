@@ -13,28 +13,28 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261121j';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121j';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261121j';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261121j';
+} from './modello.js?v=20261121l';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121l';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261121l';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261121l';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121j').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121l').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121j';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121j';
-import { parametri } from '../parametri.js?v=20261121j';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121j';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121j';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121l';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121l';
+import { parametri } from '../parametri.js?v=20261121l';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121l';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121l';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121j';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121l';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261121j';
+export { telaPavimento } from '../resa.js?v=20261121l';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -634,6 +634,25 @@ function applicaLuceEsterna(v) {
   if (renderer.shadowMap) renderer.shadowMap.needsUpdate = true;
 }
 /** Slider «Luce esterna»: cambia la luce SUBITO (senza rifare la scena). v = 0 notte … 1 giorno. */
+/** Colore delle luci SUBITO (mentre si trascina la barra), senza rifare la scena: { led, lampade } in Kelvin. */
+export function impostaColoreLuci({ led = null, lampade = null } = {}) {
+  if (!gruppo) return;
+  const hL = led != null ? coloreKelvin(led) : null;
+  if (lampade != null) impostaColoreLampade(lampade);
+  gruppo.traverse((o) => {
+    if (hL != null) {
+      if (o.isMesh && o.userData.ledStriscia) { o.material.color.setHex(hL); o.userData.ledStriscia.colore = hL; }
+      if (o.isLight && o.userData.ledLuce) o.color.setHex(hL);
+    }
+    if (lampade != null) {
+      if (o.isLight && (o.userData.luceLampada || o.userData.riverbero)) o.color.setHex(_luceLampade);
+      if (o.isSprite && o.userData.alone) o.material.color.setHex(_luceLampade);
+      if (o.isMesh) for (const m of [].concat(o.material)) if (m && m.userData && m.userData.acceso) m.emissive.setHex(_luceLampade);
+    }
+  });
+  if (hL != null) impostaTintaLed(hL);
+  if (resa) resa.cambiato();
+}
 export function impostaLuceEsterna(v) { applicaLuceEsterna(Math.min(1, Math.max(0, Number(v) || 0))); if (resa) resa.cambiato(); }
 function creaAmbiente(rnd, forza = 1) {
   const c = document.createElement('canvas'); c.width = 16; c.height = 64;
@@ -1942,6 +1961,21 @@ const LED_COLORI = {
   medio:  0xfff6ec,   // 4000K (quello di prima sul pannello dietro)
   freddo: 0xe6eeff,   // 6500K
 };
+/** COLORE DELLA LUCE dalla temperatura (2700–6500 K), come le lampadine e i LED veri: tra i punti
+ *  fissi (gli stessi di sempre per 3000, 4000 e 6500 K) il colore passa piano piano. */
+const PUNTI_KELVIN = [[2700, 0xffcfa3], [3000, 0xffd8b6], [3500, 0xffe8d2], [4000, 0xfff6ec], [5000, 0xf7f6ff], [6500, 0xe6eeff]];
+export function coloreKelvin(k) {
+  const K = Math.min(6500, Math.max(2700, Number(k) || 3000));
+  for (let i = 1; i < PUNTI_KELVIN.length; i++) {
+    const [k0, c0] = PUNTI_KELVIN[i - 1], [k1, c1] = PUNTI_KELVIN[i];
+    if (K <= k1) return new THREE.Color(c0).lerp(new THREE.Color(c1), (K - k0) / (k1 - k0)).getHex();
+  }
+  return PUNTI_KELVIN[PUNTI_KELVIN.length - 1][1];
+}
+const KELVIN_NOMI = { caldo: 3000, medio: 4000, freddo: 6500 };
+/** Temperatura dei LED del progetto (le scelte di prima «caldo / neutro / freddo» restano). */
+export function kelvinLed(progetto) { const l = progetto.led || {}; return Number(l.kelvin) || KELVIN_NOMI[l.colore] || 3000; }
+const ledHex = (progetto) => coloreKelvin(kelvinLed(progetto));
 
 // ---------------------------------------------------------------------------
 // LAMPADE ACCESE: ogni lampada del catalogo (sospensioni, plafoniere, LED) si vede accesa.
@@ -1960,6 +1994,9 @@ const TELEFONO_3D = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '')
 // pesa su ogni punto dello schermo
 const MAX_LUCI_LAMPADE = TELEFONO_3D ? 4 : 8, MAX_RIVERBERI = TELEFONO_3D ? 1 : 3;
 let _luciLampade = 0, _riverberi = 0, _aloni = [];                 // aloni delle lampade: fuori dalle ombre di contatto
+// COLORE DELLE LAMPADE: scelto (progetto.lampadeK, in Kelvin) oppure quello di sempre (~3700 K)
+let _luceLampade = LUCE_CALDA, _tintaScelta = false;
+function impostaColoreLampade(k) { _tintaScelta = !!Number(k); _luceLampade = _tintaScelta ? coloreKelvin(k) : LUCE_CALDA; }
 // VETRO trasparente (sfere delle lampade, bicchieri, vasi): fuori dalle ombre di contatto. Le ombre di
 // contatto si calcolano dalla forma delle superfici: l'interno di una sfera di vetro risultava un
 // angolo chiuso e si riempiva di puntini scuri, come vetro sporco. Il vetro è trasparente: le ombre
@@ -1982,7 +2019,11 @@ const _matAcceso = new WeakMap();
 const PAROLE_LUCE = /glass|vetro|bulb|globe|opal|diffus|emiss|lampadin|paralum|neon|\bled\b|flame|candle|frost/;   // NON «lamp»/«light»: spesso è tutta la lampada
 function materialeAcceso(m, nomeMesh) {
   if (!m || !m.isMaterial) return null;
-  if (_matAcceso.has(m)) return _matAcceso.get(m);
+  if (_matAcceso.has(m)) {
+    const a = _matAcceso.get(m);
+    if (a) a.emissive.setHex(a.userData.emissivoProprio != null && !_tintaScelta ? a.userData.emissivoProprio : _luceLampade);
+    return a;
+  }
   // vetro che resta trasparente a lampada accesa (la luce è dentro: lucine, filamento)
   if (m.userData && m.userData.restaChiaro) { _matAcceso.set(m, null); return null; }
   const nome = `${m.name || ''} ${nomeMesh || ''}`.toLowerCase();
@@ -1994,9 +2035,12 @@ function materialeAcceso(m, nomeMesh) {
     if (giaLuce) {
       // già luminoso nel modello (LED, opalino, intreccio di bambù): stesso colore, molto più forte
       acceso.emissiveIntensity = Math.min(5, Math.max(1.2, (m.emissiveIntensity || 1) * 4));
+      // il suo colore, finché non si sceglie il colore delle lampade (allora prende quello)
+      acceso.userData.emissivoProprio = m.emissive.getHex();
+      if (_tintaScelta) acceso.emissive.setHex(_luceLampade);
     } else {
       // vetro, opalino, lampadina: si illumina di luce calda (il vetro diventa «smerigliato acceso»)
-      acceso.emissive = new THREE.Color(LUCE_CALDA);
+      acceso.emissive = new THREE.Color(_luceLampade);
       acceso.emissiveIntensity = trasp ? 1.4 : 2.2;
       if (trasp) acceso.opacity = Math.max(m.opacity, 0.75);
     }
@@ -2064,7 +2108,7 @@ function accendiLampada(og) {
   // lampade lunghe: niente aloni (facevano 3–4 macchie tonde, come lampadine); brilla la linea LED.
   // Le lampadine DICHIARATE invece sono lampadine vere: ognuna ha il suo alone
   for (const p of (n === 1 || segnati.length ? punti : [])) {
-    const alone = new THREE.Sprite(new THREE.SpriteMaterial({ map: texAlone(), color: LUCE_CALDA, transparent: true, opacity: n === 1 ? 0.3 : 0.18,
+    const alone = new THREE.Sprite(new THREE.SpriteMaterial({ map: texAlone(), color: _luceLampade, transparent: true, opacity: n === 1 ? 0.3 : 0.18,
       blending: THREE.AdditiveBlending, depthWrite: false }));
     alone.scale.set(r, r, 1); alone.position.copy(p); alone.userData.alone = n === 1 ? true : 'lungo'; alone.userData.senzaOmbra = true; alone.renderOrder = 6;
     og.add(alone); _aloni.push(alone);
@@ -2076,7 +2120,7 @@ function accendiLampada(og) {
   for (const p of punti) {
     if (_luciLampade >= MAX_LUCI_LAMPADE) break;
     _luciLampade++; messe++;
-    const luce = new THREE.SpotLight(LUCE_CALDA, 6500 * fattore, 4500, Math.PI / 2.6, 1, 1.0);
+    const luce = new THREE.SpotLight(_luceLampade, 6500 * fattore, 4500, Math.PI / 2.6, 1, 1.0);
     luce.position.copy(p); luce.target.position.set(p.x, p.y - 1000, p.z);
     luce.castShadow = false; luce.userData.luceLampada = fattore; og.add(luce); og.add(luce.target);
   }
@@ -2085,7 +2129,7 @@ function accendiLampada(og) {
   if (messe && _riverberi < MAX_RIVERBERI) {
     _riverberi++;
     const centro = og.worldToLocal(new THREE.Vector3(c.x, yL, c.z));
-    const spill = new THREE.PointLight(LUCE_CALDA, 500, 5000, 1.0);
+    const spill = new THREE.PointLight(_luceLampade, 500, 5000, 1.0);
     spill.position.copy(centro); spill.castShadow = false; spill.userData.riverbero = true; og.add(spill);
   }
 }
@@ -2102,7 +2146,7 @@ function accendiLampada(og) {
 /** LED sotto il pensile. avanti = mm di cui spostarlo verso il fronte
  *  (con il pannello dietro il piano: il suo spessore, così resta visibile). */
 function aggiungiLedPensile(g, w, h, d, colore, avanti = 0) {
-  const hex = LED_COLORI[colore] || LED_COLORI.caldo;
+  const hex = typeof colore === 'number' ? colore : (LED_COLORI[colore] || LED_COLORI.caldo);
   const stripW = Math.max(60, w - 40);
   const stripH = 6;
   const stripD = 18;
@@ -2125,28 +2169,15 @@ function aggiungiLedPensile(g, w, h, d, colore, avanti = 0) {
   const spot = new THREE.SpotLight(hex, 5200, 2600, Math.PI / 3.2, 0.85, 1.0);
   spot.position.set(0, -h / 2 - 6, zStrip + 30);
   spot.target.position.set(0, -h / 2 - 1000, zStrip - 260);
+  spot.userData.ledLuce = true;
   g.add(spot);
   g.add(spot.target);
 }
 
-/** LED SOPRA IL PONTE: striscia sul cielo del ponte, verso il muro, con la luce che SALE
- *  e illumina il muro sopra (luce indiretta). Stessi colori dei LED sotto. */
-function aggiungiLedSopra(g, w, h, d, colore) {
-  const hex = LED_COLORI[colore] || LED_COLORI.caldo;
-  const stripW = Math.max(60, w - 40), stripH = 6, stripD = 18;
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(stripW, stripH, stripD), new THREE.MeshBasicMaterial({ color: hex, toneMapped: false }));
-  const zStrip = -d / 2 + stripD / 2 + 30;
-  mesh.position.set(0, h / 2 + stripH / 2, zStrip);
-  mesh.userData.ledStriscia = { colore: hex, lunghezza: stripW };
-  g.add(mesh);
-  const spot = new THREE.SpotLight(hex, 5200, 2600, Math.PI / 3.2, 0.85, 1.0);
-  spot.position.set(0, h / 2 + 8, zStrip - 10);
-  spot.target.position.set(0, h / 2 + 1000, zStrip - 330);
-  g.add(spot);
-  g.add(spot.target);
-}
-/** Dove vanno i LED nella cucina a ponte: 'sotto' (come i pensili), 'sopra' il ponte, 'entrambi'. */
-const ledPonte = (progetto) => (progetto.led && progetto.led.ponte) || 'sotto';
+/** Dove vanno i LED nella cucina a ponte, SEMPRE sotto: 'pensili' (sotto ogni pensile, anche quelli sotto
+ *  il ponte), 'ponte' (sotto il ponte dove non ci sono pensili: il suo fondo si vede) o 'entrambi'.
+ *  (Le scelte di prima: sotto → entrambi, come faceva; sopra → ponte.) */
+const ledPonte = (progetto) => { const v = (progetto.led && progetto.led.ponte) || 'entrambi'; return v === 'sotto' ? 'entrambi' : v === 'sopra' ? 'ponte' : v; };
 
 /**
  * Pensile ad angolo a L (pezzo unico): due bracci perpendicolari, ingombro
@@ -2372,6 +2403,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
 }
 function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   _luciLampade = 0; _riverberi = 0; _aloni = [];
+  impostaColoreLampade(progetto.lampadeK);
   if (!scene) return;
   selId = selezionato;
   _lastProgetto = progetto;
@@ -2585,13 +2617,13 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       cimeAlte.set(m.id, base + h);
       // LED sotto i pensili (opzionale, con scelta temperatura colore).
       // Il pensile-angolo (diagonale) non lo prende: ha una geometria dedicata.
-      if (progetto.led && progetto.led.attivo && m.tipo !== 'pensile-angolo-45' && (fondoPonte == null || ledPonte(progetto) !== 'sopra')) {
+      if (progetto.led && progetto.led.attivo && m.tipo !== 'pensile-angolo-45' && (fondoPonte == null || ledPonte(progetto) !== 'ponte')) {
         const conPannello = progetto.schienale && progetto.schienale.attivo;
-        aggiungiLedPensile(gPens, dim.w, h, dim.d, progetto.led.colore, conPannello ? SP_SCHIENALE : 0);
+        aggiungiLedPensile(gPens, dim.w, h, dim.d, ledHex(progetto), conPannello ? SP_SCHIENALE : 0);
         if (m.tipo === 'pensile-angolo') {                       // anche sotto il secondo braccio
           const gB = new THREE.Group();
           gB.rotation.y = Math.PI / 2; gB.position.z = PROFONDITA_PENSILE / 2;
-          aggiungiLedPensile(gB, dim.d - PROFONDITA_PENSILE, h, dim.w, progetto.led.colore, conPannello ? SP_SCHIENALE : 0);
+          aggiungiLedPensile(gB, dim.d - PROFONDITA_PENSILE, h, dim.w, ledHex(progetto), conPannello ? SP_SCHIENALE : 0);
           gPens.add(gB);
         }
       }
@@ -2629,15 +2661,11 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       const gA = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matPonte || matColonna || matPensile,
         { porte: m.tipo === 'ponte' ? sceltePorte(progetto, m) : null });
       cimeAlte.set(m.id, base + h);
-      // PONTE senza pensili sotto: i LED (se accesi) vanno sotto il ponte, sul piano
-      // (con il pannello sotto il ponte li porta lui, più in basso)
-      if (m.tipo === 'ponte' && progetto.led && progetto.led.attivo && ledPonte(progetto) !== 'sopra' && !spessorePannelloPonte(progetto)
+      // LED SOTTO IL PONTE dove sotto non ci sono pensili (il fondo del ponte si vede: luce sul piano);
+      // con il pannello sotto il ponte li porta lui, più in basso. Scelta «Sotto il ponte» o «Sotto entrambi»
+      if (m.tipo === 'ponte' && progetto.led && progetto.led.attivo && ledPonte(progetto) !== 'pensili' && !spessorePannelloPonte(progetto)
         && !(progetto.mobiliLiberi || []).some((o) => categoriaTipo(o.tipo) === 'pensile' && siSovrappongono(o, m))) {
-        aggiungiLedPensile(gA, dim.w, h, dim.d, progetto.led.colore, 0);
-      }
-      // LED SOPRA IL PONTE (scelta "Sopra" o "Sotto + sopra")
-      if (m.tipo === 'ponte' && progetto.led && progetto.led.attivo && ledPonte(progetto) !== 'sotto') {
-        aggiungiLedSopra(gA, dim.w, h, dim.d, progetto.led.colore);
+        aggiungiLedPensile(gA, dim.w, h, dim.d, ledHex(progetto), 0);
       }
       g3d = collocaMobile(gA, cx, base, cz, h, m.rot);
     } else if (cat === 'regletta') {
@@ -2745,7 +2773,20 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       const gP = new THREE.Group();
       gP.add(corpo(f.w, spP, f.d, mat));
       const conPensili = (progetto.mobiliLiberi || []).some((o) => categoriaTipo(o.tipo) === 'pensile' && pz.some((p) => siSovrappongono(o, p)));
-      if (progetto.led && progetto.led.attivo && ledPonte(progetto) !== 'sopra' && !conPensili) aggiungiLedPensile(gP, f.w, spP, f.d, progetto.led.colore, 0);
+      // LED sotto il pannello: sotto ogni modulo del ponte che NON ha un pensile sotto (lì il fondo si vede)
+      if (progetto.led && progetto.led.attivo && ledPonte(progetto) !== 'pensili') {
+        if (!conPensili) aggiungiLedPensile(gP, f.w, spP, f.d, ledHex(progetto), 0);
+        else {
+          const r = (f.rot || 0) * Math.PI / 180;
+          for (const o of pz) {
+            if ((progetto.mobiliLiberi || []).some((q) => categoriaTipo(q.tipo) === 'pensile' && siSovrappongono(q, o))) continue;
+            const gL = new THREE.Group();
+            gL.position.x = (o.x - f.x) * Math.cos(r) - (o.y - f.y) * Math.sin(r);
+            aggiungiLedPensile(gL, dimMobile(o).w, spP, f.d, ledHex(progetto), 0);
+            gP.add(gL);
+          }
+        }
+      }
       gruppo.add(collocaMobile(gP, f.x, fondo - spP, -f.y, spP, f.rot));
     }
   }
@@ -2806,7 +2847,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   uvInScala(gruppo);
   try { riflettiStanza(gruppo, renderer); } catch (_) { /* senza riflessi va bene lo stesso */ }
   // LED sotto i pensili: la loro luce tinge anche le foto (piano, pannello dietro, ante)
-  impostaTintaLed(progetto.led && progetto.led.attivo ? (LED_COLORI[progetto.led.colore] || LED_COLORI.caldo) : null);
+  impostaTintaLed(progetto.led && progetto.led.attivo ? ledHex(progetto) : null);
   if (reframe) inquadra(bb, direzioneStanza(full, vertici));
   // OMBRE: tutto fa ombra (muri e pavimento la ricevono soltanto), inquadrate sulla cucina
   // le LAMPADE non fanno ombra (sono loro la luce): userData.senzaOmbra

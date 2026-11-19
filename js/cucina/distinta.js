@@ -13,8 +13,8 @@
 
 import {
   infoTavolo, spessoreTavolo, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna,
-} from './modello.js?v=20261121j';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261121j';
+} from './modello.js?v=20261121l';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261121l';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)

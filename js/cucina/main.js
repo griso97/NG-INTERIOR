@@ -24,17 +24,17 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
-} from './modello.js?v=20261121j';
-import { renderPianta } from './pianta.js?v=20261121j';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121j';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261121j';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121j';
-import { calcolaDistintaCucina } from './distinta.js?v=20261121j';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121j';
-import { agganciaTema } from '../tema.js?v=20261121j';
-import { tendinePannello } from '../tendine-pannello.js?v=20261121j';
+} from './modello.js?v=20261121l';
+import { renderPianta } from './pianta.js?v=20261121l';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121l';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261121l';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121l';
+import { calcolaDistintaCucina } from './distinta.js?v=20261121l';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121l';
+import { agganciaTema } from '../tema.js?v=20261121l';
+import { tendinePannello } from '../tendine-pannello.js?v=20261121l';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261121j');
+const _excel = () => import('../modello-export.js?v=20261121l');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -1278,6 +1278,41 @@ function luceEsternaPct() {
 function testoLuceEsterna(pct) {
   return pct >= 95 ? 'giorno pieno' : pct >= 55 ? 'giorno' : pct >= 20 ? 'sera' : pct > 0 ? 'quasi notte' : 'notte: solo la luce delle lampade e dei LED';
 }
+/** COLORE DELLA LUCE in Kelvin (2700 calda → 6500 fredda): barra come la luce esterna + tre scelte rapide. */
+const kelvinLedP = () => Number((progetto.led || {}).kelvin) || ({ caldo: 3000, medio: 4000, freddo: 6500 })[(progetto.led || {}).colore] || 3000;
+const testoKelvin = (k) => (k <= 3300 ? 'calda' : k <= 4500 ? 'neutra' : 'fredda');
+function htmlColoreLuce(chiave, k, titolo) {
+  const pre = chiave === 'lamp'
+    ? [[3000, 'Calda (3000 K)'], [3700, 'Come sempre (3700 K)'], [4000, 'Neutra (4000 K)'], [6500, 'Fredda (6500 K)'], ['led', 'Come i LED']]
+    : [[3000, 'Calda (3000 K)'], [4000, 'Neutra (4000 K)'], [6500, 'Fredda (6500 K)']];
+  return `
+      <div class="riga-3d" style="margin:10px 0 4px">${titolo}: <strong id="k-${chiave}-val">${k} K</strong> · <span id="k-${chiave}-testo">${testoKelvin(k)}</span></div>
+      <div aria-hidden="true" style="height:6px;border-radius:3px;margin:2px 0 2px;background:linear-gradient(90deg,#ffc58d,#ffdcb8,#fff6ec,#f4f6ff,#dfe9ff)"></div>
+      <input type="range" id="k-${chiave}" min="2700" max="6500" step="100" value="${k}" style="width:100%;accent-color:#c9a961" aria-label="${titolo}" />
+      <div class="opzioni-anta" style="margin-top:6px">
+        ${pre.map(([v, t]) => `<button type="button" class="btn-ghost opt-k ${v === k ? 'attivo' : ''}" data-k-${chiave}="${v}">${v === k ? '✓ ' : ''}${t}</button>`).join('')}
+      </div>`;
+}
+function agganciaColoreLuce(root) {
+  const T = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
+  const salva = { led: (k) => { progetto.led = { ...(progetto.led || {}), attivo: true, kelvin: k }; }, lamp: (k) => { progetto.lampadeK = k; } };
+  for (const chiave of ['led', 'lamp']) {
+    const r = root.querySelector(`#k-${chiave}`);
+    const mostra = (k) => {
+      const a = root.querySelector(`#k-${chiave}-val`), b = root.querySelector(`#k-${chiave}-testo`);
+      if (a) a.textContent = `${k} K`; if (b) b.textContent = T(testoKelvin(k));
+    };
+    if (r) {
+      // mentre si trascina: il colore cambia subito nel 3D; al rilascio si salva
+      r.addEventListener('input', () => { const k = Number(r.value); mostra(k); scena3dMod?.impostaColoreLuci?.(chiave === 'led' ? { led: k } : { lampade: k }); });
+      r.addEventListener('change', () => { registraStoria(); salva[chiave](Number(r.value)); aggiorna(); });
+    }
+    root.querySelectorAll(`[data-k-${chiave}]`).forEach((b) => b.addEventListener('click', () => {
+      const v = b.getAttribute(`data-k-${chiave}`), k = v === 'led' ? kelvinLedP() : Number(v);
+      registraStoria(); salva[chiave](k); aggiorna();
+    }));
+  }
+}
 function htmlLuceEsterna() {
   const pct = luceEsternaPct();
   return `
@@ -1555,32 +1590,27 @@ function renderPannelloStep3d() {
         <button type="button" class="btn-ghost ${progetto.lampadeAccese !== false ? 'attivo' : ''}" data-lampade="si">${progetto.lampadeAccese !== false ? '✓ ' : ''}💡 Lampade accese</button>
         <button type="button" class="btn-ghost ${progetto.lampadeAccese === false ? 'attivo' : ''}" data-lampade="no">${progetto.lampadeAccese === false ? '✓ ' : ''}Lampade spente</button>
       </div>
+      ${progetto.lampadeAccese !== false ? htmlColoreLuce('lamp', Number(progetto.lampadeK) || 3700, 'Colore delle lampade') : ''}
       ${htmlLuceEsterna()}
     </section>
     <section class="step3-pannello">
       <h3>LED sotto i pensili</h3>
-      <div class="riga-3d" style="margin-bottom:6px">Striscia di luce sotto ogni pensile. Scegli la temperatura della luce.</div>
+      <div class="riga-3d" style="margin-bottom:6px">Striscia di luce sotto ogni pensile. Scegli il colore della luce con la barra.</div>
       <div class="opzioni-anta">
         ${(() => {
-          const led = progetto.led || { attivo: false, colore: 'caldo' };
-          const opts = [
-            { id: 'off',    et: 'Nessun LED' },
-            { id: 'caldo',  et: '💡 Luce calda (3000K)' },
-            { id: 'medio',  et: '💡 Luce neutra (4000K)' },
-            { id: 'freddo', et: '💡 Luce fredda (6500K)' },
-          ];
-          const current = led.attivo ? led.colore : 'off';
-          return opts.map((o) => `<button type="button" class="btn-ghost opt-led ${current === o.id ? 'attivo' : ''}"
-            data-led="${o.id}">${current === o.id ? '✓ ' : ''}${o.et}</button>`).join('');
+          const on = !!(progetto.led && progetto.led.attivo);
+          return [['off', 'Nessun LED', !on], ['on', '💡 LED accesi', on]].map(([id, et, sel]) => `<button type="button" class="btn-ghost opt-led ${sel ? 'attivo' : ''}"
+            data-led="${id}">${sel ? '✓ ' : ''}${et}</button>`).join('');
         })()}
       </div>
+      ${(progetto.led || {}).attivo ? htmlColoreLuce('led', kelvinLedP(), 'Colore della luce') : ''}
       ${cucinaPonte() && (progetto.led || {}).attivo ? (() => {
-        const dove = (progetto.led || {}).ponte || 'sotto';
+        const d0 = (progetto.led || {}).ponte || 'entrambi', dove = d0 === 'sotto' ? 'entrambi' : d0 === 'sopra' ? 'ponte' : d0;
         const v = (id, et) => `<button type="button" class="btn-ghost opt-ledponte ${dove === id ? 'attivo' : ''}" data-ledponte="${id}">${dove === id ? '✓ ' : ''}${et}</button>`;
         return `
-      <div class="riga-3d" style="margin:10px 0 6px">Dove, nella cucina a ponte</div>
-      <div class="opzioni-anta">${v('sotto', 'Sotto')}${v('sopra', 'Sopra il ponte')}${v('entrambi', 'Sotto + sopra')}</div>
-      <div class="riga-3d" style="margin-top:6px">Sotto: illumina il piano. Sopra il ponte: luce che sale sul muro. Vale per il ponte e i pensili sotto; gli altri pensili tengono il loro LED.</div>`;
+      <div class="riga-3d" style="margin:10px 0 6px">Dove, nella cucina a ponte (sempre sotto)</div>
+      <div class="opzioni-anta">${v('pensili', 'Sotto i pensili')}${v('ponte', 'Sotto il ponte')}${v('entrambi', 'Sotto entrambi')}</div>
+      <div class="riga-3d" style="margin-top:6px">Sotto i pensili: la striscia sotto ogni pensile, anche quelli sotto il ponte. Sotto il ponte: dove sotto il ponte non ci sono pensili, la striscia va sotto il ponte. Sotto entrambi: tutte e due. La luce scende sempre sul piano.</div>`;
       })() : ''}
     </section>
     ${(() => {
@@ -1664,10 +1694,11 @@ function renderPannelloStep3d() {
   pannello.querySelectorAll('.opt-led').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     const v = b.dataset.led;
-    if (v === 'off') progetto.led = { ...(progetto.led || {}), attivo: false, colore: (progetto.led && progetto.led.colore) || 'caldo' };
-    else progetto.led = { ...(progetto.led || {}), attivo: true, colore: v };
+    if (v === 'off') progetto.led = { ...(progetto.led || {}), attivo: false };
+    else progetto.led = { ...(progetto.led || {}), attivo: true };
     aggiorna();
   }));
+  agganciaColoreLuce(pannello);
   pannello.querySelectorAll('.opt-ledponte').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     progetto.led = { ...(progetto.led || {}), ponte: b.dataset.ledponte };
@@ -1675,7 +1706,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121j');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121l');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2437,13 +2468,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121j');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121l');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121j'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121l'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
