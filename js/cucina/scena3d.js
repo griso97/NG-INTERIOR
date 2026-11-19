@@ -12,30 +12,30 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111x';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
-  calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
+  calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, internoAperto, SP_STRUTTURA_APERTO, SP_PEZZI_APERTO,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261121w';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121w';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261121w';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261121w';
+} from './modello.js?v=20261121x';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121x';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261121x';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261121x';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121w').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121x').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121w';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121w';
-import { parametri } from '../parametri.js?v=20261121w';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121w';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121w';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121x';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121x';
+import { parametri } from '../parametri.js?v=20261121x';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121x';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121w';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121x';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261121w';
+export { telaPavimento } from '../resa.js?v=20261121x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -928,6 +928,7 @@ export function parteToccata() { return _ultimaParte; }
 // SPOSTARE GLI OGGETTI NEL RENDERING (sgabelli, arredo): si trascinano sul
 // pavimento. I moduli restano fissi (puoSpostare decide chi si muove).
 let spost = null;            // { g, id, dx, dz, x0, z0 }
+const spost0Y = new Map();   // altezza dell'oggetto quando lo si prende (spostato solo in su/giù = mosso)
 const pianoTerra = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 function puntoATerra(clientX, clientY) {
   const rect = canvasEl.getBoundingClientRect();
@@ -955,6 +956,7 @@ export function iniziaSpostamento(clientX, clientY, puoSpostare) {
   // vista bassa il punto finiva lontano dietro e l'oggetto, portato su un altro
   // piano, cadeva davanti al mobile.
   if (appoggio && hit) { p.x = hit.point.x; p.z = hit.point.z; }
+  spost0Y.set(id, g.position.y);
   spost = { g, id, dx: g.position.x - p.x, dz: g.position.z - p.z, x0: g.position.x, z0: g.position.z, appoggio,
     sup: appoggio ? superficiAppoggio() : null, portali: appoggio ? portaliVano() : [] };
   controls.enabled = false;
@@ -984,11 +986,12 @@ function puntoSuSuperfici(clientX, clientY, sup, portali = []) {
       // dentro il vano della colonna: a metà profondità (poi si appoggia sul ripiano)
       const n = new THREE.Vector3(0, 0, -1).transformDirection(o.matrixWorld);
       const q = hit.point.clone().addScaledVector(n, o.userData.portaleVano.profondita / 2);
-      q.vano = true;
+      q.vano = true; q.daY = hit.point.y + 5;               // il ripiano sotto il dito (mobili aperti con più ripiani)
       return q;
     }
+    if (o.userData.ripianoAperto) { const q = hit.point.clone(); q.daSup = true; return q; }   // ripiano (anche invisibile)
     if (!visibile(o)) continue;                              // muri nascosti, aperture: non contano
-    if (o.userData.appoggio || sup.includes(o)) return hit.point;
+    if (o.userData.appoggio || sup.includes(o)) { const q = hit.point.clone(); q.daSup = true; return q; }
     if (hit.point.y < 5) return hit.point;                   // pavimento
     return null;                                             // muro, anta, fianco: resta dov'è
   }
@@ -1007,7 +1010,7 @@ export function muoviSpostamento(clientX, clientY) {
     // (centrato e girato bene quando lo lasci)
     const g = spost.g;
     g.position.x = p.x; g.position.z = p.z;
-    g.position.y = quotaPiani(p.x, p.z, spost.sup);
+    g.position.y = quotaPiani(p.x, p.z, spost.sup, p.daY);
     return;
   }
   // movimento morbido: al massimo 15 cm per volta, così l'oggetto non "salta"
@@ -1019,18 +1022,28 @@ export function muoviSpostamento(clientX, clientY) {
   if (spost.appoggio) {
     // sale sul piano se ci sta sopra, se no a terra (come quando lo lasci)
     const g = spost.g, m = { x: g.position.x, y: -g.position.z };
-    g.position.y = Math.max(quotaPiani(g.position.x, g.position.z, spost.sup), _lastProgetto ? quotaAppoggio(_lastProgetto, m, _spTop) : 0);
+    // puntando una superficie (piano, tavolo, ripiano): quella, non la più alta che c'è sopra
+    // (sotto un pensile aperto l'oggetto resta sul piano di lavoro); sul pavimento: come prima
+    g.position.y = p.daSup ? quotaPiani(g.position.x, g.position.z, spost.sup, p.y + 40)
+      : Math.max(quotaPiani(g.position.x, g.position.z, spost.sup.filter((o) => !o.userData.ripianoAperto)), _lastProgetto ? quotaAppoggio(_lastProgetto, m, _spTop) : 0);
   }
 }
 /** Fine: ritorna { id, x, y, mosso } in coordinate della pianta (mm). */
 export function fineSpostamento() {
   if (!spost) return null;
-  const { g, id, x0, z0 } = spost;
+  const { g, id, x0, z0, sup } = spost;
   spost = null;
   controls.enabled = true;
   canvasEl.style.cursor = '';
-  const mosso = Math.hypot(g.position.x - x0, g.position.z - z0) > 5;
-  return { id, x: Math.round(g.position.x), y: Math.round(-g.position.z), mosso };
+  const mosso = Math.hypot(g.position.x - x0, g.position.z - z0) > 5 || Math.abs(g.position.y - (spost0Y.get(id) ?? g.position.y)) > 5;
+  // lasciato su un RIPIANO di un mobile aperto: se ne ricorda l'altezza (sennò andrebbe sul più alto)
+  let quota = null;
+  if (sup && sup.length) {
+    rayGiu.set(new THREE.Vector3(g.position.x, g.position.y + 40, g.position.z), new THREE.Vector3(0, -1, 0));
+    const hit = rayGiu.intersectObjects(sup, false)[0];
+    if (hit && hit.object.userData.ripianoAperto && Math.abs(hit.point.y - g.position.y) < 30) quota = Math.round(hit.point.y);
+  }
+  return { id, x: Math.round(g.position.x), y: Math.round(-g.position.z), mosso, quota };
 }
 
 // ---------------------------------------------------------------------------
@@ -2354,6 +2367,51 @@ function pensileAngoloFronte(g, w, h, d, matAnta) {
   g.add(man);
 }
 
+/**
+ * MOBILE APERTO (senza ante), dentro la cassa aperta: CORNICE davanti nel colore delle ante (copre
+ * i bordi della struttura, a filo con le ante vicine), RIVESTIMENTO dentro (fondo, cielo, fianchetti,
+ * schiena) e RIPIANI nel materiale scelto. Gli oggetti si appoggiano sul fondo e sui ripiani.
+ * Misure come in distinta (pezziMobileAperto).
+ */
+function mobileAperto(g, w, h, d, m, matAnta, coloreCorpo) {
+  const T = SP_STRUTTURA_APERTO, S = SP_PEZZI_APERTO;
+  const mF = (matAnta && matAnta.isMaterial) ? matAnta : new THREE.MeshStandardMaterial({ color: matAnta || COL.anta, roughness: 0.6, metalness: 0.08 });
+  const int = internoAperto(m), riv = int !== 'struttura';
+  const mI = int === 'ante' ? mF
+    : int === 'struttura' ? ((coloreCorpo && coloreCorpo.isMaterial) ? coloreCorpo : new THREE.MeshStandardMaterial({ color: coloreCorpo, roughness: 0.7, metalness: 0.05 }))
+    : (getMaterialeTHREE(int, () => _reRenderMan && _reRenderMan()) || mF);
+  const pezzo = (bw, bh, bd, x, y, z, mat) => {
+    const me = new THREE.Mesh(new THREE.BoxGeometry(Math.max(1, bw), Math.max(1, bh), Math.max(1, bd)), mat);
+    me.position.set(x, y, z); me.castShadow = true; me.receiveShadow = true; g.add(me); return me;
+  };
+  const ripiano = (me) => { me.userData.appoggio = true; me.userData.ripianoAperto = true; return me; };
+  // cornice davanti (2 montanti + 2 traversi)
+  for (const sx of [-1, 1]) pezzo(T, h, S, sx * (w / 2 - T / 2), 0, d / 2 + S / 2, mF);
+  for (const sy of [-1, 1]) pezzo(w - 2 * T, T, S, 0, sy * (h / 2 - T / 2), d / 2 + S / 2, mF);
+  const pd = d - T - 2, pz = -d / 2 + T + pd / 2;
+  if (riv) {
+    ripiano(pezzo(w - 2 * T, S, pd, 0, -h / 2 + T + S / 2, pz, mI));                  // fondo interno
+    pezzo(w - 2 * T, S, pd, 0, h / 2 - T - S / 2, pz, mI);                             // cielo interno
+    for (const sx of [-1, 1]) pezzo(S, h - 2 * T - 2 * S, pd, sx * (w / 2 - T - S / 2), 0, pz, mI);   // fianchetti
+    pezzo(w - 2 * T - 2 * S, h - 2 * T - 2 * S, S, 0, 0, -d / 2 + T + S / 2, mI);      // schiena interna
+  } else {
+    // niente rivestimento: gli oggetti si appoggiano sul fondo della struttura
+    const f = new THREE.Mesh(new THREE.PlaneGeometry(w - 2 * T, d - T), new THREE.MeshBasicMaterial());
+    f.rotation.x = -Math.PI / 2; f.position.set(0, -h / 2 + T + 0.5, T / 2); f.visible = false;
+    g.add(ripiano(f));
+  }
+  // ripiani, a uguale distanza tra fondo e cielo
+  const n = ripianiAperto(m), k = riv ? S : 0;
+  const y0 = -h / 2 + T + k, y1 = h / 2 - T - k, zb = -d / 2 + T + k, pr = d - T - k - 20;
+  for (let i = 1; i <= n; i++) ripiano(pezzo(w - 2 * T - 2 * k - 2, S, pr, 0, y0 + (y1 - y0) * i / (n + 1), zb + pr / 2, mI));
+  // apertura (invisibile): trascinando un oggetto e puntando dentro, va sul ripiano indicato
+  const portale = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(10, w - 2 * T), Math.max(10, h - 2 * T)),
+    new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+  portale.position.set(0, 0, d / 2 + S); portale.visible = false;
+  portale.userData.portaleVano = { profondita: d - 60 };
+  g.add(portale);
+}
+
 /** Costruisce il mobile completo centrato nell'origine (corpo + fronti). */
 function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
@@ -2385,12 +2443,16 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const conLavello = cat !== 'colonna' && cat !== 'pensile' && (tipo === 'lavello' || (m && m.lavello));
   // VETRINA (ante con vetro): cassa aperta davanti, con i ripiani che si vedono dal vetro
   const vetrina = m && m.vetrina && (tipo === 'pensile' || tipo === 'base-ante') ? m.vetrina : null;
+  // MOBILE APERTO (senza ante): cassa aperta davanti, si vede dentro
+  const aperto = apertoDi(m);
   g.add(colonnaVano ? carcassaColonna(w, h, d, coloreCorpo)
+    : aperto ? carcassaColonna(w, h, d, coloreCorpo)
     : conLavello ? carcassaColonna(w, h, d, coloreCorpo, false)
     : vetrina ? carcassaVetrina(w, h, d, coloreCorpo, cat === 'pensile' ? (h >= 850 ? 2 : 1) : 1)
     : corpo(w, h, d, coloreCorpo));
   if (cat === 'regletta') return g;
   if (opt.cieco && opt.cieco.coperto) { anteCieche(g, w, h, d, matAnta, opt.cieco); return g; }
+  if (aperto) { mobileAperto(g, w, h, d, m, matAnta, coloreCorpo); return g; }
   if (tipo === 'pensile-angolo-45') { pensileAngoloFronte(g, w, h, d, matAnta); return g; }
   if (cat === 'colonna') { _coloreCorpoCol = coloreCorpo; colonnaFronte(g, w, h, d, m, matAnta); return g; }
   if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta, m.cassettoPiccolo_mm); return g; }
@@ -2419,9 +2481,9 @@ function superficiAppoggio() {
   return out;
 }
 /** Quota (mm) del piano più alto sotto il punto (x, z) della scena 3D; 0 se non c'è (pavimento). */
-function quotaPiani(x, z, sup = superficiAppoggio()) {
+function quotaPiani(x, z, sup = superficiAppoggio(), daY = 4000) {
   if (!sup.length) return 0;
-  rayGiu.set(new THREE.Vector3(x, 4000, z), new THREE.Vector3(0, -1, 0));
+  rayGiu.set(new THREE.Vector3(x, daY, z), new THREE.Vector3(0, -1, 0));
   const hit = rayGiu.intersectObjects(sup, false)[0];
   return hit ? hit.point.y : 0;
 }
@@ -2693,14 +2755,14 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
         // (le CAPPE a parete sono già alla loro altezza: fondo a 160 cm, canna fino al soffitto)
         const y = posa === 'piano' ? quotaAppoggio(progetto, m, spTop) : posa === 'parete' && !def.assoluto ? Math.max(0, Y_QUADRO - (misOgg ? misOgg.h : 0) / 2) : 0;
         og.position.set(cx, y, cz); og.rotation.y = -(m.rot || 0) * Math.PI / 180; g3d = og;
-        if (posa === 'piano') { og.userData.appoggiabile = true; daPosare.push(og); }
+        if (posa === 'piano') { og.userData.appoggiabile = true; if (m.quota_mm != null) og.userData.quotaScelta = m.quota_mm; daPosare.push(og); }
         // LAMPADE ACCESE (si possono spegnere: progetto.lampadeAccese = false)
         if (posa === 'appeso' && def.gruppo === 'luci' && progetto.lampadeAccese !== false) accendiLampada(og);
       } else if (r) {
         const og = new THREE.Group();
         const mesh = new THREE.Mesh(r.geo, r.mat); mesh.castShadow = true; mesh.receiveShadow = true; og.add(mesh);
         og.position.set(cx, quotaAppoggio(progetto, m, spTop), cz); og.rotation.y = -(m.rot || 0) * Math.PI / 180; g3d = og;
-        og.userData.appoggiabile = true; daPosare.push(og);
+        og.userData.appoggiabile = true; if (m.quota_mm != null) og.userData.quotaScelta = m.quota_mm; daPosare.push(og);
       }
     } else if (cat === 'oggetto') {
       // Oggetto 3D (sgabello, decor): posato a terra, nessuno zoccolo/piano.
@@ -2945,7 +3007,12 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   // oltre i mobili, es. l'isola dal lato sgabelli, o il piano allungato nell'angolo)
   if (daPosare.length) {
     gruppo.updateMatrixWorld(true);
-    for (const og of daPosare) og.position.y = Math.max(og.position.y, quotaPiani(og.position.x, og.position.z));
+    const supT = superficiAppoggio(), supNoRip = supT.filter((o) => !o.userData.ripianoAperto);
+    for (const og of daPosare) {
+      const q = og.userData.quotaScelta;
+      og.position.y = q != null ? quotaPiani(og.position.x, og.position.z, supT, q + 40)
+        : Math.max(og.position.y, quotaPiani(og.position.x, og.position.z, supNoRip));
+    }
   }
   // Lavello, piano cottura e rubinetto SOPRA il top
   for (const a of accessori) aggiungiAccessorioTop(a, progetto.finiture || {});

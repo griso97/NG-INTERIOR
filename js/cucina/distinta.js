@@ -12,9 +12,9 @@
 // =============================================================================
 
 import {
-  infoTavolo, spessoreTavolo, moduloDaOrdinare, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna,
-} from './modello.js?v=20261121w';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261121w';
+  infoTavolo, spessoreTavolo, moduloDaOrdinare, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, internoAperto, pezziMobileAperto,
+} from './modello.js?v=20261121x';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261121x';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -46,6 +46,18 @@ function riduzioneJ(scelte) {
 }
 
 // --- costruttori per categoria ------------------------------------------------
+
+/** MOBILE APERTO: cornice nel colore delle ante; rivestimento e ripiani nel materiale scelto per il dentro. */
+function mobileAperto(pz, mod, progetto, m) {
+  const int = internoAperto(m);
+  for (const p of pezziMobileAperto(m)) {
+    const { parte, ...x } = p;
+    const dentro = parte === 'interno';
+    pz.push({ modulo: mod, ...x, aperto: true,
+      materiale: dentro && int === 'struttura' ? 'melaminico' : 'anta',
+      ...(dentro && int !== 'ante' && int !== 'struttura' ? { materialeNome: nomeMateriale(int, 'Materiale da scegliere') } : {}) });
+  }
+}
 
 // L'anta del pensile sporge 2 cm sotto (70→72, 90→92) con l'opzione attiva.
 function pensileAntaSporge(opt, h) {
@@ -176,7 +188,8 @@ function pezziDiModulo(progetto, m) {
     } else {
       // base-ante / lavello
       const N = m.tipo === 'lavello' ? (L >= 600 ? 2 : 1) : anteDiMobile(m);
-      anteModulo(pz, mod, L, H, N, m.antaLato, null, false, m.tipo === 'base-ante' ? m.vetrina : null, rJ);
+      if (apertoDi(m)) mobileAperto(pz, mod, progetto, m);          // APERTO: niente ante
+      else anteModulo(pz, mod, L, H, N, m.antaLato, null, false, m.tipo === 'base-ante' ? m.vetrina : null, rJ);
       reglettaAngolo(pz, mod, progetto, m, H);
     }
   } else if (cat === 'pensile') {
@@ -186,7 +199,8 @@ function pezziDiModulo(progetto, m) {
     } else {
       // Pensile 70/90: con l'anta sporgente la porta è 72/92 (H + 20), altrimenti H − 2.
       const sporg = pensileAntaSporge(progetto.antaPensile, H);
-      anteModulo(pz, mod, L, H, anteDiMobile(m), m.antaLato, sporg ? H + 20 : null, sporg, m.vetrina, rJ);
+      if (apertoDi(m)) mobileAperto(pz, mod, progetto, m);          // APERTO: niente ante
+      else anteModulo(pz, mod, L, H, anteDiMobile(m), m.antaLato, sporg ? H + 20 : null, sporg, m.vetrina, rJ);
     }
   } else if (cat === 'colonna') {
     // Zoccolo della colonna: segue la porta bassa (70→150, 80→100), come i mobili bassi.
@@ -313,11 +327,12 @@ function pezziDiModulo(progetto, m) {
 
 // Gruppi SEPARATI della lista pezzi: porte, frontali, parti dei cassetti,
 // costadi, reglette, pannelli, zoccoli.
-const ORDINE_GRUPPI = ['Strutture su misura', 'Cornici vano', 'Porte', 'Frontali cassetto', 'Cassetti (fondo e trasera)', 'Costadi',
+const ORDINE_GRUPPI = ['Strutture su misura', 'Cornici vano', 'Mobili aperti', 'Porte', 'Frontali cassetto', 'Cassetti (fondo e trasera)', 'Costadi',
   'Reglette', 'Pannelli', 'Piani e tavoli', 'Zoccoli', 'Varie'];
 function gruppoPezzo(p) {
   if (p.struttura) return 'Strutture su misura';
-  if (p.cornice) return 'Cornici vano';            // fianchi, top/fondo, schiena, ripiani della colonna su misura
+  if (p.cornice) return 'Cornici vano';
+  if (p.aperto) return 'Mobili aperti';            // cornice, rivestimento e ripiani dei mobili senza ante            // fianchi, top/fondo, schiena, ripiani della colonna su misura
   if (['tavolo', 'vetro', 'gambe'].includes(p.materiale)) return 'Piani e tavoli';   // piano / tavolo e i suoi appoggi
   const n = String(p.nome).toLowerCase();
   if (n.includes('regletta')) return 'Reglette';
@@ -455,6 +470,8 @@ export function calcolaDistintaCucina(progetto) {
     const n = p.altezza <= 950 ? 2 : p.altezza > 1100 ? 4 : 3;
     aggiungi('Cerniere 110°', n * p.quantita);
   }
+  // MOBILI APERTI: 4 reggipiani per ripiano
+  for (const p of raw) if (p.nome === 'Ripiano (mobile aperto)') aggiungi('Reggipiani (mobili aperti)', 4 * p.quantita);
   // VETRI delle ante vetrina con telaio in legno (misura del vetro da ordinare)
   for (const p of raw) if (p.vetro) aggiungi(`Vetro ${p.vetro.tipo} ${p.vetro.w}×${p.vetro.h} (anta vetrina)`, p.quantita);
   // CASSETTI (guide/scatola) del sistema dei ⚙ Parametri: uno per frontale, piccolo / medio / grande

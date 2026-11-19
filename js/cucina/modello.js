@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261121w';
+import { parametri } from '../parametri.js?v=20261121x';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -86,6 +86,44 @@ export function pezziCorniceVano(m, vanoH, spAnta = 18) {
     { nome: 'Listello vano (cornice)', larghezza: sp, altezza: vanoH, spessore: spAnta, quantita: 2 },
     { nome: 'Fianchetto vano (cornice)', larghezza: P, altezza: vanoH - 2 * spAnta, spessore: spAnta, quantita: 2 },
   ];
+}
+// MOBILE APERTO (senza ante): pensile o base con ante (non sotto lavello o piano cottura).
+// Il modulo (struttura) si ordina come sempre; noi facciamo la CORNICE davanti nel colore delle
+// ante (copre i bordi della struttura, a filo con le ante vicine), il RIVESTIMENTO dentro (fondo,
+// cielo, fianchetti, schiena) e i RIPIANI. Dentro: come le ante, come la struttura (niente
+// rivestimento) o un materiale a scelta (es. legno). Misure uguali nel 3D e in distinta.
+export const SP_STRUTTURA_APERTO = 18, SP_PEZZI_APERTO = 18;
+/** Le scelte del mobile aperto ({ ripiani, interno }), o null se il mobile ha le ante. */
+export function apertoDi(m) {
+  if (!m || !m.aperto || !(m.tipo === 'pensile' || m.tipo === 'base-ante') || m.lavello || m.placca) return null;
+  return m.aperto;
+}
+/** Ripiani del mobile aperto: quelli scelti, se no 1 (2 nei pensili alti da 85 cm in su). */
+export function ripianiAperto(m) {
+  const a = apertoDi(m);
+  if (!a) return 0;
+  return a.ripiani != null ? Math.max(0, Math.min(4, Number(a.ripiani) || 0)) : ((m.altezza_mm || 700) >= 850 ? 2 : 1);
+}
+/** Dentro del mobile aperto: 'ante' (come le ante), 'struttura' (niente rivestimento) o l'id di un materiale. */
+export function internoAperto(m) { const a = apertoDi(m); return a ? (a.interno || 'ante') : null; }
+/** Pezzi del mobile aperto (cornice, rivestimento, ripiani): { nome, larghezza, altezza, spessore, quantita, parte }. */
+export function pezziMobileAperto(m) {
+  if (!apertoDi(m)) return [];
+  const L = m.larghezza_mm || 600, H = m.altezza_mm || 700, P = dimMobile(m).d;
+  const T = SP_STRUTTURA_APERTO, S = SP_PEZZI_APERTO, riv = internoAperto(m) !== 'struttura';
+  const pz = [
+    { nome: 'Cornice mobile aperto (montante)', larghezza: T, altezza: H, spessore: S, quantita: 2, parte: 'cornice' },
+    { nome: 'Cornice mobile aperto (traverso)', larghezza: L - 2 * T, altezza: T, spessore: S, quantita: 2, parte: 'cornice' },
+  ];
+  const pd = P - T - 2;                                    // dalla schiena della struttura al filo davanti
+  if (riv) {
+    pz.push({ nome: 'Fondo e cielo interni (mobile aperto)', larghezza: L - 2 * T, altezza: pd, spessore: S, quantita: 2, parte: 'interno' });
+    pz.push({ nome: 'Fianchetto interno (mobile aperto)', larghezza: pd, altezza: H - 2 * T - 2 * S, spessore: S, quantita: 2, parte: 'interno' });
+    pz.push({ nome: 'Schiena interna (mobile aperto)', larghezza: L - 2 * T - 2 * S, altezza: H - 2 * T - 2 * S, spessore: S, quantita: 1, parte: 'interno' });
+  }
+  const n = ripianiAperto(m);
+  if (n > 0) pz.push({ nome: 'Ripiano (mobile aperto)', larghezza: L - 2 * T - (riv ? 2 * S : 0) - 2, altezza: P - T - (riv ? S : 0) - 20, spessore: S, quantita: n, parte: 'interno' });
+  return pz;
 }
 /** Ripiani della colonna su misura: quelli scelti, 4 se non è stato scelto niente. */
 export function ripianiColonnaMisura(m) { return m.ripiani != null ? Number(m.ripiani) || 0 : 4; }
@@ -407,6 +445,10 @@ export function descrizioneMobile(m) {
     return `${m.larghezza_mm}×${m.altezza_mm} · ${m.cassetti || 3} cassetti${extra}`;
   }
   const dim = m.altezza_mm ? `${m.larghezza_mm}×${m.altezza_mm}` : `${m.larghezza_mm}`;
+  if (apertoDi(m)) {
+    const n = ripianiAperto(m);
+    return `${dim} · aperto${n === 0 ? '' : n === 1 ? ' · 1 ripiano' : ` · ${n} ripiani`}`;
+  }
   if (m.tipo === 'base-ante' || m.tipo === 'pensile') {
     const na = anteDiMobile(m);
     const ante = na === 1 ? `1 anta ${m.antaLato === 'sx' ? 'sx' : 'dx'}` : '2 ante';

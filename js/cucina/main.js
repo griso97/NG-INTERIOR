@@ -23,18 +23,17 @@ import {
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro, rotazioneAutomatica, migraRotazioni,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
-  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
-} from './modello.js?v=20261121w';
-import { renderPianta } from './pianta.js?v=20261121w';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121w';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261121w';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121w';
-import { calcolaDistintaCucina } from './distinta.js?v=20261121w';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121w';
-import { agganciaTema } from '../tema.js?v=20261121w';
-import { tendinePannello } from '../tendine-pannello.js?v=20261121w';
+  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, internoAperto } from './modello.js?v=20261121x';
+import { renderPianta } from './pianta.js?v=20261121x';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121x';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261121x';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121x';
+import { calcolaDistintaCucina } from './distinta.js?v=20261121x';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121x';
+import { agganciaTema } from '../tema.js?v=20261121x';
+import { tendinePannello } from '../tendine-pannello.js?v=20261121x';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261121w');
+const _excel = () => import('../modello-export.js?v=20261121x');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -1203,6 +1202,8 @@ const fineSpost = (e) => {
   registraStoria();
   m.x = r.x; m.y = r.y; m.posManuale = true;
   if (String(m.tipo).startsWith('ogg:')) {
+    // sul ripiano di un mobile aperto: se ne ricorda l'altezza (sennò va sul piano / ripiano più alto)
+    if (r.quota != null) m.quota_mm = r.quota; else delete m.quota_mm;
     // mai dentro il muro (puntando in fondo al piano col dito un po' più avanti)
     const v = vincolaAiMuri(progetto, m, m.x, m.y); m.x = Math.round(v.x); m.y = Math.round(v.y);
   }
@@ -1832,7 +1833,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121w');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121x');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1905,6 +1906,8 @@ function renderPannelloModificaMobile(m) {
   const puoAgg = m.tipo === 'base-ante' || m.tipo === 'base-cassetti';
   // Configurazione ante (numero + lato apertura): vale per base con ante e pensili
   const puoAnte = m.tipo === 'base-ante' || m.tipo === 'pensile' || m.tipo === 'sopra-frigo' || m.tipo === 'ponte';
+  // MOBILE APERTO (senza ante): pensili e basi con ante (non sotto lavello o piano cottura)
+  const puoAperto = m.tipo === 'pensile' || (m.tipo === 'base-ante' && !m.lavello && !m.placca);
   const nAnte = anteDiMobile(m);
   const latoAnta = m.antaLato === 'sx' ? 'sx' : m.antaLato === 'alto' ? 'alto' : 'dx';
   const fuochi = m.fuochi || ((m.larghezza_mm || 600) < 600 ? 2 : 4);
@@ -1993,6 +1996,7 @@ function renderPannelloModificaMobile(m) {
     ${puoAnte ? `
     <section class="step3-pannello">
       <h3>Ante del modulo</h3>
+      ${apertoDi(m) ? '' : `
       <div class="opzioni-anta">
         <button type="button" class="btn-ghost opt-nante ${nAnte === 1 ? 'attivo' : ''}" data-nante="1">${nAnte === 1 ? '✓ ' : ''}1 anta</button>
         <button type="button" class="btn-ghost opt-nante ${nAnte === 2 ? 'attivo' : ''}" data-nante="2">${nAnte === 2 ? '✓ ' : ''}2 ante</button>
@@ -2006,16 +2010,18 @@ function renderPannelloModificaMobile(m) {
       </div>` : ''}
       <div class="riga-3d" style="margin-top:6px">${isBase
         ? 'Il pensile sopra questa base prende la stessa configurazione.'
-        : 'Ereditato dalla base sotto; puoi comunque modificarlo qui.'}</div>
+        : 'Ereditato dalla base sotto; puoi comunque modificarlo qui.'}</div>`}
       ${(() => {
-        const v = m.vetrina;
+        const v = apertoDi(m) ? null : m.vetrina;
         const op = (cl, attr, val, et, on) => `<button type="button" class="btn-ghost ${cl} ${on ? 'attivo' : ''}" ${attr}="${val}" style="flex:1;min-width:90px">${on ? '✓ ' : ''}${et}</button>`;
         return `
-      <div class="riga-3d" style="margin:12px 0 6px"><strong>Anta piena o vetrina</strong> (solo questo modulo):</div>
+      <div class="riga-3d" style="margin:12px 0 6px"><strong>Anta piena, vetrina o aperto</strong> (solo questo modulo):</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${op('opt-vetr', 'data-vetr', 'no', 'Piena', !v)}
+        ${op('opt-vetr', 'data-vetr', 'no', 'Piena', !v && !apertoDi(m))}
         ${op('opt-vetr', 'data-vetr', 'si', 'Vetrina (con vetro)', !!v)}
+        ${puoAperto ? op('opt-vetr', 'data-vetr', 'aperto', 'Aperto (senza ante)', !!apertoDi(m)) : ''}
       </div>
+      ${apertoDi(m) ? htmlMobileAperto(m) : ''}
       ${v ? `
       <div class="riga-3d" style="margin:8px 0 6px">Telaio:</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -2185,10 +2191,12 @@ function renderPannelloModificaMobile(m) {
   }));
   pannello.querySelectorAll('.opt-vetr').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
-    if (b.dataset.vetr === 'si') m.vetrina = { telaio: 'legno', vetro: 'trasparente', ...(m.vetrina || {}) };
-    else delete m.vetrina;
+    if (b.dataset.vetr === 'si') { m.vetrina = { telaio: 'legno', vetro: 'trasparente', ...(m.vetrina || {}) }; delete m.aperto; }
+    else if (b.dataset.vetr === 'aperto') { m.aperto = { interno: 'ante', ...(m.aperto || {}) }; delete m.vetrina; }
+    else { delete m.vetrina; delete m.aperto; }
     aggiorna();
   }));
+  agganciaMobileAperto(pannello, m);
   pannello.querySelectorAll('.opt-vtel').forEach((b) => b.addEventListener('click', () => {
     registraStoria(); m.vetrina = { ...(m.vetrina || {}), telaio: b.dataset.vtel }; aggiorna();
   }));
@@ -2611,13 +2619,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121w');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121x');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121w'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121x'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -3082,6 +3090,32 @@ function agganciaDistanzaFrigo(root, m) {
     if (m.distanzaFrigo_mm == null) return;
     registraStoria(); delete m.distanzaFrigo_mm; aggiorna();
   });
+}
+
+/** MOBILE APERTO: ripiani e colore del dentro (la cornice davanti è del colore delle ante). */
+function htmlMobileAperto(m) {
+  const n = ripianiAperto(m), int = internoAperto(m);
+  const lista = (scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer('legno') : [];
+  const op = (attr, val, et, on) => `<button type="button" class="btn-ghost opt-ap ${on ? 'attivo' : ''}" ${attr}="${val}" style="flex:1;min-width:60px">${on ? '✓ ' : ''}${et}</button>`;
+  return `
+      <div class="riga-3d" style="margin:10px 0 6px">Ripiani:</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${[0, 1, 2, 3].map((k) => op('data-aprip', k, String(k), n === k)).join('')}</div>
+      <div class="riga-3d" style="margin:10px 0 6px">Dentro (fondo, fianchi, schiena e ripiani):</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${op('data-apint', 'ante', 'Come le ante', int === 'ante')}
+        ${op('data-apint', 'struttura', progetto.coloreInterno === 'antracite' ? 'Come la struttura (antracite)' : 'Come la struttura (bianco)', int === 'struttura')}
+      </div>
+      <div style="margin-top:8px">${htmlTendineColori(lista, (mt) => `<button type="button" class="swatch ${mt.id === int ? 'sel' : ''}" data-apint="${mt.id}" title="${escHtml(mt.nome)}" style="background-image:url('${mt.thumb}')"></button>`,
+        { sel: int, chiave: 'cucina-aperto-interno' })}</div>
+      <div class="riga-3d" style="margin-top:6px">Il bordo davanti (cornice) è del colore delle ante. Dentro ci puoi mettere gli oggetti: trascinali nel mobile e lasciali sul ripiano che vuoi. In distinta: cornice, rivestimento interno e ripiani (niente ante).</div>`;
+}
+function agganciaMobileAperto(root, m) {
+  root.querySelectorAll('[data-aprip]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria(); m.aperto = { ...(m.aperto || {}), ripiani: Number(b.dataset.aprip) }; aggiorna();
+  }));
+  root.querySelectorAll('[data-apint]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria(); m.aperto = { ...(m.aperto || {}), interno: b.dataset.apint }; aggiorna();
+  }));
 }
 
 function blocMobileSelezionato() {
