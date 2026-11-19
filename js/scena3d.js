@@ -11,12 +11,12 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado } from './calcoli.js?v=20261121r';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261121r';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261121r';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261121r';
-import { sfondoDi } from './sfondi.js?v=20261121r';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261121r';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado } from './calcoli.js?v=20261121s';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261121s';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261121s';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261121s';
+import { sfondoDi } from './sfondi.js?v=20261121s';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261121s';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -94,6 +94,15 @@ function manigliaScelta(config) {
 }
 /** Lunghezza vera della maniglia (quella standard: 30 cm). */
 export function lunghezzaManiglia(def) { return def.texture && def.lunghezzaMm ? def.lunghezzaMm : 300; }
+/**
+ * Lunghezza della maniglia SU QUESTA ANTA: quella scelta per l'armadio (config.manigliaLunghezza:
+ * mm, oppure 'anta' = alta come l'anta) o quella del catalogo; MAI più lunga dell'anta (4 cm dai bordi).
+ */
+export function lunghezzaManigliaAnta(def, config, altAnta) {
+  const scelta = config && config.manigliaLunghezza;
+  const L = scelta === 'anta' ? altAnta - 80 : Number(scelta) > 0 ? Number(scelta) : lunghezzaManiglia(def);
+  return Math.max(40, Math.min(L, altAnta - 80));
+}
 /** Maniglia GRANDE (oltre 1 metro): si può far partire dal centro o dal fondo dell'anta. */
 export const MANIGLIA_GRANDE_MM = 1000;
 /**
@@ -103,13 +112,13 @@ export const MANIGLIA_GRANDE_MM = 1000;
  * (config.manigliaPosizione, di partenza), partono dal bordo basso e salgono.
  */
 function yManiglia(def, altAnta, yBase, config) {
-  const L = Math.min(lunghezzaManiglia(def), altAnta);
+  const L = lunghezzaManigliaAnta(def, config, altAnta);
   if (L > MANIGLIA_GRANDE_MM && (config.manigliaPosizione || 'fondo') === 'fondo') return -altAnta / 2 + L / 2;
   const centro = Math.min(yBase + altAnta / 2, 1050) - yBase;          // da terra → sull'anta
   const c = Math.max(L / 2, Math.min(altAnta - L / 2, centro));        // tutta dentro l'anta
   return c - altAnta / 2;
 }
-function aggiungiManiglia(parent, def, x, y, z) {
+function aggiungiManiglia(parent, def, x, y, z, L = lunghezzaManiglia(def)) {
   let grp = null;
   if (def.texture && def.lunghezzaMm && (def.forma === 'foto' || !def.formaV)) {
     // maniglia dalle foto: 3D vero ricostruito dalle viste (si ridisegna quando è pronta)
@@ -119,7 +128,7 @@ function aggiungiManiglia(parent, def, x, y, z) {
   if (!grp) {
     const catalogo = !!(def.texture && def.lunghezzaMm);
     const forma = catalogo ? (!def.forma || def.forma === 'foto' ? 'barra' : def.forma) : 'barra';
-    grp = costruisciManiglia(forma, catalogo ? def.finitura : 'inox', lunghezzaManiglia(def), catalogo ? def.colore : null);
+    grp = costruisciManiglia(forma, catalogo ? def.finitura : 'inox', L, catalogo ? def.colore : null);
   }
   grp.position.set(x, y, z);                       // z = faccia davanti dell'anta
   grp.rotation.z = Math.PI / 2;                    // verticale
@@ -794,7 +803,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       fugheAnta(pivot, mesh.position.x, 0, larAnta, altAnta, sA, 2);
       // maniglia sul bordo che si apre (lontano dal cardine)
       const man = manigliaScelta(config);
-      if (man) aggiungiManiglia(pivot, man, cardineSx ? larAnta - 40 : -larAnta + 40, yManiglia(man, altAnta, H / 2 - altAnta / 2, config), sA / 2);
+      if (man) aggiungiManiglia(pivot, man, cardineSx ? larAnta - 40 : -larAnta + 40, yManiglia(man, altAnta, H / 2 - altAnta / 2, config), sA / 2, lunghezzaManigliaAnta(man, config, altAnta));
       gruppoArmadio.add(pivot);
     }
   }
@@ -834,7 +843,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       mesh.userData.tipo = 'anta';
       pivot.add(mesh);
       fugheAnta(pivot, 0, 0, larAntaSc, altAntaSc, sA);
-      if (manSc) aggiungiManiglia(pivot, manSc, latoManiglia * (larAntaSc / 2 - 40), yManiglia(manSc, altAntaSc, cy - altAntaSc / 2, config), sA / 2);
+      if (manSc) aggiungiManiglia(pivot, manSc, latoManiglia * (larAntaSc / 2 - 40), yManiglia(manSc, altAntaSc, cy - altAntaSc / 2, config), sA / 2, lunghezzaManigliaAnta(manSc, config, altAntaSc));
       gruppoArmadio.add(pivot);
     };
 

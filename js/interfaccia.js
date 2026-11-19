@@ -6,9 +6,9 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261121r';
-import { htmlTendineColori } from './tendine-colori.js?v=20261121r';
-import { misureCostado } from './calcoli.js?v=20261121r';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261121s';
+import { htmlTendineColori } from './tendine-colori.js?v=20261121s';
+import { misureCostado } from './calcoli.js?v=20261121s';
 
 export function configDefault() {
   return {
@@ -949,7 +949,22 @@ function cardManiglie(config) {
               ${tessera(m)}<span>${m.nome}</span></button>`).join('')}
         </div>
       </details>
-      ${corr && (corr.texture && corr.lunghezzaMm ? corr.lunghezzaMm : 300) > 1000 ? `
+      ${corr ? (() => {
+        // LUNGHEZZA DELLA MANIGLIA: quella del catalogo, una misura, o alta come l'anta (mai più lunga dell'anta)
+        const std = corr.texture && corr.lunghezzaMm ? corr.lunghezzaMm : 300, sc = config.manigliaLunghezza;
+        const scelte = [['', `Standard (${Math.round(std / 10)} cm)`], ['300', '30 cm'], ['600', '60 cm'], ['1000', '100 cm'], ['1600', '160 cm'], ['anta', 'Alta come l\'anta']];
+        const att = sc == null ? '' : String(sc);
+        return `
+      <div class="man-pos">
+        <span class="mat-parte">Lunghezza della maniglia</span>
+        <div class="man-pos-scelte" style="flex-wrap:wrap">
+          ${scelte.map(([v, n]) => `<button type="button" class="btn-ghost btn-mini ${att === v ? 'attivo' : ''}" data-manlung="${v}">${n}</button>`).join('')}
+        </div>
+        <label class="hint" style="display:block;margin-top:6px">Altra misura (cm)
+          <input type="number" id="man-lung-cm" min="5" max="300" step="1" value="${Number(sc) > 0 ? Math.round(Number(sc) / 10) : ''}" placeholder="${Math.round(std / 10)}" inputmode="numeric" style="width:90px;margin-left:6px"></label>
+      </div>`;
+      })() : ''}
+      ${corr && ((config.manigliaLunghezza === 'anta' ? 1001 : Number(config.manigliaLunghezza) || (corr.texture && corr.lunghezzaMm ? corr.lunghezzaMm : 300))) > 1000 ? `
       <div class="man-pos">
         <span class="mat-parte">Posizione della maniglia</span>
         <div class="man-pos-scelte">
@@ -959,6 +974,17 @@ function cardManiglie(config) {
 }
 
 function attaccaEventiMateriali(contenitore, config, onChange) {
+  const rifai = () => { renderMateriali(config); attaccaEventiMateriali(contenitore, config, onChange); onChange(config); };
+  contenitore.querySelectorAll('[data-manlung]').forEach((btn) => btn.addEventListener('click', () => {
+    const v = btn.dataset.manlung;
+    if (!v) delete config.manigliaLunghezza; else config.manigliaLunghezza = v === 'anta' ? 'anta' : Number(v);
+    rifai();
+  }));
+  contenitore.querySelector('#man-lung-cm')?.addEventListener('change', (e) => {
+    const cm = Number(e.target.value);
+    if (cm >= 5) config.manigliaLunghezza = Math.round(cm * 10); else delete config.manigliaLunghezza;
+    rifai();
+  });
   contenitore.querySelectorAll('[data-manpos]').forEach((btn) => {
     btn.addEventListener('click', () => {
       config.manigliaPosizione = btn.dataset.manpos;

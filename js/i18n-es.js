@@ -2174,4 +2174,7 @@ window.NG_I18N_ES = {
  "Mobili in scena · {0}": "Muebles en escena · {0}",
  "Accessori in cucina · {0}": "Accesorios en la cocina · {0}",
  "Rubinetto e lavello": "Grifo y fregadero",
+ "Lunghezza della maniglia": "Largo del tirador",
+ "Alta come l'anta": "Alta como la puerta",
+ "Altra misura (cm)": "Otra medida (cm)",
 };
