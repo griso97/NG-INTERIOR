@@ -13,8 +13,8 @@
 
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, internoAperto, pezziMobileAperto, latoApertoDi,
-} from './modello.js?v=20261121y';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261121y';
+} from './modello.js?v=20261122a';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261122a';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -54,7 +54,7 @@ function mobileAperto(pz, mod, progetto, m) {
     const { parte, ...x } = p;
     const dentro = parte === 'interno';
     pz.push({ modulo: mod, ...x, aperto: true,
-      materiale: dentro && int === 'struttura' ? 'melaminico' : 'anta',
+      materiale: parte === 'struttura' || (dentro && int === 'struttura') ? 'melaminico' : 'anta',
       ...(dentro && int !== 'ante' && int !== 'struttura' ? { materialeNome: nomeMateriale(int, 'Materiale da scegliere') } : {}) });
   }
 }
@@ -149,7 +149,11 @@ function pezziDiModulo(progetto, m) {
   const H = m.altezza_mm || 720;
   // Etichetta semplice: "Modulo da <altezza>×<larghezza>".
   const odM = moduloDaOrdinare(m);
-  const mod = `Modulo da ${m.altezza_mm ? `${m.altezza_mm}×${L}` : L}`
+  // MOBILE APERTO: lo facciamo noi a pezzi, alla misura vera (niente modulo da ordinare né da tagliare)
+  const latoAp = apertoDi(m) ? latoApertoDi(progetto, m) : null;
+  const mod = apertoDi(m)
+    ? `Mobile aperto ${H}×${L}${latoAp ? ` · senza fianco ${latoAp === 'dx' ? 'destro' : 'sinistro'}` : ''}`
+    : `Modulo da ${m.altezza_mm ? `${m.altezza_mm}×${L}` : L}`
     + (odM ? ` ⚠ (modulo da ${odM.ordina} tagliato a ${L})` : m.fuoriMisura ? ' ⚠ da tagliare' : '');
   const pz = [];
   // aria delle ante (⚙ Parametri) e maniglia a J: l'anta si accorcia dello spessore del profilo
@@ -391,16 +395,13 @@ export function calcolaDistintaCucina(progetto) {
   const modMap = new Map();
   for (const m of mobili) {
     const gruppo = m.tipo === 'colonna-misura' ? null : gruppoModulo(categoriaTipo(m.tipo));   // su misura: la facciamo noi
-    if (!gruppo) continue;
+    if (!gruppo || apertoDi(m)) continue;                     // mobile aperto: anche lui fatto da noi, a pezzi
     const L = dimMobile(m).w;
     // FUORI MISURA: si ordina il modulo standard più vicino (più grande) e si taglia (es. 700 → 630)
     const od = moduloDaOrdinare(m), Lo = od ? od.ordina : L;
     const misura = m.altezza_mm ? `${m.altezza_mm}×${Lo}` : `${Lo}`;
-    // MOBILE APERTO: senza ante; l'ultimo della fila anche senza il fianco sul lato libero
-    const lAp = apertoDi(m) ? latoApertoDi(progetto, m) : null;
-    const ap = !apertoDi(m) ? '' : lAp ? ` · aperto, senza fianco ${lAp === 'dx' ? 'destro' : 'sinistro'}` : ' · aperto (senza ante)';
-    const key = `${gruppo}|${m.tipo}|${misura}|${od ? od.taglio : m.fuoriMisura ? 1 : 0}|${ap}`;
-    if (!modMap.has(key)) modMap.set(key, { gruppo, nome: `${nomeTipo(m.tipo)} · interno ${progetto.coloreInterno === 'antracite' ? 'antracite' : 'bianco'}${ap}`, misura, tipo: nomeTipo(m.tipo), fuoriMisura: !!(od || m.fuoriMisura), taglio: od ? od.taglio : null, quantita: 0 });
+    const key = `${gruppo}|${m.tipo}|${misura}|${od ? od.taglio : m.fuoriMisura ? 1 : 0}`;
+    if (!modMap.has(key)) modMap.set(key, { gruppo, nome: `${nomeTipo(m.tipo)} · interno ${progetto.coloreInterno === 'antracite' ? 'antracite' : 'bianco'}`, misura, tipo: nomeTipo(m.tipo), fuoriMisura: !!(od || m.fuoriMisura), taglio: od ? od.taglio : null, quantita: 0 });
     modMap.get(key).quantita++;
   }
   const moduli = [...modMap.values()].sort((a, b) => ORDINE_MODULI.indexOf(a.gruppo) - ORDINE_MODULI.indexOf(b.gruppo));

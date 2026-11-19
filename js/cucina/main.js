@@ -23,17 +23,17 @@ import {
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro, rotazioneAutomatica, migraRotazioni,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
-  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, internoAperto, latoApertoDi, latiLiberi } from './modello.js?v=20261121y';
-import { renderPianta } from './pianta.js?v=20261121y';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121y';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261121y';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121y';
-import { calcolaDistintaCucina } from './distinta.js?v=20261121y';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121y';
-import { agganciaTema } from '../tema.js?v=20261121y';
-import { tendinePannello } from '../tendine-pannello.js?v=20261121y';
+  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, internoAperto, latoApertoDi, latiLiberi } from './modello.js?v=20261122a';
+import { renderPianta } from './pianta.js?v=20261122a';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261122a';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261122a';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261122a';
+import { calcolaDistintaCucina } from './distinta.js?v=20261122a';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261122a';
+import { agganciaTema } from '../tema.js?v=20261122a';
+import { tendinePannello } from '../tendine-pannello.js?v=20261122a';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261121y');
+const _excel = () => import('../modello-export.js?v=20261122a');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -1833,7 +1833,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121y');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261122a');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2313,7 +2313,7 @@ function renderRiepilogoStep3d() {
     conta[k] = (conta[k] || 0) + 1;
   }
   // Moduli fuori misura (da tagliare): larghezza non standard.
-  const daTagliare = (progetto.mobiliLiberi || []).filter((m) => m.fuoriMisura);
+  const daTagliare = (progetto.mobiliLiberi || []).filter((m) => m.fuoriMisura && !apertoDi(m));   // l'aperto è fatto a pezzi
   riepilogo.innerHTML = `
     <section data-tendina="mobili">
     <h3>Mobili in scena · ${(progetto.mobiliLiberi || []).length}</h3>
@@ -2619,13 +2619,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121y');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261122a');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121y'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261122a'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -3118,7 +3118,7 @@ function htmlMobileAperto(m) {
       </div>
       <div style="margin-top:8px">${htmlTendineColori(lista, (mt) => `<button type="button" class="swatch ${mt.id === int ? 'sel' : ''}" data-apint="${mt.id}" title="${escHtml(mt.nome)}" style="background-image:url('${mt.thumb}')"></button>`,
         { sel: int, chiave: 'cucina-aperto-interno' })}</div>
-      <div class="riga-3d" style="margin-top:6px">Il bordo davanti (cornice) è del colore delle ante. Se è l'ultimo modulo della fila, dal lato libero non ha il fianco (fondo, cielo e ripiani arrivano al bordo). Dentro ci puoi mettere gli oggetti: trascinali nel mobile e lasciali sul ripiano che vuoi. In distinta: cornice, rivestimento interno e ripiani (niente ante).</div>`;
+      <div class="riga-3d" style="margin-top:6px">Il bordo davanti (cornice) è del colore delle ante. Se è l'ultimo modulo della fila, dal lato libero non ha il fianco (fondo, cielo e ripiani arrivano al bordo). Dentro ci puoi mettere gli oggetti: trascinali nel mobile e lasciali sul ripiano che vuoi. Non si ordina come modulo: in distinta tutti i pezzi alla misura vera (struttura, cornice, rivestimento interno e ripiani).</div>`;
 }
 function agganciaMobileAperto(root, m) {
   root.querySelectorAll('[data-aprip]').forEach((b) => b.addEventListener('click', () => {
@@ -3206,8 +3206,10 @@ let sceltaModale = null; // { tipoId, mobId, campi:[...], valori:{campo:v} }
 function apriScelta(tipoId, mobId = null) {
   const tipo = infoTipo(tipoId);
   if (!tipo) return;
-  const campi = campiMobile(tipoId);
   const esistente = mobId ? trovaMobileLibero(progetto, mobId) : null;
+  // MOBILE APERTO: lo facciamo a pezzi → anche l'altezza si scrive a mano (qualsiasi misura)
+  const campi = campiMobile(tipoId).map((c) => (esistente && apertoDi(esistente) && c.campo === 'altezza_mm')
+    ? { ...c, tipo: 'numero', min: 150, step: 10, et: 'Altezza (mm) — mobile aperto: qualsiasi misura' } : c);
   const valori = {};
   for (const c of campi) {
     valori[c.campo] = esistente && esistente[c.campo] != null ? esistente[c.campo] : c.default;

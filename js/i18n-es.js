@@ -2232,4 +2232,12 @@ window.NG_I18N_ES = {
  "{0} · interno bianco · aperto, senza fianco sinistro": "{0} · interior blanco · abierto, sin costado izquierdo",
  "{0} · interno antracite · aperto, senza fianco destro": "{0} · interior antracita · abierto, sin costado derecho",
  "{0} · interno antracite · aperto, senza fianco sinistro": "{0} · interior antracita · abierto, sin costado izquierdo",
+ "Fianco (mobile aperto)": "Costado (mueble abierto)",
+ "Cielo e fondo (mobile aperto)": "Techo y suelo (mueble abierto)",
+ "Schiena (mobile aperto)": "Trasera (mueble abierto)",
+ "Mobile aperto {0}×{1}": "Mueble abierto {0}×{1}",
+ "Mobile aperto {0}×{1} · senza fianco destro": "Mueble abierto {0}×{1} · sin costado derecho",
+ "Mobile aperto {0}×{1} · senza fianco sinistro": "Mueble abierto {0}×{1} · sin costado izquierdo",
+ "Il bordo davanti (cornice) è del colore delle ante. Se è l'ultimo modulo della fila, dal lato libero non ha il fianco (fondo, cielo e ripiani arrivano al bordo). Dentro ci puoi mettere gli oggetti: trascinali nel mobile e lasciali sul ripiano che vuoi. Non si ordina come modulo: in distinta tutti i pezzi alla misura vera (struttura, cornice, rivestimento interno e ripiani).": "El borde delantero (marco) es del color de las puertas. Si es el último módulo de la fila, en el lado libre no tiene costado (fondo, techo y baldas llegan al borde). Dentro puedes poner objetos: arrástralos al mueble y déjalos en la balda que quieras. No se pide como módulo: en el despiece todas las piezas a la medida real (estructura, marco, revestimiento interior y baldas).",
+ "Altezza (mm) — mobile aperto: qualsiasi misura": "Alto (mm) — mueble abierto: cualquier medida",
 };
