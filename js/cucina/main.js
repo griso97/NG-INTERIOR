@@ -24,17 +24,17 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
-} from './modello.js?v=20261121h';
-import { renderPianta } from './pianta.js?v=20261121h';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121h';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261121h';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121h';
-import { calcolaDistintaCucina } from './distinta.js?v=20261121h';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121h';
-import { agganciaTema } from '../tema.js?v=20261121h';
-import { tendinePannello } from '../tendine-pannello.js?v=20261121h';
+} from './modello.js?v=20261121i';
+import { renderPianta } from './pianta.js?v=20261121i';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121i';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261121i';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121i';
+import { calcolaDistintaCucina } from './distinta.js?v=20261121i';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121i';
+import { agganciaTema } from '../tema.js?v=20261121i';
+import { tendinePannello } from '../tendine-pannello.js?v=20261121i';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261121h');
+const _excel = () => import('../modello-export.js?v=20261121i');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -1513,11 +1513,12 @@ function renderPannelloStep3d() {
     ${materialiEnc.length ? `
     <section class="step3-pannello">
       <h3>Piano di lavoro (encimera)</h3>
-      <div class="riga-3d" style="margin-bottom:6px">Il piano cambia su tutta la cucina. Ogni encimera porta il suo spessore.</div>
+      <div class="riga-3d" style="margin-bottom:6px">Il piano cambia su tutta la cucina. Lo spessore lo scegli qui sotto.</div>
       ${htmlTendineColori(materialiEnc, (mt) => `<button type="button" class="swatch ${mt.id === encAttuale ? 'sel' : ''}"
           data-enc="${mt.id}" title="${mt.nome} (${mt.spessore || 40} mm)" style="background-image:url('${mt.thumb}')"></button>`, {
         sel: encAttuale, chiave: 'cucina-encimera',
         prima: `<button type="button" class="swatch swatch-none ${!encAttuale ? 'sel' : ''}" data-enc="" title="Nero standard (4 cm)">—</button>` })}
+      ${htmlSpessorePiano()}
     </section>` : ''}
     ${htmlSchienale()}
     ${htmlFiniture()}
@@ -1657,6 +1658,7 @@ function renderPannelloStep3d() {
     progetto.encimera.materiale = b.dataset.enc || null;
     aggiorna();
   }));
+  agganciaSpessorePiano(pannello);
   agganciaSchienale(pannello);
   agganciaFiniture(pannello);
   pannello.querySelectorAll('.opt-led').forEach((b) => b.addEventListener('click', () => {
@@ -1673,7 +1675,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121h');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121i');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1962,11 +1964,12 @@ function renderPannelloModificaMobile(m) {
     ${isBase && materialiEncimera.length ? `
     <section class="step3-pannello">
       <h3>Piano di lavoro (encimera)</h3>
-      <div class="riga-3d" style="margin-bottom:6px">Il piano cambia su tutta la cucina. Ogni encimera porta il suo spessore.</div>
+      <div class="riga-3d" style="margin-bottom:6px">Il piano cambia su tutta la cucina. Lo spessore lo scegli qui sotto.</div>
       ${htmlTendineColori(materialiEncimera, (mt) => `<button type="button" class="swatch ${mt.id === encAttuale ? 'sel' : ''}"
           data-enc="${mt.id}" title="${mt.nome} (${mt.spessore || 40} mm)" style="background-image:url('${mt.thumb}')"></button>`, {
         sel: encAttuale, chiave: 'cucina-encimera',
         prima: `<button type="button" class="swatch swatch-none ${!encAttuale ? 'sel' : ''}" data-enc="" title="Nero standard (4 cm)">—</button>` })}
+      ${htmlSpessorePiano()}
     </section>` : ''}
     ${isBase ? htmlSchienale() : ''}
     ${cat === 'pensile' ? `
@@ -2038,6 +2041,7 @@ function renderPannelloModificaMobile(m) {
     progetto.encimera.materiale = b.dataset.enc || null;
     aggiorna();
   }));
+  agganciaSpessorePiano(pannello);
   agganciaSchienale(pannello);
   pannello.querySelectorAll('.swatch[data-man]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
@@ -2432,13 +2436,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121h');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121i');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121h'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121i'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2696,6 +2700,38 @@ function htmlPianoTavolo(m) {
       ${htmlTendineColori(lista, (mt) => `<button type="button" class="swatch ${mt.id === sel ? 'sel' : ''}" data-tavmat="${mt.id}" title="${escHtml(mt.nome)}" style="background-image:url('${mt.thumb}')"></button>`,
         { sel, chiave: 'cucina-piano-tavolo' })}
     </section>`;
+}
+
+/**
+ * SPESSORE DEL PIANO DI LAVORO: quello del materiale (Compacto 12, R3 Supra 38, nero standard 40…)
+ * oppure scelto a mano per questa cucina (12, 20, 30, 40, 60, 80 mm o qualsiasi misura).
+ */
+function htmlSpessorePiano() {
+  const enc = progetto.encimera || {};
+  const mod = matMod || scena3dMod;
+  const def = enc.materiale && mod && mod.MATERIALI ? mod.MATERIALI.find((x) => x.id === enc.materiale) : null;
+  const delMat = def && def.spessore != null ? def.spessore : 40;
+  const mano = Number(enc.spessore) > 0 ? Number(enc.spessore) : null;
+  const sp = mano || delMat;
+  return `
+      <div class="riga-3d" style="margin:12px 0 6px">Spessore del piano: <strong>${sp} mm</strong></div>
+      <div class="opzioni-anta">
+        <button type="button" class="btn-ghost opt-sptop ${mano ? '' : 'attivo'}" data-sptop="">${mano ? '' : '✓ '}Quello del materiale (${delMat} mm)</button>
+        ${[12, 20, 30, 40, 60, 80].map((v) => `<button type="button" class="btn-ghost opt-sptop ${mano === v ? 'attivo' : ''}" data-sptop="${v}">${mano === v ? '✓ ' : ''}${v} mm</button>`).join('')}
+      </div>
+      <label class="riga-3d" style="display:block;margin-top:8px">Altra misura (mm)
+        <input type="number" id="sptop-num" class="modale-num" min="6" max="200" step="1" value="${sp}" inputmode="numeric" style="width:100%;margin-top:4px" /></label>`;
+}
+function agganciaSpessorePiano(root) {
+  const imposta = (v) => {
+    registraStoria();
+    if (!progetto.encimera) progetto.encimera = {};
+    if (v > 0) progetto.encimera.spessore = Math.max(6, Math.min(200, Math.round(v))); else delete progetto.encimera.spessore;
+    aggiorna();
+  };
+  root.querySelectorAll('.opt-sptop[data-sptop]').forEach((b) => b.addEventListener('click', () => imposta(Number(b.dataset.sptop) || 0)));
+  const inp = root.querySelector('#sptop-num');
+  if (inp) inp.addEventListener('change', () => { const v = Number(inp.value); if (v >= 6) imposta(v); });
 }
 
 /** FRIGO: colore (bianco, nero, acciaio) e misure, a portata di tocco. */

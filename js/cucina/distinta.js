@@ -13,8 +13,8 @@
 
 import {
   infoTavolo, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna,
-} from './modello.js?v=20261121h';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261121h';
+} from './modello.js?v=20261121i';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261121i';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -220,7 +220,8 @@ function pezziDiModulo(progetto, m) {
   } else if (cat === 'tavolo') {
     // PIANO / TAVOLO: la lastra e i suoi appoggi (dove il piano è libero)
     const enc = progetto.encimera && progetto.encimera.materiale;
-    const spTop = (() => { const def = enc && typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === enc); return def && def.spessore != null ? def.spessore : 40; })();
+    const spTop = Number(progetto.encimera && progetto.encimera.spessore) > 0 ? Number(progetto.encimera.spessore)
+      : (() => { const def = enc && typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === enc); return def && def.spessore != null ? def.spessore : 40; })();
     const info = infoTavolo(progetto, m, spTop);
     const sp = Math.max(6, m.spessore_mm || 40), P = m.profondita_mm || 900;
     const nomeMat = m.materiale ? nomeMateriale(m.materiale, 'Materiale da scegliere') : nomeMateriale(enc, 'Come il piano di lavoro');

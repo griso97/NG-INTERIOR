@@ -2122,4 +2122,8 @@ window.NG_I18N_ES = {
  "{0}×{1} · sp {2} · a filo del piano": "{0}×{1} · gr {2} · enrasado con la encimera",
  "{0}×{1} · sp {2} · h {3}": "{0}×{1} · gr {2} · h {3}",
  "Piani e tavoli": "Tableros y mesas",
+ "Il piano cambia su tutta la cucina. Lo spessore lo scegli qui sotto.": "La encimera cambia en toda la cocina. El grosor lo eliges aquí abajo.",
+ "Spessore del piano:": "Grosor de la encimera:",
+ "Quello del materiale ({0} mm)": "El del material ({0} mm)",
+ "Altra misura (mm)": "Otra medida (mm)",
 };

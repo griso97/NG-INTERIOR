@@ -13,34 +13,40 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261121h';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121h';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261121h';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261121h';
+} from './modello.js?v=20261121i';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121i';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261121i';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261121i';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121h').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121i').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121h';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121h';
-import { parametri } from '../parametri.js?v=20261121h';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121h';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121h';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121i';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121i';
+import { parametri } from '../parametri.js?v=20261121i';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121i';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121i';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121h';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121i';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261121h';
+export { telaPavimento } from '../resa.js?v=20261121i';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
 // Zoccolo (piedini) in base all'altezza della porta:
 //  porta 70 → zoccolo 150 mm · porta 80 → zoccolo 100 mm
 function zoccoloPerAltezza(h) { return h >= 800 ? 100 : 150; }
+/** Spessore del piano di lavoro: scelto a mano per questa cucina, se no quello del materiale (nero standard 40). */
+function spessorePianoDi(progetto, encDef) {
+  const mano = progetto && progetto.encimera && Number(progetto.encimera.spessore);
+  if (mano > 0) return mano;
+  return (encDef && encDef.spessore != null) ? encDef.spessore : SP_TOP;
+}
 
 // Altezza dominante dei mobili BASSI della cucina (quelli che poggiano a terra
 // con piedini + piano: base, lavello, forno, cassettiera...). Serve per far
@@ -169,7 +175,7 @@ export function calcoloPonte(progetto, spazio, hPens) {
   const cima = q.cimaAlta != null ? q.cimaAlta : 2350;
   const encId = progetto.encimera && progetto.encimera.materiale;
   const encDef = encId ? MATERIALI.find((m) => m.id === encId) : null;
-  const spTop = (encDef && encDef.spessore != null) ? encDef.spessore : SP_TOP;
+  const spTop = spessorePianoDi(progetto, encDef);
   let piano = 0;
   for (const b of (progetto.mobiliLiberi || [])) {
     if (!['base', 'lavastoviglie', 'lavatrice'].includes(categoriaTipo(b.tipo))) continue;
@@ -2460,7 +2466,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   const matCostado = col.costado ? matDa(col.costado) : null;
   const encDef = encId ? MATERIALI.find((m) => m.id === encId) : null;
   const matTop = encId ? getMaterialeTHREE(encId, reRender) : null;
-  const spTop = (encDef && encDef.spessore != null) ? encDef.spessore : SP_TOP;
+  const spTop = spessorePianoDi(progetto, encDef);
 
   // Moduli agganciati ai muri + fasce
   full.forEach((p, i) => {
