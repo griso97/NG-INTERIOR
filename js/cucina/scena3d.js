@@ -13,28 +13,28 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261121g';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121g';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261121g';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261121g';
+} from './modello.js?v=20261121h';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261121h';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261121h';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261121h';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121g').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261121h').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121g';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121g';
-import { parametri } from '../parametri.js?v=20261121g';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121g';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121g';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261121h';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261121h';
+import { parametri } from '../parametri.js?v=20261121h';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261121h';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261121h';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121g';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261121h';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261121g';
+export { telaPavimento } from '../resa.js?v=20261121h';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -46,7 +46,7 @@ function zoccoloPerAltezza(h) { return h >= 800 ? 100 : 150; }
 // con piedini + piano: base, lavello, forno, cassettiera...). Serve per far
 // adattare i piedini della colonna ai mobili bassi: se i bassi sono da 80
 // (piedini 100), anche la colonna deve stare su piedini da 100, non 150.
-const CAT_NON_BASSE = new Set(['pensile', 'colonna', 'regletta', 'pannello', 'costado', 'oggetto', 'frigo', 'altillo']);
+const CAT_NON_BASSE = new Set(['pensile', 'colonna', 'regletta', 'pannello', 'costado', 'oggetto', 'frigo', 'altillo', 'tavolo']);
 function altezzaBaseDominante(progetto) {
   const conteggio = new Map();
   for (const m of (progetto.mobiliLiberi || [])) {
@@ -2513,6 +2513,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   const cierre = progetto.cierreTecho && progetto.cierreTecho.attivo ? Math.max(20, Number(progetto.cierreTecho.altezza) || 300) : 0;
   const cimeAlte = new Map();      // cima (mm da terra) di pensili e colonne, per la fascia del cierre
   const daPosare = [];             // oggetti del catalogo: quota dal piano vero (dopo i piani)
+  const tavoli = [];               // PIANO / TAVOLO: dopo i mobili (la quota «a filo» viene dal piano dell'isola)
   _spTop = spTop;
   // Mobili liberi
   for (const m of (progetto.mobiliLiberi || [])) {
@@ -2666,6 +2667,8 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       const matC = matProprio || (alto ? (matPensile || matCostado)
         : (matCostado || (h >= 1500 ? (matColonna || matBase) : matBase))) || COL.costado;
       g3d = collocaMobile(corpo(dim.w, h, dim.d, matC), cx, base, cz, h, m.rot);
+    } else if (cat === 'tavolo') {
+      tavoli.push(m);
     } else {
       // base / lavello / forno: porta = altezza scelta, zoccolo 150/100.
       // Il piano di lavoro NON si disegna qui: è un pezzo unico continuo (dopo).
@@ -2777,7 +2780,9 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
     };
   }
   const muriPiano = full.map((p, i) => (p.assente ? null : { a: vertici[i], b: vertici[i + 1] })).filter(Boolean);
-  renderTopContinui(basiTop, fianchi, spTop, matTop, accessori.filter((a) => a.lavello || a.placca), schienale, muriPiano);
+  // PIANO / TAVOLO: la lastra, gli appoggi e dove il piano dell'isola si deve aprire
+  const tagliPiano = renderTavoli(tavoli, basiTop, spTop, matTop, muriPiano, selId, reRender);
+  renderTopContinui(basiTop, fianchi, spTop, matTop, accessori.filter((a) => a.lavello || a.placca), schienale, muriPiano, tagliPiano);
   // Oggetti: sul piano che c'è DAVVERO sotto (anche la parte di piano che sporge
   // oltre i mobili, es. l'isola dal lato sgabelli, o il piano allungato nell'angolo)
   if (daPosare.length) {
@@ -2952,6 +2957,180 @@ function slabConFori(len, thickness, depth, mat, fori) {
   return g;
 }
 
+/**
+ * Lastra del piano con i TAGLI dei piani/tavoli che la attraversano (rettangoli in coordinate
+ * locali u, v che possono uscire dai bordi) e i fori dei lavelli. Il resto della lastra si trova
+ * su una griglia (i bordi dei tagli) e se ne ricava il contorno: un pezzo con una tacca, due pezzi
+ * separati se il tavolo la attraversa tutta, o un buco in mezzo. null = non resta niente.
+ */
+function slabRitagliata(len, thickness, depth, mat, fori, tagli) {
+  const halfU = len / 2, halfV = depth / 2;
+  // in coordinate della forma: x = u, y = −v
+  const tg = tagli.map((t) => ({ x0: t.u0, x1: t.u1, y0: -t.v1, y1: -t.v0 }));
+  const unici = (a) => [...new Set(a.map((x) => Math.round(x * 10) / 10))].sort((p, q) => p - q);
+  const xs = unici([-halfU, halfU, ...tg.flatMap((t) => [t.x0, t.x1]).filter((x) => x > -halfU + 1 && x < halfU - 1)]);
+  const ys = unici([-halfV, halfV, ...tg.flatMap((t) => [t.y0, t.y1]).filter((y) => y > -halfV + 1 && y < halfV - 1)]);
+  const NX = xs.length - 1, NY = ys.length - 1;
+  const pieno = [];
+  let vuote = 0;
+  for (let i = 0; i < NX; i++) {
+    pieno.push([]);
+    for (let j = 0; j < NY; j++) {
+      const cx = (xs[i] + xs[i + 1]) / 2, cy = (ys[j] + ys[j + 1]) / 2;
+      const dentro = tg.some((t) => cx > t.x0 && cx < t.x1 && cy > t.y0 && cy < t.y1);
+      pieno[i].push(!dentro); if (dentro) vuote++;
+    }
+  }
+  if (!vuote) return fori.length ? slabConFori(len, thickness, depth, mat, fori) : corpo(len, thickness, depth, mat);
+  if (vuote === NX * NY) return null;
+  const P = (i, j) => i >= 0 && j >= 0 && i < NX && j < NY && pieno[i][j];
+  // lati di bordo, orientati con il pieno a SINISTRA (contorni esterni antiorari, buchi orari)
+  const lati = [];
+  for (let i = 0; i < NX; i++) for (let j = 0; j < NY; j++) {
+    if (!pieno[i][j]) continue;
+    if (!P(i, j - 1)) lati.push([i, j, i + 1, j]);
+    if (!P(i + 1, j)) lati.push([i + 1, j, i + 1, j + 1]);
+    if (!P(i, j + 1)) lati.push([i + 1, j + 1, i, j + 1]);
+    if (!P(i - 1, j)) lati.push([i, j + 1, i, j]);
+  }
+  const daPunto = new Map();
+  lati.forEach((l, n) => { const key = `${l[0]},${l[1]}`; (daPunto.get(key) || daPunto.set(key, []).get(key)).push(n); });
+  const usato = new Array(lati.length).fill(false), anelli = [];
+  for (let n0 = 0; n0 < lati.length; n0++) {
+    if (usato[n0]) continue;
+    const anello = []; let n = n0;
+    while (n != null && !usato[n]) {
+      usato[n] = true; const l = lati[n]; anello.push([xs[l[0]], ys[l[1]]]);
+      n = (daPunto.get(`${l[2]},${l[3]}`) || []).find((q) => !usato[q]);
+    }
+    // via i punti in mezzo a un lato dritto
+    const pulito = anello.filter((p, q) => {
+      const a = anello[(q - 1 + anello.length) % anello.length], b = anello[(q + 1) % anello.length];
+      return !((a[0] === p[0] && p[0] === b[0]) || (a[1] === p[1] && p[1] === b[1]));
+    });
+    if (pulito.length >= 3) anelli.push(pulito);
+  }
+  const area = (a) => { let s2 = 0; for (let q = 0; q < a.length; q++) { const p = a[q], r = a[(q + 1) % a.length]; s2 += p[0] * r[1] - r[0] * p[1]; } return s2 / 2; };
+  const dentroPoli = (x, y, a) => { let ok = false; for (let q = 0, r = a.length - 1; q < a.length; r = q++) { const [xi, yi] = a[q], [xj, yj] = a[r]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) ok = !ok; } return ok; };
+  const esterni = anelli.filter((a) => area(a) > 0), buchi = anelli.filter((a) => area(a) < 0);
+  const hs = fori.map((f) => ({
+    u0: Math.max(-halfU + 2, f.u - f.w / 2), u1: Math.min(halfU - 2, f.u + f.w / 2),
+    v0: Math.max(-halfV + 2, f.v - f.d / 2), v1: Math.min(halfV - 2, f.v + f.d / 2),
+  })).filter((h) => h.u1 - h.u0 > 5 && h.v1 - h.v0 > 5);
+  const materiale = (mat && mat.isMaterial) ? mat : new THREE.MeshStandardMaterial({ color: mat, roughness: 0.7, metalness: 0.05 });
+  const g = new THREE.Group();
+  for (const est of esterni) {
+    const forma = new THREE.Shape(est.map(([x, y]) => new THREE.Vector2(x, y)));
+    for (const b of buchi) if (dentroPoli(b[0][0] + 0.01, b[0][1] + 0.01, est) || dentroPoli((b[0][0] + b[1][0]) / 2, (b[0][1] + b[1][1]) / 2, est)) forma.holes.push(new THREE.Path(b.map(([x, y]) => new THREE.Vector2(x, y))));
+    for (const h of hs) {
+      if (!dentroPoli((h.u0 + h.u1) / 2, -(h.v0 + h.v1) / 2, est)) continue;
+      const foro = new THREE.Path();
+      foro.moveTo(h.u0, -h.v1); foro.lineTo(h.u0, -h.v0); foro.lineTo(h.u1, -h.v0); foro.lineTo(h.u1, -h.v1); foro.closePath();
+      forma.holes.push(foro);
+    }
+    const geo = new THREE.ExtrudeGeometry(forma, { depth: thickness, bevelEnabled: false });
+    geo.rotateX(-Math.PI / 2);
+    geo.translate(0, -thickness / 2, 0);
+    const pos = geo.attributes.position, uv = geo.attributes.uv;
+    for (let q = 0; q < pos.count; q++) uv.setXY(q, (pos.getX(q) + halfU) / len, 1 - (pos.getZ(q) + halfV) / depth);
+    uv.needsUpdate = true;
+    const mesh = new THREE.Mesh(geo, materiale);
+    mesh.receiveShadow = true; mesh.castShadow = true;
+    g.add(mesh);
+    g.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, 30), matOro));
+  }
+  return g.children.length ? g : null;
+}
+
+/**
+ * PIANO / TAVOLO libero (isole di design): una lastra del materiale scelto (la pietra del piano,
+ * un legno…), lunga × larga × spessa come vuoi, all'altezza scelta o A FILO del piano dell'isola.
+ * Dove il piano è libero (non entra nei mobili e non tocca un muro) sta in piedi con il suo
+ * appoggio: fianco a cascata nello stesso materiale, gamba in vetro o due gambe.
+ * Ritorna i TAGLI per il piano dell'isola: dove la lastra passa alla sua quota, il piano si apre.
+ */
+const _matVetroTavolo = new THREE.MeshStandardMaterial({ color: 0xdbe8e3, roughness: 0.06, metalness: 0, transparent: true, opacity: 0.22, depthWrite: false });
+_matVetroTavolo.userData.vetro = true;
+const _matBordoVetro = new THREE.LineBasicMaterial({ color: 0x8fb3a6, transparent: true, opacity: 0.75 });
+const _matGambe = {
+  'gambe-nere': new THREE.MeshStandardMaterial({ color: 0x1b1a19, roughness: 0.55, metalness: 0.35 }),
+  'gambe-oro': new THREE.MeshStandardMaterial({ color: 0xb08d57, roughness: 0.28, metalness: 1 }),
+};
+function renderTavoli(tavoli, basiTop, spTop, matTop, muri, selId, reRender) {
+  const tagli = [];
+  if (!tavoli.length) return tagli;
+  // un punto della pianta (x, y) è dentro il mobile basso b? (stessa rotazione dei mobili nel 3D)
+  const dentroBase = (x, y, b) => {
+    const t = -(b.rot || 0) * Math.PI / 180, X = x - b.x, Z = -(y - b.y);
+    const lx = X * Math.cos(t) - Z * Math.sin(t), lz = X * Math.sin(t) + Z * Math.cos(t);
+    return Math.abs(lx) <= b.w / 2 + 1 && Math.abs(lz) <= (b.d || PROFONDITA_BASE) / 2 + 1;
+  };
+  for (const m of tavoli) {
+    const w = Math.max(100, m.larghezza_mm || 1800), d = Math.max(100, m.profondita_mm || 900), sp = Math.max(6, m.spessore_mm || 40);
+    const g = new THREE.Group();
+    g.position.set(m.x, 0, -m.y); g.rotation.y = -(m.rot || 0) * Math.PI / 180; g.updateMatrixWorld(true);
+    const inPianta = (lx, lz) => { const v = g.localToWorld(new THREE.Vector3(lx, 0, lz)); return { x: v.x, y: -v.z }; };
+    // QUOTA: scritta a mano, o a filo del piano dei mobili sotto (o del più vicino)
+    let quota = Math.max(sp + 50, m.altezza_mm || 750);
+    if (m.quota === 'filo') {
+      let sopra = -Infinity;
+      for (let i = 0; i <= 6; i++) for (let j = 0; j <= 2; j++) {
+        const p = inPianta(-w / 2 + (w * i) / 6, -d / 2 + (d * j) / 2);
+        for (const b of basiTop) if (dentroBase(p.x, p.y, b)) sopra = Math.max(sopra, b.topY);
+      }
+      if (!Number.isFinite(sopra)) {
+        let dMin = Infinity;
+        for (const b of basiTop) { const dd = Math.hypot(b.x - m.x, b.y - m.y); if (dd < dMin) { dMin = dd; sopra = b.topY; } }
+      }
+      quota = (Number.isFinite(sopra) ? sopra : 850) + spTop;
+    }
+    // MATERIALE: quello scelto, o come il piano della cucina
+    const def = m.materiale ? MATERIALI.find((x) => x.id === m.materiale) : null;
+    const base = m.materiale ? getMaterialeTHREE(m.materiale, reRender) : matTop;
+    const pietra = !m.materiale || (def && def.categoria === 'encimera');
+    const matLastra = base ? (pietra ? materialePerTop(base) : base) : new THREE.MeshStandardMaterial({ color: COL.top, roughness: 0.55, metalness: 0.1 });
+    const matFianco = base ? (pietra ? (materialePerSchienale(base) || base) : base) : matLastra;
+    const lastra = corpo(w, sp, d, matLastra);
+    lastra.position.y = quota - sp / 2;
+    lastra.traverse((o) => { if (o.isMesh) { o.userData.appoggio = true; o.castShadow = true; o.receiveShadow = true; } if (o.isLineSegments) o.visible = false; });
+    g.add(lastra);
+    // APPOGGI: alle estremità libere (non dentro i mobili, non contro un muro)
+    const app = m.appoggio || 'cascata';
+    const hGamba = quota - sp;
+    for (const e of [-1, 1]) {
+      if (app === 'nessuno' || hGamba < 30) break;
+      const prove = [-d / 2 + 60, 0, d / 2 - 60].map((lz) => inPianta(e * (w / 2 - 40), lz));
+      const nelMobile = prove.some((p) => basiTop.some((b) => dentroBase(p.x, p.y, b)));
+      const alMuro = prove.filter((p) => muri.some((mu) => distSegmento(p, mu.a, mu.b) < 90)).length >= 2;
+      if (app !== 'cascata-due' && (nelMobile || alMuro)) continue;
+      const xE = e * (w / 2);
+      if (app === 'cascata' || app === 'cascata-due') {
+        // fianco a cascata: stesso materiale e spessore, a filo della testa della lastra, fino a terra
+        const f = corpo(sp, hGamba, d, matFianco);
+        f.position.set(xE - e * sp / 2, hGamba / 2, 0);
+        f.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } if (o.isLineSegments) o.visible = false; });
+        g.add(f);
+      } else if (app === 'vetro') {
+        const geo = new THREE.BoxGeometry(12, hGamba, Math.max(100, d - 160));
+        const v = new THREE.Mesh(geo, _matVetroTavolo); v.renderOrder = 2; v.userData.senzaOmbra = true;
+        v.position.set(xE - e * 90, hGamba / 2, 0);
+        v.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), _matBordoVetro));
+        g.add(v);
+      } else if (_matGambe[app]) {
+        for (const lz of [-d / 2 + 90, d / 2 - 90]) {
+          const gm = new THREE.Mesh(new THREE.BoxGeometry(50, hGamba, 50), _matGambe[app]);
+          gm.position.set(xE - e * 90, hGamba / 2, lz); gm.castShadow = true;
+          g.add(gm);
+        }
+      }
+    }
+    g.userData.mobId = m.id; if (m.id === selId) evidenzia(g);
+    gruppo.add(g);
+    tagli.push({ angoli: [inPianta(-w / 2, -d / 2), inPianta(w / 2, -d / 2), inPianta(w / 2, d / 2), inPianta(-w / 2, d / 2)], y0: quota - sp, y1: quota });
+  }
+  return tagli;
+}
+
 /** Distanza di un punto (pianta) dal segmento ab. */
 function distSegmento(p, a, b) {
   const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy || 1;
@@ -2962,7 +3141,7 @@ function distSegmento(p, a, b) {
 const SP_SCHIENALE = 12;          // spessore del pannello dietro il piano
 const H_SCHIENALE = 600;          // altezza se sopra non ci sono pensili
 
-function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, lavelli = [], schienale = null, muriPiano = []) {
+function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, lavelli = [], schienale = null, muriPiano = [], tagli = []) {
   let matTop = materialePerTop(mat);
   // Il piano deve SEMPRE vincere lo z-fighting contro costadi/colonne che gli
   // arrivano a filo (stessa quota): con polygonOffset la lastra viene disegnata
@@ -3118,10 +3297,26 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
           fori.push({ u: k * (alongS - centerAlong), v: k * (perpTop - perpS), w: pw - 12, d: pd - 12 });
         }
       }
-      const slab = fori.length
-        ? slabConFori(len, thickness, depth, matTop || COL.top, fori)
-        : corpo(len, thickness, depth, matTop || COL.top);
-      slab.children[0].userData.appoggio = true;          // ci si appoggiano gli oggetti (friggitrice…)
+      // PIANO / TAVOLO che passa ALLA QUOTA del piano: lì il piano si apre (pezzi, tacca o buco)
+      const tagliQui = [];
+      for (const t of tagli) {
+        if (t.y1 <= topY + 1 || t.y0 >= topY + thickness - 1) continue;          // più basso o più alto: non si toccano
+        const loc = t.angoli.map((q) => { const al = q.x * c + q.y * s, pp = -q.x * s + q.y * c; return { u: k * (al - centerAlong), v: k * (perpTop - pp) }; });
+        const u0 = Math.min(...loc.map((q) => q.u)), u1 = Math.max(...loc.map((q) => q.u));
+        const v0 = Math.min(...loc.map((q) => q.v)), v1 = Math.max(...loc.map((q) => q.v));
+        if (u1 <= -len / 2 || u0 >= len / 2 || v1 <= -depth / 2 || v0 >= depth / 2) continue;
+        // solo se è dritta rispetto al piano (lati paralleli): girata di traverso il taglio a rettangolo sarebbe sbagliato
+        let area = 0; for (let i = 0; i < 4; i++) { const a = loc[i], b = loc[(i + 1) % 4]; area += a.u * b.v - b.u * a.v; }
+        if (Math.abs(area) / 2 < 0.97 * (u1 - u0) * (v1 - v0)) continue;
+        tagliQui.push({ u0, u1, v0, v1 });
+      }
+      const slab = tagliQui.length
+        ? slabRitagliata(len, thickness, depth, matTop || COL.top, fori, tagliQui)
+        : fori.length
+          ? slabConFori(len, thickness, depth, matTop || COL.top, fori)
+          : corpo(len, thickness, depth, matTop || COL.top);
+      if (!slab) continue;                                 // tutto coperto dal piano/tavolo
+      slab.traverse((o) => { if (o.isMesh) o.userData.appoggio = true; });   // ci si appoggiano gli oggetti (friggitrice…)
       // PANNELLO DIETRO IL PIANO (aplacado): ovunque il piano tocca un muro —
       // dietro la fila e anche sui fianchi del piano che finiscono contro un muro
       // (es. negli angoli della cucina a L / U)

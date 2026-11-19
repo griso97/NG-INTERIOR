@@ -11,7 +11,7 @@ import {
   moduliDiParete, nomeTipo, PROFONDITA_BASE, PROFONDITA_PENSILE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
   dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili, angoloInternoVertice, rettangoloSoffitto,
-} from './modello.js?v=20261121g';
+} from './modello.js?v=20261121h';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -243,7 +243,9 @@ export function renderPianta(svg, progetto, opts = {}) {
     // Disegnati DOPO i mobili, così restano toccabili anche sopra il piano.
     const eOgg = (m) => categoriaTipo(m.tipo) === 'oggetto';
     const lista = (progetto.mobiliLiberi || []).filter((m) => !(opts.oggetti === 'nascosti' && eOgg(m)));
-    lista.sort((a, b) => (eOgg(a) ? 1 : 0) - (eOgg(b) ? 1 : 0));
+    // il PIANO / TAVOLO sopra i mobili (entra nell'isola: resta toccabile), gli oggetti sopra a tutto
+    const ordine = (m) => (eOgg(m) ? 2 : categoriaTipo(m.tipo) === 'tavolo' ? 1 : 0);
+    lista.sort((a, b) => ordine(a) - ordine(b));
     lista.forEach((m) => {
       // stampa: solo i livelli scelti (es. solo bassi), gli altri non si disegnano
       if (opts.livelliVisibili && !opts.livelliVisibili.includes(livelloDiMobile(m))) return;
@@ -443,6 +445,7 @@ function renderMobileLibero(m, selezionato, interattivo, bloccato = false) {
     categoria === 'regletta' ? ' sv-mob-regletta' :
     categoria === 'pannello' ? ' sv-mob-pannello' :
     categoria === 'oggetto' ? ' sv-mob-ogg' :
+    categoria === 'tavolo' ? ' sv-mob-tavolo' :
     m.tipo === 'lavello' ? ' sv-mod-lavello' :
     m.tipo === 'forno' ? ' sv-mod-forno' : '';
   g.appendChild(el('polygon', {
@@ -458,7 +461,7 @@ function renderMobileLibero(m, selezionato, interattivo, bloccato = false) {
     for (const q of [[[xi, yi], [hw, yi], [hw, yi + F], [xi, yi + F]], [[xi - F, -hd], [xi, -hd], [xi, yi], [xi - F, yi]]]) {
       g.appendChild(el('polygon', { points: q.map(([x, y]) => versoSvg(x, y).join(',')).join(' '), class: 'sv-mob-fronte' }));
     }
-  } else if (!['costado', 'regletta', 'pannello', 'oggetto'].includes(categoria)) {
+  } else if (!['costado', 'regletta', 'pannello', 'oggetto', 'tavolo'].includes(categoria)) {
     const F = Math.min(90, Math.max(40, hd * 0.22));
     // fronte come nel 3D: direzione (−sin r, −cos r) in pianta
     const fx = -s, fy = -c, px = -fy, py = fx;          // fronte e sua perpendicolare

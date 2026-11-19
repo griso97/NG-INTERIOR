@@ -11,7 +11,7 @@ import {
   applicaPreset, aggiungiParete, rimuoviParete,
   TIPI_MODULO_BASE, CATALOGO_MOBILI, LARGHEZZE_BASE, nomeTipo,
   infoTipo, altezzeTipo, campiMobile, descrizioneMobile, categoriaTipo, livelloDiMobile, frigoSottoAltillo,
-  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, togliAltiDentroColonne, spazioMancante, baseAMuro, sceltePorteGruppo, COLORI_FRIGO, pontiSopra, cambiaPensileSottoPonte,
+  costadiDelFrigo, sincronizzaFrigo, cimaMobileSopraFrigo, togliAltiDentroColonne, spazioMancante, baseAMuro, sceltePorteGruppo, COLORI_FRIGO, APPOGGI_TAVOLO, nomeAppoggioTavolo, pontiSopra, cambiaPensileSottoPonte,
   spazioLiberoParete, moduliDiParete,
   aggiungiModuloBase, aggiungiFascia,
   rimuoviModuloBase, rimuoviFascia,
@@ -24,17 +24,17 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
-} from './modello.js?v=20261121g';
-import { renderPianta } from './pianta.js?v=20261121g';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121g';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261121g';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121g';
-import { calcolaDistintaCucina } from './distinta.js?v=20261121g';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121g';
-import { agganciaTema } from '../tema.js?v=20261121g';
-import { tendinePannello } from '../tendine-pannello.js?v=20261121g';
+} from './modello.js?v=20261121h';
+import { renderPianta } from './pianta.js?v=20261121h';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121h';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261121h';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121h';
+import { calcolaDistintaCucina } from './distinta.js?v=20261121h';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121h';
+import { agganciaTema } from '../tema.js?v=20261121h';
+import { tendinePannello } from '../tendine-pannello.js?v=20261121h';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261121g');
+const _excel = () => import('../modello-export.js?v=20261121h');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -972,7 +972,7 @@ function attaccaEventiStep2() {
       riblocca(mobSel.id);
       fatto();
     });
-    document.getElementById('mob-isola').addEventListener('click', () => {
+    document.getElementById('mob-isola')?.addEventListener('click', () => {
       registraStoria();
       mobSel.isola = !mobSel.isola;
       riblocca(mobSel.id);
@@ -1673,7 +1673,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121g');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121h');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1777,6 +1777,7 @@ function renderPannelloModificaMobile(m) {
       <div class="mod-row ${m.tipo}"><span>${nomeTipo(m.tipo)} · <strong>${descrizioneMobile(m)}</strong></span></div>
     </section>
     ${htmlBaseAngolo(m)}
+    ${htmlPianoTavolo(m)}
     ${cat === 'colonna' ? `
     <section class="step3-pannello">
       <h3>Colonna · parte alta</h3>
@@ -2390,6 +2391,7 @@ function iconaMobile(id) {
     regletta: '<polyline points="16,8 16,48 56,48" fill="none" stroke-width="7"/><polyline points="16,8 26,8 26,38 56,38 56,48" fill="none"/>',
     'regletta-grande': '<rect x="28" y="4" width="8" height="56"/><line x1="22" y1="4" x2="28" y2="8"/><line x1="22" y1="60" x2="28" y2="56"/>',
     'pannello-copertura': '<rect x="6" y="14" width="52" height="36"/><line x1="12" y1="20" x2="52" y2="20" stroke-dasharray="3 3"/><line x1="12" y1="44" x2="52" y2="44" stroke-dasharray="3 3"/>',
+    'piano-tavolo': '<rect x="4" y="18" width="56" height="7"/><rect x="51" y="25" width="7" height="33"/><rect x="8" y="25" width="22" height="33" stroke-dasharray="3 3"/>',
     costado: '<rect x="26" y="6" width="12" height="52"/><line x1="20" y1="6" x2="26" y2="10"/><line x1="20" y1="54" x2="26" y2="58"/>',
     frigo: '<rect x="14" y="4" width="36" height="56" rx="3"/><line x1="14" y1="38" x2="50" y2="38"/><line x1="43" y1="12" x2="43" y2="24"/><line x1="43" y1="44" x2="43" y2="52"/>',
     ponte: '<rect x="4" y="8" width="12" height="50"/><rect x="48" y="8" width="12" height="50"/><rect x="16" y="8" width="32" height="12"/><line x1="32" y1="8" x2="32" y2="20"/><line x1="16" y1="58" x2="48" y2="58" stroke-dasharray="3 3"/>',
@@ -2430,13 +2432,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121g');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121h');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121g'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121h'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2664,6 +2666,38 @@ function agganciaAperturaColonna(root, m) {
   }));
 }
 
+/**
+ * PIANO / TAVOLO libero: materiale (pietra del piano, legni, colori), appoggio e misure.
+ * Entra nell'isola come vuoi: più basso dei moduli (incassato) o a filo del piano (lo attraversa).
+ */
+function htmlPianoTavolo(m) {
+  if (categoriaTipo(m.tipo) !== 'tavolo') return '';
+  const mod = matMod || scena3dMod;
+  const lista = mod && mod.materialiPer ? mod.materialiPer('pannello') : [];
+  const sel = m.materiale || null;
+  const nomeSel = sel ? ((lista.find((x) => x.id === sel) || {}).nome || sel) : 'Come il piano della cucina';
+  const app = m.appoggio || 'cascata';
+  return `
+    <section class="step3-pannello" data-aperta>
+      <h3>Piano / tavolo</h3>
+      <div class="riga-3d">Misure: <strong>${m.larghezza_mm || 1800} × ${m.profondita_mm || 900} mm</strong></div>
+      <div class="riga-3d">Spessore: <strong>${m.spessore_mm || 40} mm</strong></div>
+      <div class="riga-3d">${m.quota === 'filo' ? 'Altezza: <strong>a filo del piano della cucina</strong>' : `Altezza da terra: <strong>${m.altezza_mm || 750} mm</strong>`}</div>
+      <div class="riga-3d" style="margin-bottom:6px">Le misure si cambiano con «Cambia misura».</div>
+      <div class="riga-3d" style="margin-bottom:8px">Mettilo DENTRO l'isola: se è più basso dei moduli ci entra (i moduli restano più alti); se è a filo del piano lo attraversa e il piano dell'isola si apre dove passa.</div>
+      <div class="riga-3d" style="margin:6px 0">Appoggio dove il piano è libero</div>
+      <div class="opzioni-anta">
+        ${APPOGGI_TAVOLO.map((a) => `<button type="button" class="btn-ghost opt-tavapp ${a.id === app ? 'attivo' : ''}" data-tavapp="${a.id}">${a.id === app ? '✓ ' : ''}${a.nome}</button>`).join('')}
+      </div>
+      <div class="riga-3d" style="margin:10px 0 6px">Materiale: <strong>${escHtml(nomeSel)}</strong></div>
+      <div class="opzioni-anta" style="margin-bottom:6px">
+        <button type="button" class="btn-ghost opt-tavmat0 ${sel ? '' : 'attivo'}" data-tavmat0="1">${sel ? '' : '✓ '}Come il piano della cucina</button>
+      </div>
+      ${htmlTendineColori(lista, (mt) => `<button type="button" class="swatch ${mt.id === sel ? 'sel' : ''}" data-tavmat="${mt.id}" title="${escHtml(mt.nome)}" style="background-image:url('${mt.thumb}')"></button>`,
+        { sel, chiave: 'cucina-piano-tavolo' })}
+    </section>`;
+}
+
 /** FRIGO: colore (bianco, nero, acciaio) e misure, a portata di tocco. */
 function htmlColoreFrigo(m) {
   if (categoriaTipo(m.tipo) !== 'frigo') return '';
@@ -2703,6 +2737,19 @@ function htmlColoreLavastoviglie(m) {
     </section>`;
 }
 function agganciaColoreFrigo(root, m) {
+  // PIANO / TAVOLO: materiale e appoggio
+  root.querySelectorAll('.swatch[data-tavmat]').forEach((b) => b.addEventListener('click', () => {
+    if (m.materiale === b.dataset.tavmat) return;
+    registraStoria(); m.materiale = b.dataset.tavmat; aggiorna();
+  }));
+  root.querySelectorAll('[data-tavmat0]').forEach((b) => b.addEventListener('click', () => {
+    if (!m.materiale) return;
+    registraStoria(); delete m.materiale; aggiorna();
+  }));
+  root.querySelectorAll('.opt-tavapp[data-tavapp]').forEach((b) => b.addEventListener('click', () => {
+    if ((m.appoggio || 'cascata') === b.dataset.tavapp) return;
+    registraStoria(); m.appoggio = b.dataset.tavapp; aggiorna();
+  }));
   root.querySelectorAll('.opt-frigo[data-frigo]').forEach((b) => b.addEventListener('click', () => {
     if ((m.colore || 'bianco') === b.dataset.frigo) return;
     registraStoria(); m.colore = b.dataset.frigo; aggiorna();
@@ -2794,12 +2841,13 @@ function blocMobileSelezionato() {
       <div class="mod-row ${m.tipo}"><span>${nomeTipo(m.tipo)} · <strong>${descrizioneMobile(m)}</strong></span></div>
       <div class="mob-azioni-grid">
         <button id="mob-ruota" class="btn-ghost" type="button">⟳ Ruota 90°</button>
-        <button id="mob-isola" class="btn-ghost ${m.isola ? 'attivo' : ''}" type="button">${m.isola ? '✓ ' : ''}🏝 Isola (libero)</button>
+        ${categoriaTipo(m.tipo) === 'tavolo' ? '' : `<button id="mob-isola" class="btn-ghost ${m.isola ? 'attivo' : ''}" type="button">${m.isola ? '✓ ' : ''}🏝 Isola (libero)</button>`}
         ${categoriaTipo(m.tipo) === 'base' && cieco ? `<button id="mob-cieco" class="btn-ghost attivo" type="button">✓ ⌐ Angolo cieco (auto) — togli</button>` : (categoriaTipo(m.tipo) === 'base' ? `<button id="mob-cieco" class="btn-ghost" type="button">⌐ Forza angolo cieco qui</button>` : '')}
         <button id="mob-misura" class="btn-ghost" type="button">Cambia misura</button>
         <button id="mob-elimina" class="btn-ghost" type="button">Elimina</button>
       </div>
       ${htmlBaseAngolo(m)}
+      ${htmlPianoTavolo(m)}
       ${htmlColoreFrigo(m)}
       ${htmlColoreLavastoviglie(m)}
       ${htmlAperturaColonna(m)}

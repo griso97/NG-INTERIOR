@@ -756,6 +756,8 @@
 .acc-voci { padding: 8px 2px 10px; }
 /* pianta: gli accessori in oro tratteggiato, sopra i mobili */
 .sv-mob-ogg { fill: rgba(201, 169, 74, 0.22); stroke: #c9a94a; stroke-width: 6; stroke-dasharray: 18 10; }
+/* piano / tavolo libero: si vedono i mobili sotto (entra nell'isola) */
+.sv-mob-tavolo { fill: rgba(150, 120, 80, 0.30); stroke: #b08d57; stroke-width: 8; stroke-dasharray: 26 12; }
 /* riepilogo: elenco accessori */
 .riep-acc { align-items: center; gap: 8px; }
 .riep-acc.sel .riep-acc-nome { color: var(--oro-chiaro, #e8c25a); }

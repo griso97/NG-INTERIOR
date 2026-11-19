@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261121g';
+import { parametri } from '../parametri.js?v=20261121h';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -163,6 +163,12 @@ export const CATALOGO_MOBILI = [
   // Larghezza = somma dei moduli dell'isola (l'utente la decide di volta in volta).
   { id: 'pannello-copertura', nome: 'Pannello copertura', categoria: 'pannello',
     larghezze: [1200, 1800, 2400, 3000], altezze: [850, 900], profondita: 18 },
+  // PIANO / TAVOLO libero (isole di design): una lastra di un materiale a scelta (la pietra del
+  // piano, legno massello…), lunghezza, larghezza, SPESSORE e ALTEZZA da terra a scelta. Può ENTRARE
+  // nell'isola (incassato: più basso dei moduli, che restano più alti) o ATTRAVERSARLA a filo del piano
+  // (lì il piano dell'isola si apre). Appoggi dove è libero: fianco a cascata, gamba in vetro, gambe.
+  { id: 'piano-tavolo',  nome: 'Piano / tavolo', categoria: 'tavolo',
+    larghezze: [1200, 1500, 1800, 2000, 2400, 3000], altezze: [750, 900, 1050], profondita: 900 },
   { id: 'costado',       nome: 'Costado', categoria: 'costado',
     larghezze: [20], altezze: ALTEZZE_COSTADO, profondita: 620 },
   // FRIGO libero (elettrodomestico, a terra, niente zoccolo): di solito tra due
@@ -209,6 +215,64 @@ export function nomeVarianteColonna(id) {
 }
 
 /**
+ * PIANO / TAVOLO: quota del piano finito (scritta o a filo del piano dei mobili sotto) e quali
+ * estremità sono LIBERE (non entrano in un mobile basso e non toccano un muro): lì va l'appoggio.
+ * Serve alla distinta (il 3D fa lo stesso conto con i suoi pezzi).
+ */
+export function infoTavolo(progetto, m, spTop = 40) {
+  const w = m.larghezza_mm || 1800, d = m.profondita_mm || 900, sp = Math.max(6, m.spessore_mm || 40);
+  const r = ((m.rot || 0) * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r);
+  const P = (lx, ly) => ({ x: m.x + lx * c - ly * s, y: m.y + lx * s + ly * c });
+  const basi = (progetto.mobiliLiberi || []).filter((b) => ['base', 'lavastoviglie', 'lavatrice'].includes(categoriaTipo(b.tipo)));
+  const dentro = (p, b) => {
+    const db = dimMobile(b), rb = ((b.rot || 0) * Math.PI) / 180, cb = Math.cos(rb), sb = Math.sin(rb);
+    const dx = p.x - b.x, dy = p.y - b.y;
+    return Math.abs(dx * cb + dy * sb) <= db.w / 2 + 1 && Math.abs(-dx * sb + dy * cb) <= db.d / 2 + 1;
+  };
+  const cima = (b) => { const h = b.altezza_mm || 700; return (h >= 800 ? 100 : 150) + h; };
+  let quota = Math.max(sp + 50, m.altezza_mm || 750);
+  if (m.quota === 'filo') {
+    let sopra = -Infinity;
+    for (let i = 0; i <= 6; i++) for (let j = 0; j <= 2; j++) {
+      const p = P(-w / 2 + (w * i) / 6, -d / 2 + (d * j) / 2);
+      for (const b of basi) if (dentro(p, b)) sopra = Math.max(sopra, cima(b));
+    }
+    if (!Number.isFinite(sopra)) {
+      let dMin = Infinity;
+      for (const b of basi) { const dd = Math.hypot(b.x - m.x, b.y - m.y); if (dd < dMin) { dMin = dd; sopra = cima(b); } }
+    }
+    quota = (Number.isFinite(sopra) ? sopra : 850) + spTop;
+  }
+  const pareti = progetto.piano.pareti || [], V = calcolaVertici(pareti);
+  const muri = pareti.map((p, i) => (p.assente || !V[i + 1] ? null : [V[i], V[i + 1]])).filter(Boolean);
+  const vicinoMuro = (p) => muri.some(([a, b]) => {
+    const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / L2));
+    return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy)) < 90;
+  });
+  const estremi = [-1, 1].map((e) => {
+    const prove = [-d / 2 + 60, 0, d / 2 - 60].map((ly) => P(e * (w / 2 - 40), ly));
+    const nelMobile = prove.some((p) => basi.some((b) => dentro(p, b)));
+    const alMuro = prove.filter(vicinoMuro).length >= 2;
+    return { e, libero: !nelMobile && !alMuro };
+  });
+  return { quota, gamba: quota - sp, estremi };
+}
+
+/** Come sta in piedi il PIANO / TAVOLO dove non entra nell'isola. */
+export const APPOGGI_TAVOLO = [
+  { id: 'cascata',     nome: 'Fianco a cascata (stesso materiale)' },
+  { id: 'cascata-due', nome: 'Fianco a cascata ai due lati' },
+  { id: 'vetro',       nome: 'Gamba in vetro' },
+  { id: 'gambe-nere',  nome: 'Due gambe in metallo nero' },
+  { id: 'gambe-oro',   nome: 'Due gambe in ottone' },
+  { id: 'nessuno',     nome: 'Nessuno (a sbalzo)' },
+];
+export function nomeAppoggioTavolo(id) { return (APPOGGI_TAVOLO.find((a) => a.id === id) || APPOGGI_TAVOLO[0]).nome; }
+/** Pezzi che si posano LIBERI come l'arredo: non spingono e non sono spinti dai mobili (il piano/tavolo entra nell'isola). */
+export function posaLibera(tipo) { const c = categoriaTipo(tipo); return c === 'oggetto' || c === 'tavolo'; }
+
+/**
  * Campi da scegliere nella finestra quando si posa/modifica un mobile.
  * Ogni campo: { campo, et (etichetta), opzioni: [valore | {v,l}], default }.
  * La colonna ha più campi (altezza totale, porta bassa, parte alta).
@@ -232,6 +296,16 @@ export function campiMobile(tipoId) {
         min: 20, step: 1, opzioni: t.larghezze, default: t.larghezze[0] },
       { campo: 'altezza_mm',   et: 'Altezza (mm)', tipo: 'numero',
         min: 50, step: 1, opzioni: t.altezze, default: t.altezze[0] },
+    ];
+  }
+  if (t.categoria === 'tavolo') {
+    return [
+      { campo: 'larghezza_mm',  et: 'Lunghezza (mm)', tipo: 'numero', min: 300, step: 10, opzioni: t.larghezze, default: 1800 },
+      { campo: 'profondita_mm', et: 'Larghezza del piano (mm)', tipo: 'numero', min: 150, step: 10, opzioni: [600, 800, 900, 1000, 1200], default: 900 },
+      { campo: 'quota',         et: 'Altezza', opzioni: [{ v: 'misura', l: 'Quella scritta qui sotto' }, { v: 'filo', l: 'A filo del piano della cucina' }], default: 'misura' },
+      { campo: 'altezza_mm',    et: 'Altezza da terra del piano finito (mm)', tipo: 'numero', min: 200, step: 10, opzioni: [750, 900, 1050, 1100], default: 750 },
+      { campo: 'spessore_mm',   et: 'Spessore (mm)', tipo: 'numero', min: 6, step: 1, opzioni: [12, 20, 30, 40, 60, 80, 100], default: 40 },
+      { campo: 'appoggio',      et: 'Appoggio dove il piano è libero', opzioni: APPOGGI_TAVOLO.map((a) => ({ v: a.id, l: a.nome })), default: 'cascata' },
     ];
   }
   if (t.categoria === 'costado') {
@@ -308,6 +382,9 @@ export function descrizioneMobile(m) {
   if (cat === 'costado') {
     return `${m.altezza_mm}×${m.profondita_mm} · sp ${m.spessore_mm}`;
   }
+  if (cat === 'tavolo') {
+    return `${m.larghezza_mm}×${m.profondita_mm || 900} · sp ${m.spessore_mm || 40} · ${m.quota === 'filo' ? 'a filo del piano' : `h ${m.altezza_mm || 750}`}`;
+  }
   if (m.tipo === 'colonna-misura') {
     return `${m.larghezza_mm}×${m.altezza_mm} · p ${m.profStruttura_mm || PROF_STRUTTURA_MISURA} · ${nomeVarianteColonna(m.variante)}`;
   }
@@ -348,6 +425,7 @@ export function dimMobile(m) {
   if (cat === 'costado') {
     return { w: m.spessore_mm || 20, d: m.profondita_mm || 620 };
   }
+  if (cat === 'tavolo') return { w: m.larghezza_mm || 1800, d: m.profondita_mm || 900 };
   if (m.tipo === 'base-angolo') {
     const w = m.larghezza_mm || 880;
     return { w, d: m.latoB_mm || w };
@@ -630,7 +708,7 @@ export function vincolaAiMuri(progetto, m, x, y) {
   const c = Math.cos(rad), s = Math.sin(rad);
   const hw = d.w / 2, hd = d.d / 2;
   // accessori (sedie, sgabelli, tavoli, oggetti): solo «mai dentro il muro», niente aggancio agli estremi
-  const ogg = categoriaTipo(m.tipo) === 'oggetto';
+  const ogg = posaLibera(m.tipo);
   for (let pass = 0; pass < 4; pass++) {
     for (let i = 0; i < full.length; i++) {
       const p = full[i];
@@ -748,7 +826,7 @@ export function respingiDaMobili(progetto, m, x, y) {
   const u = modoIsola(progetto, m, x, y) ? null : muroPiuVicino(progetto, x, y);
   for (const o of (progetto.mobiliLiberi || [])) {
     if (o.id === m.id) continue;
-    if (categoriaTipo(o.tipo) === 'oggetto') continue;   // l'arredo non respinge i mobili
+    if (posaLibera(o.tipo)) continue;                     // l'arredo (e il piano/tavolo) non respinge i mobili
     if (nonUrta(m, o)) continue;                          // la colonna prende il posto dei pensili
     if (!rangeSovrappone(rv, rangeVerticale(o))) continue;
     const A = aabb(m, x, y), B = aabb(o, o.x, o.y);
@@ -812,6 +890,7 @@ function muroVicino(progetto, x, y) {
 
 export function orientaVersoMuro(progetto, m, x, y) {
   if (m.isola) return null;                        // isola: orientamento manuale
+  if (categoriaTipo(m.tipo) === 'tavolo') return null;   // piano/tavolo: lo giri tu
   if (m.rotManuale) return null;                   // girato a mano (es. penisola): resta com'è
   const w = muroVicino(progetto, x, y);
   // Troppo lontano da un muro: si orienta solo se lo SCHIENALE può stare al
@@ -860,7 +939,7 @@ const FILA_ROTAZIONE = ['base', 'colonna', 'lavastoviglie', 'lavatrice', 'pensil
  * null = tieni la rotazione attuale (anche se l'utente l'ha girato a mano).
  */
 export function rotazioneAutomatica(progetto, m, x, y) {
-  if (m.isola || m.rotManuale) return null;
+  if (m.isola || m.rotManuale || categoriaTipo(m.tipo) === 'tavolo') return null;
   const pen = rotazionePenisola(progetto, m, x, y);
   if (pen !== null) return pen;
   return orientaVersoMuro(progetto, m, x, y);
@@ -980,7 +1059,7 @@ export function riorientaMobili(progetto) {
     if (m.isola) continue;
     if (m.posManuale) continue;                      // posizione confermata a mano: non toccare
     const cat = categoriaTipo(m.tipo);
-    if (cat === 'costado' || cat === 'regletta') continue;
+    if (cat === 'costado' || cat === 'regletta' || cat === 'tavolo') continue;
     // I pensili d'angolo (L / Ciaflan) hanno un orientamento dedicato: non
     // vanno ri-orientati "verso il muro" o perderebbero la forma d'angolo.
     if (String(m.tipo).startsWith('pensile-angolo') || m.tipo === 'base-angolo') continue;
@@ -1028,7 +1107,7 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
   let align = null;     // allineamento perpendicolare (fronti/schiene in riga)
   for (const o of (progetto.mobiliLiberi || [])) {
     if (o.id === m.id) continue;
-    if (categoriaTipo(o.tipo) === 'oggetto') continue;   // niente aggancio magnetico all'arredo
+    if (posaLibera(o.tipo)) continue;                     // niente aggancio magnetico all'arredo (né al piano/tavolo)
     if (nonUrta(m, o)) continue;
     if (!rangeSovrappone(rv, rangeVerticale(o))) continue;
     const B = aabb(o, o.x, o.y);
@@ -1049,7 +1128,7 @@ export function aggancioMagnetico(progetto, m, x, y, soglia = 160) {
     const catO = categoriaTipo(o.tipo);
     // COSTADO dell'isola accanto a un modulo: il suo davanti a filo con il davanti delle ANTE
     // (se è più profondo, la parte in più va dietro, verso gli sgabelli)
-    if (inIsola && catM === 'costado' && !['costado', 'regletta', 'pannello', 'oggetto'].includes(catO)) {
+    if (inIsola && catM === 'costado' && !['costado', 'regletta', 'pannello', 'oggetto', 'tavolo'].includes(catO)) {
       const ro = ((o.rot || 0) * Math.PI) / 180, Fox = -Math.sin(ro), Foy = -Math.cos(ro), aox = Math.cos(ro), aoy = Math.sin(ro);
       const du = (x - o.x) * aox + (y - o.y) * aoy;
       const eUmO = A.hx * Math.abs(aox) + A.hy * Math.abs(aoy), eUoO = B.hx * Math.abs(aox) + B.hy * Math.abs(aoy);
@@ -1100,6 +1179,8 @@ export function posizionaVincolata(progetto, m, x, y, libera = false, info = nul
   // a mano dove si vuole — niente vincolo ai muri, niente respinta, niente
   // aggancio magnetico ai mobili.
   if (categoriaTipo(m.tipo) === 'oggetto') return { x, y };
+  // PIANO / TAVOLO: libero (entra nell'isola, la attraversa), solo dentro la stanza
+  if (categoriaTipo(m.tipo) === 'tavolo') return vincolaAiMuri(progetto, m, x, y);
   // Isola/libero: niente vincolo ai muri (posizione libera), ma SEMPRE respinta
   // dagli altri mobili e aggancio magnetico (si attaccano perfetti tra loro).
   const libero = !!m.isola;
@@ -1165,7 +1246,7 @@ export function spazioMancante(progetto, m, x, y) {
 function sovrapposto(progetto, m, x, y) {
   const rv = rangeVerticale(m), A = aabb(m, x, y), out = [];
   for (const o of (progetto.mobiliLiberi || [])) {
-    if (o.id === m.id || categoriaTipo(o.tipo) === 'oggetto' || nonUrta(m, o)) continue;
+    if (o.id === m.id || posaLibera(o.tipo) || nonUrta(m, o)) continue;
     if (!rangeSovrappone(rv, rangeVerticale(o))) continue;
     const B = aabb(o, o.x, o.y);
     if ((A.hx + B.hx) - Math.abs(x - o.x) > 2 && (A.hy + B.hy) - Math.abs(y - o.y) > 2) out.push(o);
@@ -2477,7 +2558,7 @@ export function bboxPerimetro(pareti) {
  * come i bassi, così le linee di porte e cassetti sono tutte alla stessa quota.
  * null se non ci sono mobili bassi.
  */
-const CAT_NON_BASSE_M = new Set(['pensile', 'colonna', 'regletta', 'pannello', 'costado', 'oggetto', 'frigo', 'altillo']);
+const CAT_NON_BASSE_M = new Set(['pensile', 'colonna', 'regletta', 'pannello', 'costado', 'oggetto', 'frigo', 'altillo', 'tavolo']);
 export function altezzaBassiCucina(progetto) {
   const conteggio = new Map();
   for (const m of (progetto.mobiliLiberi || [])) {

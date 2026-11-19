@@ -12,9 +12,9 @@
 // =============================================================================
 
 import {
-  categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna,
-} from './modello.js?v=20261121g';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261121g';
+  infoTavolo, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna,
+} from './modello.js?v=20261121h';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261121h';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -217,6 +217,24 @@ function pezziDiModulo(progetto, m) {
     if (m.variante === 'vano') {
       for (const p of pezziCorniceVano(m, altezzaVanoColonna(m, H - ab), SP)) pz.push({ modulo: mod, ...p, materiale: 'anta', cornice: true });
     }
+  } else if (cat === 'tavolo') {
+    // PIANO / TAVOLO: la lastra e i suoi appoggi (dove il piano è libero)
+    const enc = progetto.encimera && progetto.encimera.materiale;
+    const spTop = (() => { const def = enc && typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === enc); return def && def.spessore != null ? def.spessore : 40; })();
+    const info = infoTavolo(progetto, m, spTop);
+    const sp = Math.max(6, m.spessore_mm || 40), P = m.profondita_mm || 900;
+    const nomeMat = m.materiale ? nomeMateriale(m.materiale, 'Materiale da scegliere') : nomeMateriale(enc, 'Come il piano di lavoro');
+    const modT = `Piano / tavolo ${L}×${P}`;
+    pz.push({ modulo: modT, nome: 'Piano / tavolo', larghezza: round(L), altezza: round(P), spessore: sp, materiale: 'tavolo', quantita: 1, materialeNome: nomeMat });
+    const app = m.appoggio || 'cascata';
+    const liberi = info.estremi.filter((x) => x.libero).length;
+    const n = app === 'cascata-due' ? 2 : app === 'nessuno' ? 0 : liberi;
+    const hG = round(info.gamba);
+    if (n && hG > 30) {
+      if (app === 'cascata' || app === 'cascata-due') pz.push({ modulo: modT, nome: 'Fianco a cascata', larghezza: round(P), altezza: hG, spessore: sp, materiale: 'tavolo', quantita: n, materialeNome: nomeMat });
+      else if (app === 'vetro') pz.push({ modulo: modT, nome: 'Gamba in vetro (da ordinare)', larghezza: Math.max(100, round(P - 160)), altezza: hG, spessore: 12, materiale: 'vetro', quantita: n, materialeNome: 'Vetro temperato extrachiaro 12 mm' });
+      else pz.push({ modulo: modT, nome: 'Gamba 50×50 (da ordinare)', larghezza: 50, altezza: hG, spessore: 50, materiale: 'gambe', quantita: n * 2, materialeNome: app === 'gambe-oro' ? 'Metallo ottone' : 'Metallo nero' });
+    }
   } else if (cat === 'costado') {
     // costado ALTO: alto come le ante del pensile vicino (70/72/90/92), come nel 3D
     let hC = H;
@@ -280,10 +298,11 @@ function pezziDiModulo(progetto, m) {
 // Gruppi SEPARATI della lista pezzi: porte, frontali, parti dei cassetti,
 // costadi, reglette, pannelli, zoccoli.
 const ORDINE_GRUPPI = ['Strutture su misura', 'Cornici vano', 'Porte', 'Frontali cassetto', 'Cassetti (fondo e trasera)', 'Costadi',
-  'Reglette', 'Pannelli', 'Zoccoli', 'Varie'];
+  'Reglette', 'Pannelli', 'Piani e tavoli', 'Zoccoli', 'Varie'];
 function gruppoPezzo(p) {
   if (p.struttura) return 'Strutture su misura';
   if (p.cornice) return 'Cornici vano';            // fianchi, top/fondo, schiena, ripiani della colonna su misura
+  if (['tavolo', 'vetro', 'gambe'].includes(p.materiale)) return 'Piani e tavoli';   // piano / tavolo e i suoi appoggi
   const n = String(p.nome).toLowerCase();
   if (n.includes('regletta')) return 'Reglette';
   if (n.includes('costado')) return 'Costadi';
@@ -466,6 +485,7 @@ export function calcolaDistintaCucina(progetto) {
     const mq = (p.larghezza * p.altezza * p.quantita) / 1e6;
     if (p.materiale === 'zoccolo') mqZoccolo += mq;
     else if (p.materiale === 'melaminico') mqMelaminico += mq;
+    else if (['tavolo', 'vetro', 'gambe'].includes(p.materiale)) continue;   // non sono ante (piano / tavolo)
     else mqAnte += mq;
   }
   const piedini = acc.get('Piedini regolabili') || 0;
