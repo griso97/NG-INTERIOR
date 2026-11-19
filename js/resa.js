@@ -14,7 +14,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261120j';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261120k';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
@@ -141,7 +141,12 @@ export function creaResa(opz) {
       const s = renderer.getDrawingBufferSize(_s);
       const a = (leggero && aoMoto) ? aoMoto : ao;
       if (a.width !== s.x || a.height !== s.y) a.setSize(s.x, s.y);
-      a.render(renderer, null, null);                          // normali + AO + pulizia
+      // le cose «di luce» (aloni delle lampade: un quadrato piatto con la luce al centro) NON entrano
+      // nelle ombre di contatto: le leggevano come un pannello solido e disegnavano un quadrato
+      const fuori = (opz.fuoriAO && opz.fuoriAO()) || [], erano = fuori.map((o) => o.visible);
+      for (const o of fuori) o.visible = false;
+      try { a.render(renderer, null, null); }                  // normali + AO + pulizia
+      finally { fuori.forEach((o, i) => { o.visible = erano[i]; }); }
       a.blendMaterial.uniforms.tDiffuse.value = a.pdRenderTarget.texture;
       a.blendMaterial.uniforms.intensity.value = a.blendIntensity;
       quad.material = a.blendMaterial;

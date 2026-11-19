@@ -13,20 +13,20 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261120j';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120j';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261120j';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261120j';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261120j';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120j';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120j';
-import { parametri } from '../parametri.js?v=20261120j';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120j';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120j';
+} from './modello.js?v=20261120k';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120k';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261120k';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261120k';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261120k';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120k';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120k';
+import { parametri } from '../parametri.js?v=20261120k';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120k';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120k';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120j';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120k';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261120j';
+export { telaPavimento } from '../resa.js?v=20261120k';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -704,7 +704,7 @@ export function montaScena3d(canvas, progetto) {
   scene.add(gruppo);
   aggiornaScena3d(progetto, true);
 
-  resa = creaResa({ renderer, scene, camera, raggio: 280, intensita: 0.9, prima: muriVisibili });
+  resa = creaResa({ renderer, scene, camera, raggio: 280, intensita: 0.9, prima: muriVisibili, fuoriAO: () => _aloni });
   window.addEventListener('resize', forzaResize3d);
   animazioneAttiva = true;
   animate();
@@ -1934,7 +1934,7 @@ const LED_COLORI = {
 // ---------------------------------------------------------------------------
 const LUCE_CALDA = 0xffcf96;                          // 2700 K
 const MAX_LUCI_LAMPADE = 6;                           // oltre, brillano ma senza luce vera (telefono)
-let _luciLampade = 0;
+let _luciLampade = 0, _aloni = [];                 // aloni delle lampade: fuori dalle ombre di contatto
 const _matAcceso = new WeakMap();
 const PAROLE_LUCE = /glass|vetro|bulb|globe|opal|diffus|emiss|lampadin|paralum|neon|\bled\b|flame|candle|frost/;   // NON «lamp»/«light»: spesso è tutta la lampada
 function materialeAcceso(m, nomeMesh) {
@@ -1998,7 +1998,7 @@ function accendiLampada(og) {
     blending: THREE.AdditiveBlending, depthWrite: false }));
   const r = Math.min(520, Math.max(160, largo * 0.85));
   alone.scale.set(r, r, 1); alone.position.copy(p); alone.userData.alone = true; alone.userData.senzaOmbra = true; alone.renderOrder = 6;
-  og.add(alone);
+  og.add(alone); _aloni.push(alone);
   if (_luciLampade < MAX_LUCI_LAMPADE) {
     _luciLampade++;
     const luce = new THREE.PointLight(LUCE_CALDA, 1800, 5000, 1.0);
@@ -2287,7 +2287,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   for (const g of libera) g.dispose();
 }
 function costruisciScena3d(progetto, reframe = false, selezionato = null) {
-  _luciLampade = 0;
+  _luciLampade = 0; _aloni = [];
   if (!scene) return;
   selId = selezionato;
   _lastProgetto = progetto;
