@@ -24,6 +24,7 @@ export function esportaCSV(distinta, meta = {}, config = null) {
   righe.push(['m² carcassa', distinta.riepilogo.mqCarcassa.toFixed(2)]);
   righe.push(['m² ante', distinta.riepilogo.mqAnte.toFixed(2)]);
   righe.push(['m² schiena', distinta.riepilogo.mqSchiena.toFixed(2)]);
+  if (distinta.riepilogo.mqCostadi) righe.push(['m² costadi', distinta.riepilogo.mqCostadi.toFixed(2)]);
 
   const csv = righe.map((r) => r.map((v) => csvEscape(T(v))).join(';')).join('\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -36,7 +37,7 @@ function csvEscape(v) {
   return s;
 }
 
-import { trovaMateriale } from './materiali.js?v=20261121b';
+import { trovaMateriale } from './materiali.js?v=20261121c';
 const T = (s) => (typeof s === 'string' && window.NGI18N ? window.NGI18N.t(s) : s);   // lingua (i18n.js)
 
 export function nomeMaterialeCsv(pezzo, config) {
@@ -48,6 +49,7 @@ export function nomeMaterialeCsv(pezzo, config) {
   if (pezzo.parteMateriale) id = mat[pezzo.parteMateriale];
   else if (pezzo.modulo === 'Tamponamenti')
     id = pezzo.materiale === 'ante' ? mat.tamponamenti : mat.carcassa;
+  else if (pezzo.materiale === 'costadi') id = mat.costadi || mat.ante;
   else id = mat[pezzo.materiale];
   const m = trovaMateriale(id);
   return m ? m.nome : (pezzo.materiale || '—');
@@ -126,6 +128,7 @@ export function esportaPDF(distinta, config, meta = {}) {
   y += 5;
   doc.text(`m² schiena: ${distinta.riepilogo.mqSchiena.toFixed(2)}`,
     marginX, y);
+  if (distinta.riepilogo.mqCostadi) { y += 5; doc.text(`m² costadi: ${distinta.riepilogo.mqCostadi.toFixed(2)}`, marginX, y); }
 
   doc.save(nomeFile(meta, 'pdf'));
 }

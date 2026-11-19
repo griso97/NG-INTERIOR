@@ -11,12 +11,12 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261121b';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261121b';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261121b';
-import { sfondoDi } from './sfondi.js?v=20261111b';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261121b';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado } from './calcoli.js?v=20261121c';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261121c';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261121c';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261121c';
+import { sfondoDi } from './sfondi.js?v=20261121c';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261121c';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -128,8 +128,8 @@ function aggiungiManiglia(parent, def, x, y, z) {
 }
 
 function matDi(config, parte) {
-  const id = config.materiali?.[parte]
-    ?? ({ ante: 'roble-denver', carcassa: 'roble-hera',
+  const id = config.materiali?.[parte] ?? (parte === 'costadi' ? config.materiali?.ante : undefined)
+    ?? ({ ante: 'roble-denver', carcassa: 'roble-hera', costadi: 'roble-denver',
           schiena: 'roble-hera', tamponamenti: 'roble-denver' }[parte]);
   // texture arrivata: la vista veloce si aggiorna, quella realistica si rifà (senza c'era la foto vecchia)
   return getMaterialeTHREE(id, () => { if (resa) resa.cambiato(); else renderer?.render(scene, camera); });
@@ -524,6 +524,7 @@ export function aggiornaScena(config) {
   }
 
   costruisciTamponamenti(config);
+  costruisciCostadi(config);
 
   // Se c'è il tamp sotto, alzo tutto il mobile così il tamp resta sopra il
   // pavimento virtuale e si vede.
@@ -964,10 +965,26 @@ function costruisciBinariGlobali(config) {
 }
 
 /**
+ * COSTADI a vista (armadio non incassato): fuori dalla larghezza dei moduli, dal retro della
+ * schiena fino a 2 mm (sporgenza) davanti alle ante, dal pavimento (anche sotto il tamponamento
+ * sotto) fino in cima (anche il tamponamento sopra). Misure da misureCostado (calcoli.js).
+ */
+function costruisciCostadi(config) {
+  const c = misureCostado(config);
+  if (!c.sx && !c.dx) return;
+  const W = config.larghezzaTotale, H = config.altezzaEsterna;
+  const yC = (H + c.sopra - c.sotto) / 2;
+  if (c.sx) aggiungiBox(c.spessore, c.altezza, c.profondita, -c.spessore / 2, yC, c.profondita / 2, matDi(config, 'costadi'), 'costado');
+  if (c.dx) aggiungiBox(c.spessore, c.altezza, c.profondita, W + c.spessore / 2, yC, c.profondita / 2, matDi(config, 'costadi'), 'costado');
+}
+
+/**
  * Posiziona i tamponamenti all'esterno dell'armadio, con fascia a L dietro.
  */
 function costruisciTamponamenti(config) {
-  const t = config.tamponamenti || {};
+  // sul lato con il COSTADO a vista niente tamponamento laterale
+  const cos = misureCostado(config), t0 = config.tamponamenti || {};
+  const t = { ...t0, sx: cos.sx ? null : t0.sx, dx: cos.dx ? null : t0.dx };
   const W = config.larghezzaTotale;
   const H = config.altezzaEsterna;
   const D = config.profonditaEsterna;

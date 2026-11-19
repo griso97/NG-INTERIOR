@@ -5,7 +5,7 @@
 // riepilogo in fondo. Niente logica di calcolo qui dentro.
 // =============================================================================
 
-import { trovaMateriale } from './materiali.js?v=20261121b';
+import { trovaMateriale } from './materiali.js?v=20261121c';
 
 /**
  * Risale dalla categoria + posizione del pezzo al materiale scelto
@@ -24,6 +24,8 @@ function nomeMaterialeDelPezzo(pezzo, config) {
     // Tamponamento: la faccia (materiale 'ante') usa la tinta dei
     // tamponamenti; la fascia (materiale 'carcassa') usa la carcassa.
     id = pezzo.materiale === 'ante' ? mat.tamponamenti : mat.carcassa;
+  } else if (pezzo.materiale === 'costadi') {
+    id = mat.costadi || mat.ante;            // costadi: di partenza come le ante
   } else {
     id = mat[pezzo.materiale];
   }
@@ -77,6 +79,7 @@ export function renderDistinta(contenitore, distinta, config) {
       <div><span>m² ante</span><strong>${riepilogo.mqAnte.toFixed(2)}</strong></div>
       <div><span>m² schiena</span><strong>${riepilogo.mqSchiena.toFixed(2)}</strong></div>
       ${riepilogo.mqMelaminico ? `<div><span>m² melaminico</span><strong>${riepilogo.mqMelaminico.toFixed(2)}</strong></div>` : ''}
+      ${riepilogo.mqCostadi ? `<div><span>m² costadi</span><strong>${riepilogo.mqCostadi.toFixed(2)}</strong></div>` : ''}
     </div>
   `;
 }

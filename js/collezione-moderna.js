@@ -7,7 +7,7 @@
 // Assi: x larghezza, y altezza (0 = appoggio), z profondità (+ = davanti).
 // =============================================================================
 import * as THREE from 'three';
-import { coloreLampada } from './colori-lampade.js?v=20261121b';
+import { coloreLampada } from './colori-lampade.js?v=20261121c';
 
 const qui = (p) => new URL(p, import.meta.url).href;
 

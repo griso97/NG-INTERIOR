@@ -457,7 +457,9 @@ export function pezziCassettiereModulo(config, modulo, indiceModulo) {
  *     lunghezza = lunghezza_faccia − 2 mm (tolleranza).
  */
 export function pezziTamponamenti(config) {
-  const t = config.tamponamenti || {};
+  // sul lato con il COSTADO a vista il tamponamento laterale non c'è (l'armadio non è incassato lì)
+  const cos = misureCostado(config), t0 = config.tamponamenti || {};
+  const t = { ...t0, sx: cos.sx ? null : t0.sx, dx: cos.dx ? null : t0.dx };
   const pezzi = [];
 
   const larSx = t.sx && t.sx.attivo ? t.sx.larghezza : 0;
@@ -559,6 +561,49 @@ export function pezziTamponamenti(config) {
 }
 
 /**
+ * COSTADI (fianchi a vista, per gli armadi NON incassati): un pannello per lato, scelto
+ * dall'utente (nessuno, solo sinistro, solo destro, tutti e due). Formula dell'utente:
+ *   Altezza    = altezza TOTALE dell'armadio (H, più i tamponamenti sopra/sotto se ci sono:
+ *                il costado va dal pavimento fino in cima)
+ *   Profondità = top (profondità carcassa) + schiena + spessore ante + sporgenza (2 mm)
+ *                es. top 500 + schiena 10 + ante 18 + 2 = 530 mm
+ *                (SCORREVOLE: le ante scorrono dentro la profondità del top → top + schiena + 2)
+ *   Spessore   = spessore ante (o quello scelto), materiale «costadi» (di partenza come le ante)
+ * Il costado sta FUORI dalla larghezza dei moduli: la larghezza totale diventa L + i costadi.
+ */
+export function misureCostado(config) {
+  const c = config.costadi || {};
+  const lati = c.lati || 'nessuno';
+  const battente = config.tipoArmadio !== 'scorrevole';
+  const top = profonditaCarcassa(config);
+  const sporgenza = Number.isFinite(c.sporgenza) ? Math.max(0, c.sporgenza) : 2;
+  const t = config.tamponamenti || {};
+  const sopra = t.sopra && t.sopra.attivo ? t.sopra.larghezza : 0;
+  const sotto = t.sotto && t.sotto.attivo ? t.sotto.larghezza : 0;
+  return {
+    sx: lati === 'sx' || lati === 'entrambi',
+    dx: lati === 'dx' || lati === 'entrambi',
+    spessore: c.spessore > 0 ? c.spessore : config.spessoreAnte,
+    sporgenza, top, battente, sopra, sotto,
+    profondita: top + config.spessoreSchiena + (battente ? config.spessoreAnte : 0) + sporgenza,
+    altezza: config.altezzaEsterna + sopra + sotto,
+  };
+}
+
+export function pezziCostadi(config) {
+  const c = misureCostado(config), pezzi = [];
+  for (const [attivo, lato] of [[c.sx, 'SX'], [c.dx, 'DX']]) {
+    if (!attivo) continue;
+    pezzi.push({
+      modulo: 'Costadi', nome: `Costado ${lato}`,
+      larghezza: c.profondita, altezza: c.altezza, spessore: c.spessore,
+      materiale: 'costadi', quantita: 1,
+    });
+  }
+  return pezzi;
+}
+
+/**
  * ANTE SCORREVOLI (sezione 4.5 del documento) — formula definitiva.
  *
  *   Altezza anta   = H − 47
@@ -611,6 +656,7 @@ export function calcolaDistintaCompleta(config) {
   // Cassettiere: ora sono globali (config.cassettiere), con moduli[] = indici
   pezzi.push(...pezziCassettiereArmadio(config));
   pezzi.push(...pezziTamponamenti(config));
+  pezzi.push(...pezziCostadi(config));
   // REGOLA GLOBALE: tutte le misure arrotondate PER DIFETTO (floor).
   // Vale per ogni pezzo della distinta, per non mai dare misure "più grandi
   // del reale" che potrebbero far sprecare materiale.
@@ -678,6 +724,7 @@ export function calcolaRiepilogo(pezzi) {
     mqSchiena: totali.schiena,
     mqAnte: totali.ante,
     mqMelaminico: totali.melaminico || 0,
+    mqCostadi: totali.costadi || 0,
   };
 }
 

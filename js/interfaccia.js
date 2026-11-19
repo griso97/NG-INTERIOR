@@ -6,8 +6,9 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261121b';
-import { htmlTendineColori } from './tendine-colori.js?v=20261121b';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261121c';
+import { htmlTendineColori } from './tendine-colori.js?v=20261121c';
+import { misureCostado } from './calcoli.js?v=20261121c';
 
 export function configDefault() {
   return {
@@ -39,6 +40,9 @@ export function configDefault() {
       sopra: { attivo: false, larghezza: 50 },
       sotto: { attivo: false, larghezza: 50 },
     },
+    // COSTADI a vista (armadio non incassato): nessuno | sx | dx | entrambi.
+    // spessore null = come le ante; sporgenza = quanto sporge davanti alle ante (mm)
+    costadi: { lati: 'nessuno', spessore: null, sporgenza: 2 },
   };
 }
 
@@ -46,6 +50,13 @@ export function renderPannello(contenitore, config, onChange) {
   // Normalizza all'avvio: la larghezza di ogni modulo è sempre
   // totale/n (parti uguali), l'utente sceglie solo "quanti moduli".
   ripartisciModuli(config);
+  // progetti di prima: niente costadi; il loro materiale parte da quello delle ante
+  if (!config.costadi) config.costadi = { lati: 'nessuno', spessore: null, sporgenza: 2 };
+  if (config.materiali && !config.materiali.costadi) config.materiali.costadi = config.materiali.ante;
+  // ogni modifica aggiorna anche le misure del costado scritte nel pannello
+  const onChangeBase = onChange;
+  onChange = (c, o) => { infoCostadi(config); onChangeBase(c, o); };
+  const cs = config.costadi, lati = cs.lati || 'nessuno';
   contenitore.innerHTML = `
     <section>
       <h3>Lavoro</h3>
@@ -165,6 +176,27 @@ export function renderPannello(contenitore, config, onChange) {
     </section>
 
     <section>
+      <h3>Costadi</h3>
+      <p class="hint">Per gli armadi non incassati: il fianco a vista, alto quanto tutto l'armadio, dal retro della schiena fino a poco davanti alle ante.</p>
+      <div class="radio-row" style="flex-wrap:wrap">
+        ${[['nessuno', 'Nessuno'], ['sx', 'Solo sinistro'], ['dx', 'Solo destro'], ['entrambi', 'Tutti e due']].map(([v, n]) => `
+        <label class="radio">
+          <input type="radio" name="costadi" value="${v}" ${lati === v ? 'checked' : ''} />
+          <span>${n}</span>
+        </label>`).join('')}
+      </div>
+      <div class="grid-2" id="cost-campi" ${lati === 'nessuno' ? 'style="display:none"' : ''}>
+        <label>Spessore (mm)
+          <input type="number" id="cost-sp" value="${cs.spessore > 0 ? cs.spessore : config.spessoreAnte}" min="5" step="1" />
+        </label>
+        <label>Sporge davanti alle ante (mm)
+          <input type="number" id="cost-sporg" value="${Number.isFinite(cs.sporgenza) ? cs.sporgenza : 2}" min="0" step="1" />
+        </label>
+      </div>
+      <div id="cost-info" class="hint" style="line-height:1.6"></div>
+    </section>
+
+    <section>
       <h3>Materiali</h3>
       <div id="mat-list"></div>
     </section>
@@ -195,6 +227,7 @@ export function renderPannello(contenitore, config, onChange) {
   renderCassettiere(config);
   renderTamponamenti(config);
   renderMateriali(config);
+  infoCostadi(config);
 
   // ======== Collegamento eventi ========
   const bind = (id, handler, evento = 'input') => {
@@ -218,7 +251,12 @@ export function renderPannello(contenitore, config, onChange) {
   bind('#dim-D', (e) => { config.profonditaEsterna = toNum(e.target.value, 100); onChange(config); });
   bind('#sp-carc', (e) => { config.spessoreCarcassa = toNum(e.target.value, 5); onChange(config); });
   bind('#sp-schiena', (e) => { config.spessoreSchiena = toNum(e.target.value, 3); onChange(config); });
-  bind('#sp-ante', (e) => { config.spessoreAnte = toNum(e.target.value, 5); onChange(config); });
+  bind('#sp-ante', (e) => {
+    config.spessoreAnte = toNum(e.target.value, 5);
+    const cSp = contenitore.querySelector('#cost-sp');
+    if (cSp && !(config.costadi && config.costadi.spessore > 0)) cSp.value = config.spessoreAnte;
+    onChange(config);
+  });
 
   contenitore.querySelectorAll('input[name="setup"]').forEach((r) => {
     r.addEventListener('change', (e) => {
@@ -286,6 +324,22 @@ export function renderPannello(contenitore, config, onChange) {
   attaccaEventiCassettiere(contenitore, config, onChange);
   attaccaEventiTamponamenti(contenitore, config, onChange);
   attaccaEventiMateriali(contenitore, config, onChange);
+
+  // COSTADI: lati, spessore, sporgenza. Sul lato con il costado il tamponamento laterale non serve
+  // (l'armadio non è incassato da quella parte): si spegne
+  contenitore.querySelectorAll('input[name="costadi"]').forEach((r) => r.addEventListener('change', (e) => {
+    config.costadi.lati = e.target.value;
+    const m = misureCostado(config);
+    if (m.sx && config.tamponamenti.sx) config.tamponamenti.sx.attivo = false;
+    if (m.dx && config.tamponamenti.dx) config.tamponamenti.dx.attivo = false;
+    const campi = contenitore.querySelector('#cost-campi');
+    if (campi) campi.style.display = e.target.value === 'nessuno' ? 'none' : '';
+    renderTamponamenti(config);
+    attaccaEventiTamponamenti(contenitore, config, onChange);
+    onChange(config);
+  }));
+  bind('#cost-sp', (e) => { const v = Math.round(Number(e.target.value)); config.costadi.spessore = v > 0 ? v : null; onChange(config); });
+  bind('#cost-sporg', (e) => { const v = Math.round(Number(e.target.value)); config.costadi.sporgenza = Number.isFinite(v) && v >= 0 ? v : 2; onChange(config); });
 
   // Radio "tutti uguali" vs "personalizzati"
   contenitore.querySelectorAll('input[name="mod-tipo"]').forEach((r) => {
@@ -702,20 +756,40 @@ function renderTamponamenti(config) {
   const wrap = document.getElementById('tamp-list');
   if (!wrap) return;
   const labels = { sx: 'Sinistro', dx: 'Destro', sopra: 'Sopra', sotto: 'Sotto' };
+  const cos = misureCostado(config);
   wrap.innerHTML = Object.keys(labels).map((k) => {
     const t = config.tamponamenti[k];
+    const conCostado = (k === 'sx' && cos.sx) || (k === 'dx' && cos.dx);
     return `
       <div class="tamp-row" data-k="${k}">
         <label class="chk">
-          <input type="checkbox" class="t-on" ${t.attivo ? 'checked' : ''} />
-          <span>${labels[k]}</span>
+          <input type="checkbox" class="t-on" ${t.attivo && !conCostado ? 'checked' : ''} ${conCostado ? 'disabled' : ''} />
+          <span>${labels[k]}</span>${conCostado ? ` <span class="hint">(c'è il costado)</span>` : ''}
         </label>
         <label>Larghezza fronte (mm)
-          <input type="number" class="t-lar" value="${t.larghezza}" min="20" step="1" ${t.attivo ? '' : 'disabled'} />
+          <input type="number" class="t-lar" value="${t.larghezza}" min="20" step="1" ${t.attivo && !conCostado ? '' : 'disabled'} />
         </label>
       </div>
     `;
   }).join('');
+}
+
+/** Le misure del costado, con il conto fatto (come lo fa il falegname). */
+function infoCostadi(config) {
+  const el = document.getElementById('cost-info');
+  if (!el) return;
+  const c = misureCostado(config);
+  if (!c.sx && !c.dx) { el.innerHTML = '<span>Nessun costado: armadio incassato o chiuso dai muri.</span>'; return; }
+  const H = config.altezzaEsterna, W = config.larghezzaTotale;
+  const conto = c.battente ? `${c.top} + ${config.spessoreSchiena} + ${config.spessoreAnte} + ${c.sporgenza}` : `${c.top} + ${config.spessoreSchiena} + ${c.sporgenza}`;
+  const tot = W + (c.sx ? c.spessore : 0) + (c.dx ? c.spessore : 0);
+  el.innerHTML = `
+    <div><span>Costado</span> (${c.sx && c.dx ? '×2' : c.sx ? 'SX' : 'DX'}): <strong>${c.altezza} × ${c.profondita} × ${c.spessore} mm</strong></div>
+    <div><span>Altezza</span>: <code>${c.sopra || c.sotto ? `${H}${c.sopra ? ` + ${c.sopra}` : ''}${c.sotto ? ` + ${c.sotto}` : ''} = ${c.altezza}` : c.altezza}</code>
+      <span>${c.sopra || c.sotto ? '(armadio + tamponamenti sopra e sotto)' : "(tutta l'altezza dell'armadio)"}</span></div>
+    <div><span>Profondità</span>: <code>${conto} = ${c.profondita}</code>
+      <span>${c.battente ? '(top + schiena + ante + sporgenza)' : '(top + schiena + sporgenza: le ante scorrono dentro)'}</span></div>
+    <div><span>Larghezza totale con i costadi</span>: <code>${W}${c.sx ? ` + ${c.spessore}` : ''}${c.dx ? ` + ${c.spessore}` : ''} = ${tot} mm</code></div>`;
 }
 
 function attaccaEventiTamponamenti(contenitore, config, onChange) {
