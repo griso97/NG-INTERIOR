@@ -13,17 +13,13 @@
 // TAVOLI: il piano è una superficie d'appoggio (un vaso ci si posa sopra).
 // =============================================================================
 import * as THREE from 'three';
-import { LIBRERIA } from './libreria3d-dati.js?v=20261121c';
+import { LIBRERIA } from './libreria3d-dati.js?v=20261121d';
+import { caricaGLB } from './carica-glb.js?v=20261121d';
 
-export { LIBRERIA, GRUPPI_OGGETTI, CREDITI_LIBRERIA, creditoVoce } from './libreria3d-dati.js?v=20261121c';
+export { LIBRERIA, GRUPPI_OGGETTI, CREDITI_LIBRERIA, creditoVoce } from './libreria3d-dati.js?v=20261121d';
 export const SOFFITTO = 2700, Y_LAMPADA = 1650, Y_QUADRO = 1550, Y_CAPPA = 1600;
 
 const qui = (p) => new URL(p, import.meta.url).href;
-let _caricatore = null;
-function caricatore() {
-  if (!_caricatore) _caricatore = import('../vendor/three/addons/loaders/GLTFLoader.js').then(({ GLTFLoader }) => new GLTFLoader());
-  return _caricatore;
-}
 
 /** Il modello in mm (k = correzione di scala), un pezzo per mesh, centrato e appoggiato a y = 0. */
 function inMillimetri(scena, k = 1) {
@@ -91,8 +87,7 @@ const eLuce = (voce) => !!voce && (voce.tipo === 'appeso' || voce.tipo === 'soff
 export function creaLibreria(id, soffitto = SOFFITTO) {
   const voce = LIBRERIA.find((v) => v.id === id), chiave = eLuce(voce) ? `${id}|${soffitto}` : id;
   if (!_pronti.has(chiave)) {
-    const p = !voce ? Promise.reject(new Error('oggetto sconosciuto')) : caricatore()
-      .then((gl) => gl.loadAsync(qui(`../oggetti/libreria/${id}.glb`)))
+    const p = !voce ? Promise.reject(new Error('oggetto sconosciuto')) : caricaGLB(qui(`../oggetti/libreria/${id}.glb`))
       .then((gltf) => {
         // modelli SENZA NORMALI (alcune scansioni): le calcola il programma. Senza, le ombre di
         // contatto della vista 3D (che leggono le normali) li coloravano di nero

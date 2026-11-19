@@ -7,7 +7,7 @@
 // Assi: x larghezza, y altezza (0 = appoggio), z profondità (+ = davanti).
 // =============================================================================
 import * as THREE from 'three';
-import { coloreLampada } from './colori-lampade.js?v=20261121c';
+import { coloreLampada } from './colori-lampade.js?v=20261121d';
 
 const qui = (p) => new URL(p, import.meta.url).href;
 
@@ -227,7 +227,8 @@ async function frutto(id) {
       if (id.startsWith('lib:')) {
         // un modello della LIBRERIA (es. il pane), intero, alla scala chiesta: "lib:<id>@<scala>"
         const [nome, sc] = id.slice(4).split('@');
-        const gl = await new GLTFLoader().loadAsync(qui(`../oggetti/libreria/${nome}.glb`));
+        const { caricaGLB } = await import('./carica-glb.js?v=20261121d');
+        const gl = await caricaGLB(qui(`../oggetti/libreria/${nome}.glb`));
         gl.scene.updateMatrixWorld(true);
         const g0 = new THREE.Group();
         gl.scene.traverse((o) => { if (o.isMesh) { const m = new THREE.Mesh(o.geometry, o.material); m.applyMatrix4(o.matrixWorld); g0.add(m); } });
