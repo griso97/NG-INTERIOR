@@ -7,6 +7,7 @@
 // Assi: x larghezza, y altezza (0 = appoggio), z profondità (+ = davanti).
 // =============================================================================
 import * as THREE from 'three';
+import { coloreLampada } from './colori-lampade.js?v=20261121b';
 
 const qui = (p) => new URL(p, import.meta.url).href;
 
@@ -101,6 +102,7 @@ function mat(nome) {
     // vetro della lampadina: trasparente, si accende caldo con la lampada
     case 'vetro-lampadina': m = new THREE.MeshPhysicalMaterial({ color: 0xfff6ea, metalness: 0, roughness: 0.05, transmission: 1, thickness: 0, ior: 1.5 }); break;
     case 'vetro-bordo': m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0.25, transmission: 0.55, thickness: 0, ior: 1.5 }); break;
+    case 'antracite': m = new THREE.MeshStandardMaterial({ color: 0x3b3c3e, metalness: 0.45, roughness: 0.5 }); break;
     case 'alluminio-nero': m = new THREE.MeshStandardMaterial({ color: 0x1b1a19, metalness: 0.2, roughness: 0.66 }); break;   // profilo verniciato a polvere, opaco
     case 'nero-satinato': m = new THREE.MeshStandardMaterial({ color: 0x0f0f10, metalness: 0.35, roughness: 0.5 }); break;
     // vetro: trasparente vero; i LIQUIDI dentro sono "pieni" (un trasparente dentro un altro non si vedrebbe)
@@ -1455,7 +1457,7 @@ function nastroLed(curva, w, sp, metallo, giro = () => 0, n = 420, bordo = 0, fa
   }
   return g;
 }
-function lampadaNastro(tipo, metallo, soffitto = SOFFITTO) {
+function lampadaNastro(tipo, metallo, soffitto = SOFFITTO, metallo2 = metallo) {
   const g = new THREE.Group(), attacchi = [];
   let bilanciere = false;
   if (tipo === 'onde') {
@@ -1481,7 +1483,7 @@ function lampadaNastro(tipo, metallo, soffitto = SOFFITTO) {
     // (che risale) mostra il retro scuro: tre tratti bianchi in discesa e tre scuri in salita.
     // 120 cm: alta 14 cm; 160 cm: stesse proporzioni (alta 18,5 cm), il profilo resta 28 × 9 mm.
     const k = tipo === 'doppio-160' ? 1600 / 1200 : 1, L = 1200 * k, R = 63 * k, passo = 800 * k, Y = 200;
-    for (const fase of [0, Math.PI]) {
+    for (const [fase, met] of [[0, metallo], [Math.PI, metallo2]]) {
       const pts = [];
       for (let i = 0; i <= 240; i++) {
         const x = -L / 2 + (L * i) / 240, f = (2 * Math.PI * (x + L / 2)) / passo + fase;
@@ -1489,7 +1491,7 @@ function lampadaNastro(tipo, metallo, soffitto = SOFFITTO) {
       }
       const curva = new THREE.CatmullRomCurve3(pts);
       // larghezza del nastro = tangente × raggio: il nastro resta adagiato sul cilindro, la luce fuori
-      g.add(nastroLed(curva, 28, 9, metallo, (t, p) => curva.getTangentAt(t).cross(V3(0, p.y - Y, p.z).normalize()), 600));
+      g.add(nastroLed(curva, 28, 9, met, (t, p) => curva.getTangentAt(t).cross(V3(0, p.y - Y, p.z).normalize()), 600));
     }
     // i due cavi a V prendono il nastro che passa DIETRO, a un terzo della lunghezza (sopra il suo bordo)
     for (const x of [-L / 3, L / 3]) {
@@ -1773,22 +1775,22 @@ export const COLLEZIONE = [
   { id: 'ds-lux-costellazione', appeso: true, nome: 'Lampada di lusso «Costellazione», gocce di luce e ottone', es: 'Lámpara de lujo «Constelación», gotas de luz y latón', misure: { w: 1700, d: 169, h: 2700 }, crea: async (s) => lampadaLusso('costellazione', s) },
   { id: 'ds-lux-prisma', appeso: true, nome: 'Lampada di lusso «Prisma», linee LED nere e nodi oro', es: 'Lámpara de lujo «Prisma», líneas LED negras y nudos oro', misure: { w: 1636, d: 322, h: 2700 }, crea: async (s) => lampadaLusso('prisma', s) },
   { id: 'ds-lux-catena', appeso: true, nome: 'Lampada di lusso «Catena», anelli LED oro e neri', es: 'Lámpara de lujo «Cadena», aros LED oro y negros', misure: { w: 1722, d: 442, h: 2700 }, crea: async (s) => lampadaLusso('catena', s) },
-  { id: 'ds-lux-nastro-onde-bianco', appeso: true, nome: 'Lampada di lusso «Nastro», onde LED bianche', es: 'Lámpara de lujo «Cinta», ondas LED blancas', misure: { w: 1720, d: 60, h: 2700 }, crea: async (s) => lampadaNastro('onde', 'metallo-bianco', s) },
-  { id: 'ds-lux-nastro-onde-nero', appeso: true, nome: 'Lampada di lusso «Nastro», onde LED nere', es: 'Lámpara de lujo «Cinta», ondas LED negras', misure: { w: 1720, d: 60, h: 2700 }, crea: async (s) => lampadaNastro('onde', 'nero-satinato', s) },
-  { id: 'ds-lux-nastro-onde-oro', appeso: true, nome: 'Lampada di lusso «Nastro», onde LED champagne', es: 'Lámpara de lujo «Cinta», ondas LED champán', misure: { w: 1720, d: 60, h: 2700 }, crea: async (s) => lampadaNastro('onde', 'champagne', s) },
-  { id: 'ds-lux-nastro-ritorto-nero', appeso: true, nome: 'Lampada di lusso «Nastro ritorto», LED nero', es: 'Lámpara de lujo «Cinta trenzada», LED negra', misure: { w: 1538, d: 187, h: 2700 }, crea: async (s) => lampadaNastro('ritorto', 'nero-satinato', s) },
-  { id: 'ds-lux-nastro-ritorto-oro', appeso: true, nome: 'Lampada di lusso «Nastro ritorto», LED oro', es: 'Lámpara de lujo «Cinta trenzada», LED oro', misure: { w: 1538, d: 187, h: 2700 }, crea: async (s) => lampadaNastro('ritorto', 'oro-satinato', s) },
-  { id: 'ds-lux-nastro-doppio-nero', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, nera, 120 cm', es: 'Lámpara de lujo «Doble onda» LED, negra, 120 cm', misure: { w: 1210, d: 140, h: 2700 }, crea: async (s) => lampadaNastro('doppio', 'alluminio-nero', s) },
-  { id: 'ds-lux-nastro-doppio-bianco', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, bianca, 120 cm', es: 'Lámpara de lujo «Doble onda» LED, blanca, 120 cm', misure: { w: 1210, d: 140, h: 2700 }, crea: async (s) => lampadaNastro('doppio', 'metallo-bianco', s) },
-  { id: 'ds-lux-nastro-doppio-oro', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, oro, 120 cm', es: 'Lámpara de lujo «Doble onda» LED, oro, 120 cm', misure: { w: 1210, d: 140, h: 2700 }, crea: async (s) => lampadaNastro('doppio', 'oro-satinato', s) },
-  { id: 'ds-lux-nastro-doppio-160-nero', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, nera, 160 cm', es: 'Lámpara de lujo «Doble onda» LED, negra, 160 cm', misure: { w: 1610, d: 180, h: 2700 }, crea: async (s) => lampadaNastro('doppio-160', 'alluminio-nero', s) },
-  { id: 'ds-lux-nastro-doppio-160-bianco', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, bianca, 160 cm', es: 'Lámpara de lujo «Doble onda» LED, blanca, 160 cm', misure: { w: 1610, d: 180, h: 2700 }, crea: async (s) => lampadaNastro('doppio-160', 'metallo-bianco', s) },
-  { id: 'ds-lux-nastro-doppio-160-oro', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, oro, 160 cm', es: 'Lámpara de lujo «Doble onda» LED, oro, 160 cm', misure: { w: 1610, d: 180, h: 2700 }, crea: async (s) => lampadaNastro('doppio-160', 'oro-satinato', s) },
+  { id: 'ds-lux-nastro-onde-bianco', appeso: true, nome: 'Lampada di lusso «Nastro», onde LED bianche', es: 'Lámpara de lujo «Cinta», ondas LED blancas', misure: { w: 1720, d: 60, h: 2700 }, crea: async (s, c) => lampadaNastro('onde', c ? c.a : 'metallo-bianco', s, c ? (c.b || c.a) : 'metallo-bianco') },
+  { id: 'ds-lux-nastro-onde-nero', appeso: true, nome: 'Lampada di lusso «Nastro», onde LED nere', es: 'Lámpara de lujo «Cinta», ondas LED negras', misure: { w: 1720, d: 60, h: 2700 }, crea: async (s, c) => lampadaNastro('onde', c ? c.a : 'nero-satinato', s, c ? (c.b || c.a) : 'nero-satinato') },
+  { id: 'ds-lux-nastro-onde-oro', appeso: true, nome: 'Lampada di lusso «Nastro», onde LED champagne', es: 'Lámpara de lujo «Cinta», ondas LED champán', misure: { w: 1720, d: 60, h: 2700 }, crea: async (s, c) => lampadaNastro('onde', c ? c.a : 'champagne', s, c ? (c.b || c.a) : 'champagne') },
+  { id: 'ds-lux-nastro-ritorto-nero', appeso: true, nome: 'Lampada di lusso «Nastro ritorto», LED nero', es: 'Lámpara de lujo «Cinta trenzada», LED negra', misure: { w: 1538, d: 187, h: 2700 }, crea: async (s, c) => lampadaNastro('ritorto', c ? c.a : 'nero-satinato', s, c ? (c.b || c.a) : 'nero-satinato') },
+  { id: 'ds-lux-nastro-ritorto-oro', appeso: true, nome: 'Lampada di lusso «Nastro ritorto», LED oro', es: 'Lámpara de lujo «Cinta trenzada», LED oro', misure: { w: 1538, d: 187, h: 2700 }, crea: async (s, c) => lampadaNastro('ritorto', c ? c.a : 'oro-satinato', s, c ? (c.b || c.a) : 'oro-satinato') },
+  { id: 'ds-lux-nastro-doppio-nero', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, nera, 120 cm', es: 'Lámpara de lujo «Doble onda» LED, negra, 120 cm', misure: { w: 1210, d: 140, h: 2700 }, crea: async (s, c) => lampadaNastro('doppio', c ? c.a : 'alluminio-nero', s, c ? (c.b || c.a) : 'alluminio-nero') },
+  { id: 'ds-lux-nastro-doppio-bianco', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, bianca, 120 cm', es: 'Lámpara de lujo «Doble onda» LED, blanca, 120 cm', misure: { w: 1210, d: 140, h: 2700 }, crea: async (s, c) => lampadaNastro('doppio', c ? c.a : 'metallo-bianco', s, c ? (c.b || c.a) : 'metallo-bianco') },
+  { id: 'ds-lux-nastro-doppio-oro', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, oro, 120 cm', es: 'Lámpara de lujo «Doble onda» LED, oro, 120 cm', misure: { w: 1210, d: 140, h: 2700 }, crea: async (s, c) => lampadaNastro('doppio', c ? c.a : 'oro-satinato', s, c ? (c.b || c.a) : 'oro-satinato') },
+  { id: 'ds-lux-nastro-doppio-160-nero', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, nera, 160 cm', es: 'Lámpara de lujo «Doble onda» LED, negra, 160 cm', misure: { w: 1610, d: 180, h: 2700 }, crea: async (s, c) => lampadaNastro('doppio-160', c ? c.a : 'alluminio-nero', s, c ? (c.b || c.a) : 'alluminio-nero') },
+  { id: 'ds-lux-nastro-doppio-160-bianco', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, bianca, 160 cm', es: 'Lámpara de lujo «Doble onda» LED, blanca, 160 cm', misure: { w: 1610, d: 180, h: 2700 }, crea: async (s, c) => lampadaNastro('doppio-160', c ? c.a : 'metallo-bianco', s, c ? (c.b || c.a) : 'metallo-bianco') },
+  { id: 'ds-lux-nastro-doppio-160-oro', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, oro, 160 cm', es: 'Lámpara de lujo «Doble onda» LED, oro, 160 cm', misure: { w: 1610, d: 180, h: 2700 }, crea: async (s, c) => lampadaNastro('doppio-160', c ? c.a : 'oro-satinato', s, c ? (c.b || c.a) : 'oro-satinato') },
   { id: 'ds-lux-sfere-vetro-3', appeso: true, nome: 'Lampada «Sfere di vetro», 3 luci, 67 cm, vetro trasparente', es: 'Lámpara «Esferas de vidrio», 3 luces, 67 cm, vidrio transparente', misure: { w: 670, d: 150, h: 2700 }, crea: async (s) => lampadaSfereVetro(['trasparente', 'trasparente', 'trasparente'], 260, 600, s) },
   { id: 'ds-lux-sfere-vetro-4', appeso: true, nome: 'Lampada «Sfere di vetro», 4 luci, 86 cm, vetro trasparente e cromato', es: 'Lámpara «Esferas de vidrio», 4 luces, 86 cm, vidrio transparente y cromado', misure: { w: 860, d: 150, h: 2700 }, crea: async (s) => lampadaSfereVetro(['trasparente', 'cromato', 'trasparente', 'cromato'], 237, 800, s) },
   { id: 'ds-lux-sfere-vetro-5', appeso: true, nome: 'Lampada «Sfere di vetro», 5 luci, 123 cm, vetro trasparente', es: 'Lámpara «Esferas de vidrio», 5 luces, 123 cm, vidrio transparente', misure: { w: 1230, d: 150, h: 2700 }, crea: async (s) => lampadaSfereVetro(['trasparente', 'trasparente', 'trasparente', 'trasparente', 'trasparente'], 270, 1150, s) },
-  { id: 'ds-lux-onda-sfere-oro', appeso: true, nome: 'Lampada di lusso, onda oro con sfere di vetro luminose', es: 'Lámpara de lujo, onda oro con esferas de vidrio luminosas', misure: { w: 1295, d: 100, h: 2700 }, crea: async (s) => lampadaNastro('sfere', 'oro-satinato', s) },
-  { id: 'ds-lux-onda-sfere-nero', appeso: true, nome: 'Lampada di lusso, onda nera con sfere di vetro luminose', es: 'Lámpara de lujo, onda negra con esferas de vidrio luminosas', misure: { w: 1295, d: 100, h: 2700 }, crea: async (s) => lampadaNastro('sfere', 'nero-satinato', s) },
+  { id: 'ds-lux-onda-sfere-oro', appeso: true, nome: 'Lampada di lusso, onda oro con sfere di vetro luminose', es: 'Lámpara de lujo, onda oro con esferas de vidrio luminosas', misure: { w: 1295, d: 100, h: 2700 }, crea: async (s, c) => lampadaNastro('sfere', c ? c.a : 'oro-satinato', s, c ? (c.b || c.a) : 'oro-satinato') },
+  { id: 'ds-lux-onda-sfere-nero', appeso: true, nome: 'Lampada di lusso, onda nera con sfere di vetro luminose', es: 'Lámpara de lujo, onda negra con esferas de vidrio luminosas', misure: { w: 1295, d: 100, h: 2700 }, crea: async (s, c) => lampadaNastro('sfere', c ? c.a : 'nero-satinato', s, c ? (c.b || c.a) : 'nero-satinato') },
   { id: 'ds-led-orbita', appeso: true, nome: 'Lampada LED «Orbita», due anelli', es: 'Lámpara LED «Órbita», dos aros', misure: { w: 989, d: 982, h: 2700 }, crea: async (s) => lampadaLed('orbita', s) },
   { id: 'ds-sgabello-conchiglia', nome: 'Sgabello «Conchiglia» in velluto e ottone', es: 'Taburete «Concha» de terciopelo y latón', misure: { w: 492, d: 472, h: 852 }, crea: async () => sgabelloConchiglia() },
   { id: 'ds-sedia-avvolgente', nome: 'Sedia «Avvolgente» in velluto e ottone', es: 'Silla «Envolvente» de terciopelo y latón', misure: { w: 568, d: 540, h: 794 }, crea: async () => sediaAvvolgente() },
@@ -1819,11 +1821,13 @@ export const COLLEZIONE = [
 
 const _pronti = new Map();
 /** Il modello (una volta sola): gruppo con le misure vere. */
-export function creaModerno(id, soffitto = SOFFITTO) {
-  const voce = COLLEZIONE.find((c) => c.id === id), chiave = voce && voce.appeso ? `${id}|${soffitto}` : id;
+export function creaModerno(id, soffitto = SOFFITTO, colore = null) {
+  // colore: per le lampade con la scelta del colore (colori-lampade.js); le altre lo ignorano
+  const col = coloreLampada(id, colore);
+  const voce = COLLEZIONE.find((c) => c.id === id), chiave = (voce && voce.appeso ? `${id}|${soffitto}` : id) + (col ? `|${col.id}` : '');
   if (!_pronti.has(chiave)) {
     if (voce) rnd = generatore(semeDi(id));
-    const p = voce ? Promise.resolve(voce.crea(soffitto)).then((g) => {
+    const p = voce ? Promise.resolve(voce.crea(soffitto, col)).then((g) => {
       let b = new THREE.Box3().setFromObject(g);
       // un oggetto APPOGGIA sul suo punto più basso: niente pezzi sotto il piano o sotto il pavimento
       // (es. le gambe inclinate di un tavolo); le lampade invece pendono dal soffitto
@@ -1837,8 +1841,9 @@ export function creaModerno(id, soffitto = SOFFITTO) {
 }
 const _fatti = new Map();
 /** In CUCINA: l'oggetto alle misure scelte; null finché non è pronto (poi quandoPronto()). */
-export function oggettoModerno(id, misure, quandoPronto, soffitto = SOFFITTO) {
-  const voce = COLLEZIONE.find((c) => c.id === id), chiave = voce && voce.appeso ? `${id}|${soffitto}` : id;
+export function oggettoModerno(id, misure, quandoPronto, soffitto = SOFFITTO, colore = null) {
+  const col = coloreLampada(id, colore);
+  const voce = COLLEZIONE.find((c) => c.id === id), chiave = (voce && voce.appeso ? `${id}|${soffitto}` : id) + (col ? `|${col.id}` : '');
   const t = _fatti.get(chiave);
   if (t && t !== 'attesa' && t !== 'errore') {
     // misure scelte in cucina rispetto a quelle del CATALOGO (uguali = grandezza vera);
@@ -1847,6 +1852,6 @@ export function oggettoModerno(id, misure, quandoPronto, soffitto = SOFFITTO) {
     if (misure && m0) g.scale.set((misure.w || m0.w) / m0.w, voce.appeso ? 1 : (misure.h || m0.h) / m0.h, (misure.d || m0.d) / m0.d);
     return g;
   }
-  if (!t) { _fatti.set(chiave, 'attesa'); creaModerno(id, soffitto).then((g) => { _fatti.set(chiave, g); if (quandoPronto) quandoPronto(); }).catch(() => _fatti.set(chiave, 'errore')); }
+  if (!t) { _fatti.set(chiave, 'attesa'); creaModerno(id, soffitto, col ? col.id : null).then((g) => { _fatti.set(chiave, g); if (quandoPronto) quandoPronto(); }).catch(() => _fatti.set(chiave, 'errore')); }
   return null;
 }

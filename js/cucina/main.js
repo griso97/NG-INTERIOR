@@ -24,15 +24,16 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
-} from './modello.js?v=20261121a';
-import { renderPianta } from './pianta.js?v=20261121a';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121a';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261121a';
-import { calcolaDistintaCucina } from './distinta.js?v=20261121a';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121a';
-import { agganciaTema } from '../tema.js?v=20261121a';
-import { tendinePannello } from '../tendine-pannello.js?v=20261121a';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261121a';
+} from './modello.js?v=20261121b';
+import { renderPianta } from './pianta.js?v=20261121b';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261121b';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261121b';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261121b';
+import { calcolaDistintaCucina } from './distinta.js?v=20261121b';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261121b';
+import { agganciaTema } from '../tema.js?v=20261121b';
+import { tendinePannello } from '../tendine-pannello.js?v=20261121b';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261121b';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1668,7 +1669,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121a');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261121b');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1687,6 +1688,26 @@ function nomeFileData() {
 }
 
 /** Oggetto selezionato nel 3D (sgabello, friggitrice…): ruota, elimina. */
+/** Scelta del COLORE per le lampade che ce l'hanno (lampade a nastro LED): tinta unita e, per quelle a
+ * due nastri, due colori (un nastro e l'altro). */
+function htmlColoreLampada(m) {
+  const cl = coloriLampada(lampadaDaTipo(m.tipo));
+  if (!cl) return '';
+  const sel = m.colore || cl.base;
+  const bottone = (c) => `<button type="button" class="btn-ghost opt-collamp ${c.id === sel ? 'attivo' : ''}" data-collamp="${c.id}"
+      style="display:inline-flex;align-items:center;gap:6px;padding:6px 9px;flex:0 0 auto">
+      <span style="width:20px;height:20px;border-radius:50%;flex:none;border:1px solid rgba(127,127,127,.45);background:${c.hex2 ? `linear-gradient(135deg, ${c.hex} 50%, ${c.hex2} 50%)` : c.hex}"></span>
+      ${c.id === sel ? '<span>✓</span>' : ''}<span>${c.nome}</span></button>`;
+  return `
+    <section class="step3-pannello" data-aperta>
+      <h3>Colore della lampada</h3>
+      <div class="opzioni-anta" style="flex-wrap:wrap">${cl.tinte.map(bottone).join('')}</div>
+      ${cl.dueToni.length ? `
+      <div class="riga-3d" style="margin:10px 0 6px">Due colori: un nastro di un colore e l'altro dell'altro</div>
+      <div class="opzioni-anta" style="flex-wrap:wrap">${cl.dueToni.map(bottone).join('')}</div>` : ''}
+    </section>`;
+}
+
 function renderPannelloOggetto(m) {
   const sulPiano = String(m.tipo).startsWith('ogg:');
   pannello.innerHTML = `
@@ -1699,9 +1720,14 @@ function renderPannelloOggetto(m) {
         <button type="button" class="btn-ghost" id="ogg-elimina">Elimina</button>
       </div>
     </section>
+    ${htmlColoreLampada(m)}
     <section class="actions">
       <button id="mob-deseleziona" class="btn-ghost" type="button" style="flex:1">Chiudi</button>
     </section>`;
+  pannello.querySelectorAll('[data-collamp]').forEach((b) => b.addEventListener('click', () => {
+    if ((m.colore || '') === b.dataset.collamp) return;
+    registraStoria(); m.colore = b.dataset.collamp; aggiorna();
+  }));
   document.getElementById('ogg-ruota').addEventListener('click', () => { registraStoria(); ruotaMobileLibero(progetto, m.id); aggiorna(); });
   document.getElementById('ogg-elimina').addEventListener('click', () => { registraStoria(); rimuoviMobileLibero(progetto, m.id); step2.mobSelId = null; aggiorna(); });
   document.getElementById('mob-deseleziona').addEventListener('click', () => { step2.mobSelId = null; aggiorna(); });
@@ -2400,13 +2426,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121a');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261121b');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121a'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261121b'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
