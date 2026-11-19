@@ -6,8 +6,8 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261120y';
-import { htmlTendineColori } from './tendine-colori.js?v=20261120y';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261120z';
+import { htmlTendineColori } from './tendine-colori.js?v=20261120z';
 
 export function configDefault() {
   return {

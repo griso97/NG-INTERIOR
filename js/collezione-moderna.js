@@ -94,6 +94,11 @@ function mat(nome) {
     case 'acciaio': m = new THREE.MeshStandardMaterial({ color: 0xd8d9db, metalness: 1, roughness: 0.25 }); break;
     case 'metallo-nero': m = new THREE.MeshStandardMaterial({ color: 0x151515, metalness: 0.6, roughness: 0.42 }); break;
     case 'metallo-bianco': m = new THREE.MeshStandardMaterial({ color: 0xf1efea, metalness: 0.15, roughness: 0.45 }); break;
+    case 'cromo': m = new THREE.MeshStandardMaterial({ color: 0xc9ccd0, metalness: 1, roughness: 0.06 }); break;
+    // sfera di vetro CROMATA (specchiata fuori e dentro)
+    case 'vetro-cromato': m = new THREE.MeshStandardMaterial({ color: 0xd4d6d8, metalness: 1, roughness: 0.3, side: THREE.DoubleSide }); break;
+    // il bordo del vetro dove è tagliato (si vede come un anello chiaro)
+    case 'vetro-bordo': m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0.25, transmission: 0.55, thickness: 0, ior: 1.5 }); break;
     case 'alluminio-nero': m = new THREE.MeshStandardMaterial({ color: 0x1b1a19, metalness: 0.2, roughness: 0.66 }); break;   // profilo verniciato a polvere, opaco
     case 'nero-satinato': m = new THREE.MeshStandardMaterial({ color: 0x0f0f10, metalness: 0.35, roughness: 0.5 }); break;
     // vetro: trasparente vero; i LIQUIDI dentro sono "pieni" (un trasparente dentro un altro non si vedrebbe)
@@ -1554,6 +1559,62 @@ function bilanciereAlSoffitto(g, [A, B], soffitto, colore) {
     const morsetto = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 12, 10), mat('acciaio-satinato')); morsetto.position.copy(P).add(V3(0, 4, 0)); g.add(morsetto);
   }
 }
+/**
+ * «Sfere di vetro»: pendenti a sfera di vetro soffiato Ø 15 cm APERTI SOTTO (taglio con il bordo),
+ * tubo cromato che si allarga sul vetro, portalampada cromato con anello in ottone e lampadina a
+ * filamento dentro la sfera; appesi con cavetti a un binario cromato al soffitto.
+ * vetri: per ogni pendente 'trasparente' o 'cromato'.
+ */
+function lampadaSfereVetro(vetri, interasse, binario, soffitto = SOFFITTO) {
+  const g = new THREE.Group(), n = vetri.length, R = 75, Yc = 300, attacchi = [];
+  const yTaglio = -Math.sqrt(R * R - 48 * 48);                 // apertura sotto Ø 96 mm
+  const profilo = [];
+  const t0 = Math.asin(9 / R), t1 = Math.PI - Math.asin(48 / R);
+  // dal bordo in basso verso l'alto: le facce guardano fuori. Si disegna solo la parete vista da
+  // fuori (una volta sola attraverso il vetro: la lampadina dentro resta nitida)
+  for (let i = 40; i >= 0; i--) { const t = t0 + ((t1 - t0) * i) / 40; profilo.push(new THREE.Vector2(R * Math.sin(t), R * Math.cos(t))); }
+  const geoVetro = new THREE.LatheGeometry(profilo, 64);
+  const tubo = (r0, r1, y0, y1, m, lati = 24) => { const c = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, y1 - y0, lati), mat(m)); c.position.y = (y0 + y1) / 2; return c; };
+  vetri.forEach((v, i) => {
+    const x = (i - (n - 1) / 2) * interasse, p = new THREE.Group(); p.position.set(x, Yc, 0);
+    const vetro = new THREE.Mesh(geoVetro, v === 'cromato' ? mat('vetro-cromato') : mat('vetro-stellato')); p.add(vetro);
+    const bordo = new THREE.Mesh(new THREE.TorusGeometry(48, 1.8, 8, 64), mat(v === 'cromato' ? 'cromo' : 'vetro-bordo'));
+    bordo.rotation.x = Math.PI / 2; bordo.position.y = yTaglio; p.add(bordo);
+    // stelo cromato: si allarga a tromba dove entra nel vetro, sopra il tubo dritto (12 cm)
+    p.add(tubo(15, 8.5, R - 4, R + 9, 'cromo'));
+    p.add(tubo(8.5, 8.5, R + 9, R + 128, 'cromo'));
+    p.add(tubo(9.5, 9.5, R + 128, R + 131, 'cromo'));
+    // dentro la sfera: tubo, portalampada e anello in ottone
+    p.add(tubo(6.5, 6.5, 20, R - 2, 'cromo'));
+    p.add(tubo(12, 12, 0, 20, 'cromo'));
+    p.add(tubo(12.6, 12.6, -5, 0, 'ottone'));
+    // lampadina a globo (Ø 48) con il filamento LED a U
+    const bulbo = new THREE.Mesh(new THREE.SphereGeometry(24, 28, 20), mat('vetro-stellato')); bulbo.position.y = -30; p.add(bulbo);
+    p.add(tubo(9, 11, -9, -5, 'vetro-stellato', 16));
+    for (const s of [-1, 1]) {
+      const f = new THREE.CatmullRomCurve3([V3(s * 2, -10, 0), V3(s * 5, -22, 0), V3(s * 7, -36, 0), V3(s * 3, -44, 0), V3(0, -45, 0)]);
+      p.add(new THREE.Mesh(new THREE.TubeGeometry(f, 24, 0.9, 6), mat('led-caldo')));
+    }
+    const luce = new THREE.Object3D(); luce.position.y = -30; luce.userData.puntoLuce = true; p.add(luce);
+    g.add(p);
+    attacchi.push(V3(x, Yc + R + 131, 0));
+  });
+  g.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(g), dy = Y_LAMPADA - b.min.y;
+  g.children.forEach((c) => { c.position.y += dy; });
+  // binario cromato al soffitto (4 cm di profondità, 2,5 cm di spessore), testata nera da un lato,
+  // e i cavetti neri con il fermacavo
+  const yB = soffitto - 12.5;
+  const bin = new THREE.Mesh(new THREE.BoxGeometry(binario - 50, 25, 40), mat('cromo')); bin.position.set(-25, yB, 0); g.add(bin);
+  const testa = new THREE.Mesh(new THREE.BoxGeometry(50, 25, 40), mat('alluminio-nero')); testa.position.set(binario / 2 - 25, yB, 0); g.add(testa);
+  for (const a of attacchi) {
+    const P = a.clone().add(V3(0, dy, 0)), alto = soffitto - 25;
+    if (alto - P.y > 5) g.add(asta(P, V3(P.x, alto, 0), 1.3, 1.3, 'cavo', 6));
+    const fermo = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 10, 12), mat('cromo')); fermo.position.set(P.x, alto - 5, 0); g.add(fermo);
+  }
+  g.traverse((x) => { if (x.isMesh) { x.castShadow = false; x.receiveShadow = false; x.userData.senzaOmbra = true; } });
+  return g;
+}
 function lampadaLusso(tipo, soffitto = SOFFITTO) {
   const g = new THREE.Group(), attacchi = [];
   if (tipo === 'mikado') {
@@ -1720,6 +1781,9 @@ export const COLLEZIONE = [
   { id: 'ds-lux-nastro-doppio-160-nero', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, nera, 160 cm', es: 'Lámpara de lujo «Doble onda» LED, negra, 160 cm', misure: { w: 1610, d: 180, h: 2700 }, crea: async (s) => lampadaNastro('doppio-160', 'alluminio-nero', s) },
   { id: 'ds-lux-nastro-doppio-160-bianco', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, bianca, 160 cm', es: 'Lámpara de lujo «Doble onda» LED, blanca, 160 cm', misure: { w: 1610, d: 180, h: 2700 }, crea: async (s) => lampadaNastro('doppio-160', 'metallo-bianco', s) },
   { id: 'ds-lux-nastro-doppio-160-oro', appeso: true, nome: 'Lampada di lusso «Doppia onda» LED, oro, 160 cm', es: 'Lámpara de lujo «Doble onda» LED, oro, 160 cm', misure: { w: 1610, d: 180, h: 2700 }, crea: async (s) => lampadaNastro('doppio-160', 'oro-satinato', s) },
+  { id: 'ds-lux-sfere-vetro-3', appeso: true, nome: 'Lampada «Sfere di vetro», 3 luci, 67 cm, vetro trasparente', es: 'Lámpara «Esferas de vidrio», 3 luces, 67 cm, vidrio transparente', misure: { w: 670, d: 150, h: 2700 }, crea: async (s) => lampadaSfereVetro(['trasparente', 'trasparente', 'trasparente'], 260, 600, s) },
+  { id: 'ds-lux-sfere-vetro-4', appeso: true, nome: 'Lampada «Sfere di vetro», 4 luci, 86 cm, vetro trasparente e cromato', es: 'Lámpara «Esferas de vidrio», 4 luces, 86 cm, vidrio transparente y cromado', misure: { w: 860, d: 150, h: 2700 }, crea: async (s) => lampadaSfereVetro(['trasparente', 'cromato', 'trasparente', 'cromato'], 237, 800, s) },
+  { id: 'ds-lux-sfere-vetro-5', appeso: true, nome: 'Lampada «Sfere di vetro», 5 luci, 123 cm, vetro trasparente', es: 'Lámpara «Esferas de vidrio», 5 luces, 123 cm, vidrio transparente', misure: { w: 1230, d: 150, h: 2700 }, crea: async (s) => lampadaSfereVetro(['trasparente', 'trasparente', 'trasparente', 'trasparente', 'trasparente'], 270, 1150, s) },
   { id: 'ds-lux-onda-sfere-oro', appeso: true, nome: 'Lampada di lusso, onda oro con sfere di vetro luminose', es: 'Lámpara de lujo, onda oro con esferas de vidrio luminosas', misure: { w: 1295, d: 100, h: 2700 }, crea: async (s) => lampadaNastro('sfere', 'oro-satinato', s) },
   { id: 'ds-lux-onda-sfere-nero', appeso: true, nome: 'Lampada di lusso, onda nera con sfere di vetro luminose', es: 'Lámpara de lujo, onda negra con esferas de vidrio luminosas', misure: { w: 1295, d: 100, h: 2700 }, crea: async (s) => lampadaNastro('sfere', 'nero-satinato', s) },
   { id: 'ds-led-orbita', appeso: true, nome: 'Lampada LED «Orbita», due anelli', es: 'Lámpara LED «Órbita», dos aros', misure: { w: 989, d: 982, h: 2700 }, crea: async (s) => lampadaLed('orbita', s) },

@@ -13,20 +13,20 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261120y';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120y';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261120y';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261120y';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261120y';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120y';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120y';
-import { parametri } from '../parametri.js?v=20261120y';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120y';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120y';
+} from './modello.js?v=20261120z';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120z';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261120z';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261120z';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261120z';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120z';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120z';
+import { parametri } from '../parametri.js?v=20261120z';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120z';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120z';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120y';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120z';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261120y';
+export { telaPavimento } from '../resa.js?v=20261120z';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -705,7 +705,7 @@ export function montaScena3d(canvas, progetto) {
   scene.add(gruppo);
   aggiornaScena3d(progetto, true);
 
-  resa = creaResa({ renderer, scene, camera, raggio: 280, intensita: 0.9, prima: muriVisibili, fuoriAO: () => _aloni });
+  resa = creaResa({ renderer, scene, camera, raggio: 280, intensita: 0.9, prima: muriVisibili, fuoriAO: () => _aloni.concat(vetriInScena()) });
   window.addEventListener('resize', forzaResize3d);
   animazioneAttiva = true;
   animate();
@@ -1938,6 +1938,23 @@ const LED_COLORI = {
 const LUCE_CALDA = 0xffeede;                          // ~3700 K: neutra con un filo di caldo (tra i LED «neutro» e «caldo»)
 const MAX_LUCI_LAMPADE = 8;                           // coni di luce vera in tutto (oltre: brillano soltanto; telefono)
 let _luciLampade = 0, _riverberi = 0, _aloni = [];                 // aloni delle lampade: fuori dalle ombre di contatto
+// VETRO trasparente (sfere delle lampade, bicchieri, vasi): fuori dalle ombre di contatto. Le ombre di
+// contatto si calcolano dalla forma delle superfici: l'interno di una sfera di vetro risultava un
+// angolo chiuso e si riempiva di puntini scuri, come vetro sporco. Il vetro è trasparente: le ombre
+// devono essere quelle delle cose che stanno dietro. (Ricerca ogni ~0,7 s: gli oggetti arrivano anche dopo.)
+let _vetri = [], _vetriT = -1e9;
+function vetriInScena() {
+  const t = performance.now();
+  if (t - _vetriT > 700 && scene) {
+    _vetriT = t; _vetri = [];
+    scene.traverse((o) => {
+      if (!o.isMesh) return;
+      const m = o.material;
+      if (m && (Array.isArray(m) ? m.some((x) => x && x.transmission > 0) : m.transmission > 0)) _vetri.push(o);
+    });
+  }
+  return _vetri;
+}
 const _matAcceso = new WeakMap();
 const PAROLE_LUCE = /glass|vetro|bulb|globe|opal|diffus|emiss|lampadin|paralum|neon|\bled\b|flame|candle|frost/;   // NON «lamp»/«light»: spesso è tutta la lampada
 function materialeAcceso(m, nomeMesh) {
@@ -2000,11 +2017,15 @@ function accendiLampada(og) {
   // LAMPADE LUNGHE (barre, file di paralumi): 2–4 punti di luce lungo la lunghezza, così la luce
   // copre tutta l'isola o il tavolo (non un solo cono al centro)
   const largo = Math.max(dim.x, dim.z), lungoX = dim.x >= dim.z;
-  const n = largo > 900 ? Math.min(4, Math.max(2, Math.round(largo / 520))) : 1;
+  // LAMPADINE DICHIARATE: una lampada può segnare dove sono le sue lampadine (un segnaposto con
+  // userData.puntoLuce, es. una per ogni sfera di un lampadario a più pendenti): la luce parte da lì
+  const segnati = [];
+  og.traverse((o) => { if (o.userData && o.userData.puntoLuce) segnati.push(o.getWorldPosition(new THREE.Vector3())); });
+  const n = segnati.length || (largo > 900 ? Math.min(4, Math.max(2, Math.round(largo / 520))) : 1);
   // lampade LUNGHE: la luce parte da sotto il corpo (non dal centro: nelle forme aperte, come le
   // eliche di nastri LED, illuminava l'interno scuro della lampada e lo faceva sembrare lucido)
   const yL = n > 1 ? corpo.min.y - 5 : dim.y > 260 ? corpo.min.y + Math.min(dim.y * 0.3, 160) : c.y;
-  const punti = Array.from({ length: n }, (_, i) => {
+  const punti = segnati.length ? segnati.map((p) => og.worldToLocal(p)) : Array.from({ length: n }, (_, i) => {
     const t = n === 1 ? 0 : -largo / 2 + (largo * (i + 0.5)) / n;
     return og.worldToLocal(new THREE.Vector3(c.x + (lungoX ? t : 0), yL, c.z + (lungoX ? 0 : t)));
   });
@@ -2016,9 +2037,10 @@ function accendiLampada(og) {
       bulbo.position.copy(p); bulbo.userData.senzaOmbra = true; og.add(bulbo);
     }
   }
-  const r = n === 1 ? Math.min(420, Math.max(140, passo * 0.7)) : Math.min(300, Math.max(120, passo * 0.45));
-  // lampade lunghe: niente aloni (facevano 3–4 macchie tonde, come lampadine); brilla la linea LED
-  for (const p of (n === 1 ? punti : [])) {
+  const r = segnati.length > 1 ? 170 : n === 1 ? Math.min(420, Math.max(140, passo * 0.7)) : Math.min(300, Math.max(120, passo * 0.45));
+  // lampade lunghe: niente aloni (facevano 3–4 macchie tonde, come lampadine); brilla la linea LED.
+  // Le lampadine DICHIARATE invece sono lampadine vere: ognuna ha il suo alone
+  for (const p of (n === 1 || segnati.length ? punti : [])) {
     const alone = new THREE.Sprite(new THREE.SpriteMaterial({ map: texAlone(), color: LUCE_CALDA, transparent: true, opacity: n === 1 ? 0.3 : 0.18,
       blending: THREE.AdditiveBlending, depthWrite: false }));
     alone.scale.set(r, r, 1); alone.position.copy(p); alone.userData.alone = n === 1 ? true : 'lungo'; alone.userData.senzaOmbra = true; alone.renderOrder = 6;

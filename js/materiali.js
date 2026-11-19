@@ -15,8 +15,8 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261120y';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261120y';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261120z';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261120z';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -402,6 +402,15 @@ export const MATERIALI = [
   { id: 'cm-ds-lux-nastro-doppio-160-oro', nome: 'Lampada di lusso «Doppia onda» LED, oro, 160 cm', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-nastro-doppio-160-oro', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/ds-lux-nastro-doppio-160-oro.jpg', texture: 'oggetti/moderni/miniature/ds-lux-nastro-doppio-160-oro.jpg', colore: 0xd8d2c8,
     misure: { w: 1610, d: 180, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lux-sfere-vetro-3', nome: 'Lampada «Sfere di vetro», 3 luci, 67 cm, vetro trasparente', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-sfere-vetro-3', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lux-sfere-vetro-3.jpg', texture: 'oggetti/moderni/miniature/ds-lux-sfere-vetro-3.jpg', colore: 0xd8d2c8,
+    misure: { w: 670, d: 150, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lux-sfere-vetro-4', nome: 'Lampada «Sfere di vetro», 4 luci, 86 cm, vetro trasparente e cromato', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-sfere-vetro-4', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lux-sfere-vetro-4.jpg', texture: 'oggetti/moderni/miniature/ds-lux-sfere-vetro-4.jpg', colore: 0xd8d2c8,
+    misure: { w: 860, d: 150, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
+  { id: 'cm-ds-lux-sfere-vetro-5', nome: 'Lampada «Sfere di vetro», 5 luci, 123 cm, vetro trasparente', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-sfere-vetro-5', linea: 'Design',
+    thumb: 'oggetti/moderni/miniature/ds-lux-sfere-vetro-5.jpg', texture: 'oggetti/moderni/miniature/ds-lux-sfere-vetro-5.jpg', colore: 0xd8d2c8,
+    misure: { w: 1230, d: 150, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
   { id: 'cm-ds-lux-onda-sfere-oro', nome: 'Lampada di lusso, onda oro con sfere di vetro luminose', appeso: true, categoria: 'oggetto', sezione: 'oggetti', moderno: 'ds-lux-onda-sfere-oro', linea: 'Design',
     thumb: 'oggetti/moderni/miniature/ds-lux-onda-sfere-oro.jpg', texture: 'oggetti/moderni/miniature/ds-lux-onda-sfere-oro.jpg', colore: 0xd8d2c8,
     misure: { w: 1295, d: 100, h: 2700 }, info: { note: 'Collezione Design NG Interior' } },
@@ -499,7 +508,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261120y');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261120z');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -628,7 +637,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261120y';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261120z';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
@@ -641,7 +650,8 @@ const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'l
   'ds-lux-mikado': 'luci', 'ds-lux-ovali': 'luci', 'ds-lux-onda': 'luci', 'ds-lux-elica': 'luci', 'ds-lux-noce': 'luci', 'ds-lux-costellazione': 'luci', 'ds-lux-prisma': 'luci', 'ds-lux-catena': 'luci',
   'ds-lux-nastro-onde-bianco': 'luci', 'ds-lux-nastro-onde-nero': 'luci', 'ds-lux-nastro-onde-oro': 'luci', 'ds-lux-nastro-ritorto-nero': 'luci', 'ds-lux-nastro-ritorto-oro': 'luci', 'ds-lux-onda-sfere-oro': 'luci', 'ds-lux-onda-sfere-nero': 'luci',
   'ds-lux-nastro-doppio-nero': 'luci', 'ds-lux-nastro-doppio-bianco': 'luci', 'ds-lux-nastro-doppio-oro': 'luci',
-  'ds-lux-nastro-doppio-160-nero': 'luci', 'ds-lux-nastro-doppio-160-bianco': 'luci', 'ds-lux-nastro-doppio-160-oro': 'luci' };
+  'ds-lux-nastro-doppio-160-nero': 'luci', 'ds-lux-nastro-doppio-160-bianco': 'luci', 'ds-lux-nastro-doppio-160-oro': 'luci',
+  'ds-lux-sfere-vetro-3': 'luci', 'ds-lux-sfere-vetro-4': 'luci', 'ds-lux-sfere-vetro-5': 'luci' };
 for (const m of MATERIALI) {
   if (!m.moderno) continue;
   m.gruppo = GRUPPO_COLLEZIONE[m.moderno] || 'cucina';
