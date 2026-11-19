@@ -12,11 +12,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { profonditaCarcassa, profonditaFiancoInterno } from './calcoli.js?v=20261111b';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261120b';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261120b';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261120b';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261120d';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261120d';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261120d';
 import { sfondoDi } from './sfondi.js?v=20261111b';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261120b';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261120d';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -171,13 +171,14 @@ function creaAmbiente(rnd) {
  * Cambia lo sfondo/pavimento/griglia della vista 3D (solo estetica: luci e
  * riflessi restano identici). id: 'chiaro' | 'neutro' | 'scuro'.
  */
-export function impostaSfondo(id) {
-  if (!scene || id === sfondoAttuale) return;
-  sfondoAttuale = id;
+let pavimentoAttuale = null;
+export function impostaSfondo(id, pavimento = pavimentoAttuale) {
+  if (!scene || (id === sfondoAttuale && (pavimento || null) === pavimentoAttuale)) return;
+  sfondoAttuale = id; pavimentoAttuale = pavimento || null;
   const sf = sfondoDi(id);
   scene.background = new THREE.Color(sf.bg);
-  // pavimento vero (parquet / gres), niente griglia da disegno tecnico
-  if (floorMesh) { floorMesh.material.dispose(); floorMesh.material = pavimentoVero(id, sf.pav, 30000, 30000, () => { if (resa) resa.cambiato(); }); }
+  // pavimento vero (parquet / gres, o quello scelto: legni, marmi, pietre), niente griglia da disegno tecnico
+  if (floorMesh) { floorMesh.material.dispose(); floorMesh.material = pavimentoVero(id, sf.pav, 30000, 30000, () => { if (resa) resa.cambiato(); }, pavimentoAttuale); }
   if (gridMesh) { scene.remove(gridMesh); gridMesh = null; }
   if (resa) resa.cambiato();
 }
@@ -501,7 +502,7 @@ export function aggiornaScena(config) {
   _cfgUltima = config;
   if (resa) resa.cambiato();
   _zoneModuli = []; _selRip = null;
-  impostaSfondo(config.sfondo || 'chiaro');
+  impostaSfondo(config.sfondo || 'chiaro', config.pavimento || null);
   // Pulisce i figli precedenti
   // (tutti i pezzi, anche quelli dentro i gruppi: prima solo il primo livello e la memoria
   // della scheda grafica cresceva a ogni modifica)

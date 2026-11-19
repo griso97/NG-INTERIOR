@@ -13,19 +13,20 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261120b';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120b';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261120b';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261120b';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261120b';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120b';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120b';
-import { parametri } from '../parametri.js?v=20261120b';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120b';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120b';
+} from './modello.js?v=20261120d';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120d';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261120d';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261120d';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261120d';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120d';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120d';
+import { parametri } from '../parametri.js?v=20261120d';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120d';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120d';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120b';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120d';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
+export { telaPavimento } from '../resa.js?v=20261120d';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -2195,7 +2196,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   const cxF = (bb.minX + bb.maxX) / 2, czF = -(bb.minY + bb.maxY) / 2;
   // PAVIMENTO VERO (parquet o gres, secondo lo sfondo), niente griglia da disegno tecnico
   const pav = new THREE.Mesh(new THREE.PlaneGeometry(padW, padD),
-    pavimentoVero(progetto.sfondo || 'chiaro', sf.pav, padW, padD, () => { if (resa) resa.cambiato(); }));
+    pavimentoVero(progetto.sfondo || 'chiaro', sf.pav, padW, padD, () => { if (resa) resa.cambiato(); }, progetto.pavimento));
   pav.rotation.x = -Math.PI / 2; pav.position.set(cxF, 0, czF); pav.userData.pavimento = true; gruppo.add(pav);
 
   // SOFFITTO (solo con «Tetto sì», alla Pianta o nel Rendering): una LASTRA vera, spessa 20 cm,

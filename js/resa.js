@@ -14,6 +14,7 @@
 // =============================================================================
 
 import * as THREE from 'three';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261120d';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
@@ -348,7 +349,8 @@ function telaGres(base) {
   const c = document.createElement('canvas'); c.width = S; c.height = S;
   const g = c.getContext('2d');
   const col = new THREE.Color(base), r = rnd(11);
-  const hex = (cc) => `rgb(${Math.round(cc.r * 255)},${Math.round(cc.g * 255)},${Math.round(cc.b * 255)})`;
+  // il colore va scritto come si vede (sRGB): r/g/b di THREE.Color sono lineari e davano un gres quasi nero
+  const hex = (cc) => '#' + cc.getHexString();
   for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
     const v = col.clone().offsetHSL(0, 0, (r() - 0.5) * 0.03);
     g.fillStyle = hex(v); g.fillRect(i * L * k, j * L * k, L * k, L * k);
@@ -367,11 +369,91 @@ function telaGres(base) {
  * Materiale del pavimento (sfondo: 'chiaro' = parquet, altri = gres del colore
  * dello sfondo) per un piano largo w × d mm. quandoPronto() se la foto arriva dopo.
  */
-export function pavimentoVero(sfondo, colore, w, d, quandoPronto) {
+// -----------------------------------------------------------------------------
+// PAVIMENTI A SCELTA (progetto.pavimento): legni, marmi, pietre, gres. Foto di materiali veri
+// (ambientCG, CC0 — vedi materials/pavimenti/LEGGIMI.txt) alla MISURA VERA: i listoni e le spine
+// sono la foto ripetuta; le LASTRE (marmo, travertino, terrazzo, cemento, scacchiera) le compone il
+// programma: ogni lastra un pezzo diverso della pietra, girato a caso, con le fughe.
+// Senza scelta resta il pavimento di prima (parquet con lo sfondo chiaro, gres con gli altri).
+// -----------------------------------------------------------------------------
+export { PAVIMENTI, GRUPPI_PAVIMENTI };
+const _immaginiPav = {};
+function immaginePav(nome) {
+  if (!_immaginiPav[nome]) _immaginiPav[nome] = new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = `materials/pavimenti/${nome}.jpg`; });
+  return _immaginiPav[nome];
+}
+/** LASTRE (o scacchiera): ogni lastra un pezzo diverso della foto (che si ripete senza giunte), girato
+ *  a caso, un filo più chiara o più scura, con la fuga. La tela copre almeno 2 × 2 lastre (~2,4 m). */
+function telaLastre(p, imgs) {
+  const [lw, lh] = p.lastra;
+  const nx = Math.max(2, Math.round(2400 / lw)), ny = Math.max(2, Math.round(2400 / lh));
+  const MMx = nx * lw, MMy = ny * lh, S = 2048, k = S / Math.max(MMx, MMy);
+  const c = document.createElement('canvas'); c.width = Math.round(MMx * k); c.height = Math.round(MMy * k);
+  const g = c.getContext('2d'), r = rnd(23 + p.id.length);
+  const motivi = imgs.map((im) => g.createPattern(im, 'repeat'));
+  const scala = imgs.map((im) => (p.mm * k) / im.width);          // la foto copre p.mm millimetri
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const q = p.tipo === 'scacchi' ? (i + j) % 2 : 0, im = imgs[q];
+    const x = i * lw * k, y = j * lh * k, w = lw * k, h = lh * k;
+    g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+    g.translate(x + w / 2, y + h / 2); if (r() < 0.5) g.rotate(Math.PI);
+    g.translate(-w / 2 - r() * im.width * scala[q], -h / 2 - r() * im.height * scala[q]);
+    g.scale(scala[q], scala[q]); g.fillStyle = motivi[q];
+    g.fillRect(0, 0, (w + im.width * scala[q] * 2) / scala[q], (h + im.height * scala[q] * 2) / scala[q]);
+    g.restore();
+    const t = r();
+    g.fillStyle = t < 0.5 ? `rgba(0,0,0,${0.015 + r() * 0.04})` : `rgba(255,255,255,${0.015 + r() * 0.04})`;
+    g.fillRect(x, y, w, h);
+  }
+  // fughe (2 mm, almeno 1 px), sui bordi della tela metà per lato: ripetuta torna intera
+  const f = Math.max(1, 2 * k);
+  g.fillStyle = p.fuga;
+  for (let i = 0; i <= nx; i++) g.fillRect(i * lw * k - f / 2, 0, f, c.height);
+  for (let j = 0; j <= ny; j++) g.fillRect(0, j * lh * k - f / 2, c.width, f);
+  return { c, mmX: MMx, mmY: MMy };
+}
+const _pavScelti = {};
+/** La TELA (canvas o immagine) di un pavimento e i millimetri che copre: { c, mmX, mmY } (promessa). */
+export async function telaPavimento(id) {
+  const p = PAVIMENTI.find((x) => x.id === id);
+  if (!p) return null;
+  if (!_pavScelti[id]) {
+    _pavScelti[id] = (async () => {
+      if (p.tipo === 'foto') { const im = await immaginePav(p.img); return { c: im, mmX: p.mm, mmY: p.mm * im.height / im.width }; }
+      if (p.tipo === 'lastre' || p.tipo === 'scacchi') { const imgs = await Promise.all([].concat(p.img).map(immaginePav)); return telaLastre(p, imgs); }
+      if (p.tipo === 'parquet') { const im = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = 'materials/r3-supra-oak.jpg'; }); const t = telaParquet(im); return { c: t.c, mmX: t.mm, mmY: t.mm }; }
+      const t = telaGres(p.colore); return { c: t.c, mmX: t.mm, mmY: t.mm };
+    })();
+  }
+  return _pavScelti[id];
+}
+const _texPav = {};
+/** Materiale di un pavimento scelto, per un piano w × d mm. quandoPronto() quando la foto arriva. */
+export function materialePavimento(id, w, d, quandoPronto) {
+  const p = PAVIMENTI.find((x) => x.id === id) || PAVIMENTI[0];
+  const m = new THREE.MeshStandardMaterial({ color: 0xb8b0a4, roughness: p.rough, metalness: 0, envMapIntensity: p.env });
+  telaPavimento(p.id).then((t) => {
+    if (!_texPav[p.id]) {
+      const tex = t.c instanceof HTMLImageElement ? new THREE.Texture(t.c) : new THREE.CanvasTexture(t.c);
+      tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 16; tex.needsUpdate = true;
+      _texPav[p.id] = tex;
+    }
+    // la STESSA texture (un pavimento per scena): una copia con needsUpdate la rimandava tutta
+    // alla scheda grafica a ogni ricostruzione della scena (2048 × 2048: pesante sul telefono)
+    const tx = _texPav[p.id];
+    tx.repeat.set(w / t.mmX, d / t.mmY);
+    m.map = tx; m.color.setScalar(p.tono || 1); m.needsUpdate = true;
+    if (quandoPronto) quandoPronto();
+  }).catch(() => { /* foto non arrivata: resta il colore */ });
+  return m;
+}
+
+export function pavimentoVero(sfondo, colore, w, d, quandoPronto, scelto = null) {
+  if (scelto && PAVIMENTI.some((x) => x.id === scelto)) return materialePavimento(scelto, w, d, quandoPronto);
   const parquet = sfondo === 'chiaro';
   const m = new THREE.MeshStandardMaterial({ color: parquet ? 0xb89a76 : colore, roughness: parquet ? 0.62 : 0.5, metalness: 0, envMapIntensity: 0.45 });
   const applica = (p) => {
-    const t = p.tex.clone(); t.needsUpdate = true;
+    const t = p.tex;                                   // la stessa texture: niente nuovo invio alla scheda grafica
     t.repeat.set(w / p.mm, d / p.mm);
     m.map = t; m.color.set(0xffffff); m.needsUpdate = true;
   };

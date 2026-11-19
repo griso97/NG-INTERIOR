@@ -24,14 +24,15 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto,
-} from './modello.js?v=20261120b';
-import { renderPianta } from './pianta.js?v=20261120b';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261120b';
-import { calcolaDistintaCucina } from './distinta.js?v=20261120b';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261120b';
-import { agganciaTema } from '../tema.js?v=20261120b';
-import { tendinePannello } from '../tendine-pannello.js?v=20261120b';
-import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261120b';
+} from './modello.js?v=20261120d';
+import { renderPianta } from './pianta.js?v=20261120d';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261120d';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261120d';
+import { calcolaDistintaCucina } from './distinta.js?v=20261120d';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261120d';
+import { agganciaTema } from '../tema.js?v=20261120d';
+import { tendinePannello } from '../tendine-pannello.js?v=20261120d';
+import { esportaExcel, apriModelloExcel } from '../modello-export.js?v=20261120d';
 
 // --- Stato iniziale: ultimo progetto salvato, oppure default ---
 const progettoSalvato = caricaProgetto();
@@ -1070,8 +1071,13 @@ let scena3dMod = null;      // modulo importato dinamicamente
 let scena3dMontata = false;
 
 // Click nel 3D: seleziona il mobile toccato (per vederlo/modificarlo)
+// (girando la vista col mouse, al rilascio arriva un «click»: se il puntatore si è mosso non è
+// un tocco per scegliere, e il pannello non deve cambiare)
+let _giuXY = null;
+canvas3d.addEventListener('pointerdown', (e) => { _giuXY = [e.clientX, e.clientY]; }, true);
 canvas3d.addEventListener('click', (e) => {
   if (ignoraClick) return;
+  if (_giuXY && Math.hypot(e.clientX - _giuXY[0], e.clientY - _giuXY[1]) > 6) return;
   if (progetto.stepCorrente !== P_3D || !scena3dMod || !scena3dMod.pickMobile) return;
   const id = scena3dMod.pickMobile(e.clientX, e.clientY);
   if (id === step2.mobSelId) return;
@@ -1257,6 +1263,25 @@ function postoPerOggetto(m) {
     }
   }
   return {};
+}
+
+// --------- PAVIMENTO: legni, marmi e pietre, gres (foto vere alla misura vera, lastre con le fughe) ---------
+function htmlPavimento() {
+  const L = PAVIMENTI, G = GRUPPI_PAVIMENTI;
+  const sel = progetto.pavimento || '', voce = L.find((p) => p.id === sel);
+  return `
+    <section class="step3-pannello">
+      <h3>Pavimento</h3>
+      <div class="riga-3d" style="margin-bottom:6px">${voce ? `<strong>${escHtml(voce.nome)}</strong>` : 'Automatico: parquet con lo sfondo chiaro, gres con gli altri.'}</div>
+      ${G.map((g) => `
+      <div class="riga-3d" style="margin:8px 0 4px;opacity:.75">${g}</div>
+      <div class="palette-colori">
+        ${L.filter((p) => p.gruppo === g).map((p) => `<div class="swatch-voce ${p.id === sel ? 'sel' : ''}">
+          <button type="button" class="swatch ${p.id === sel ? 'sel' : ''}" data-pav="${p.id}" title="${escHtml(p.nome)}" style="background-image:url('materials/pavimenti/miniature/${p.id}.jpg')"></button>
+          <span class="swatch-nome">${escHtml(p.nome.split(' · ')[0])}</span></div>`).join('')}
+      </div>`).join('')}
+      ${sel ? '<button type="button" class="btn-ghost btn-mini" data-pav="" style="margin-top:8px;width:100%">↺ Pavimento automatico</button>' : ''}
+    </section>`;
 }
 
 // --------- TETTO: sì / no e altezza dei muri (alla Pianta e nel Rendering, è la stessa scelta) ---------
@@ -1475,6 +1500,7 @@ function renderPannelloStep3d() {
           <span class="et-zocc">${z.nome}</span>`).join('')}
       </div>
     </section>
+    ${htmlPavimento()}
     <section class="step3-pannello">
       <h3>Sfondo</h3>
       <div class="palette-zoccolo">
@@ -1565,6 +1591,11 @@ function renderPannelloStep3d() {
     progetto.zoccoloColore = b.dataset.zocc;
     aggiorna();
   }));
+  pannello.querySelectorAll('[data-pav]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    progetto.pavimento = b.dataset.pav || null;
+    aggiorna();
+  }));
   pannello.querySelectorAll('.swatch-zocc[data-sfondo]').forEach((b) => b.addEventListener('click', () => {
     progetto.sfondo = b.dataset.sfondo;
     aggiorna();
@@ -1591,7 +1622,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261120b');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261120d');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2323,13 +2354,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261120b');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261120d');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261120b'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261120d'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

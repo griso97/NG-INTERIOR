@@ -5,22 +5,23 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261120b';
+import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261120d';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo, fotoRealisticaArmadio,
   iniziaSpostamentoRipiano, muoviSpostamentoRipiano, fineSpostamentoRipiano,
   toccoArmadio, ripianiCorrenti, posizioneNuovoRipiano, evidenziaRipiano,
-} from './scena3d.js?v=20261120b';
-import { SFONDI_LISTA } from './sfondi.js?v=20261120b';
-import { agganciaTema } from './tema.js?v=20261120b';
-import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli } from './interfaccia.js?v=20261120b';
-import { tendinePannello } from './tendine-pannello.js?v=20261120b';
-import { renderDistinta } from './distinta.js?v=20261120b';
-import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261120b';
-import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261120b';
+} from './scena3d.js?v=20261120d';
+import { SFONDI_LISTA } from './sfondi.js?v=20261120d';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261120d';
+import { agganciaTema } from './tema.js?v=20261120d';
+import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli } from './interfaccia.js?v=20261120d';
+import { tendinePannello } from './tendine-pannello.js?v=20261120d';
+import { renderDistinta } from './distinta.js?v=20261120d';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261120d';
+import { esportaExcel, apriModelloExcel } from './modello-export.js?v=20261120d';
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js?v=20261120b';
+} from './storage.js?v=20261120d';
 
 // PANNELLO ORDINATO: ogni sezione è una tendina (chiusa, si apre toccando il titolo);
 // la prima volta aperte solo Tipo armadio e Dimensioni. Poi resta come la lasci.
@@ -80,15 +81,24 @@ function agganciaSfondo() {
   const cont = document.getElementById('sfondo-3d');
   if (!cont) return;
   const attuale = config.sfondo || 'chiaro';
+  // pavimento: legni, marmi e pietre, gres (come nella cucina); vuoto = automatico dallo sfondo
+  const pav = config.pavimento || '';
   cont.innerHTML = SFONDI_LISTA.map((s) => `<button type="button" class="sfondo-btn ${s.id === attuale ? 'on' : ''}"
-    data-sfondo="${s.id}" title="Sfondo ${s.nome}" style="background:${s.css}"></button>`).join('');
+    data-sfondo="${s.id}" title="Sfondo ${s.nome}" style="background:${s.css}"></button>`).join('')
+    + `<select class="sfondo-pav" title="Pavimento" aria-label="Pavimento"><option value="">Pavimento automatico</option>${GRUPPI_PAVIMENTI.map((g) => `<optgroup label="${g}">${
+      PAVIMENTI.filter((p) => p.gruppo === g).map((p) => `<option value="${p.id}" ${p.id === pav ? 'selected' : ''}>${p.nome.split(' · ')[0]}</option>`).join('')}</optgroup>`).join('')}</select>`;
   cont.querySelectorAll('.sfondo-btn').forEach((b) => b.addEventListener('click', () => {
     config.sfondo = b.dataset.sfondo;
-    impostaSfondo(config.sfondo);
+    impostaSfondo(config.sfondo, config.pavimento || null);
     cont.querySelectorAll('.sfondo-btn').forEach((x) => x.classList.toggle('on', x === b));
     try { salvaLocale(config); } catch (_) { /* no-op */ }
   }));
-  impostaSfondo(attuale);
+  cont.querySelector('.sfondo-pav')?.addEventListener('change', (e) => {
+    config.pavimento = e.target.value || null;
+    impostaSfondo(config.sfondo || 'chiaro', config.pavimento);
+    try { salvaLocale(config); } catch (_) { /* no-op */ }
+  });
+  impostaSfondo(attuale, pav || null);
 }
 
 function onChange(nuovaConfig, opzioni = {}) {
@@ -147,7 +157,7 @@ function agganciaExport(distinta) {
   if (btnMod) btnMod.onclick = () => apriModelloExcel({ pezzi: pezziModello(), progetto: progettoNome });
   const btnFoto = document.getElementById('btn-foto-reale');
   if (btnFoto) btnFoto.onclick = async () => {
-    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261120b');
+    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261120d');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaArmadio(p), tela3d: document.getElementById('canvas3d'), nome: 'armadio' });
   };
   const btnImg = document.getElementById('btn-img');

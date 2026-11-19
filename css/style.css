@@ -736,3 +736,8 @@ table.distinta td.qta {
   .distinta-tab { position: static; width: calc(100% - 32px); margin: 10px 16px; justify-content: center; padding: 14px; font-size: 13px; }
   .app.distinta-chiusa .distinta-tab { right: auto; }
 }
+/* pavimento della vista 3D degli armadi (accanto ai colori di sfondo) */
+.sfondo-3d .sfondo-pav {
+  height: 26px; max-width: 150px; font-size: 12px; border-radius: 13px; padding: 0 8px;
+  background: rgba(20, 20, 22, 0.75); color: #e8e2d4; border: 1px solid rgba(201, 169, 97, 0.55);
+}
