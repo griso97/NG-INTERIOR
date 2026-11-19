@@ -1,2 +1,3 @@
 Frutta scansionata da Poly Haven (polyhaven.com), licenza CC0 (pubblico dominio):
-lemon, food_pears_asian_01, food_apple_01, food_lime_01, food_pomegranate_01, bananas, food_avocado_01, food_kiwi_01 — modelli glTF 1k con le loro texture.
+lemon, food_pears_asian_01, food_apple_01, food_lime_01, food_pomegranate_01, bananas, food_avocado_01, food_kiwi_01.
+In frutta/: un file .glb per frutto, compresso (geometria meshopt, texture WebP 512 px).

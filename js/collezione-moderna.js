@@ -3,11 +3,11 @@
 // Oggetti d'arredo per cucine di livello, modellati qui (nostri, nessuna licenza):
 // fruttiere, vasi, rami d'ulivo, taglieri, libri, olio e aceto, barattoli, sgabelli.
 // Misure vere in mm; materiali: ceramica opaca, marmo, noce, rovere, ottone, vetro,
-// metallo nero. La frutta è scansionata dal vero (Poly Haven, CC0: oggetti/moderni).
+// metallo nero. La frutta è scansionata dal vero (Poly Haven, CC0: oggetti/moderni/frutta).
 // Assi: x larghezza, y altezza (0 = appoggio), z profondità (+ = davanti).
 // =============================================================================
 import * as THREE from 'three';
-import { coloreLampada } from './colori-lampade.js?v=20261121f';
+import { coloreLampada } from './colori-lampade.js?v=20261121g';
 
 const qui = (p) => new URL(p, import.meta.url).href;
 
@@ -235,12 +235,11 @@ const _frutti = new Map();
 async function frutto(id) {
   if (!_frutti.has(id)) {
     _frutti.set(id, (async () => {
-      const { GLTFLoader } = await import('../vendor/three/addons/loaders/GLTFLoader.js');
       if (id.startsWith('proc:')) return [fruttoDisegnato(id.slice(5))];
       if (id.startsWith('lib:')) {
         // un modello della LIBRERIA (es. il pane), intero, alla scala chiesta: "lib:<id>@<scala>"
         const [nome, sc] = id.slice(4).split('@');
-        const { caricaGLB } = await import('./carica-glb.js?v=20261121f');
+        const { caricaGLB } = await import('./carica-glb.js?v=20261121g');
         const gl = await caricaGLB(qui(`../oggetti/libreria/${nome}.glb`));
         gl.scene.updateMatrixWorld(true);
         const g0 = new THREE.Group();
@@ -251,7 +250,9 @@ async function frutto(id) {
         const g = new THREE.Group(); g.add(g0); g.userData.r = Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z) / 2;
         return [g];
       }
-      const gl = await new GLTFLoader().loadAsync(qui(`../oggetti/moderni/${id}/${id}.gltf`));
+      // file unico compresso (geometria meshopt, texture WebP 512): pochi KB invece di 0,5-2,4 MB
+      const { caricaGLB } = await import('./carica-glb.js?v=20261121g');
+      const gl = await caricaGLB(qui(`../oggetti/moderni/frutta/${id}.glb`));
       gl.scene.updateMatrixWorld(true);
       const pezzi = [];
       gl.scene.traverse((o) => { if (o.isMesh) pezzi.push(o); });
