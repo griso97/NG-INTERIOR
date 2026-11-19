@@ -13,20 +13,20 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261120i';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120i';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261120i';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261120i';
-import { oggettoModerno } from '../collezione-moderna.js?v=20261120i';
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120i';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120i';
-import { parametri } from '../parametri.js?v=20261120i';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120i';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120i';
+} from './modello.js?v=20261120j';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261120j';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261120j';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261120j';
+import { oggettoModerno } from '../collezione-moderna.js?v=20261120j';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261120j';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261120j';
+import { parametri } from '../parametri.js?v=20261120j';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261120j';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261120j';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120i';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261120j';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261120i';
+export { telaPavimento } from '../resa.js?v=20261120j';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -579,7 +579,43 @@ function riflettiStanza(radice, rnd) {
 }
 
 // Ambiente IBL: gradiente (soffitto chiaro → pavimento scuro) per riflessi soft.
-let _envGiorno = null, _envSera = null;
+let _envGiorno = null, _envSera = null, _sfondoBase = null;
+// ---------------------------------------------------------------------------
+// LUCE ESTERNA (0 = notte, 1 = pieno giorno): quanta luce arriva da fuori. Di notte restano solo
+// le lampade accese e i LED; le lampade si fanno più forti e l'alone più visibile (come all'occhio
+// al buio). Si regola dal vivo con lo slider, senza rifare la scena.
+// ---------------------------------------------------------------------------
+const LUCE_NOTTE = [0.03, 0.035, 0, 0.02, 0.02];          // emisfero, ambiente, sole, riempimento, controluce
+const _envLuce = new Map();
+export function luceEsternaDi(progetto) {
+  const v = Number(progetto && progetto.luceEsterna);
+  if (progetto && progetto.luceEsterna != null && Number.isFinite(v)) return Math.min(1, Math.max(0, v));
+  return progetto && progetto.atmosfera === 'sera' ? 0.3 : 1;
+}
+function applicaLuceEsterna(v) {
+  if (!scene || !renderer) return;
+  luciAmbiente.forEach(({ l, base }, i) => { const m = LUCE_NOTTE[i] ?? 0.02; l.intensity = base * (m + (1 - m) * v); });
+  if (!_envGiorno) _envGiorno = scene.environment;
+  const q = Math.round(v * 20) / 20;
+  if (q >= 1) scene.environment = _envGiorno;
+  else {
+    if (!_envLuce.has(q)) {
+      // al massimo 3 ambienti in memoria oltre a quello del giorno
+      if (_envLuce.size >= 3) { const [k, t] = _envLuce.entries().next().value; if (t !== scene.environment) { t.dispose(); _envLuce.delete(k); } }
+      _envLuce.set(q, creaAmbiente(renderer, Math.max(0.04, q)));
+    }
+    scene.environment = _envLuce.get(q);
+  }
+  if (_sfondoBase) scene.background = _sfondoBase.clone().multiplyScalar(0.1 + 0.9 * v);
+  const notte = 1 - v;
+  if (gruppo) gruppo.traverse((o) => {
+    if (o.userData.luceLampada) o.intensity = 1800 + 3800 * notte;
+    else if (o.userData.alone && o.material) o.material.opacity = 0.45 + 0.4 * notte;
+  });
+  if (renderer.shadowMap) renderer.shadowMap.needsUpdate = true;
+}
+/** Slider «Luce esterna»: cambia la luce SUBITO (senza rifare la scena). v = 0 notte … 1 giorno. */
+export function impostaLuceEsterna(v) { applicaLuceEsterna(Math.min(1, Math.max(0, Number(v) || 0))); if (resa) resa.cambiato(); }
 function creaAmbiente(rnd, forza = 1) {
   const c = document.createElement('canvas'); c.width = 16; c.height = 64;
   const x = c.getContext('2d');
@@ -617,7 +653,7 @@ export function montaScena3d(canvas, progetto) {
   canvas.addEventListener('webglcontextlost', () => window.dispatchEvent(new CustomEvent('ng-3d-perso')));
   canvas.addEventListener('webglcontextrestored', () => {
     // la grafica è tornata: rifaccio la luce d'ambiente (era nella memoria persa)
-    try { _envSera = null; scene.environment = _envGiorno = creaAmbiente(renderer); } catch (_) { /* niente */ }
+    try { _envLuce.clear(); scene.environment = _envGiorno = creaAmbiente(renderer); } catch (_) { /* niente */ }
     window.dispatchEvent(new CustomEvent('ng-3d-ripreso'));
   });
   // Resa più realistica: tone mapping cinematografico + colori sRGB
@@ -1936,7 +1972,7 @@ function texAlone() {
   return _texAlone;
 }
 /** Accende una lampada (gruppo og già alle sue misure; plafoniera = attaccata al soffitto). */
-function accendiLampada(og, sera = false) {
+function accendiLampada(og) {
   og.updateMatrixWorld(true);
   const corpo = new THREE.Box3(), tmp = new THREE.Box3(), sz = new THREE.Vector3();
   let parti = 0;
@@ -1958,15 +1994,15 @@ function accendiLampada(og, sera = false) {
       new THREE.MeshBasicMaterial({ color: 0xfff1d8 }));
     bulbo.position.copy(p); bulbo.userData.senzaOmbra = true; og.add(bulbo);
   }
-  const alone = new THREE.Sprite(new THREE.SpriteMaterial({ map: texAlone(), color: 0xffffff, transparent: true, opacity: sera ? 0.75 : 0.45,
+  const alone = new THREE.Sprite(new THREE.SpriteMaterial({ map: texAlone(), color: 0xffffff, transparent: true, opacity: 0.45,
     blending: THREE.AdditiveBlending, depthWrite: false }));
   const r = Math.min(520, Math.max(160, largo * 0.85));
   alone.scale.set(r, r, 1); alone.position.copy(p); alone.userData.alone = true; alone.userData.senzaOmbra = true; alone.renderOrder = 6;
   og.add(alone);
   if (_luciLampade < MAX_LUCI_LAMPADE) {
     _luciLampade++;
-    const luce = new THREE.PointLight(LUCE_CALDA, sera ? 4600 : 1800, 5000, 1.0);
-    luce.position.copy(p); luce.castShadow = false; og.add(luce);
+    const luce = new THREE.PointLight(LUCE_CALDA, 1800, 5000, 1.0);
+    luce.position.copy(p); luce.castShadow = false; luce.userData.luceLampada = true; og.add(luce);
   }
 }
 
@@ -2265,12 +2301,6 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   _reRenderMan = () => { if (_lastProgetto) aggiornaScena3d(_lastProgetto, false, selId); };
   // L'illuminazione della scena resta sempre al valore pieno (giorno) sia
   // con i LED spenti che accesi: non si vuole che i LED spengano l'ambiente.
-  // LUCE DELLA STANZA: «giorno» (come sempre) o «sera»: la luce del giorno si abbassa e le lampade
-  // accese e i LED diventano la luce principale (si vede davvero che sono accesi)
-  const sera = progetto.atmosfera === 'sera', FATT_SERA = [0.12, 0.14, 0.06, 0.1, 0.1];
-  luciAmbiente.forEach(({ l, base }, i) => { l.intensity = base * (sera ? FATT_SERA[i] ?? 0.2 : 1); });
-  if (!_envGiorno) _envGiorno = scene.environment;
-  scene.environment = sera ? (_envSera || (_envSera = creaAmbiente(renderer, 0.18))) : _envGiorno;
   leggiParametriAnte();
   while (gruppo.children.length) gruppo.remove(gruppo.children[0]);
   const full = progetto.piano.pareti || [];
@@ -2279,8 +2309,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
 
   // Sfondo/pavimento scelti (solo estetica, non tocca luci/riflessi)
   const sf = sfondoDi(progetto.sfondo);
-  scene.background = new THREE.Color(sf.bg);
-  if (sera) scene.background.multiplyScalar(0.32);
+  _sfondoBase = new THREE.Color(sf.bg); scene.background = _sfondoBase.clone();
 
   // Pavimento + griglia
   // pavimento ampio: il bordo non si vede (come in una foto, il pavimento continua)
@@ -2442,7 +2471,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
         og.position.set(cx, y, cz); og.rotation.y = -(m.rot || 0) * Math.PI / 180; g3d = og;
         if (posa === 'piano') { og.userData.appoggiabile = true; daPosare.push(og); }
         // LAMPADE ACCESE (si possono spegnere: progetto.lampadeAccese = false)
-        if (posa === 'appeso' && def.gruppo === 'luci' && progetto.lampadeAccese !== false) accendiLampada(og, progetto.atmosfera === 'sera');
+        if (posa === 'appeso' && def.gruppo === 'luci' && progetto.lampadeAccese !== false) accendiLampada(og);
       } else if (r) {
         const og = new THREE.Group();
         const mesh = new THREE.Mesh(r.geo, r.mat); mesh.castShadow = true; mesh.receiveShadow = true; og.add(mesh);
@@ -2684,6 +2713,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   // Lavello, piano cottura e rubinetto SOPRA il top
   for (const a of accessori) aggiungiAccessorioTop(a, progetto.finiture || {});
 
+  applicaLuceEsterna(luceEsternaDi(progetto));
   uvInScala(gruppo);
   try { riflettiStanza(gruppo, renderer); } catch (_) { /* senza riflessi va bene lo stesso */ }
   // LED sotto i pensili: la loro luce tinge anche le foto (piano, pannello dietro, ante)
