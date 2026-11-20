@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>/* iPhone e iPad: quando tocchi un campo la pagina NON si ingrandisce da sola (con due dita si può ancora) */
+  (function(){var u=navigator.userAgent;if(/iPhone|iPad|iPod/.test(u)||(navigator.maxTouchPoints>1&&/Macintosh/.test(u))){var m=document.querySelector('meta[name=viewport]');if(m&&!/maximum-scale/.test(m.content))m.content+=', maximum-scale=1';}})();</script>
+  <script src="js/i18n.js?v=20261122s"></script>
+<title>NG Interior · Cucine di esempio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@300;400;500&display=swap">
+<style>
+  :root{
+    --ink:#0a0a0b; --ink-2:#131212;
+    --gold-1:#f6e2a0; --gold-2:#e8c25a; --gold-3:#c8971f;
+    --muted:#8a8470; --bordo:#2a2416; --testo:#f3efe6;
+    --font-display:"Cormorant Garamond", Georgia, serif;
+    --font-ui:"Jost", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;min-height:100%;}
+  body{background:var(--ink);color:var(--gold-2);font-family:var(--font-ui);-webkit-font-smoothing:antialiased;}
+  body::before{content:"";position:fixed;inset:0;z-index:0;background:radial-gradient(130% 100% at 50% 20%,var(--ink-2) 0%,var(--ink) 62%);pointer-events:none;}
+  header{position:relative;z-index:2;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--bordo);}
+  header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,var(--gold-2),transparent);}
+  .brand{font-family:var(--font-display);font-weight:700;letter-spacing:2px;font-size:22px;background:linear-gradient(180deg,var(--gold-1),var(--gold-3));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
+  .back{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-decoration:none;}
+  .back:hover{color:var(--gold-2);}
+  .header-destra{display:flex;align-items:center;gap:18px;}
+  .ng-lingua{--oro:var(--gold-2);--oro-scuro:var(--gold-3);--testo-dim:var(--muted);}
+  main{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:40px 16px 60px;}
+  h1{font-family:var(--font-display);font-weight:500;font-size:clamp(34px,6vw,52px);line-height:1.1;text-align:center;margin:0 0 10px;background:linear-gradient(180deg,#f8e6a6 0%,#e8c25a 52%,#c8971f 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
+  .sottotitolo{font-size:13px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);text-align:center;margin:0 0 34px;}
+  .griglia{display:grid;gap:18px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));}
+  .voce{all:unset;cursor:pointer;display:flex;flex-direction:column;background:linear-gradient(180deg,#171310 0%,#0d0b08 100%);border:1px solid var(--bordo);border-radius:6px;overflow:hidden;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;}
+  .voce:hover,.voce:focus-visible{transform:translateY(-3px);border-color:var(--gold-2);box-shadow:0 18px 50px -20px rgba(232,194,90,.35);}
+  .voce:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .voce .foto{aspect-ratio:16/10;background:#1a1611;overflow:hidden;}
+  .voce img{width:100%;height:100%;object-fit:cover;display:block;}
+  .voce .testo{padding:12px 14px 14px;}
+  .voce .nome{font-family:var(--font-display);font-weight:600;font-size:22px;color:var(--gold-1);line-height:1.15;}
+  .voce .desc{font-size:13px;line-height:1.4;color:var(--muted);margin-top:4px;}
+  .vuoto{text-align:center;color:var(--muted);padding:40px 0;}
+  /* ---- foto a schermo intero ---- */
+  .lb{position:fixed;inset:0;z-index:50;background:#060504;display:flex;flex-direction:column;color:var(--testo);}
+  .lb[hidden]{display:none;}
+  .lb-su{display:flex;align-items:center;gap:12px;padding:12px 16px;}
+  .lb-conta{font-size:12px;letter-spacing:2px;color:var(--muted);white-space:nowrap;}
+  .lb-nome{flex:1;font-family:var(--font-display);font-weight:600;font-size:22px;color:var(--gold-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .lb-chiudi{all:unset;cursor:pointer;width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--bordo);border-radius:50%;color:var(--gold-2);font-size:18px;}
+  .lb-chiudi:hover{border-color:var(--gold-2);}
+  .lb-foto{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;touch-action:pan-y;overflow:hidden;}
+  .lb-foto img{max-width:100%;max-height:100%;object-fit:contain;cursor:pointer;user-select:none;-webkit-user-drag:none;transition:opacity .2s;}
+  .lb-freccia{all:unset;cursor:pointer;position:absolute;top:50%;transform:translateY(-50%);width:46px;height:46px;display:grid;place-items:center;border-radius:50%;background:rgba(10,10,11,.55);border:1px solid rgba(232,194,90,.4);color:var(--gold-1);font-size:22px;}
+  .lb-freccia:hover{border-color:var(--gold-2);}
+  .lb-prec{left:12px;} .lb-succ{right:12px;}
+  .lb-giu{padding:12px 16px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between;}
+  .lb-desc{flex:1 1 320px;font-size:14px;line-height:1.45;color:#cfc6b2;}
+  .lb-usa{all:unset;cursor:pointer;padding:12px 18px;border-radius:999px;background:linear-gradient(180deg,#e8c25a,#a77c16);color:#14110d;font-weight:600;font-size:14px;letter-spacing:.5px;white-space:nowrap;}
+  .lb-usa:hover{filter:brightness(1.08);}
+  .lb-aiuto{width:100%;font-size:12px;color:var(--muted);}
+  /* ---- nome del cliente ---- */
+  .dlg{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:12vh 12px 12px;}
+  .dlg[hidden]{display:none;}
+  .dlg-box{width:min(480px,100%);background:#14110d;color:var(--testo);border:1px solid #8a6a14;border-radius:12px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+  .dlg-box h2{margin:0 0 6px;font:600 18px/1.25 var(--font-ui);color:var(--gold-2);}
+  .dlg-box p{margin:0 0 12px;font-size:13px;line-height:1.45;color:#b8ad97;}
+  .dlg-box label{font-size:13px;color:#d9d0bd;}
+  .dlg-box input{width:100%;margin-top:6px;padding:11px 12px;border-radius:8px;border:1px solid #4a4030;background:#0d0a06;color:#fff;font:16px var(--font-ui);}
+  .dlg-riga{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
+  .dlg-riga button{cursor:pointer;padding:10px 14px;border-radius:8px;border:1px solid #4a4030;background:#1d1912;color:var(--testo);font:14px var(--font-ui);}
+  .dlg-riga .oro{background:linear-gradient(180deg,#c9a94a,#8a6a14);border-color:#c9a94a;color:#14110d;font-weight:600;}
+  .dlg-msg{margin-top:10px;font-size:13px;color:#e69b9b;}
+  @media (max-width:640px){ .lb-freccia{width:40px;height:40px;font-size:19px;} .lb-prec{left:6px;} .lb-succ{right:6px;} .lb-nome{font-size:19px;} }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">NG INTERIOR</div>
+    <div class="header-destra">
+      <div data-lingua="grande"></div>
+      <a class="back" href="./cucina.html">← Cucina</a>
+    </div>
+  </header>
+  <main>
+    <h1>Cucine di esempio</h1>
+    <p class="sottotitolo">Idee pronte da far vedere al cliente</p>
+    <div class="griglia" id="griglia" data-no-i18n></div>
+    <div class="vuoto" id="vuoto" hidden>Nessuna cucina di esempio.</div>
+  </main>
+
+  <div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-label="Cucina di esempio">
+    <div class="lb-su">
+      <span class="lb-conta" id="lb-conta" data-no-i18n></span>
+      <span class="lb-nome" id="lb-nome" data-no-i18n></span>
+      <button type="button" class="lb-chiudi" id="lb-chiudi" aria-label="Chiudi">✕</button>
+    </div>
+    <div class="lb-foto" id="lb-foto">
+      <img id="lb-img" alt="" />
+      <button type="button" class="lb-freccia lb-prec" id="lb-prec" aria-label="Cucina precedente">‹</button>
+      <button type="button" class="lb-freccia lb-succ" id="lb-succ" aria-label="Cucina successiva">›</button>
+    </div>
+    <div class="lb-giu">
+      <div class="lb-desc" id="lb-desc" data-no-i18n></div>
+      <button type="button" class="lb-usa" id="lb-usa">Usala per un cliente →</button>
+      <div class="lb-aiuto">Scorri o usa le frecce per vedere le altre. Tocca la foto per partire da questa cucina.</div>
+    </div>
+  </div>
+
+  <div class="dlg" id="dlg" hidden role="dialog" aria-modal="true">
+    <div class="dlg-box">
+      <h2>Nuovo progetto per un cliente</h2>
+      <p>Si apre una copia di «<span id="dlg-da" data-no-i18n></span>», salvata nei tuoi Preventivi con il nome che scrivi qui. La cucina di esempio resta com'è.</p>
+      <label>Nome del cliente (es. Cucina Rossi)<input type="text" id="dlg-nome" maxlength="120" autocomplete="off" /></label>
+      <div class="dlg-riga">
+        <button type="button" class="oro" id="dlg-ok">Crea e apri</button>
+        <button type="button" id="dlg-annulla">Annulla</button>
+      </div>
+      <div class="dlg-msg" id="dlg-msg" hidden></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/esempi.js?v=20261122s"></script>
+</body>
+</html>

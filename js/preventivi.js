@@ -77,6 +77,33 @@ async function salva(tipo, nome, comeNuovo) {
   return p;
 }
 
+/**
+ * CUCINA DI ESEMPIO → progetto del cliente: una COPIA dell'esempio diventa un preventivo nuovo
+ * con il nome del cliente e il progetto in corso della sua pagina (l'esempio resta com'è).
+ * Il progetto che era aperto prima non si perde: se non era salvato (o era cambiato dopo
+ * il salvataggio) lo metto nei preventivi come «Copia di sicurezza».
+ * Ritorna { pagina, sicurezza } (sicurezza = nome della copia fatta, o null).
+ */
+export async function nuovoDaEsempio(tipo, nome, dati) {
+  if (!TIPI[tipo]) throw new Error('Tipo sconosciuto');
+  const ora = Date.now();
+  let sicurezza = null;
+  const prima = datiCorrenti(tipo), idC = correnteId(tipo);
+  if (prima && Array.isArray(prima.mobiliLiberi) && prima.mobiliLiberi.length) {
+    const salvato = idC ? await leggiPreventivo(idC) : null;
+    if (!salvato || JSON.stringify(salvato.dati) !== JSON.stringify(prima)) {
+      sicurezza = `${t('Copia di sicurezza')} – ${salvato ? salvato.nome : t(TIPI[tipo].nome)} (${data(ora)})`;
+      await scriviPreventivo({ id: nuovoId(), tipo, nome: sicurezza, dati: prima, creato: ora, aggiornato: ora });
+    }
+  }
+  const p = { id: nuovoId(), tipo, nome, dati: JSON.parse(JSON.stringify(dati)), creato: ora + 1, aggiornato: ora + 1 };
+  await scriviPreventivo(p);
+  localStorage.setItem(TIPI[tipo].chiave, JSON.stringify(p.dati));
+  impostaCorrente(tipo, p.id);
+  chiediPersistenza();
+  return { pagina: TIPI[tipo].pagina, sicurezza };
+}
+
 /** Apre un preventivo: lo rimette come progetto in corso e apre la sua pagina. */
 async function apri(id) {
   const p = await leggiPreventivo(id);
