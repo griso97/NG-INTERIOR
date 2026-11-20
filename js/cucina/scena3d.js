@@ -15,28 +15,28 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261122v';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122v';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261122v';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261122v';
+} from './modello.js?v=20261122w';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122w';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261122w';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261122w';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122v').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122w').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122v';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122v';
-import { parametri } from '../parametri.js?v=20261122v';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122v';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122v';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122w';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122w';
+import { parametri } from '../parametri.js?v=20261122w';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122w';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122w';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122v';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122w';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261122v';
+export { telaPavimento } from '../resa.js?v=20261122w';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -442,8 +442,9 @@ function aggiungiAccessorioTop(a, fin = {}) {
     // Piano a induzione in VETROCERAMICA: vetro nero lucido con le zone e i
     // comandi disegnati sul vetro (come quelli veri), riflessi dell'ambiente
     const { pw, pd } = dimPlacca(a.w, a.d, a.fuochi);
-    const sopra = new THREE.MeshPhysicalMaterial({ map: texPiano(pw, pd, a.fuochi), color: 0xffffff, roughness: 0.12,
-      metalness: 0.0, clearcoat: 0.7, clearcoatRoughness: 0.05, envMapIntensity: 0.28 });
+    const sopra = new THREE.MeshPhysicalMaterial({ map: texPiano(pw, pd, a.fuochi), color: 0xffffff, roughness: 0.05,
+      metalness: 0.0, clearcoat: 0.35, clearcoatRoughness: 0.04, envMapIntensity: 0.15 });
+    sopra.userData.riflesso = 0.15;            // come il vetro nero dei forni: nero, la stanza si specchia appena
     // vetro da 6 mm sopra il piano fino a 20 mm dentro il foro; sopra la texture
     const vetro = new THREE.Mesh(new THREE.BoxGeometry(pw, 26, pd),
       [matElVetro, matElVetro, sopra, matElVetro, matElVetro, matElVetro]);
@@ -2100,6 +2101,8 @@ const COLORI_FRIGO = {
              fianco: new THREE.MeshStandardMaterial({ color: 0xb9bcc0, roughness: 0.35, metalness: 0.6 }),
              maniglia: new THREE.MeshStandardMaterial({ color: 0xd9dbde, roughness: 0.25, metalness: 0.9 }) },
 };
+// frigo e lavastoviglie NERI: la stanza dei riflessi a piena forza li faceva grigio chiaro → riflesso morbido
+COLORI_FRIGO.nero.porta.userData.riflesso = 0.35;
 const matFrigoFuga = new THREE.MeshStandardMaterial({ color: 0x3a3b3e, roughness: 0.7, metalness: 0.1 });
 /**
  * FRIGO LIBERO MODERNO (combinato): porte piatte, frigo in alto e congelatore
@@ -2490,7 +2493,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122v')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122w')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -3342,7 +3345,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   }
   const muriPiano = full.map((p, i) => (p.assente ? null : { a: vertici[i], b: vertici[i + 1] })).filter(Boolean);
   // PIANO / TAVOLO: la lastra, gli appoggi e dove il piano dell'isola si deve aprire
-  const tagliPiano = renderTavoli(tavoli, basiTop, spTop, matTop, muriPiano, selId, reRender);
+  const tagliPiano = renderTavoli(tavoli, basiTop, spTop, matTop, muriPiano, selId, reRender, accessori.filter((a) => a.lavello || a.placca));
   renderTopContinui(basiTop, fianchi, spTop, matTop, accessori.filter((a) => a.lavello || a.placca), schienale, muriPiano, tagliPiano);
   // Oggetti: sul piano che c'è DAVVERO sotto (anche la parte di piano che sporge
   // oltre i mobili, es. l'isola dal lato sgabelli, o il piano allungato nell'angolo)
@@ -3626,7 +3629,7 @@ const _matGambe = {
   'gambe-oro': new THREE.MeshStandardMaterial({ color: 0xe2bf72, roughness: 0.3, metalness: 0.75 }),      // come le maniglie «Oro spazzolato»
 };
 _matGambe['una-nera'] = _matGambe['gambe-nere']; _matGambe['una-oro'] = _matGambe['gambe-oro'];
-function renderTavoli(tavoli, basiTop, spTop, matTop, muri, selId, reRender) {
+function renderTavoli(tavoli, basiTop, spTop, matTop, muri, selId, reRender, accessori = []) {
   const tagli = [];
   if (!tavoli.length) return tagli;
   // un punto della pianta (x, y) è dentro il mobile basso b? (stessa rotazione dei mobili nel 3D)
@@ -3661,7 +3664,22 @@ function renderTavoli(tavoli, basiTop, spTop, matTop, muri, selId, reRender) {
     const pietra = !m.materiale || (def && def.categoria === 'encimera');
     const matLastra = base ? (pietra ? materialePerTop(base) : base) : new THREE.MeshStandardMaterial({ color: COL.top, roughness: 0.55, metalness: 0.1 });
     const matFianco = base ? (pietra ? (materialePerSchienale(base) || base) : base) : matLastra;
-    const lastra = corpo(w, sp, d, matLastra);
+    // LAVELLI e PIANI COTTURA sotto una lastra A FILO del piano: la lastra ha i fori come il piano
+    // (senza, la vasca restava piena e il piano cottura spariva sotto la lastra)
+    const fori = [];
+    for (const a of accessori) {
+      if (Math.abs(a.surfaceY - quota) > 3) continue;
+      const dr = ((((a.rot || 0) - (m.rot || 0)) % 180) + 180) % 180;
+      if (dr !== 0 && dr !== 90) continue;
+      let fw, fd, zc = 0;
+      if (a.lavello) { const v = dimVasca(a.w, a.d); fw = v.vw + 6; fd = v.vd + 6; zc = v.zc; }
+      else { const v = dimPlacca(a.w, a.d, a.fuochi); fw = v.pw - 12; fd = v.pd - 12; }
+      const o = new THREE.Object3D(); o.position.set(a.x, 0, -a.y); o.rotation.y = -(a.rot || 0) * Math.PI / 180; o.updateMatrixWorld(true);
+      const c = g.worldToLocal(o.localToWorld(new THREE.Vector3(0, 0, zc)));
+      if (Math.abs(c.x) > w / 2 || Math.abs(c.z) > d / 2) continue;
+      fori.push(dr === 90 ? { u: c.x, v: c.z, w: fd, d: fw } : { u: c.x, v: c.z, w: fw, d: fd });
+    }
+    const lastra = fori.length ? slabConFori(w, sp, d, matLastra, fori) : corpo(w, sp, d, matLastra);
     lastra.position.y = quota - sp / 2;
     lastra.traverse((o) => { if (o.isMesh) { o.userData.appoggio = true; o.castShadow = true; o.receiveShadow = true; } if (o.isLineSegments) o.visible = false; });
     g.add(lastra);

@@ -6,10 +6,10 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261122v';
-import { htmlTendineColori } from './tendine-colori.js?v=20261122v';
-import { misureCostado, binarioArmadio, manigliaTuttaAltezza } from './calcoli.js?v=20261122v';
-import { binariScorrevoli } from './parametri.js?v=20261122v';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261122w';
+import { htmlTendineColori } from './tendine-colori.js?v=20261122w';
+import { misureCostado, binarioArmadio, manigliaTuttaAltezza } from './calcoli.js?v=20261122w';
+import { binariScorrevoli } from './parametri.js?v=20261122w';
 
 export function configDefault() {
   return {
