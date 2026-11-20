@@ -15,28 +15,28 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261122u';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122u';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261122u';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261122u';
+} from './modello.js?v=20261122v';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122v';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261122v';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261122v';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122u').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122v').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122u';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122u';
-import { parametri } from '../parametri.js?v=20261122u';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122u';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122u';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122v';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122v';
+import { parametri } from '../parametri.js?v=20261122v';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122v';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122v';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122u';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122v';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261122u';
+export { telaPavimento } from '../resa.js?v=20261122v';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -743,9 +743,19 @@ export function luceEsternaDi(progetto) {
   if (progetto && progetto.luceEsterna != null && Number.isFinite(v)) return Math.min(1, Math.max(0, v));
   return progetto && progetto.atmosfera === 'sera' ? 0.3 : 1;
 }
+// Con la luce abbassata l'immagine scura (curva dei toni) rinforza il caldo: un bianco appena caldo
+// diventa color crema. Le luci della stanza perdono il caldo man mano che si abbassano → le pareti
+// bianche restano bianche, solo meno luminose.
+const COLORE_NOTTE = { cielo: new THREE.Color(0xeef2ff), terra: new THREE.Color(0x4f5257), sole: new THREE.Color(0xeef2ff) };
 function applicaLuceEsterna(v) {
   if (!scene || !renderer) return;
-  luciAmbiente.forEach(({ l, base }, i) => { const m = LUCE_NOTTE[i] ?? 0.02; l.intensity = base * (m + (1 - m) * v); });
+  luciAmbiente.forEach(({ l, base }, i) => {
+    const m = LUCE_NOTTE[i] ?? 0.02; l.intensity = base * (m + (1 - m) * v);
+    if (!l.userData.col0) l.userData.col0 = { c: l.color.clone(), t: l.groundColor ? l.groundColor.clone() : null };
+    const k = 1 - v, c0 = l.userData.col0;
+    if (l.isHemisphereLight) { l.color.copy(c0.c).lerp(COLORE_NOTTE.cielo, k); l.groundColor.copy(c0.t).lerp(COLORE_NOTTE.terra, k); }
+    else if (l.isDirectionalLight && l === luceOmbre) l.color.copy(c0.c).lerp(COLORE_NOTTE.sole, k);
+  });
   if (!_envGiorno) _envGiorno = scene.environment;
   const q = Math.round(v * 20) / 20;
   if (q >= 1) scene.environment = _envGiorno;
@@ -787,6 +797,40 @@ export function impostaColoreLuci({ led = null, lampade = null } = {}) {
   if (resa) resa.cambiato();
 }
 export function impostaLuceEsterna(v) { applicaLuceEsterna(Math.min(1, Math.max(0, Number(v) || 0))); if (resa) resa.cambiato(); }
+/**
+ * AVANTI E INDIETRO NEL 3D: con la rotella o con due dita la vista si avvicina al punto che
+ * guarda e lì si fermava (sempre più piano, senza mai superarlo): sembrava bloccata.
+ * Ora, arrivati vicino, il punto guardato va avanti insieme alla vista: si continua a camminare
+ * nella stanza. Indietro resta come prima (ci si allontana).
+ */
+function camminaInAvanti(ctrl, cam) {
+  const VICINO = 900, SPINTA = 3;            // mm: sotto questa distanza si cammina; quanto si avanza per scatto
+  let tocco = false, prima = null;
+  const dir = new THREE.Vector3(), ray = new THREE.Raycaster();
+  // davanti c'è un mobile o un muro? (allora non lo attraverso: mi avvicino piano come prima)
+  const ostacolo = (dist) => {
+    if (!gruppo) return false;
+    ray.set(cam.position, dir); ray.far = dist;
+    return ray.intersectObject(gruppo, true).some((h) => h.object.isMesh && h.object.visible && h.object.material && h.object.material.visible !== false
+      && !h.object.userData.soffitto && !h.object.userData.fondoFuga);
+  };
+  ctrl.addEventListener('start', () => { tocco = true; prima = cam.position.distanceTo(ctrl.target); });
+  ctrl.addEventListener('end', () => { tocco = false; });
+  ctrl.addEventListener('change', () => {
+    const d = cam.position.distanceTo(ctrl.target);
+    if (tocco && prima != null && d < VICINO && d < prima - 0.5) {
+      dir.subVectors(ctrl.target, cam.position).normalize();
+      const passo = Math.min(400, (prima - d) * SPINTA);                // avanti come lo scatto della rotella / delle dita
+      if (ostacolo(passo + 300)) { prima = d; return; }
+      cam.position.addScaledVector(dir, passo);
+      if (cam.position.y < 150) cam.position.y = 150;                  // mai sotto il pavimento
+      ctrl.target.copy(cam.position).addScaledVector(dir, VICINO);
+      prima = VICINO;
+      return;
+    }
+    prima = d;
+  });
+}
 function creaAmbiente(rnd, forza = 1) {
   const c = document.createElement('canvas'); c.width = 16; c.height = 64;
   const x = c.getContext('2d');
@@ -872,6 +916,7 @@ export function montaScena3d(canvas, progetto) {
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.maxPolarAngle = Math.PI / 2.05;
+  camminaInAvanti(controls, camera);
 
   gruppo = new THREE.Group();
   scene.add(gruppo);
@@ -2445,7 +2490,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122u')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122v')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
