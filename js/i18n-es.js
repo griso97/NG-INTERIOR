@@ -3,6 +3,7 @@ window.NG_I18N_ES = {
  "— lascia vuota —": "— dejar vacía —",
  "— non entra": "— no cabe",
  ", altezza =": ", alto =",
+ "(H = altezza esterna totale).": "(H = altura exterior total).",
  ", due dita o rotella per lo": ", dos dedos o rueda para el",
  ", due dita/tasto destro per": ", dos dedos/botón derecho para",
  ": {0} · inclinazione": ": {0} · inclinación",
