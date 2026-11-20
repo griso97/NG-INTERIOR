@@ -15,8 +15,8 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261122e';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261122e';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261122i';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261122i';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -101,7 +101,7 @@ export const MATERIALI = [
   // OPACHI: superficie totalmente matte, tono un filo "schiarito/polveroso"
   // così lo stacco con il lucido è netto anche senza riflessi.
   { id: 'bianco-matte',  nome: 'Bianco opaco',   categoria: 'tinta',
-    thumb: 'materials/bianco-matte-thumb.jpg',  colore: 0xf3f2ee,      // bianco vero (prima #e7e5de: nel 3D usciva grigio-beige)
+    thumb: 'materials/bianco-matte-thumb.jpg',  colore: 0xf6f6f4,      // bianco vero e neutro (prima #f3f2ee, ancora un filo crema)
     solido: true, roughness: 1.0, metalness: 0.0 },
   // SM Negro (Alvic Zenit Supermate) al posto del vecchio "Nero opaco": stesso id, così i
   // progetti salvati restano uguali
@@ -129,7 +129,7 @@ export const MATERIALI = [
     solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Gris Plomo Supermate' },
   // LUCIDI: laccato lucido con riflessi netti (roughness bassissima + clearcoat).
   { id: 'bianco-lucido', nome: 'Bianco lucido',  categoria: 'tinta',
-    thumb: 'materials/bianco-lucido-thumb.jpg', colore: 0xfafafa,
+    thumb: 'materials/bianco-lucido-thumb.jpg', colore: 0xf6f6f6,   // un filo sotto il bianco pieno: i riflessi si vedono più chiari
     solido: true, roughness: 0.04, metalness: 0.0, lucido: true },
   { id: 'nero-lucido',   nome: 'Nero lucido',    categoria: 'tinta',
     thumb: 'materials/nero-lucido-thumb.jpg',   colore: 0x060607,
@@ -513,7 +513,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261122e');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261122i');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -642,7 +642,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261122e';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261122i';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
@@ -1164,6 +1164,22 @@ function neroOpacoVero(mat) {
   mat.envMapIntensity = Math.max(mat.envMapIntensity || 0, 0.9);
   mat.userData.neroOpaco = true;
 }
+/**
+ * LACCATO LUCIDO che SI VEDE lucido: lo strato lucido riflette un po' più della vernice vera (4%):
+ * 5% sui colori scuri, 8% sui chiari. Con molto di più il bianco prende il colore del pavimento e
+ * sembra sporco; i riflessi netti (finestra, stanza vera) vengono dalla «foto a 360°» della cucina.
+ */
+function laccatoLucido(mat, colore) {
+  const c = new THREE.Color(colore), lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;   // 0 nero … 1 bianco (lineare)
+  mat.userData.ccF0 = { value: 0.05 + 0.03 * Math.min(1, lum / 0.8) };   // 5% scuri … 8% chiari (oltre, il bianco prende il colore del pavimento)
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.ngCcF0 = mat.userData.ccF0;
+    // il pezzo del programma con lo strato lucido si inserisce dopo: lo metto io, già cambiato
+    sh.fragmentShader = 'uniform float ngCcF0;\n' + sh.fragmentShader.replace('#include <lights_physical_fragment>',
+      THREE.ShaderChunk.lights_physical_fragment.replace('material.clearcoatF0 = vec3( 0.04 );', 'material.clearcoatF0 = vec3( ngCcF0 );'));
+  };
+  mat.customProgramCacheKey = () => 'ng-laccato';
+}
 export function getMaterialeTHREE(id, onPronto) {
   if (cacheMat.has(id)) return cacheMat.get(id);
   const def = trovaMateriale(id);
@@ -1181,6 +1197,7 @@ export function getMaterialeTHREE(id, onPronto) {
         clearcoatRoughness: 0.0,
         envMapIntensity: 2.6,
       });
+      laccatoLucido(mat, def.colore);
     } else {
       mat = new THREE.MeshStandardMaterial({
         color: def.colore,

@@ -14,28 +14,28 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261122e';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122e';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261122e';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261122e';
+} from './modello.js?v=20261122i';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122i';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261122i';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261122i';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122e').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122i').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122e';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122e';
-import { parametri } from '../parametri.js?v=20261122e';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122e';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122e';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122i';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122i';
+import { parametri } from '../parametri.js?v=20261122i';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122i';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122i';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122e';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122i';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261122e';
+export { telaPavimento } from '../resa.js?v=20261122i';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -313,16 +313,30 @@ function unisciPerMateriale(root) {
   for (const m of nuovi) root.add(m);
 }
 
+/**
+ * Mobile SELEZIONATO: un CONTORNO dorato attorno, i colori restano quelli veri. Prima il mobile si
+ * tingeva d'oro (luce dorata sulle ante): scegliendo un colore, sul mobile toccato tutti i colori
+ * sembravano marroncini e uguali (il bianco «sporco»).
+ */
+const matSelezione = new THREE.LineBasicMaterial({ color: 0xe8c25a });
 function evidenzia(g) {
+  g.updateMatrixWorld(true);
+  const inv = g.matrixWorld.clone().invert(), box = new THREE.Box3(), tmp = new THREE.Box3();
   g.traverse((o) => {
-    if (o.isLineSegments && !o.userData.fuga) {
-      o.material = new THREE.LineBasicMaterial({ color: 0xffffff });
-    } else if (o.isMesh && o.material && o.material.emissive !== undefined) {
-      o.material = o.material.clone();
-      o.material.emissive = new THREE.Color(0x9a7a28);
-      o.material.emissiveIntensity = 1.0;
-    }
+    if (!o.isMesh || !o.visible || !o.geometry || o.userData.portaleVano || o.userData.ledStriscia) return;
+    for (let q = o.parent; q && q !== g; q = q.parent) if (!q.visible) return;
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    box.union(tmp.copy(o.geometry.boundingBox).applyMatrix4(inv.clone().multiply(o.matrixWorld)));
   });
+  if (box.isEmpty()) return;
+  const c = box.getCenter(new THREE.Vector3());
+  // tre contorni uno dentro l'altro: una riga ben visibile anche sul telefono
+  for (const k of [10, 16, 22]) {
+    const dim = box.getSize(new THREE.Vector3()).addScalar(k);
+    const linee = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(dim.x, dim.y, dim.z)), matSelezione);
+    linee.position.copy(c); linee.userData.selezione = true; linee.renderOrder = 7;
+    g.add(linee);
+  }
 }
 
 /** Dimensioni e posizione della vasca del lavello (condivise fra il 3D del
@@ -649,6 +663,53 @@ function ambienteLucidi(rnd) {
   _envLucidi = pm.fromScene(sc, 0.025).texture;
   pm.dispose();
   return _envLucidi;
+}
+/**
+ * LACCATI LUCIDI (bianco lucido, nero lucido…): nel lucido si deve VEDERE il riflesso, sennò sembra
+ * un opaco. Riflettono la CUCINA VERA (pavimento, piano, mobili) ripresa a 360° davanti ai mobili, più
+ * una grande finestra luminosa alle spalle di chi guarda e le plafoniere: come nelle foto delle cucine
+ * laccate (righe di luce nette e il pavimento nelle ante basse). Il resto della stanza nella ripresa
+ * è più scuro (niente riflesso grigio uniforme che fa sembrare il nero un grigio).
+ * Si rifà solo quando la scena cambia e solo se ci sono ante laccate lucide.
+ */
+let _cubeRT = null, _cubeCam = null;
+function riflessiVeri(bb, dir) {
+  if (!gruppo || !renderer || !scene) return;
+  const lucidi = new Set();
+  gruppo.traverse((o) => {
+    if (!o.isMesh) return;
+    for (const m of [].concat(o.material)) if (m && m.isMeshPhysicalMaterial && m.clearcoat > 0 && !(m.userData && m.userData.vetro)) lucidi.add(m);
+  });
+  if (!lucidi.size) return;
+  if (!_cubeRT) {
+    _cubeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+    _cubeCam = new THREE.CubeCamera(10, 40000, _cubeRT);
+  }
+  const d = dir || { x: 0, z: 1 };
+  const cx = (bb.minX + bb.maxX) / 2, cz = -(bb.minY + bb.maxY) / 2;
+  const L = Math.max(2000, Math.hypot(bb.maxX - bb.minX, bb.maxY - bb.minY));
+  _cubeCam.position.set(cx + d.x * 1200, 1000, cz + d.z * 1200);
+  // luci della ripresa: finestra di fronte ai mobili (alle spalle di chi guarda) e due plafoniere
+  const extra = new THREE.Group();
+  const pannello = (w, h, forza, x, y, z, guarda) => {
+    const me = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.98, 0.95).multiplyScalar(forza), side: THREE.DoubleSide, toneMapped: false }));
+    me.position.set(x, y, z); me.lookAt(guarda); extra.add(me);
+  };
+  const davanti = new THREE.Vector3(cx + d.x * 4200, 1500, cz + d.z * 4200);
+  pannello(1300, 1600, 2.2, davanti.x - d.z * 900, davanti.y, davanti.z + d.x * 900, new THREE.Vector3(cx, 1500, cz));   // finestra
+  pannello(1300, 1600, 2.2, davanti.x + d.z * 900, davanti.y, davanti.z - d.x * 900, new THREE.Vector3(cx, 1500, cz));   // seconda anta della finestra
+  for (const k of [-0.25, 0.25]) pannello(900, 300, 3, cx + d.x * 1600 - d.z * L * k, 2690, cz + d.z * 1600 + d.x * L * k, new THREE.Vector3(cx + d.x * 1600 - d.z * L * k, 0, cz + d.z * 1600 + d.x * L * k));
+  scene.add(extra);
+  const bg = scene.background, bgC = bg && bg.isColor ? bg.clone() : null;
+  if (bgC) scene.background = bgC.clone().multiplyScalar(0.18);
+  const autoClear = renderer.autoClear; renderer.autoClear = true;
+  try { scene.add(_cubeCam); _cubeCam.update(renderer, scene); } finally {
+    scene.remove(_cubeCam); scene.remove(extra); renderer.autoClear = autoClear;
+    if (bgC) scene.background = bg;
+    extra.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+  }
+  _cubeRT.texture.needsPMREMUpdate = true;
+  for (const m of lucidi) { m.envMap = _cubeRT.texture; m.envMapIntensity = 1; m.needsUpdate = true; }
 }
 /** I materiali lucidi della cucina riflettono la stanza dei riflessi (vedi ambienteLucidi). */
 function riflettiStanza(radice, rnd) {
@@ -2279,7 +2340,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122e')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122i')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -3125,6 +3186,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   applicaLuceEsterna(luceEsternaDi(progetto));
   uvInScala(gruppo);
   try { riflettiStanza(gruppo, renderer); } catch (_) { /* senza riflessi va bene lo stesso */ }
+  try { riflessiVeri(bb, direzioneStanza(full, vertici)); } catch (e) { console.warn('Riflessi dei lucidi', e); }
   // LED sotto i pensili: la loro luce tinge anche le foto (piano, pannello dietro, ante)
   impostaTintaLed(progetto.led && progetto.led.attivo ? ledHex(progetto) : null);
   if (reframe) inquadra(bb, direzioneStanza(full, vertici));
