@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261122a';
+import { parametri } from '../parametri.js?v=20261122b';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -88,13 +88,17 @@ export function pezziCorniceVano(m, vanoH, spAnta = 18) {
   ];
 }
 // MOBILE APERTO (senza ante): pensile o base con ante (non sotto lavello o piano cottura).
-// NON si ordina come modulo: si calcola A PEZZI alla misura vera (anche fuori misura): STRUTTURA
-// (fianchi, cielo, fondo, schiena), CORNICE davanti nel colore delle ante (a filo con le ante
-// vicine), RIVESTIMENTO dentro (fondo, cielo, fianchetti, schiena) e RIPIANI. Dentro: come le
-// ante, come la struttura (niente rivestimento) o un materiale a scelta (es. legno).
-// Misure uguali nel 3D e in distinta.
-// Lo facciamo NOI a pezzi (come la colonna su misura): fianchi, cielo e fondo da 18, schiena da 10.
-export const SP_STRUTTURA_APERTO = 18, SP_PEZZI_APERTO = 18, SP_SCHIENA_APERTO = 10;
+// NON si ordina come modulo: lo facciamo NOI a pezzi, alla misura vera, tutti dello SPESSORE DELLE
+// ANTE (18) e del loro colore:
+//  - ALTEZZA: quella del modulo (70, 90…); con le ante dei pensili da 72 / 92 è alto come l'anta
+//    (scende di 2 cm come le ante). Tutti e due i fianchi alti uguali.
+//  - FIANCO: profondo come il mobile PIÙ l'anta (così è a filo con le ante vicine).
+//  - SCHIENA (il «secondo fianco», dietro): larga come il mobile (30, 40, 50, 60…) meno lo spessore
+//    del fianco (dei due fianchi se non è l'ultimo della fila).
+//  - CIELO, FONDO e RIPIANI: dentro, fra il fianco e il bordo, davanti alla schiena.
+// L'ultimo modulo della fila non ha il fianco sul lato libero. Schiena e ripiani possono avere un
+// altro colore (es. legno). Misure uguali nel 3D e in distinta.
+export const SP_PEZZI_APERTO = 18;
 /** Le scelte del mobile aperto ({ ripiani, interno }), o null se il mobile ha le ante. */
 export function apertoDi(m) {
   if (!m || !m.aperto || !(m.tipo === 'pensile' || m.tipo === 'base-ante') || m.lavello || m.placca) return null;
@@ -106,33 +110,23 @@ export function ripianiAperto(m) {
   if (!a) return 0;
   return a.ripiani != null ? Math.max(0, Math.min(4, Number(a.ripiani) || 0)) : ((m.altezza_mm || 700) >= 850 ? 2 : 1);
 }
-/** Dentro del mobile aperto: 'ante' (come le ante), 'struttura' (niente rivestimento) o l'id di un materiale. */
+/** Colore di schiena e ripiani del mobile aperto: 'ante' (come le ante), 'struttura' (melaminico) o l'id di un materiale. */
 export function internoAperto(m) { const a = apertoDi(m); return a ? (a.interno || 'ante') : null; }
-/** Pezzi del mobile aperto (cornice, rivestimento, ripiani): { nome, larghezza, altezza, spessore, quantita, parte }.
- *  lato = 'sx' | 'dx': ultimo modulo della fila, aperto anche di fianco (senza quel fianco). */
-export function pezziMobileAperto(m, lato = null) {
+/**
+ * Pezzi del mobile aperto: { nome, larghezza, altezza, spessore, quantita, parte ('fuori' | 'dentro') }.
+ * lato = 'sx' | 'dx': ultimo modulo della fila (un fianco solo). hTot: altezza vera (con le ante da 72 / 92).
+ */
+export function pezziMobileAperto(m, lato = null, hTot = null) {
   if (!apertoDi(m)) return [];
-  const L = m.larghezza_mm || 600, H = m.altezza_mm || 700, P = dimMobile(m).d;
-  const T = SP_STRUTTURA_APERTO, S = SP_PEZZI_APERTO, B = SP_SCHIENA_APERTO, riv = internoAperto(m) !== 'struttura';
+  const L = m.larghezza_mm || 600, H = hTot || m.altezza_mm || 700, P = dimMobile(m).d, S = SP_PEZZI_APERTO;
   const nF = lato ? 1 : 2;                                 // fianchi che ci sono
-  const prof = P - B;                                      // fianchi, cielo e fondo: davanti alla schiena
   const pz = [
-    // STRUTTURA (la facciamo noi)
-    { nome: 'Fianco (mobile aperto)', larghezza: prof, altezza: H, spessore: T, quantita: nF, parte: 'struttura' },
-    { nome: 'Cielo e fondo (mobile aperto)', larghezza: L - nF * T, altezza: prof, spessore: T, quantita: 2, parte: 'struttura' },
-    { nome: 'Schiena (mobile aperto)', larghezza: L - 2, altezza: H - 2, spessore: B, quantita: 1, parte: 'struttura' },
-    // CORNICE davanti, nel colore delle ante
-    { nome: 'Cornice mobile aperto (montante)', larghezza: T, altezza: H, spessore: S, quantita: nF, parte: 'cornice' },
-    { nome: 'Cornice mobile aperto (traverso)', larghezza: L - nF * T, altezza: T, spessore: S, quantita: 2, parte: 'cornice' },
+    { nome: 'Fianco (mobile aperto)', larghezza: P + S, altezza: H, spessore: S, quantita: nF, parte: 'fuori' },
+    { nome: 'Schiena (mobile aperto)', larghezza: L - nF * S, altezza: H, spessore: S, quantita: 1, parte: 'dentro' },
+    { nome: 'Cielo e fondo (mobile aperto)', larghezza: L - nF * S, altezza: P, spessore: S, quantita: 2, parte: 'fuori' },
   ];
-  const pd = prof - 2;                                     // rivestimento: dalla schiena al filo davanti
-  if (riv) {
-    pz.push({ nome: 'Fondo e cielo interni (mobile aperto)', larghezza: L - nF * T, altezza: pd, spessore: S, quantita: 2, parte: 'interno' });
-    pz.push({ nome: 'Fianchetto interno (mobile aperto)', larghezza: pd, altezza: H - 2 * T - 2 * S, spessore: S, quantita: nF, parte: 'interno' });
-    pz.push({ nome: 'Schiena interna (mobile aperto)', larghezza: L - nF * (T + S), altezza: H - 2 * T - 2 * S, spessore: S, quantita: 1, parte: 'interno' });
-  }
   const n = ripianiAperto(m);
-  if (n > 0) pz.push({ nome: 'Ripiano (mobile aperto)', larghezza: L - nF * (T + (riv ? S : 0)) - (lato ? 1 : 2), altezza: prof - (riv ? S : 0) - 20, spessore: S, quantita: n, parte: 'interno' });
+  if (n > 0) pz.push({ nome: 'Ripiano (mobile aperto)', larghezza: L - nF * S - nF, altezza: P - 2, spessore: S, quantita: n, parte: 'dentro' });
   return pz;
 }
 /** Asse del mobile in pianta: x = verso la SUA destra (guardandolo davanti), z = verso il davanti (come nel 3D). */

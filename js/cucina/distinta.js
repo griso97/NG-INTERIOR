@@ -13,8 +13,8 @@
 
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, internoAperto, pezziMobileAperto, latoApertoDi,
-} from './modello.js?v=20261122a';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261122a';
+} from './modello.js?v=20261122b';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261122b';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -47,14 +47,16 @@ function riduzioneJ(scelte) {
 
 // --- costruttori per categoria ------------------------------------------------
 
-/** MOBILE APERTO: cornice nel colore delle ante; rivestimento e ripiani nel materiale scelto per il dentro. */
+/** MOBILE APERTO, fatto a pezzi: fianchi, cielo e fondo del colore delle ante; schiena e ripiani del
+ *  colore scelto per il dentro (come le ante, melaminico come la struttura o un altro materiale). */
 function mobileAperto(pz, mod, progetto, m) {
-  const int = internoAperto(m);
-  for (const p of pezziMobileAperto(m, latoApertoDi(progetto, m))) {
+  const int = internoAperto(m), H = m.altezza_mm || 700;
+  const hTot = H + (categoriaTipo(m.tipo) === 'pensile' && pensileAntaSporge(progetto.antaPensile, H) ? 20 : 0);
+  for (const p of pezziMobileAperto(m, latoApertoDi(progetto, m), hTot)) {
     const { parte, ...x } = p;
-    const dentro = parte === 'interno';
+    const dentro = parte === 'dentro';
     pz.push({ modulo: mod, ...x, aperto: true,
-      materiale: parte === 'struttura' || (dentro && int === 'struttura') ? 'melaminico' : 'anta',
+      materiale: dentro && int === 'struttura' ? 'melaminico' : 'anta',
       ...(dentro && int !== 'ante' && int !== 'struttura' ? { materialeNome: nomeMateriale(int, 'Materiale da scegliere') } : {}) });
   }
 }
@@ -151,8 +153,9 @@ function pezziDiModulo(progetto, m) {
   const odM = moduloDaOrdinare(m);
   // MOBILE APERTO: lo facciamo noi a pezzi, alla misura vera (niente modulo da ordinare né da tagliare)
   const latoAp = apertoDi(m) ? latoApertoDi(progetto, m) : null;
+  const hAp = H + (cat === 'pensile' && pensileAntaSporge(progetto.antaPensile, H) ? 20 : 0);   // con le ante da 72 / 92
   const mod = apertoDi(m)
-    ? `Mobile aperto ${H}×${L}${latoAp ? ` · senza fianco ${latoAp === 'dx' ? 'destro' : 'sinistro'}` : ''}`
+    ? `Mobile aperto ${hAp}×${L}${latoAp ? ` · senza fianco ${latoAp === 'dx' ? 'destro' : 'sinistro'}` : ''}`
     : `Modulo da ${m.altezza_mm ? `${m.altezza_mm}×${L}` : L}`
     + (odM ? ` ⚠ (modulo da ${odM.ordina} tagliato a ${L})` : m.fuoriMisura ? ' ⚠ da tagliare' : '');
   const pz = [];
