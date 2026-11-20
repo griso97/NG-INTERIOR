@@ -12,9 +12,9 @@
 // =============================================================================
 
 import {
-  infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, internoAperto, pezziMobileAperto, latoApertoDi,
-} from './modello.js?v=20261122c';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261122c';
+  infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
+} from './modello.js?v=20261122d';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261122d';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -47,17 +47,17 @@ function riduzioneJ(scelte) {
 
 // --- costruttori per categoria ------------------------------------------------
 
-/** MOBILE APERTO, fatto a pezzi: fianchi, cielo e fondo del colore delle ante; schiena e ripiani del
- *  colore scelto per il dentro (come le ante, melaminico come la struttura o un altro materiale). */
+/** MOBILE A GIORNO, fatto a pezzi: ogni pezzo nel suo colore (come le ante, melaminico come la
+ *  struttura o un altro materiale). */
 function mobileAperto(pz, mod, progetto, m) {
-  const int = internoAperto(m), H = m.altezza_mm || 700;
+  const H = m.altezza_mm || 700;
   const hTot = H + (categoriaTipo(m.tipo) === 'pensile' && pensileAntaSporge(progetto.antaPensile, H) ? 20 : 0);
   for (const p of pezziMobileAperto(m, latoApertoDi(progetto, m), hTot)) {
     const { parte, ...x } = p;
-    const dentro = parte === 'dentro';
+    const c = coloreParteAperto(m, parte);
     pz.push({ modulo: mod, ...x, aperto: true,
-      materiale: dentro && int === 'struttura' ? 'melaminico' : 'anta',
-      ...(dentro && int !== 'ante' && int !== 'struttura' ? { materialeNome: nomeMateriale(int, 'Materiale da scegliere') } : {}) });
+      materiale: c === 'struttura' ? 'melaminico' : 'anta',
+      ...(c !== 'ante' && c !== 'struttura' ? { materialeNome: nomeMateriale(c, 'Materiale da scegliere') } : {}) });
   }
 }
 
@@ -155,7 +155,7 @@ function pezziDiModulo(progetto, m) {
   const latoAp = apertoDi(m) ? latoApertoDi(progetto, m) : null;
   const hAp = H + (cat === 'pensile' && pensileAntaSporge(progetto.antaPensile, H) ? 20 : 0);   // con le ante da 72 / 92
   const mod = apertoDi(m)
-    ? `Mobile aperto ${hAp}×${L}${latoAp ? ` · senza fianco ${latoAp === 'dx' ? 'destro' : 'sinistro'}` : ''}`
+    ? `Mobile a giorno ${hAp}×${L}${latoAp ? ` · senza fianco ${latoAp === 'dx' ? 'destro' : 'sinistro'}` : ''}`
     : `Modulo da ${m.altezza_mm ? `${m.altezza_mm}×${L}` : L}`
     + (odM ? ` ⚠ (modulo da ${odM.ordina} tagliato a ${L})` : m.fuoriMisura ? ' ⚠ da tagliare' : '');
   const pz = [];
@@ -334,12 +334,12 @@ function pezziDiModulo(progetto, m) {
 
 // Gruppi SEPARATI della lista pezzi: porte, frontali, parti dei cassetti,
 // costadi, reglette, pannelli, zoccoli.
-const ORDINE_GRUPPI = ['Strutture su misura', 'Cornici vano', 'Mobili aperti', 'Porte', 'Frontali cassetto', 'Cassetti (fondo e trasera)', 'Costadi',
+const ORDINE_GRUPPI = ['Strutture su misura', 'Cornici vano', 'Mobili a giorno', 'Porte', 'Frontali cassetto', 'Cassetti (fondo e trasera)', 'Costadi',
   'Reglette', 'Pannelli', 'Piani e tavoli', 'Zoccoli', 'Varie'];
 function gruppoPezzo(p) {
   if (p.struttura) return 'Strutture su misura';
   if (p.cornice) return 'Cornici vano';
-  if (p.aperto) return 'Mobili aperti';            // cornice, rivestimento e ripiani dei mobili senza ante            // fianchi, top/fondo, schiena, ripiani della colonna su misura
+  if (p.aperto) return 'Mobili a giorno';            // cornice, rivestimento e ripiani dei mobili senza ante            // fianchi, top/fondo, schiena, ripiani della colonna su misura
   if (['tavolo', 'vetro', 'gambe'].includes(p.materiale)) return 'Piani e tavoli';   // piano / tavolo e i suoi appoggi
   const n = String(p.nome).toLowerCase();
   if (n.includes('regletta')) return 'Reglette';
@@ -478,7 +478,12 @@ export function calcolaDistintaCucina(progetto) {
     aggiungi('Cerniere 110°', n * p.quantita);
   }
   // MOBILI APERTI: 4 reggipiani per ripiano
-  for (const p of raw) if (p.nome === 'Ripiano (mobile aperto)') aggiungi('Reggipiani (mobili aperti)', 4 * p.quantita);
+  for (const p of raw) if (p.nome === 'Ripiano (mobile a giorno)') aggiungi('Reggipiani (mobili a giorno)', 4 * p.quantita);
+  // MOBILI A GIORNO: strisce LED sotto il top e sotto i ripiani (lunghe quanto il dentro meno 2 cm)
+  for (const m of mobili) {
+    const l = ledStrisceAperto(m, latoApertoDi(progetto, m));
+    if (l.n) aggiungi(`Striscia LED ${Math.round(l.mm / 10)} cm (mobili a giorno)`, l.n);
+  }
   // VETRI delle ante vetrina con telaio in legno (misura del vetro da ordinare)
   for (const p of raw) if (p.vetro) aggiungi(`Vetro ${p.vetro.tipo} ${p.vetro.w}×${p.vetro.h} (anta vetrina)`, p.quantita);
   // CASSETTI (guide/scatola) del sistema dei ⚙ Parametri: uno per frontale, piccolo / medio / grande

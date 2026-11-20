@@ -23,17 +23,17 @@ import {
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro, rotazioneAutomatica, migraRotazioni,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
-  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, internoAperto, latoApertoDi, latiLiberi, migraProfonditaPensili } from './modello.js?v=20261122c';
-import { renderPianta } from './pianta.js?v=20261122c';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261122c';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261122c';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261122c';
-import { calcolaDistintaCucina } from './distinta.js?v=20261122c';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261122c';
-import { agganciaTema } from '../tema.js?v=20261122c';
-import { tendinePannello } from '../tendine-pannello.js?v=20261122c';
+  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, latoApertoDi, latiLiberi, migraProfonditaPensili, PARTI_APERTO, coloreParteAperto, ledAperto } from './modello.js?v=20261122d';
+import { renderPianta } from './pianta.js?v=20261122d';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261122d';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261122d';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261122d';
+import { calcolaDistintaCucina } from './distinta.js?v=20261122d';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261122d';
+import { agganciaTema } from '../tema.js?v=20261122d';
+import { tendinePannello } from '../tendine-pannello.js?v=20261122d';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261122c');
+const _excel = () => import('../modello-export.js?v=20261122d');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -322,7 +322,7 @@ const TENDINE_APERTE = {
   2: ['Mobile selezionato', 'Mobili selezionati', 'Da sistemare'],
   3: ['Mobile selezionato', 'Mobili selezionati', 'Da sistemare'],
   4: ['Oggetto selezionato', 'Oggetti selezionati'],
-  5: ['Da sistemare', 'Modulo selezionato', 'Oggetto selezionato', 'Colore ante', 'Colore ·'],
+  5: ['Da sistemare', 'Modulo selezionato', 'Mobile a giorno', 'Oggetto selezionato', 'Colore ante', 'Colore ·'],
 };
 /** SFONDO del 3D: tre pallini in alto a destra sopra la vista (chiaro, neutro, scuro). */
 function renderPalliniSfondo() {
@@ -1835,7 +1835,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261122c');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261122d');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -1951,6 +1951,7 @@ function renderPannelloModificaMobile(m) {
       <h3>Modulo selezionato</h3>
       <div class="mod-row ${m.tipo}"><span>${nomeTipo(m.tipo)} · <strong>${descrizioneMobile(m)}</strong></span></div>
     </section>
+    ${apertoDi(m) ? htmlMobileAperto(m) : ''}
     ${htmlBaseAngolo(m)}
     ${htmlPianoTavolo(m)}
     ${cat === 'colonna' ? `
@@ -2017,13 +2018,13 @@ function renderPannelloModificaMobile(m) {
         const v = apertoDi(m) ? null : m.vetrina;
         const op = (cl, attr, val, et, on) => `<button type="button" class="btn-ghost ${cl} ${on ? 'attivo' : ''}" ${attr}="${val}" style="flex:1;min-width:90px">${on ? '✓ ' : ''}${et}</button>`;
         return `
-      <div class="riga-3d" style="margin:12px 0 6px"><strong>Anta piena, vetrina o aperto</strong> (solo questo modulo):</div>
+      <div class="riga-3d" style="margin:12px 0 6px"><strong>Anta piena, vetrina o a giorno</strong> (solo questo modulo):</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${op('opt-vetr', 'data-vetr', 'no', 'Piena', !v && !apertoDi(m))}
         ${op('opt-vetr', 'data-vetr', 'si', 'Vetrina (con vetro)', !!v)}
-        ${puoAperto ? op('opt-vetr', 'data-vetr', 'aperto', 'Aperto (senza ante)', !!apertoDi(m)) : ''}
+        ${puoAperto ? op('opt-vetr', 'data-vetr', 'aperto', 'A giorno (senza ante)', !!apertoDi(m)) : ''}
       </div>
-      ${apertoDi(m) ? htmlMobileAperto(m) : ''}
+
       ${v ? `
       <div class="riga-3d" style="margin:8px 0 6px">Telaio:</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -2621,13 +2622,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261122c');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261122d');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261122c'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261122d'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -3095,43 +3096,72 @@ function agganciaDistanzaFrigo(root, m) {
 }
 
 /** MOBILE APERTO: ripiani e colore del dentro (la cornice davanti è del colore delle ante). */
+/**
+ * MOBILE A GIORNO (senza ante): sezione sua, in cima, con i ripiani, il fianco aperto, il COLORE DI
+ * OGNI PEZZO (fianchi, cielo, fondo, schiena, ripiani) e i LED sotto il top e sotto i ripiani.
+ */
+const NOMI_PARTI_AP = { fianchi: 'Fianchi', cielo: 'Cielo (top)', fondo: 'Fondo', schiena: 'Schiena', ripiani: 'Ripiani' };
+function nomeColoreAp(c) {
+  if (c === 'ante') return 'Come le ante';
+  if (c === 'struttura') return progetto.coloreInterno === 'antracite' ? 'Come la struttura (antracite)' : 'Come la struttura (bianco)';
+  const mt = ((scena3dMod && scena3dMod.MATERIALI) || []).find((x) => x.id === c);
+  return mt ? mt.nome : c;
+}
 function htmlMobileAperto(m) {
-  const n = ripianiAperto(m), int = internoAperto(m);
+  const n = ripianiAperto(m), led = ledAperto(m);
   const lista = (scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer('legno') : [];
   const op = (attr, val, et, on, min = '60px') => `<button type="button" class="btn-ghost opt-ap ${on ? 'attivo' : ''}" ${attr}="${val}" style="flex:1 1 ${min};min-width:${min}">${on ? '✓ ' : ''}${et}</button>`;
   // fianco aperto: automatico = il lato libero se è l'ultimo modulo della fila (si dice quale)
   const scLato = ['sx', 'dx', 'no'].includes(m.aperto && m.aperto.lato) ? m.aperto.lato : 'auto';
   const libAuto = latoApertoDi(progetto, { ...m, aperto: { ...(m.aperto || {}), lato: 'auto' } });
   const autoEt = libAuto === 'dx' ? 'Automatico (destro)' : libAuto === 'sx' ? 'Automatico (sinistro)' : 'Automatico (nessuno)';
+  // pezzo di cui si sceglie il colore (o tutti insieme)
+  const pezzo = step2.apPezzo && (step2.apPezzo === 'tutti' || PARTI_APERTO.includes(step2.apPezzo)) ? step2.apPezzo : 'fianchi';
+  const cSel = pezzo === 'tutti' ? null : coloreParteAperto(m, pezzo);
   return `
-      <div class="riga-3d" style="margin:10px 0 6px">Ripiani:</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">${[0, 1, 2, 3].map((k) => op('data-aprip', k, String(k), n === k)).join('')}</div>
-      <div class="riga-3d" style="margin:10px 0 6px">Fianco aperto (ultimo modulo della fila):</div>
+    <section class="step3-pannello">
+      <h3>Mobile a giorno</h3>
+      <div class="riga-3d" style="margin:0 0 6px">Quanti ripiani:</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${[0, 1, 2, 3, 4, 5].map((k) => op('data-aprip', k, String(k), n === k, '40px')).join('')}</div>
+      <div class="riga-3d" style="margin:12px 0 6px">LED (colore della luce come i LED della cucina):</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${op('data-apled', 'top', '💡 LED sotto il top', led.top, '40%')}
+        ${op('data-apled', 'ripiani', '💡 LED sotto i ripiani', led.ripiani, '40%')}
+      </div>
+      <div class="riga-3d" style="margin:12px 0 6px">Colore dei pezzi — scegli il pezzo, poi il colore:</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${PARTI_APERTO.map((pt) => `<button type="button" class="btn-ghost opt-ap ${pezzo === pt ? 'attivo' : ''}" data-appezzo="${pt}" style="flex:1 1 30%;min-width:30%;line-height:1.25">${pezzo === pt ? '✓ ' : ''}${NOMI_PARTI_AP[pt]}<br><small style="opacity:.75;text-transform:none;letter-spacing:0">${escHtml(nomeColoreAp(coloreParteAperto(m, pt)))}</small></button>`).join('')}
+        <button type="button" class="btn-ghost opt-ap ${pezzo === 'tutti' ? 'attivo' : ''}" data-appezzo="tutti" style="flex:1 1 30%;min-width:30%">${pezzo === 'tutti' ? '✓ ' : ''}Tutti i pezzi</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+        ${op('data-apcol', 'ante', 'Come le ante', cSel === 'ante', '40%')}
+        ${op('data-apcol', 'struttura', progetto.coloreInterno === 'antracite' ? 'Come la struttura (antracite)' : 'Come la struttura (bianco)', cSel === 'struttura', '40%')}
+      </div>
+      <div style="margin-top:8px">${htmlTendineColori(lista, (mt) => `<button type="button" class="swatch ${mt.id === cSel ? 'sel' : ''}" data-apcol="${mt.id}" title="${escHtml(mt.nome)}" style="background-image:url('${mt.thumb}')"></button>`,
+        { sel: cSel, chiave: 'cucina-agiorno-colori' })}</div>
+      <div class="riga-3d" style="margin:12px 0 6px">Fianco aperto (ultimo modulo della fila):</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${op('data-aplato', 'auto', autoEt, scLato === 'auto', '40%')}
         ${op('data-aplato', 'sx', 'Sinistro', scLato === 'sx', '40%')}
         ${op('data-aplato', 'dx', 'Destro', scLato === 'dx', '40%')}
         ${op('data-aplato', 'no', 'Nessuno', scLato === 'no', '40%')}
       </div>
-      <div class="riga-3d" style="margin:10px 0 6px">Schiena e ripiani (dentro):</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${op('data-apint', 'ante', 'Come le ante', int === 'ante')}
-        ${op('data-apint', 'struttura', progetto.coloreInterno === 'antracite' ? 'Come la struttura (antracite)' : 'Come la struttura (bianco)', int === 'struttura')}
-      </div>
-      <div style="margin-top:8px">${htmlTendineColori(lista, (mt) => `<button type="button" class="swatch ${mt.id === int ? 'sel' : ''}" data-apint="${mt.id}" title="${escHtml(mt.nome)}" style="background-image:url('${mt.thumb}')"></button>`,
-        { sel: int, chiave: 'cucina-aperto-interno' })}</div>
-      <div class="riga-3d" style="margin-top:6px">Fatto a pezzi, tutti dello spessore delle ante: fianchi, cielo e fondo del colore delle ante. Il fianco è profondo come il mobile più l'anta (a filo con le ante vicine); la schiena è larga come il mobile meno il fianco; con le ante da 72 / 92 è alto come l'anta. Se è l'ultimo modulo della fila, dal lato libero non ha il fianco. Dentro ci puoi mettere gli oggetti: trascinali nel mobile e lasciali sul ripiano che vuoi.</div>`;
+      <div class="riga-3d" style="margin-top:8px">Fatto a pezzi, tutti dello spessore delle ante. Il fianco è profondo come il mobile più l'anta (a filo con le ante vicine); la schiena è larga come il mobile meno il fianco; con le ante da 72 / 92 è alto come l'anta. Se è l'ultimo modulo della fila, dal lato libero non ha il fianco. Dentro ci puoi mettere gli oggetti: trascinali nel mobile e lasciali sul ripiano che vuoi.</div>
+    </section>`;
 }
 function agganciaMobileAperto(root, m) {
-  root.querySelectorAll('[data-aprip]').forEach((b) => b.addEventListener('click', () => {
-    registraStoria(); m.aperto = { ...(m.aperto || {}), ripiani: Number(b.dataset.aprip) }; aggiorna();
-  }));
-  root.querySelectorAll('[data-aplato]').forEach((b) => b.addEventListener('click', () => {
-    registraStoria(); m.aperto = { ...(m.aperto || {}), lato: b.dataset.aplato }; aggiorna();
-  }));
-  root.querySelectorAll('[data-apint]').forEach((b) => b.addEventListener('click', () => {
-    registraStoria(); m.aperto = { ...(m.aperto || {}), interno: b.dataset.apint }; aggiorna();
-  }));
+  const cambia = (fn) => { registraStoria(); m.aperto = { ...(m.aperto || {}) }; fn(m.aperto); aggiorna(); };
+  root.querySelectorAll('[data-aprip]').forEach((b) => b.addEventListener('click', () => cambia((a) => { a.ripiani = Number(b.dataset.aprip); })));
+  root.querySelectorAll('[data-aplato]').forEach((b) => b.addEventListener('click', () => cambia((a) => { a.lato = b.dataset.aplato; })));
+  root.querySelectorAll('[data-apled]').forEach((b) => b.addEventListener('click', () => cambia((a) => {
+    a.led = { ...(a.led || {}) }; a.led[b.dataset.apled] = !a.led[b.dataset.apled];
+  })));
+  root.querySelectorAll('[data-appezzo]').forEach((b) => b.addEventListener('click', () => { step2.apPezzo = b.dataset.appezzo; renderPannello(); }));
+  root.querySelectorAll('[data-apcol]').forEach((b) => b.addEventListener('click', () => cambia((a) => {
+    const pezzo = step2.apPezzo && (step2.apPezzo === 'tutti' || PARTI_APERTO.includes(step2.apPezzo)) ? step2.apPezzo : 'fianchi';
+    a.colori = { ...(a.colori || {}) };
+    for (const pt of (pezzo === 'tutti' ? PARTI_APERTO : [pezzo])) a.colori[pt] = b.dataset.apcol;
+  })));
 }
 
 function blocMobileSelezionato() {

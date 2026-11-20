@@ -12,30 +12,30 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111x';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
-  calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, internoAperto, latoApertoDi, SP_PEZZI_APERTO,
+  calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261122c';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122c';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261122c';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261122c';
+} from './modello.js?v=20261122d';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122d';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261122d';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261122d';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122c').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122d').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122c';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122c';
-import { parametri } from '../parametri.js?v=20261122c';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122c';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122c';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122d';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122d';
+import { parametri } from '../parametri.js?v=20261122d';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122d';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122d';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122c';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122d';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261122c';
+export { telaPavimento } from '../resa.js?v=20261122d';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -710,6 +710,7 @@ export function impostaColoreLuci({ led = null, lampade = null } = {}) {
   gruppo.traverse((o) => {
     if (hL != null) {
       if (o.isMesh && o.userData.ledStriscia) { o.material.color.setHex(hL); o.userData.ledStriscia.colore = hL; }
+      if (o.isMesh && o.userData.ledBagliore) o.material.color.setHex(hL);
       if (o.isLight && o.userData.ledLuce) o.color.setHex(hL);
     }
     if (lampade != null) {
@@ -2377,30 +2378,70 @@ function pensileAngoloFronte(g, w, h, d, matAnta) {
  */
 function mobileAperto(g, w, h, d, m, matAnta, coloreCorpo, lato = null, sporg = false) {
   const S = SP_PEZZI_APERTO;
-  const mF = (matAnta && matAnta.isMaterial) ? matAnta : new THREE.MeshStandardMaterial({ color: matAnta || COL.anta, roughness: 0.6, metalness: 0.08 });
-  const int = internoAperto(m);
-  const mI = int === 'ante' ? mF
-    : int === 'struttura' ? ((coloreCorpo && coloreCorpo.isMaterial) ? coloreCorpo : new THREE.MeshStandardMaterial({ color: coloreCorpo, roughness: 0.7, metalness: 0.05 }))
-    : (getMaterialeTHREE(int, () => _reRenderMan && _reRenderMan()) || mF);
+  const mA = (matAnta && matAnta.isMaterial) ? matAnta : new THREE.MeshStandardMaterial({ color: matAnta || COL.anta, roughness: 0.6, metalness: 0.08 });
+  const mStr = (coloreCorpo && coloreCorpo.isMaterial) ? coloreCorpo : new THREE.MeshStandardMaterial({ color: coloreCorpo, roughness: 0.7, metalness: 0.05 });
+  // COLORE DI OGNI PEZZO: come le ante, come la struttura o un materiale a scelta
+  const matDi = (parte) => {
+    const c = coloreParteAperto(m, parte);
+    return c === 'ante' ? mA : c === 'struttura' ? mStr : (getMaterialeTHREE(c, () => _reRenderMan && _reRenderMan()) || mA);
+  };
+  const mFi = matDi('fianchi'), mCi = matDi('cielo'), mFo = matDi('fondo'), mSc = matDi('schiena'), mRi = matDi('ripiani');
   const pezzo = (bw, bh, bd, x, y, z, mat) => {
     const me = new THREE.Mesh(new THREE.BoxGeometry(Math.max(1, bw), Math.max(1, bh), Math.max(1, bd)), mat);
     me.position.set(x, y, z); me.castShadow = true; me.receiveShadow = true; g.add(me); return me;
   };
   const ripiano = (me) => { me.userData.appoggio = true; me.userData.ripianoAperto = true; return me; };
-  const sg = lato === 'dx' ? 1 : lato === 'sx' ? -1 : 0, nF = lato ? 1 : 2;
+  const sg = lato === 'dx' ? 1 : lato === 'sx' ? -1 : 0;
   const hb = h + (sporg ? 20 : 0), yc = sporg ? -10 : 0, yTop = yc + hb / 2, yBot = yc - hb / 2;
   const zB = -d / 2, zF = d / 2 + S;                         // dal muro al filo delle ante
   // FIANCHI: profondi come il mobile più l'anta, alti come il mobile (o come l'anta da 72 / 92)
-  for (const sx of [-1, 1]) if (sx !== sg) pezzo(S, hb, d + S, sx * (w / 2 - S / 2), yc, (zB + zF) / 2, mF);
+  for (const sx of [-1, 1]) if (sx !== sg) pezzo(S, hb, d + S, sx * (w / 2 - S / 2), yc, (zB + zF) / 2, mFi);
   // fra i fianchi (o fra il fianco e il bordo libero)
   const x0 = sg === -1 ? -w / 2 : -w / 2 + S, x1 = sg === 1 ? w / 2 : w / 2 - S, xc = (x0 + x1) / 2, wi = x1 - x0;
-  pezzo(wi, hb, S, xc, yc, zB + S / 2, mI);                  // SCHIENA (il secondo fianco), alta come i fianchi
+  pezzo(wi, hb, S, xc, yc, zB + S / 2, mSc);                 // SCHIENA (il secondo fianco), alta come i fianchi
   const pz = zB + S + d / 2;                                  // cielo, fondo e ripiani: davanti alla schiena, profondi d
-  ripiano(pezzo(wi, S, d, xc, yBot + S / 2, pz, mF));         // fondo
-  pezzo(wi, S, d, xc, yTop - S / 2, pz, mF);                  // cielo
+  ripiano(pezzo(wi, S, d, xc, yBot + S / 2, pz, mFo));        // fondo
+  pezzo(wi, S, d, xc, yTop - S / 2, pz, mCi);                 // cielo
   const n = ripianiAperto(m), y0 = yBot + S, y1 = yTop - S;
   const r0 = x0 + (sg === -1 ? 0 : 1), r1 = x1 - (sg === 1 ? 0 : 1);
-  for (let i = 1; i <= n; i++) ripiano(pezzo(r1 - r0, S, d - 2, (r0 + r1) / 2, y0 + (y1 - y0) * i / (n + 1), zB + S + (d - 2) / 2, mI));
+  const yRip = [];
+  for (let i = 1; i <= n; i++) {
+    const yr = y0 + (y1 - y0) * i / (n + 1); yRip.push(yr);
+    ripiano(pezzo(r1 - r0, S, d - 2, (r0 + r1) / 2, yr, zB + S + (d - 2) / 2, mRi));
+  }
+  // LED sotto il top (cielo) e sotto i ripiani: la striscia accesa, il bagliore sul piano sotto e
+  // sulla schiena, e UNA luce vera per mobile (tante luci appesantiscono il 3D)
+  const led = ledAperto(m);
+  if (led.top || (led.ripiani && n)) {
+    const hex = ledHex(_lastProgetto || {});
+    // scomparti dal basso: [piano sotto, pannello sopra (dove sta il LED)]
+    const piani = [yBot + S, ...yRip.map((y) => y + S / 2)], soffitti = [...yRip.map((y) => y - S / 2), yTop - S];
+    let primoLed = null;
+    for (let k = piani.length - 1; k >= 0; k--) {
+      const sotto = k === piani.length - 1 ? led.top : led.ripiani;   // l'ultimo scomparto ha sopra il cielo
+      if (!sotto) continue;
+      const ys = soffitti[k], yp = piani[k], hc = ys - yp;
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(Math.max(40, wi - 20), 6, 12), new THREE.MeshBasicMaterial({ color: hex, toneMapped: false }));
+      strip.position.set(xc, ys - 3, zF - 30);
+      strip.userData.ledStriscia = { colore: hex, lunghezza: Math.max(40, wi - 20) };
+      g.add(strip);
+      const bagliore = (geo, mat, x, y, z, rx) => {
+        const me = new THREE.Mesh(geo, mat); me.position.set(x, y, z); if (rx) me.rotation.x = rx;
+        me.userData.ledBagliore = true; me.userData.senzaOmbra = true; me.renderOrder = 5; g.add(me); _aloni.push(me); return me;
+      };
+      const matB = (tex, op) => new THREE.MeshBasicMaterial({ map: tex, color: hex, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+      bagliore(new THREE.PlaneGeometry(wi - 4, d - 4), matB(texAlone(), 0.42), xc, yp + 0.7, pz, -Math.PI / 2);           // sul piano sotto
+      bagliore(new THREE.PlaneGeometry(wi - 4, Math.max(10, hc - 2)), matB(texLedParete(), 0.5), xc, (yp + ys) / 2, zB + S + 0.7);   // sulla schiena
+      if (primoLed == null) primoLed = ys;
+    }
+    if (primoLed != null) {
+      const spot = new THREE.SpotLight(hex, 1600, hb + 300, Math.PI / 2.4, 0.9, 1.2);
+      spot.position.set(xc, primoLed - 8, zF - 40);
+      spot.target.position.set(xc, yBot, zF - 140);
+      spot.userData.ledLuce = true;
+      g.add(spot); g.add(spot.target);
+    }
+  }
   // aperture (invisibili): trascinando un oggetto e puntando dentro, va sul ripiano indicato
   const portale = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(10, wi), Math.max(10, hb - 2 * S)),
     new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
@@ -2414,6 +2455,20 @@ function mobileAperto(g, w, h, d, m, matAnta, coloreCorpo, lato = null, sporg = 
     pl.userData.portaleVano = { profondita: Math.max(60, wi - 60) };
     g.add(pl);
   }
+}
+/** Bagliore del LED sulla parete dietro: forte in alto (vicino al LED), sfuma verso il basso e ai lati. */
+let _texLedParete = null;
+function texLedParete() {
+  if (_texLedParete) return _texLedParete;
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  const g = c.getContext('2d'), img = g.createImageData(128, 128);
+  for (let y = 0; y < 128; y++) for (let x = 0; x < 128; x++) {
+    const v = Math.pow(1 - y / 127, 1.6) * Math.pow(Math.sin(Math.PI * (x + 0.5) / 128), 0.8);
+    const i = (y * 128 + x) * 4; img.data[i] = img.data[i + 1] = img.data[i + 2] = 255; img.data[i + 3] = Math.round(255 * v);
+  }
+  g.putImageData(img, 0, 0);
+  _texLedParete = new THREE.CanvasTexture(c); _texLedParete.colorSpace = THREE.SRGBColorSpace;
+  return _texLedParete;
 }
 
 /** Costruisce il mobile completo centrato nell'origine (corpo + fronti). */

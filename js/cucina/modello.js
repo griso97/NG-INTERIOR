@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261122c';
+import { parametri } from '../parametri.js?v=20261122d';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -105,11 +105,27 @@ export function apertoDi(m) {
   if (!m || !m.aperto || !(m.tipo === 'pensile' || m.tipo === 'base-ante') || m.lavello || m.placca) return null;
   return m.aperto;
 }
-/** Ripiani del mobile aperto: quelli scelti, se no 1 (2 nei pensili alti da 85 cm in su). */
+/** Ripiani del mobile a giorno: quelli scelti (0–5), se no 1 (2 nei pensili alti da 85 cm in su). */
 export function ripianiAperto(m) {
   const a = apertoDi(m);
   if (!a) return 0;
-  return a.ripiani != null ? Math.max(0, Math.min(4, Number(a.ripiani) || 0)) : ((m.altezza_mm || 700) >= 850 ? 2 : 1);
+  return a.ripiani != null ? Math.max(0, Math.min(5, Number(a.ripiani) || 0)) : ((m.altezza_mm || 700) >= 850 ? 2 : 1);
+}
+/** I pezzi del mobile a giorno che possono avere un colore proprio. */
+export const PARTI_APERTO = ['fianchi', 'cielo', 'fondo', 'schiena', 'ripiani'];
+/** Colore di un pezzo del mobile a giorno: 'ante' (come le ante), 'struttura' (melaminico) o l'id di un
+ *  materiale. Di partenza fianchi, cielo e fondo come le ante; schiena e ripiani come il «dentro». */
+export function coloreParteAperto(m, parte) {
+  const a = apertoDi(m);
+  if (!a) return null;
+  const c = a.colori && a.colori[parte];
+  if (c) return c;
+  return parte === 'schiena' || parte === 'ripiani' ? (a.interno || 'ante') : 'ante';
+}
+/** LED del mobile a giorno: { top (sotto il cielo), ripiani (sotto ogni ripiano) }. */
+export function ledAperto(m) {
+  const a = apertoDi(m), l = (a && a.led) || {};
+  return { top: !!l.top, ripiani: !!l.ripiani };
 }
 /** Colore di schiena e ripiani del mobile aperto: 'ante' (come le ante), 'struttura' (melaminico) o l'id di un materiale. */
 export function internoAperto(m) { const a = apertoDi(m); return a ? (a.interno || 'ante') : null; }
@@ -122,13 +138,20 @@ export function pezziMobileAperto(m, lato = null, hTot = null) {
   const L = m.larghezza_mm || 600, H = hTot || m.altezza_mm || 700, P = dimMobile(m).d, S = SP_PEZZI_APERTO;
   const nF = lato ? 1 : 2;                                 // fianchi che ci sono
   const pz = [
-    { nome: 'Fianco (mobile aperto)', larghezza: P + S, altezza: H, spessore: S, quantita: nF, parte: 'fuori' },
-    { nome: 'Schiena (mobile aperto)', larghezza: L - nF * S, altezza: H, spessore: S, quantita: 1, parte: 'dentro' },
-    { nome: 'Cielo e fondo (mobile aperto)', larghezza: L - nF * S, altezza: P, spessore: S, quantita: 2, parte: 'fuori' },
+    { nome: 'Fianco (mobile a giorno)', larghezza: P + S, altezza: H, spessore: S, quantita: nF, parte: 'fianchi' },
+    { nome: 'Schiena (mobile a giorno)', larghezza: L - nF * S, altezza: H, spessore: S, quantita: 1, parte: 'schiena' },
+    { nome: 'Cielo (mobile a giorno)', larghezza: L - nF * S, altezza: P, spessore: S, quantita: 1, parte: 'cielo' },
+    { nome: 'Fondo (mobile a giorno)', larghezza: L - nF * S, altezza: P, spessore: S, quantita: 1, parte: 'fondo' },
   ];
   const n = ripianiAperto(m);
-  if (n > 0) pz.push({ nome: 'Ripiano (mobile aperto)', larghezza: L - nF * S - nF, altezza: P - 2, spessore: S, quantita: n, parte: 'dentro' });
+  if (n > 0) pz.push({ nome: 'Ripiano (mobile a giorno)', larghezza: L - nF * S - nF, altezza: P - 2, spessore: S, quantita: n, parte: 'ripiani' });
   return pz;
+}
+/** Strisce LED del mobile a giorno: quante e lunghe quanto (mm, dentro fra i fianchi meno 2 cm). */
+export function ledStrisceAperto(m, lato = null) {
+  if (!apertoDi(m)) return { n: 0, mm: 0 };
+  const l = ledAperto(m), n = (l.top ? 1 : 0) + (l.ripiani ? ripianiAperto(m) : 0);
+  return { n, mm: Math.max(0, (m.larghezza_mm || 600) - (lato ? 1 : 2) * SP_PEZZI_APERTO - 20) };
 }
 /** Asse del mobile in pianta: x = verso la SUA destra (guardandolo davanti), z = verso il davanti (come nel 3D). */
 export function assiMobile(m) {
@@ -512,7 +535,7 @@ export function descrizioneMobile(m) {
   const dim = m.altezza_mm ? `${m.larghezza_mm}×${m.altezza_mm}` : `${m.larghezza_mm}`;
   if (apertoDi(m)) {
     const n = ripianiAperto(m);
-    return `${dim} · aperto${n === 0 ? '' : n === 1 ? ' · 1 ripiano' : ` · ${n} ripiani`}`;
+    return `${dim} · a giorno${n === 0 ? '' : n === 1 ? ' · 1 ripiano' : ` · ${n} ripiani`}`;
   }
   if (m.tipo === 'base-ante' || m.tipo === 'pensile') {
     const na = anteDiMobile(m);
