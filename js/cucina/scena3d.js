@@ -15,28 +15,28 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261122t';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122t';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261122t';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261122t';
+} from './modello.js?v=20261122u';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122u';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261122u';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261122u';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122t').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122u').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122t';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122t';
-import { parametri } from '../parametri.js?v=20261122t';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122t';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122t';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122u';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122u';
+import { parametri } from '../parametri.js?v=20261122u';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122u';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122u';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122t';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122u';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261122t';
+export { telaPavimento } from '../resa.js?v=20261122u';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -581,9 +581,11 @@ const texSpazzolatoFine = canvasTex(1024, 512, (g, w, h) => {
 });
 texSpazzolatoFine.wrapS = texSpazzolatoFine.wrapT = THREE.RepeatWrapping;
 const matElInox = new THREE.MeshStandardMaterial({ map: texSpazzolato, color: 0xffffff, roughness: 0.36, metalness: 0.78, envMapIntensity: 0.75 });
-// Vetro nero lucido: quasi niente colore proprio, solo riflessi (clearcoat)
-const matElVetro = new THREE.MeshPhysicalMaterial({ color: 0x060608, roughness: 0.18, metalness: 0.0,
-  clearcoat: 1.0, clearcoatRoughness: 0.04, envMapIntensity: 0.4 });
+// Vetro nero lucido dei forni/microonde «Nero»: NERO davvero, con un riflesso leggero.
+// (Prima: clearcoat pieno → rifletteva tutto l'ambiente e sembrava inox, o bronzo sopra il parquet.)
+const matElVetro = new THREE.MeshPhysicalMaterial({ color: 0x050506, roughness: 0.28, metalness: 0.0,
+  clearcoat: 0.35, clearcoatRoughness: 0.18, envMapIntensity: 0.15 });
+matElVetro.userData.riflesso = 0.15;            // la stanza si specchia appena (non diventa inox)
 const matElCorpo = new THREE.MeshPhysicalMaterial({ color: 0x0c0c0f, roughness: 0.3, metalness: 0.1,
   clearcoat: 0.8, clearcoatRoughness: 0.1, envMapIntensity: 0.7 });
 // Interno del forno visto attraverso il vetro scuro: cavità, griglie, ventola
@@ -710,7 +712,8 @@ function riflessiVeri(bb, dir) {
     extra.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
   }
   _cubeRT.texture.needsPMREMUpdate = true;
-  for (const m of lucidi) { m.envMap = _cubeRT.texture; m.envMapIntensity = 1; m.needsUpdate = true; }
+  // forza del riflesso: 1, oppure quella del materiale (userData.riflesso, es. il vetro nero dei forni)
+  for (const m of lucidi) { m.envMap = _cubeRT.texture; m.envMapIntensity = m.userData && m.userData.riflesso != null ? m.userData.riflesso : 1; m.needsUpdate = true; }
 }
 /** I materiali lucidi della cucina riflettono la stanza dei riflessi (vedi ambienteLucidi). */
 function riflettiStanza(radice, rnd) {
@@ -2442,7 +2445,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122t')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122u')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
