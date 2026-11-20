@@ -13,8 +13,8 @@
 
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
-} from './modello.js?v=20261122p';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261122p';
+} from './modello.js?v=20261122q';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261122q';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -193,7 +193,7 @@ function pezziDiModulo(progetto, m) {
     } else if (m.tipo === 'forno') {
       // sotto il forno un pannello del colore delle ante (griglia sopra = accessorio)
       // con la gola il forno sta subito sotto la gola (l'aria passa dalla gola: niente griglia)
-      const hp = gola ? round(H - spazioGola() - H_FORNO_INCASSO - 3 - aH / 2) : round(H - aH - GRIGLIA_FORNO - 3 - H_FORNO_INCASSO - 3);
+      const hp = gola ? round(H - spazioGola() - H_FORNO_INCASSO - 3) : round(H - aH - GRIGLIA_FORNO - 3 - H_FORNO_INCASSO - 3);
       if (hp > 15) pz.push({ modulo: mod, nome: 'Pannello sotto forno', larghezza: round(L - aL), altezza: hp, spessore: SP, materiale: 'anta', quantita: 1 });
     } else {
       // base-ante / lavello

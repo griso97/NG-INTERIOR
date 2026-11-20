@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261122p';
+import { parametri } from '../parametri.js?v=20261122q';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -2826,8 +2826,8 @@ export function frontiCassetti(H, n, piccolo = null, gola = false) {
   n = Math.max(1, n || 3);
   const fc = parametri().ante.ariaCassetti;            // aria tra i frontali (⚙ Parametri)
   // con la GOLA: sopra il primo frontale e fra un frontale e l'altro lo spazio della gola
-  // (25 mm: profilo L sotto il piano, profilo C fra i cassetti); sotto l'aria di sempre
-  const netto = gola ? H - n * spazioGola() - fc : H - (n + 1) * fc;
+  // (25 mm: profilo L sotto il piano, profilo C fra i cassetti); sotto niente aria (come l'anta: 700 − 25)
+  const netto = gola ? H - n * spazioGola() : H - (n + 1) * fc;
   if (!piccolo || n < 2) return Array(n).fill(Math.floor(netto / n));
   const hs = Math.floor(Math.max(60, Math.min(Number(piccolo), netto - (n - 1) * 80)));
   return [hs, ...Array(n - 1).fill(Math.floor((netto - hs) / (n - 1)))];

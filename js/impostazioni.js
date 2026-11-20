@@ -8,18 +8,18 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261122p';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261122p';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261122p';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261122p';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261122p';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261122p';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261122p';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261122p';
-import { agganciaTema } from './tema.js?v=20261122p';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261122p';
-import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261122p';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261122p';
+} from './catalogo.js?v=20261122q';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261122q';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261122q';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261122q';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261122q';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261122q';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261122q';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261122q';
+import { agganciaTema } from './tema.js?v=20261122q';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261122q';
+import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261122q';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261122q';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1086,7 +1086,7 @@ function renderParametri(S) {
     const Q = parametri(), A = Q.ante, c = Q.cassetti, f = (n) => String(Math.round(n * 10) / 10);
     el.querySelector('#par-es-ante').textContent = tr(`Esempio: modulo 600 × 700 → 1 anta ${f(600 - A.ariaLarghezza)} × ${f(700 - A.ariaAltezza)} mm, 2 ante ${f((600 - A.ariaLarghezza - A.ariaTraAnte) / 2)} × ${f(700 - A.ariaAltezza)} mm`);
     el.querySelector('#par-es-j').textContent = tr(`Esempio: anta da 700 con maniglia a J → 700 − ${f(A.ariaAltezza)} − ${f(Q.manigliaJ.spessore)} = ${f(700 - A.ariaAltezza - Q.manigliaJ.spessore)} mm`);
-    { const G = Q.gola.spazio, es = (H) => tr(`mobile basso da ${H} con la gola → anta ${H} − ${f(G)} = ${f(H - G)} mm · 3 cassetti da ${f(Math.floor((H - 3 * G - A.ariaCassetti) / 3))} mm`);
+    { const G = Q.gola.spazio, es = (H) => tr(`mobile basso da ${H} con la gola → anta ${H} − ${f(G)} = ${f(H - G)} mm · 3 cassetti da ${f(Math.floor((H - 3 * G) / 3))} mm`);
       el.querySelector('#par-es-gola').textContent = tr('Esempio:') + ' ' + es(700) + ' · ' + es(800); }
     const tL = f(600 - c.traseraMeno), tipi = [[c.piccoloTrasera, 'piccolo'], [c.medioTrasera, 'medio'], [c.grandeTrasera, 'grande']].filter(([h]) => h);
     Q.binari.forEach((b, i) => {
