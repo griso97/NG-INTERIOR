@@ -14,7 +14,7 @@
 // Assi (mm): x = larghezza (centro 0) · y = altezza (0 = appoggio) · z = profondità (+ = davanti)
 // =============================================================================
 import * as THREE from 'three';
-import { formaOggetto, sagomaEstrusa, solidoDiRotazione, compattezza } from './scanner3d.js?v=20261122d';
+import { formaOggetto, sagomaEstrusa, solidoDiRotazione, compattezza } from './scanner3d.js?v=20261122e';
 import { edgeTable, triTable } from '../vendor/three/addons/objects/mc-tabelle.js';
 
 /** Distanza (chamfer 3-4, in pixel) di ogni pixel dal più vicino pixel "fuori" (m = 0). */

@@ -14,28 +14,28 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261122d';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122d';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261122d';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261122d';
+} from './modello.js?v=20261122e';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122e';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261122e';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261122e';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122d').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122e').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122d';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122d';
-import { parametri } from '../parametri.js?v=20261122d';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122d';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122d';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122e';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122e';
+import { parametri } from '../parametri.js?v=20261122e';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122e';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122e';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122d';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122e';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261122d';
+export { telaPavimento } from '../resa.js?v=20261122e';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -710,7 +710,6 @@ export function impostaColoreLuci({ led = null, lampade = null } = {}) {
   gruppo.traverse((o) => {
     if (hL != null) {
       if (o.isMesh && o.userData.ledStriscia) { o.material.color.setHex(hL); o.userData.ledStriscia.colore = hL; }
-      if (o.isMesh && o.userData.ledBagliore) o.material.color.setHex(hL);
       if (o.isLight && o.userData.ledLuce) o.color.setHex(hL);
     }
     if (lampade != null) {
@@ -2264,33 +2263,105 @@ function accendiLampada(og) {
  */
 /** LED sotto il pensile. avanti = mm di cui spostarlo verso il fronte
  *  (con il pannello dietro il piano: il suo spessore, così resta visibile). */
+/**
+ * LED sotto un pensile (o sotto il ponte / il pannello del ponte): qui solo si SEGNA il tratto di
+ * striscia; alla fine della scena i tratti attaccati diventano UNA STRISCIA UNICA per ogni fila di
+ * pensili, con una luce vera a striscia (uniforme per tutta la lunghezza, niente «faretti»).
+ */
+let _ledTratti = [];
 function aggiungiLedPensile(g, w, h, d, colore, avanti = 0) {
   const hex = typeof colore === 'number' ? colore : (LED_COLORI[colore] || LED_COLORI.caldo);
-  const stripW = Math.max(60, w - 40);
-  const stripH = 6;
-  const stripD = 18;
-  // Striscia LED emissive visibile (barra accesa, sempre al colore pieno).
-  const mat = new THREE.MeshBasicMaterial({ color: hex, toneMapped: false });
-  const geo = new THREE.BoxGeometry(stripW, stripH, stripD);
-  const mesh = new THREE.Mesh(geo, mat);
-  const zStrip = -d / 2 + stripD / 2 + 4 + avanti;
-  mesh.position.set(0, -h / 2 + stripH / 2, zStrip);
-  mesh.userData.ledStriscia = { colore: hex, lunghezza: stripW };    // nella foto realistica: luce vera
-  g.add(mesh);
-  // Come un LED vero: illumina VERSO IL BASSO (piano di lavoro) e un po' la
-  // parete dietro, non di lato. Coni morbidi e limitati: niente "bruciato"
-  // sui costadi e sui fianchi delle colonne vicine.
-  // UNA luce per LED (prima erano due: con tanti pensili il computer doveva calcolare decine
-  // di luci per ogni pixel). Il cono, un po' più largo e appena inclinato verso il muro,
-  // illumina il piano di lavoro e fa il bagliore sul pannello dietro.
-  // Inclinata VERSO IL MURO: così sul muro / sull'aplacado dietro si vedono SEMPRE i coni di luce
-  // dei LED (come nella realtà), e il piano resta illuminato dal resto del cono.
-  const spot = new THREE.SpotLight(hex, 5200, 2600, Math.PI / 3.2, 0.85, 1.0);
-  spot.position.set(0, -h / 2 - 6, zStrip + 30);
-  spot.target.position.set(0, -h / 2 - 1000, zStrip - 260);
-  spot.userData.ledLuce = true;
-  g.add(spot);
-  g.add(spot.target);
+  _ledTratti.push({ g, w, h, d, hex, z: -d / 2 + 13 + avanti });
+}
+/** Luce vera a STRISCIA (RectAreaLight): serve un file di three.js, caricato solo se ci sono LED. */
+let _rectLib = null, _rectLibCaricando = false;
+function lucieStrisciaPronte() {
+  if (_rectLib) return true;
+  if (!_rectLibCaricando) {
+    _rectLibCaricando = true;
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122e')
+      .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
+      .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
+  }
+  return false;
+}
+// LUCE A STRISCIA tarata sulla luce di prima: stessa luce sul piano di lavoro (e muro illuminato
+// uguale per tutta la lunghezza, senza i coni): larga 12 cm, 10 cm più avanti della striscia, appena
+// inclinata verso la stanza
+const LED_INTENSITA = 10, LED_LARG = 120, LED_AVANTI = 100, LED_INCLINA = -0.15;
+/**
+ * Luce a striscia sotto un pannello: centro p (mondo), asse della striscia u, verso il muro dietro vM.
+ * Illumina in basso: il muro (o il pannello dietro) e il piano di lavoro, uniformi per tutta la striscia.
+ */
+function luceStriscia(lung, larg, intensita, hex, p, u, vM, inclina = LED_INCLINA) {
+  const L = new THREE.RectAreaLight(hex, intensita, Math.max(20, lung), larg);
+  L.position.copy(p);
+  // il lato che fa luce guarda giù, verso il muro: la x della luce lungo la striscia
+  const giu = new THREE.Vector3(vM.x * inclina, -1, vM.z * inclina).normalize();
+  const zL = giu.clone().negate();                                   // la luce fa luce verso −z
+  const xL = new THREE.Vector3(u.x, 0, u.z).normalize();
+  const yL = new THREE.Vector3().crossVectors(zL, xL).normalize();
+  xL.crossVectors(yL, zL).normalize();
+  L.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(xL, yL, zL));
+  L.userData.ledLuce = true;
+  return L;
+}
+/** Fine scena: i tratti di LED attaccati (stessa altezza, stessa linea) diventano una striscia unica. */
+function costruisciLedContinui() {
+  const tratti = _ledTratti; _ledTratti = [];
+  if (!tratti.length || !gruppo) return;
+  gruppo.updateMatrixWorld(true);
+  const segs = tratti.map((t) => {
+    const y = -t.h / 2;
+    const A = t.g.localToWorld(new THREE.Vector3(-t.w / 2, y, t.z)), B = t.g.localToWorld(new THREE.Vector3(t.w / 2, y, t.z));
+    const C = t.g.localToWorld(new THREE.Vector3(0, y, t.z)), D = t.g.localToWorld(new THREE.Vector3(0, y, t.z - 100));
+    const u = B.clone().sub(A); u.y = 0; u.normalize();
+    const vM = D.sub(C); vM.y = 0; vM.normalize();                  // verso il muro (dietro)
+    return { A, B, u, vM, y: (A.y + B.y) / 2, hex: t.hex };
+  });
+  // raggruppo: stessa altezza, stesso colore, stessa linea, uno dopo l'altro (al massimo 3 cm di buco)
+  const usati = new Set(), file = [];
+  for (let i = 0; i < segs.length; i++) {
+    if (usati.has(i)) continue;
+    const s0 = segs[i], fila = [s0]; usati.add(i);
+    let cambiato = true;
+    while (cambiato) {
+      cambiato = false;
+      for (let j = 0; j < segs.length; j++) {
+        if (usati.has(j)) continue;
+        const s = segs[j];
+        if (s.hex !== s0.hex || Math.abs(s.y - s0.y) > 3 || Math.abs(s.u.dot(s0.u)) < 0.999) continue;
+        // stessa linea: distanza dalla retta della fila
+        const off = s.A.clone().sub(s0.A); off.y = 0;
+        const perp = off.clone().sub(s0.u.clone().multiplyScalar(off.dot(s0.u))).length();
+        if (perp > 12) continue;
+        // attaccato a un tratto della fila
+        const t = (P) => P.clone().sub(s0.A).dot(s0.u);
+        const a = Math.min(t(s.A), t(s.B)), bb = Math.max(t(s.A), t(s.B));
+        if (fila.some((f) => { const fa = Math.min(t(f.A), t(f.B)), fb = Math.max(t(f.A), t(f.B)); return a <= fb + 30 && bb >= fa - 30; })) {
+          fila.push(s); usati.add(j); cambiato = true;
+        }
+      }
+    }
+    file.push(fila);
+  }
+  const pronte = lucieStrisciaPronte();
+  for (const fila of file) {
+    const s0 = fila[0], t = (P) => P.clone().sub(s0.A).dot(s0.u);
+    let a = Infinity, bb = -Infinity;
+    for (const f of fila) { a = Math.min(a, t(f.A), t(f.B)); bb = Math.max(bb, t(f.A), t(f.B)); }
+    const lung = Math.max(60, bb - a - 20);                          // 1 cm di margine ai due capi
+    const mid = s0.A.clone().add(s0.u.clone().multiplyScalar((a + bb) / 2)); mid.y = s0.y;
+    // la striscia accesa (sempre al colore pieno), sotto il fondo dei pensili
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(lung, 6, 18), new THREE.MeshBasicMaterial({ color: s0.hex, toneMapped: false }));
+    strip.position.set(mid.x, s0.y + 3, mid.z);
+    strip.rotation.y = -Math.atan2(s0.u.z, s0.u.x);
+    strip.userData.ledStriscia = { colore: s0.hex, lunghezza: lung };
+    strip.userData.senzaOmbra = true;
+    gruppo.add(strip);
+    // la luce vera, uniforme per tutta la striscia
+    if (pronte) gruppo.add(luceStriscia(lung, LED_LARG, LED_INTENSITA, s0.hex, new THREE.Vector3(mid.x, s0.y - 4, mid.z).addScaledVector(s0.vM, -LED_AVANTI), s0.u, s0.vM));
+  }
 }
 
 /** Dove vanno i LED nella cucina a ponte, SEMPRE sotto: 'pensili' (sotto ogni pensile, anche quelli sotto
@@ -2409,37 +2480,22 @@ function mobileAperto(g, w, h, d, m, matAnta, coloreCorpo, lato = null, sporg = 
     const yr = y0 + (y1 - y0) * i / (n + 1); yRip.push(yr);
     ripiano(pezzo(r1 - r0, S, d - 2, (r0 + r1) / 2, yr, zB + S + (d - 2) / 2, mRi));
   }
-  // LED sotto il top (cielo) e sotto i ripiani: la striscia accesa, il bagliore sul piano sotto e
-  // sulla schiena, e UNA luce vera per mobile (tante luci appesantiscono il 3D)
+  // LED sotto il top (cielo) e sotto i ripiani: la striscia accesa e una LUCE VERA a striscia,
+  // uniforme, che illumina il ripiano sotto e la schiena (come i LED sotto i pensili)
   const led = ledAperto(m);
   if (led.top || (led.ripiani && n)) {
-    const hex = ledHex(_lastProgetto || {});
-    // scomparti dal basso: [piano sotto, pannello sopra (dove sta il LED)]
-    const piani = [yBot + S, ...yRip.map((y) => y + S / 2)], soffitti = [...yRip.map((y) => y - S / 2), yTop - S];
-    let primoLed = null;
-    for (let k = piani.length - 1; k >= 0; k--) {
-      const sotto = k === piani.length - 1 ? led.top : led.ripiani;   // l'ultimo scomparto ha sopra il cielo
+    const hex = ledHex(_lastProgetto || {}), pronte = lucieStrisciaPronte();
+    const soffitti = [...yRip.map((y) => y - S / 2), yTop - S];
+    for (let k = soffitti.length - 1; k >= 0; k--) {
+      const sotto = k === soffitti.length - 1 ? led.top : led.ripiani;   // l'ultimo scomparto ha sopra il cielo
       if (!sotto) continue;
-      const ys = soffitti[k], yp = piani[k], hc = ys - yp;
-      const strip = new THREE.Mesh(new THREE.BoxGeometry(Math.max(40, wi - 20), 6, 12), new THREE.MeshBasicMaterial({ color: hex, toneMapped: false }));
+      const ys = soffitti[k], lung = Math.max(40, wi - 20);
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(lung, 6, 12), new THREE.MeshBasicMaterial({ color: hex, toneMapped: false }));
       strip.position.set(xc, ys - 3, zF - 30);
-      strip.userData.ledStriscia = { colore: hex, lunghezza: Math.max(40, wi - 20) };
+      strip.userData.ledStriscia = { colore: hex, lunghezza: lung };
       g.add(strip);
-      const bagliore = (geo, mat, x, y, z, rx) => {
-        const me = new THREE.Mesh(geo, mat); me.position.set(x, y, z); if (rx) me.rotation.x = rx;
-        me.userData.ledBagliore = true; me.userData.senzaOmbra = true; me.renderOrder = 5; g.add(me); _aloni.push(me); return me;
-      };
-      const matB = (tex, op) => new THREE.MeshBasicMaterial({ map: tex, color: hex, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
-      bagliore(new THREE.PlaneGeometry(wi - 4, d - 4), matB(texAlone(), 0.42), xc, yp + 0.7, pz, -Math.PI / 2);           // sul piano sotto
-      bagliore(new THREE.PlaneGeometry(wi - 4, Math.max(10, hc - 2)), matB(texLedParete(), 0.5), xc, (yp + ys) / 2, zB + S + 0.7);   // sulla schiena
-      if (primoLed == null) primoLed = ys;
-    }
-    if (primoLed != null) {
-      const spot = new THREE.SpotLight(hex, 1600, hb + 300, Math.PI / 2.4, 0.9, 1.2);
-      spot.position.set(xc, primoLed - 8, zF - 40);
-      spot.target.position.set(xc, yBot, zF - 140);
-      spot.userData.ledLuce = true;
-      g.add(spot); g.add(spot.target);
+      // più debole di quella sotto i pensili: lo scomparto è piccolo (e la luce non deve uscire sotto il mobile)
+      if (pronte) g.add(luceStriscia(lung, 60, LED_INTENSITA * 0.35, hex, new THREE.Vector3(xc, ys - 7, zF - 70), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, -1), 0.35));
     }
   }
   // aperture (invisibili): trascinando un oggetto e puntando dentro, va sul ripiano indicato
@@ -2455,20 +2511,6 @@ function mobileAperto(g, w, h, d, m, matAnta, coloreCorpo, lato = null, sporg = 
     pl.userData.portaleVano = { profondita: Math.max(60, wi - 60) };
     g.add(pl);
   }
-}
-/** Bagliore del LED sulla parete dietro: forte in alto (vicino al LED), sfuma verso il basso e ai lati. */
-let _texLedParete = null;
-function texLedParete() {
-  if (_texLedParete) return _texLedParete;
-  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
-  const g = c.getContext('2d'), img = g.createImageData(128, 128);
-  for (let y = 0; y < 128; y++) for (let x = 0; x < 128; x++) {
-    const v = Math.pow(1 - y / 127, 1.6) * Math.pow(Math.sin(Math.PI * (x + 0.5) / 128), 0.8);
-    const i = (y * 128 + x) * 4; img.data[i] = img.data[i + 1] = img.data[i + 2] = 255; img.data[i + 3] = Math.round(255 * v);
-  }
-  g.putImageData(img, 0, 0);
-  _texLedParete = new THREE.CanvasTexture(c); _texLedParete.colorSpace = THREE.SRGBColorSpace;
-  return _texLedParete;
 }
 
 /** Costruisce il mobile completo centrato nell'origine (corpo + fronti). */
@@ -2630,7 +2672,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   for (const g of libera) g.dispose();
 }
 function costruisciScena3d(progetto, reframe = false, selezionato = null) {
-  _luciLampade = 0; _riverberi = 0; _aloni = [];
+  _luciLampade = 0; _riverberi = 0; _aloni = []; _ledTratti = [];
   impostaColoreLampade(progetto.lampadeK);
   if (!scene) return;
   selId = selezionato;
@@ -3079,6 +3121,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   // Lavello, piano cottura e rubinetto SOPRA il top
   for (const a of accessori) aggiungiAccessorioTop(a, progetto.finiture || {});
 
+  costruisciLedContinui();          // LED: una striscia unica per ogni fila di pensili, luce uniforme
   applicaLuceEsterna(luceEsternaDi(progetto));
   uvInScala(gruppo);
   try { riflettiStanza(gruppo, renderer); } catch (_) { /* senza riflessi va bene lo stesso */ }
