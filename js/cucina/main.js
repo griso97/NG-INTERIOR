@@ -24,17 +24,17 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, latoApertoDi, latiLiberi, migraProfonditaPensili, PARTI_APERTO, coloreParteAperto, ledAperto,
-  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola } from './modello.js?v=20261122q';
-import { renderPianta } from './pianta.js?v=20261122q';
-import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261122q';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261122q';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261122q';
-import { calcolaDistintaCucina } from './distinta.js?v=20261122q';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261122q';
-import { agganciaTema } from '../tema.js?v=20261122q';
-import { tendinePannello } from '../tendine-pannello.js?v=20261122q';
+  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola } from './modello.js?v=20261122r';
+import { renderPianta } from './pianta.js?v=20261122r';
+import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261122r';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261122r';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261122r';
+import { calcolaDistintaCucina } from './distinta.js?v=20261122r';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261122r';
+import { agganciaTema } from '../tema.js?v=20261122r';
+import { tendinePannello } from '../tendine-pannello.js?v=20261122r';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261122q');
+const _excel = () => import('../modello-export.js?v=20261122r');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -1560,8 +1560,8 @@ function apriPavimentoDaFoto() {
     if (!(w >= 5) || !(h >= 5)) { alert(tt('Scrivi la misura della zona fotografata (almeno 5 cm).')); return; }
     $('pav-salva').disabled = true;
     try {
-      const C = await import('../catalogo.js?v=20261122q');
-      const M = await import('../materiali.js?v=20261122q');
+      const C = await import('../catalogo.js?v=20261122r');
+      const M = await import('../materiali.js?v=20261122r');
       const stato = await C.leggiCatalogo();
       const id = 'pav-' + Date.now().toString(36);
       const prod = { id, sezione: 'pavimento', nome: ($('pav-nome').value || '').trim() || tt('Pavimento del cliente'), campioneCm: { w, h } };
@@ -1578,7 +1578,7 @@ async function eliminaPavimentoProprio(id) {
   const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
   if (!confirm(tt('Eliminare questo pavimento? Sparisce da tutti i progetti.'))) return;
   try {
-    const C = await import('../catalogo.js?v=20261122q');
+    const C = await import('../catalogo.js?v=20261122r');
     const stato = await C.leggiCatalogo();
     stato.prodotti = (stato.prodotti || []).filter((p) => p.id !== id);
     await C.salvaCatalogo(stato); await C.eliminaFoto(id);
@@ -1929,7 +1929,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261122q');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261122r');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2757,13 +2757,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261122q');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261122r');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261122q'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261122r'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2940,11 +2940,54 @@ function agganciaPensileSottoPonte(root, m) {
  * sinistra / destra / alto. "Come le colonne" = la scelta del gruppo.
  */
 function porteDellaColonna(m) {
+  if (m.variante === 'intera') return [{ k: 'intera', nome: 'Porta intera' }];
   const porte = [{ k: 'bassa', nome: 'Porta bassa' }];
   // porta alta: c'è sempre, tranne forno + microonde senza spazio sopra (come nel 3D: lo decide l'altezza)
   porte.push({ k: 'alta', nome: m.variante === 'forno' ? 'Porta sopra il forno' : m.variante === 'microonde' ? 'Porta sopra il microonde'
     : m.variante === 'forno-micro' ? 'Porticina sopra forno e microonde' : m.variante === 'vano' ? 'Porta sopra il vano' : 'Porta alta' });
   return porte;
+}
+/**
+ * VETRO NELLA COLONNA, scelte rapide: tutta chiusa, porta intera in vetro (da terra in cima),
+ * sotto chiusa e sopra in vetro, sotto in vetro e sopra chiusa, tutte e due in vetro.
+ * Poi telaio e vetro per tutte le porte in vetro (ogni porta si può ancora cambiare sotto).
+ */
+function sceltaVetroColonna(m) {
+  const pv = (k) => !!(m.porte && m.porte[k] && m.porte[k].vetro);
+  if (m.variante === 'intera') return pv('intera') ? 'intera' : 'chiusa';
+  const b = pv('bassa'), a = pv('alta');
+  return b && a ? 'tutte' : a ? 'sopra' : b ? 'sotto' : 'chiusa';
+}
+function vetroDiColonna(m) {
+  const o = porteDellaColonna(m).map((p) => (m.porte || {})[p.k]).find((p) => p && p.vetro);   // solo le porte che ci sono
+  return o ? o.vetro : null;
+}
+function htmlVetroColonna(m) {
+  const s = sceltaVetroColonna(m), v = vetroDiColonna(m);
+  const op = (cl, attr, val, et, on) => `<button type="button" class="btn-ghost ${cl} ${on ? 'attivo' : ''}" ${attr}="${val}" style="flex:1;min-width:120px">${on ? '✓ ' : ''}${et}</button>`;
+  return `
+      <div class="riga-3d" style="margin:12px 0 6px"><strong>Vetrina</strong> (porte in vetro):</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${op('opt-colvetro', 'data-colvetro', 'chiusa', 'Tutta chiusa', s === 'chiusa')}
+        ${op('opt-colvetro', 'data-colvetro', 'intera', 'Porta intera in vetro', s === 'intera')}
+        ${op('opt-colvetro', 'data-colvetro', 'sopra', 'Sotto chiusa, sopra in vetro', s === 'sopra')}
+        ${op('opt-colvetro', 'data-colvetro', 'sotto', 'Sotto in vetro, sopra chiusa', s === 'sotto')}
+        ${op('opt-colvetro', 'data-colvetro', 'tutte', 'Sotto e sopra in vetro', s === 'tutte')}
+      </div>
+      ${v ? `
+      <div class="riga-3d" style="margin:8px 0 6px">Telaio:</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${op('opt-coltel', 'data-coltel', 'legno', 'Come le ante (5 cm)', (v.telaio || 'legno') === 'legno')}
+        ${op('opt-coltel', 'data-coltel', 'alluminio', 'Alluminio', v.telaio === 'alluminio')}
+        ${op('opt-coltel', 'data-coltel', 'nero', 'Nero', v.telaio === 'nero')}
+      </div>
+      <div class="riga-3d" style="margin:8px 0 6px">Vetro:</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${op('opt-colvv', 'data-colvv', 'trasparente', 'Trasparente', (v.vetro || 'trasparente') === 'trasparente')}
+        ${op('opt-colvv', 'data-colvv', 'satinato', 'Satinato', v.vetro === 'satinato')}
+        ${op('opt-colvv', 'data-colvv', 'fume', 'Fumé', v.vetro === 'fume')}
+      </div>` : ''}
+      ${m.variante === 'intera' ? '<div class="riga-3d" style="margin-top:6px">Porta intera: una sola porta da terra in cima, senza porta bassa.</div>' : ''}`;
 }
 function htmlAperturaColonna(m) {
   if (categoriaTipo(m.tipo) !== 'colonna') return '';
@@ -2962,6 +3005,7 @@ function htmlAperturaColonna(m) {
         <button type="button" class="btn-ghost opt-latocol ${lato === 'sx' ? 'attivo' : ''}" data-latocol="sx">${lato === 'sx' ? '✓ ' : ''}← Sinistra</button>
         <button type="button" class="btn-ghost opt-latocol ${lato === 'dx' ? 'attivo' : ''}" data-latocol="dx">${lato === 'dx' ? '✓ ' : ''}Destra →</button>
       </div>
+      ${htmlVetroColonna(m)}
       <div class="riga-3d" style="margin:10px 0 4px">Ogni porta può avere le sue scelte (es. la porticina in alto normale con push):</div>
       ${porteDellaColonna(m).map((p) => `
       <div style="border:1px solid var(--bordo,#333);border-radius:8px;padding:8px;margin-top:6px">
@@ -2989,6 +3033,29 @@ function agganciaAperturaColonna(root, m) {
     if ((m.antaLato === 'sx' ? 'sx' : 'dx') === b.dataset.latocol) return;
     registraStoria(); m.antaLato = b.dataset.latocol; aggiorna();
   }));
+  // VETRINA: scelte rapide (porta intera / sopra / sotto / tutte e due) e telaio + vetro per tutte
+  const conVetro = (porte, k, v) => { const o = { ...(porte[k] || {}) }; if (v) o.vetro = { ...v }; else delete o.vetro; if (Object.keys(o).length) porte[k] = o; else delete porte[k]; };
+  root.querySelectorAll('.opt-colvetro[data-colvetro]').forEach((b) => b.addEventListener('click', () => {
+    const s = b.dataset.colvetro;
+    if (s === sceltaVetroColonna(m)) return;
+    registraStoria();
+    const v = vetroDiColonna(m) || { telaio: 'legno', vetro: 'trasparente' }, porte = { ...(m.porte || {}) };
+    if (s === 'intera') m.variante = 'intera';
+    else if (s !== 'chiusa' && m.variante === 'intera') m.variante = 'porta';
+    conVetro(porte, 'intera', s === 'intera' ? v : null);
+    conVetro(porte, 'bassa', s === 'sotto' || s === 'tutte' ? v : null);
+    conVetro(porte, 'alta', s === 'sopra' || s === 'tutte' ? v : null);
+    if (Object.keys(porte).length) m.porte = porte; else delete m.porte;
+    aggiorna();
+  }));
+  const tuttiIVetri = (campo, val) => {
+    registraStoria();
+    const porte = { ...(m.porte || {}) };
+    for (const k of Object.keys(porte)) if (porte[k] && porte[k].vetro) porte[k] = { ...porte[k], vetro: { ...porte[k].vetro, [campo]: val } };
+    m.porte = porte; aggiorna();
+  };
+  root.querySelectorAll('.opt-coltel[data-coltel]').forEach((b) => b.addEventListener('click', () => tuttiIVetri('telaio', b.dataset.coltel)));
+  root.querySelectorAll('.opt-colvv[data-colvv]').forEach((b) => b.addEventListener('click', () => tuttiIVetri('vetro', b.dataset.colvv)));
   root.querySelectorAll('select.porta-col').forEach((el) => el.addEventListener('change', () => {
     registraStoria();
     const k = el.dataset.porta, campo = el.dataset.campo, v = el.value;

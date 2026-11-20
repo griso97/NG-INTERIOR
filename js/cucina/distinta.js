@@ -13,8 +13,8 @@
 
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
-} from './modello.js?v=20261122q';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261122q';
+} from './modello.js?v=20261122r';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261122r';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -240,8 +240,11 @@ function pezziDiModulo(progetto, m) {
       }
       pz.push({ modulo: mod, nome: `${nome}${desc}`, larghezza: aw, altezza: round(alt - rJp), spessore: SP, materiale: 'anta', quantita: 1, fp: fpP, push: pushP, lato });
     };
-    porta('bassa', 'Anta bassa', ab - aH);
-    if (topDoor > 60) porta('alta', 'Anta alta', topDoor - aH);
+    if (m.variante === 'intera') porta('intera', 'Anta intera', H - aH);   // PORTA INTERA: una sola, da terra in cima
+    else {
+      porta('bassa', 'Anta bassa', ab - aH);
+      if (topDoor > 60) porta('alta', 'Anta alta', topDoor - aH);
+    }
     // COLONNA SU MISURA: la struttura la facciamo noi → tutti i pezzi (montaggio 2)
     if (m.tipo === 'colonna-misura') {
       for (const p of pezziColonnaMisura(m)) {

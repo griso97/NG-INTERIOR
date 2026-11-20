@@ -1,5 +1,15 @@
 /* Dizionario italiano → español (España) per js/i18n.js. Generato: modificare qui le traduzioni. */
 window.NG_I18N_ES = {
+ "Porta intera (da terra in cima)": "Puerta entera (del suelo hasta arriba)",
+ "Anta intera": "Puerta entera",
+ "Vetrina": "Vitrina",
+ "(porte in vetro):": "(puertas de vidrio):",
+ "Tutta chiusa": "Toda cerrada",
+ "Porta intera in vetro": "Puerta entera de vidrio",
+ "Sotto chiusa, sopra in vetro": "Abajo cerrada, arriba de vidrio",
+ "Sotto in vetro, sopra chiusa": "Abajo de vidrio, arriba cerrada",
+ "Sotto e sopra in vetro": "Abajo y arriba de vidrio",
+ "Porta intera: una sola porta da terra in cima, senza porta bassa.": "Puerta entera: una sola puerta del suelo hasta arriba, sin puerta baja.",
  "Esempio:": "Ejemplo:",
  "(L − 2 fianchi) ÷ n° ante − {0}": "(L − 2 costados) ÷ n.º puertas − {0}",
  "(maniglia alta come l'anta), altezza =": "(tirador alto como la puerta), alto =",

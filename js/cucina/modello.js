@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261122q';
+import { parametri } from '../parametri.js?v=20261122r';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -331,6 +331,7 @@ export const H_VANO_FORNO = 600;                 // vano forno da incasso (modif
 export const H_VANO_MICRO = 380;                 // vano microonde da incasso (modificabile)
 export const VARIANTI_COLONNA = [
   { id: 'porta',       nome: 'Porta unica' },
+  { id: 'intera',      nome: 'Porta intera (da terra in cima)' },   // una sola porta: niente porta bassa
   { id: 'forno',       nome: 'Forno + porta' },
   { id: 'microonde',   nome: 'Microonde + porta' },
   { id: 'forno-micro', nome: 'Forno + microonde + porta' },
