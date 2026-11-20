@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole } from './parametri.js?v=20261122n';
+import { binarioScorrevole } from './parametri.js?v=20261122o';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.

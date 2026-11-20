@@ -1,5 +1,6 @@
 /* Dizionario italiano → español (España) per js/i18n.js. Generato: modificare qui le traduzioni. */
 window.NG_I18N_ES = {
+ "Esempio:": "Ejemplo:",
  "(L − 2 fianchi) ÷ n° ante − {0}": "(L − 2 costados) ÷ n.º puertas − {0}",
  "(maniglia alta come l'anta), altezza =": "(tirador alto como la puerta), alto =",
  "Tipo di binario": "Tipo de carril",
@@ -2332,7 +2333,7 @@ window.NG_I18N_ES = {
  "Gola in alluminio (mobili bassi)": "Gola de aluminio (muebles bajos)",
  "Spazio per le dita": "Espacio para los dedos",
  "tolti in alto all'anta, sopra il primo cassetto e fra un cassetto e l'altro": "quitados arriba a la puerta, encima del primer cajón y entre un cajón y otro",
- "Esempio: mobile basso da 720 con la gola → anta 720 − {0} − {1} = {2} mm · 3 cassetti da {3} mm": "Ejemplo: mueble bajo de 720 con gola → puerta 720 − {0} − {1} = {2} mm · 3 cajones de {3} mm",
+ "mobile basso da {0} con la gola → anta {1} − {2} − {3} = {4} mm · 3 cassetti da {5} mm": "mueble bajo de {0} con gola → puerta {1} − {2} − {3} = {4} mm · 3 cajones de {5} mm",
  "Vale quando nei mobili bassi scegli «Gola alluminio» (Porte · mobili bassi).": "Se aplica cuando en los muebles bajos eliges «Gola de aluminio» (Puertas · muebles bajos).",
  "(L − 2 fianchi) ÷ n° ante − 35": "(L − 2 costados) ÷ n.º puertas − 35",
 };
