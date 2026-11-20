@@ -2333,7 +2333,7 @@ window.NG_I18N_ES = {
  "Gola in alluminio (mobili bassi)": "Gola de aluminio (muebles bajos)",
  "Spazio per le dita": "Espacio para los dedos",
  "tolti in alto all'anta, sopra il primo cassetto e fra un cassetto e l'altro": "quitados arriba a la puerta, encima del primer cajón y entre un cajón y otro",
- "mobile basso da {0} con la gola → anta {1} − {2} − {3} = {4} mm · 3 cassetti da {5} mm": "mueble bajo de {0} con gola → puerta {1} − {2} − {3} = {4} mm · 3 cajones de {5} mm",
+ "mobile basso da {0} con la gola → anta {1} − {2} = {3} mm · 3 cassetti da {4} mm": "mueble bajo de {0} con gola → puerta {1} − {2} = {3} mm · 3 cajones de {4} mm",
  "Vale quando nei mobili bassi scegli «Gola alluminio» (Porte · mobili bassi).": "Se aplica cuando en los muebles bajos eliges «Gola de aluminio» (Puertas · muebles bajos).",
  "(L − 2 fianchi) ÷ n° ante − 35": "(L − 2 costados) ÷ n.º puertas − 35",
 };

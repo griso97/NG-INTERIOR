@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261122o';
+import { parametri } from '../parametri.js?v=20261122p';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -2861,8 +2861,8 @@ export function golaSuMobile(progetto, m) {
   if (cat === 'lavastoviglie') return m.colore === 'integrata';
   return false;
 }
-/** Altezza dell'anta con la gola: l'anta normale (H − aria) meno lo spazio della gola in alto (700 → 698 → 673; 800 → 798 → 773). */
-export function altezzaAntaGola(H) { return Math.round(H - parametri().ante.ariaAltezza - spazioGola()); }
+/** Altezza dell'anta con la gola: il modulo meno lo spazio della gola (700 → 675; 800 → 775). */
+export function altezzaAntaGola(H) { return Math.round(H - spazioGola()); }
 /**
  * Dove passano i profili in un mobile alto H (mm dal fondo del mobile):
  * [{ tipo: 'L', y: cima }, { tipo: 'C', y: centro dello spazio fra due cassetti }, …]

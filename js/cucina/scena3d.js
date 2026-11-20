@@ -15,28 +15,28 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261122o';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122o';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261122o';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261122o';
+} from './modello.js?v=20261122p';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122p';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261122p';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261122p';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122o').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122p').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122o';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122o';
-import { parametri } from '../parametri.js?v=20261122o';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122o';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122o';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122p';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122p';
+import { parametri } from '../parametri.js?v=20261122p';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122p';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122p';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122o';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122p';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261122o';
+export { telaPavimento } from '../resa.js?v=20261122p';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -1705,7 +1705,7 @@ let _golaQui = false;
 /** Altezza e centro di un'anta (non sporgente): con la gola l'anta normale perde 25 mm in alto (come in distinta). */
 function vertAnta(h) {
   if (!_golaQui) return { ph: h - FUGA_H, py: 0 };
-  return { ph: h - FUGA_H - G_GOLA, py: -G_GOLA / 2 };
+  return { ph: h - G_GOLA, py: -G_GOLA / 2 };            // anta con la gola: modulo − gola (700 → 675)
 }
 // Profili in alluminio nei 4 colori (opachi; l'argento è anodizzato, un po' metallico)
 const GOLA_3D = { nero: [0x1f2022, 0.55, 0.3], antracite: [0x55585a, 0.5, 0.35], bianco: [0xeeeeec, 0.5, 0.05], argento: [0xc3c5c8, 0.34, 0.85] };
@@ -2433,7 +2433,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122o')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122p')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
