@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261122b';
+import { parametri } from '../parametri.js?v=20261122c';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -14,6 +14,7 @@ export function progettoDefault() {
   return {
     versione: 1,
     versioneRot: 1,          // rotazione "girato a mano" (rotManuale) gestita
+    profPensile: PROFONDITA_PENSILE,   // profondità dei pensili con cui sono stati messi (vedi migraProfonditaPensili)
     stepCorrente: 1,
     passi5: true,           // passi: 1 Pianta · 2 Bassi · 3 Alti · 4 Accessori · 5 Rendering (prima il rendering era il 4)
     piano: {
@@ -51,7 +52,7 @@ export function progettoDefault() {
 // CATALOGO MODULI BASE (Step 2)
 // =============================================================================
 export const PROFONDITA_BASE = 600;              // mm, fissa (ante incluse)
-export const PROFONDITA_PENSILE = 350;           // mm, pensili (armadi sopra)
+export const PROFONDITA_PENSILE = 330;           // mm, pensili (armadi sopra): 33 di struttura, l'anta davanti
 export const LARGHEZZE_BASE = [300, 400, 500, 600, 700, 800, 900, 1000];
 export const ALTEZZE_BASE = [700, 800];          // armadi bassi
 export const ALTEZZE_PENSILE = [700, 900];       // armadi sopra
@@ -1096,6 +1097,23 @@ function rotazionePenisola(progetto, m, x, y) {
  * girato al centro) tengono la rotazione che hanno: portati al muro non si
  * rigirano più da soli. Una volta sola per progetto.
  */
+/**
+ * PENSILI DA 33: prima i pensili erano profondi 35. Nei progetti salvati prima, ogni pensile si
+ * sposta verso la sua schiena di metà della differenza (1 cm): la schiena resta contro il muro
+ * (o dov'era) e il davanti rientra di 2 cm. Una volta sola per progetto.
+ */
+export function migraProfonditaPensili(progetto) {
+  if (!progetto || progetto.profPensile === PROFONDITA_PENSILE) return;
+  const vecchia = Number(progetto.profPensile) || 350, delta = (vecchia - PROFONDITA_PENSILE) / 2;
+  if (delta) {
+    for (const m of (progetto.mobiliLiberi || [])) {
+      if (m.tipo !== 'pensile') continue;
+      const { uz } = assiMobile(m);                       // verso il davanti: la schiena è dall'altra parte
+      m.x = Math.round(m.x - uz.x * delta); m.y = Math.round(m.y - uz.y * delta);
+    }
+  }
+  progetto.profPensile = PROFONDITA_PENSILE;
+}
 export function migraRotazioni(progetto) {
   if (!progetto || (progetto.versioneRot || 0) >= 1) return;
   for (const m of (progetto.mobiliLiberi || [])) {
@@ -1417,7 +1435,7 @@ export function generaPensiliAuto(progetto, altezzaPensile) {
     .filter((m) => categoriaTipo(m.tipo) !== 'pensile');
   let nextId = Math.max(0, ...progetto.mobiliLiberi.map((m) => m.id)) + 1;
   const nuovi = [];
-  const OFFSET = (PROFONDITA_BASE - PROFONDITA_PENSILE) / 2; // 125 mm
+  const OFFSET = (PROFONDITA_BASE - PROFONDITA_PENSILE) / 2; // 135 mm (60 − 33)
 
   // 1) PRIMA i pensili d'angolo a L (630) in ogni angolo interno, così i
   //    pensili normali sanno dove sono e possono "cedere" lo spazio d'angolo.
@@ -1529,7 +1547,7 @@ export function generaPonteAuto(progetto, altezza, altezzaPensili = 0) {
     if (b.antaLato != null) p.antaLato = b.antaLato;
     if (b.ante != null) p.ante = b.ante;
     nuovi.push(p);
-    // PENSILI SOTTO IL PONTE (profondi 35, larghi come la base, contro il muro)
+    // PENSILI SOTTO IL PONTE (profondi 33, larghi come la base, contro il muro)
     if (altezzaPensili > 0) {
       // via il pensile che c'era sopra questa base: lo sostituisce quello sotto il ponte
       progetto.mobiliLiberi = progetto.mobiliLiberi.filter((o) => !(categoriaTipo(o.tipo) === 'pensile' && o.sopraBase === b.id));

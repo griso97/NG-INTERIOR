@@ -12,9 +12,9 @@
 // =============================================================================
 
 import {
-  infoTavolo, spessoreTavolo, moduloDaOrdinare, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, internoAperto, pezziMobileAperto, latoApertoDi,
-} from './modello.js?v=20261122b';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261122b';
+  infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, internoAperto, pezziMobileAperto, latoApertoDi,
+} from './modello.js?v=20261122c';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261122c';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -201,7 +201,7 @@ function pezziDiModulo(progetto, m) {
     }
   } else if (cat === 'pensile') {
     if (m.tipo === 'pensile-angolo' || m.tipo === 'pensile-angolo-45') {
-      const aw = m.tipo === 'pensile-angolo-45' ? round(L * 0.5) : round(L - 350);
+      const aw = m.tipo === 'pensile-angolo-45' ? round(L * 0.5) : round(L - PROFONDITA_PENSILE);   // 63 − 33 = 30
       pz.push({ modulo: mod, nome: 'Anta', larghezza: Math.max(100, aw), altezza: round(H - aH - rJ), spessore: SP, materiale: 'anta', quantita: m.tipo === 'pensile-angolo-45' ? 1 : 2 });
     } else {
       // Pensile 70/90: con l'anta sporgente la porta è 72/92 (H + 20), altrimenti H − 2.

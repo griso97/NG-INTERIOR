@@ -2242,4 +2242,7 @@ window.NG_I18N_ES = {
  "Altezza (mm) — mobile aperto: qualsiasi misura": "Alto (mm) — mueble abierto: cualquier medida",
  "Schiena e ripiani (dentro):": "Trasera y baldas (dentro):",
  "Fatto a pezzi, tutti dello spessore delle ante: fianchi, cielo e fondo del colore delle ante. Il fianco è profondo come il mobile più l'anta (a filo con le ante vicine); la schiena è larga come il mobile meno il fianco; con le ante da 72 / 92 è alto come l'anta. Se è l'ultimo modulo della fila, dal lato libero non ha il fianco. Dentro ci puoi mettere gli oggetti: trascinali nel mobile e lasciali sul ripiano che vuoi.": "Hecho por piezas, todas del grosor de las puertas: costados, techo y suelo del color de las puertas. El costado es profundo como el mueble más la puerta (a ras de las puertas de al lado); la trasera es ancha como el mueble menos el costado; con puertas de 72 / 92 es alto como la puerta. Si es el último módulo de la fila, en el lado libre no tiene costado. Dentro puedes poner objetos: arrástralos al mueble y déjalos en la balda que quieras.",
+ "Sopra ogni base fra le colonne: il": "Sobre cada base entre las columnas: el",
+ "(profondo 60, a filo con le colonne) e sotto i": "(profundo 60, a ras de las columnas) y debajo los",
+ "(profondi 33). Stessa larghezza delle basi, tutto allineato.": "(profundos 33). Mismo ancho que las bases, todo alineado.",
 };

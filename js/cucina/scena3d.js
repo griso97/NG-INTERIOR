@@ -14,28 +14,28 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, internoAperto, latoApertoDi, SP_PEZZI_APERTO,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261122b';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122b';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261122b';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261122b';
+} from './modello.js?v=20261122c';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122c';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261122c';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261122c';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122b').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122c').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122b';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122b';
-import { parametri } from '../parametri.js?v=20261122b';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122b';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122b';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122c';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122c';
+import { parametri } from '../parametri.js?v=20261122c';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122c';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122c';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122b';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122c';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261122b';
+export { telaPavimento } from '../resa.js?v=20261122c';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -2304,7 +2304,7 @@ const ledPonte = (progetto) => { const v = (progetto.led && progetto.led.ponte) 
  * sinistra (lato muri); l'utente ruota il modulo per l'angolo giusto.
  */
 function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, prof = PROFONDITA_PENSILE, basso = false, sporg = false) {
-  // prof = profondità di ogni braccio (pensile 350, base 600); basso = base angolo
+  // prof = profondità di ogni braccio (pensile 330, base 600); basso = base angolo
   const matCorpo = (coloreCorpo && coloreCorpo.isMaterial) ? coloreCorpo
     : new THREE.MeshStandardMaterial({ color: coloreCorpo, roughness: 0.7, metalness: 0.05 });
   const mkBox = (bw, bd, cx, cz) => {
