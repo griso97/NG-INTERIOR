@@ -23,17 +23,17 @@ import {
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro, rotazioneAutomatica, migraRotazioni,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
-  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, latoApertoDi, latiLiberi, migraProfonditaPensili, PARTI_APERTO, coloreParteAperto, ledAperto } from './modello.js?v=20261122i';
-import { renderPianta } from './pianta.js?v=20261122i';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from '../pavimenti-dati.js?v=20261122i';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261122i';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261122i';
-import { calcolaDistintaCucina } from './distinta.js?v=20261122i';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261122i';
-import { agganciaTema } from '../tema.js?v=20261122i';
-import { tendinePannello } from '../tendine-pannello.js?v=20261122i';
+  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, latoApertoDi, latiLiberi, migraProfonditaPensili, PARTI_APERTO, coloreParteAperto, ledAperto } from './modello.js?v=20261122j';
+import { renderPianta } from './pianta.js?v=20261122j';
+import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261122j';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261122j';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261122j';
+import { calcolaDistintaCucina } from './distinta.js?v=20261122j';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261122j';
+import { agganciaTema } from '../tema.js?v=20261122j';
+import { tendinePannello } from '../tendine-pannello.js?v=20261122j';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261122i');
+const _excel = () => import('../modello-export.js?v=20261122j');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -1483,16 +1483,107 @@ function htmlPavimento() {
   return `
     <section class="step3-pannello">
       <h3>Pavimento</h3>
-      <div class="riga-3d" style="margin-bottom:6px">${voce ? `<strong>${escHtml(voce.nome)}</strong>` : 'Automatico: parquet con lo sfondo chiaro, gres con gli altri.'}</div>
+      <div class="riga-3d" style="margin-bottom:6px">${voce ? `<strong data-no-i18n>${escHtml(voce.nome)}</strong>` : 'Automatico: parquet con lo sfondo chiaro, gres con gli altri.'}</div>
+      <button type="button" class="btn-oro" id="pav-aggiungi" style="width:100%;margin:4px 0 6px">📷 Aggiungi il pavimento del cliente (foto)</button>
       ${G.map((g) => `
       <div class="riga-3d" style="margin:8px 0 4px;opacity:.75">${g}</div>
       <div class="palette-colori">
         ${L.filter((p) => p.gruppo === g).map((p) => `<div class="swatch-voce ${p.id === sel ? 'sel' : ''}">
-          <button type="button" class="swatch ${p.id === sel ? 'sel' : ''}" data-pav="${p.id}" title="${escHtml(p.nome)}" style="background-image:url('materials/pavimenti/miniature/${p.id}.jpg')"></button>
-          <span class="swatch-nome">${escHtml(p.nome.split(' · ')[0])}</span></div>`).join('')}
+          <button type="button" class="swatch ${p.id === sel ? 'sel' : ''}" data-pav="${p.id}" title="${escHtml(p.nome)}" style="background-image:url('${p.thumb || `materials/pavimenti/miniature/${p.id}.jpg`}')"></button>
+          <span class="swatch-nome" ${p.proprio ? 'data-no-i18n' : ''}>${escHtml(p.nome.split(' · ')[0])}</span></div>`).join('')}
       </div>`).join('')}
+      ${voce && voce.proprio ? `<div class="riga-3d" style="margin-top:6px">La foto copre <strong>${Math.round(voce.mm / 10)} × ${Math.round(voce.mmY / 10)} cm</strong>.</div>
+      <button type="button" class="btn-ghost btn-mini" id="pav-elimina" style="margin-top:6px;width:100%">🗑 Elimina questo pavimento</button>` : ''}
       ${sel ? '<button type="button" class="btn-ghost btn-mini" data-pav="" style="margin-top:8px;width:100%">↺ Pavimento automatico</button>' : ''}
     </section>`;
+}
+/**
+ * PAVIMENTO DEL CLIENTE: una foto fatta dall'alto (o mandata dal cliente) + la misura della zona
+ * fotografata. Nel 3D si ripete alla misura vera con i colori della foto. Resta nel catalogo (tutti i
+ * progetti, anche sul telefono con «Copia completa»).
+ */
+function apriPavimentoDaFoto() {
+  const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
+  document.getElementById('pav-modale')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'pav-modale'; ov.className = 'modale-fondo';
+  ov.innerHTML = `
+    <div class="modale" role="dialog" aria-modal="true" style="max-width:440px">
+      <h3>Pavimento del cliente</h3>
+      <div class="riga-3d" style="margin-bottom:8px">Fai la foto <strong>da sopra, dritta</strong>, con una luce uniforme e senza ombre (o usa la foto che ti manda il cliente). Meglio se si vedono una o più piastrelle intere, tagliate sulle fughe: si ripete senza giunte.</div>
+      <label class="btn-ghost" style="display:block;text-align:center;cursor:pointer;padding:10px">📷 Scegli o scatta la foto
+        <input type="file" id="pav-file" accept="image/*" style="display:none"></label>
+      <div id="pav-anteprima" style="margin:8px 0;display:none;height:180px;border-radius:8px;background:#222 center/contain no-repeat"></div>
+      <div class="ra-campi" style="margin-top:6px">
+        <label style="min-width:0">Larghezza della zona fotografata (cm)<input id="pav-w" type="number" min="5" step="0.5" value="60" inputmode="decimal" style="width:100%;box-sizing:border-box"></label>
+        <label style="min-width:0">Altezza (cm)<input id="pav-h" type="number" min="5" step="0.5" value="60" inputmode="decimal" style="width:100%;box-sizing:border-box"></label>
+      </div>
+      <div class="riga-3d" style="margin-top:4px">Esempio: una piastrella 60×60 fotografata intera → 60 e 60. L'altezza si calcola da sola dalla foto (la puoi cambiare).</div>
+      <label style="display:block;margin-top:8px">Nome<input id="pav-nome" type="text" value="${escHtml(tt('Pavimento del cliente'))}" style="width:100%;box-sizing:border-box"></label>
+      <div class="orienta-row" style="margin-top:12px">
+        <button type="button" class="btn-ghost" id="pav-annulla" style="flex:1">Annulla</button>
+        <button type="button" class="btn-oro" id="pav-salva" style="flex:1" disabled>✓ Salva e usa</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  if (window.NGI18N && window.NGI18N.traduci) try { window.NGI18N.traduci(ov); } catch (_) { /* niente */ }
+  let foto = null, rapporto = 1, hToccata = false;
+  const $ = (id) => ov.querySelector('#' + id);
+  const aggiornaH = () => { if (!hToccata) $('pav-h').value = Math.round((Number($('pav-w').value) || 60) * rapporto * 10) / 10; };
+  $('pav-annulla').onclick = () => ov.remove();
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+  $('pav-w').addEventListener('input', aggiornaH);
+  $('pav-h').addEventListener('input', () => { hToccata = true; });
+  $('pav-file').addEventListener('change', async () => {
+    const f = $('pav-file').files && $('pav-file').files[0];
+    if (!f) return;
+    try {
+      const bmp = await createImageBitmap(f);
+      // foto grande al massimo 2048 px (leggera ma nitida), miniatura 160 px
+      const k = Math.min(1, 2048 / Math.max(bmp.width, bmp.height));
+      const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+      const kt = 160 / Math.max(c.width, c.height), t = document.createElement('canvas');
+      t.width = Math.max(1, Math.round(c.width * kt)); t.height = Math.max(1, Math.round(c.height * kt));
+      t.getContext('2d').drawImage(c, 0, 0, t.width, t.height);
+      const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.9));
+      const thumb = await new Promise((ok) => t.toBlob(ok, 'image/jpeg', 0.85));
+      foto = { blob, thumb }; rapporto = c.height / c.width;
+      const prev = $('pav-anteprima'); prev.style.display = 'block'; prev.style.backgroundImage = `url('${URL.createObjectURL(blob)}')`;
+      aggiornaH(); $('pav-salva').disabled = false;
+    } catch (e) { console.error(e); alert(tt('Non riesco a leggere questa foto.')); }
+  });
+  $('pav-salva').onclick = async () => {
+    if (!foto) return;
+    const w = Number(String($('pav-w').value).replace(',', '.')), h = Number(String($('pav-h').value).replace(',', '.'));
+    if (!(w >= 5) || !(h >= 5)) { alert(tt('Scrivi la misura della zona fotografata (almeno 5 cm).')); return; }
+    $('pav-salva').disabled = true;
+    try {
+      const C = await import('../catalogo.js?v=20261122j');
+      const M = await import('../materiali.js?v=20261122j');
+      const stato = await C.leggiCatalogo();
+      const id = 'pav-' + Date.now().toString(36);
+      const prod = { id, sezione: 'pavimento', nome: ($('pav-nome').value || '').trim() || tt('Pavimento del cliente'), campioneCm: { w, h } };
+      await C.salvaFoto(id, foto.blob, 'foto'); await C.salvaFoto(id, foto.thumb, 'thumb');
+      stato.prodotti = [...(stato.prodotti || []), prod];
+      await C.salvaCatalogo(stato);
+      aggiungiPavimentoProprio(M.defPavimentoProprio(prod, URL.createObjectURL(foto.blob), URL.createObjectURL(foto.thumb)));
+      ov.remove();
+      registraStoria(); progetto.pavimento = id; aggiorna();
+    } catch (e) { console.error(e); alert(tt('Non sono riuscito a salvare il pavimento.')); $('pav-salva').disabled = false; }
+  };
+}
+async function eliminaPavimentoProprio(id) {
+  const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
+  if (!confirm(tt('Eliminare questo pavimento? Sparisce da tutti i progetti.'))) return;
+  try {
+    const C = await import('../catalogo.js?v=20261122j');
+    const stato = await C.leggiCatalogo();
+    stato.prodotti = (stato.prodotti || []).filter((p) => p.id !== id);
+    await C.salvaCatalogo(stato); await C.eliminaFoto(id);
+  } catch (e) { console.error(e); }
+  rimuoviPavimentoProprio(id);
+  registraStoria(); if (progetto.pavimento === id) progetto.pavimento = null; aggiorna();
 }
 
 // --------- TETTO: sì / no e altezza dei muri (alla Pianta e nel Rendering, è la stessa scelta) ---------
@@ -1807,6 +1898,8 @@ function renderPannelloStep3d() {
     progetto.pavimento = b.dataset.pav || null;
     aggiorna();
   }));
+  document.getElementById('pav-aggiungi')?.addEventListener('click', apriPavimentoDaFoto);
+  document.getElementById('pav-elimina')?.addEventListener('click', () => eliminaPavimentoProprio(progetto.pavimento));
   pannello.querySelectorAll('.swatch-zocc[data-sfondo]').forEach((b) => b.addEventListener('click', () => {
     progetto.sfondo = b.dataset.sfondo;
     aggiorna();
@@ -1835,7 +1928,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261122i');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261122j');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2622,13 +2715,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261122i');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261122j');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261122i'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261122j'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

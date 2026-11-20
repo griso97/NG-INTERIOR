@@ -15,8 +15,9 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261122i';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261122i';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261122j';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261122j';
+import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261122j';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -506,6 +507,12 @@ export const BINARIO_DEFAULT = 'binario-grigio';
 // ---------------------------------------------------------------------------
 let statoCatalogo = { prodotti: [], nascosti: {}, modifiche: {} };
 const CAT_DA_SEZIONE = { legno: 'legno', fingerpull: 'legno', encimera: 'encimera', pannello: 'legno', zoccolo: 'zoccolo', maniglie: 'maniglia', oggetti: 'oggetto', binari: 'binario' };
+/** Pavimento del cliente (catalogo) → voce dei pavimenti: la foto copre campioneCm (larghezza × altezza). */
+export function defPavimentoProprio(p, url, thumb) {
+  const w = Math.max(5, Number(p.campioneCm && p.campioneCm.w) || 60), h = Math.max(5, Number(p.campioneCm && p.campioneCm.h) || w);
+  return { id: p.id, nome: p.nome || 'Pavimento del cliente', gruppo: GRUPPO_PROPRI, tipo: 'propria', url, thumb,
+    mm: w * 10, mmY: h * 10, rough: 0.5, env: 0.45, proprio: true };
+}
 async function applicaCatalogo() {
   statoCatalogo = await leggiCatalogo();
   // prodotti salvati con un trattamento della foto più vecchio: la texture si
@@ -513,7 +520,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261122i');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261122j');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -528,6 +535,11 @@ async function applicaCatalogo() {
       p.sezione === 'fingerpull' ? leggiFoto(p.id, 'gola') : null]);
     if (!foto) continue;
     const url = URL.createObjectURL(foto);
+    // PAVIMENTO del cliente: va fra i pavimenti (non fra i colori delle ante)
+    if (p.sezione === 'pavimento') {
+      aggiungiPavimentoProprio(defPavimentoProprio(p, url, thumb ? URL.createObjectURL(thumb) : url));
+      continue;
+    }
     const def = {
       id: p.id, nome: p.nome || 'Senza nome', categoria: CAT_DA_SEZIONE[p.sezione] || 'legno', sezione: p.sezione,
       thumb: thumb ? URL.createObjectURL(thumb) : url, texture: url, colore: p.colore ?? 0x999999,
@@ -642,7 +654,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261122i';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261122j';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',

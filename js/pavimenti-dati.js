@@ -22,3 +22,18 @@ export const PAVIMENTI = [
   { id: 'gres-antracite', nome: 'Gres antracite · 60×60', gruppo: 'Gres e cemento', tipo: 'gres', colore: 0x34333a, rough: 0.5, env: 0.45 },
 ];
 export const GRUPPI_PAVIMENTI = ['Legno', 'Marmo e pietra', 'Gres e cemento'];
+
+// PAVIMENTI DEL CLIENTE (catalogo, sezione 'pavimento'): una foto fatta dall'alto + la misura della
+// zona fotografata. Si ripete alla misura vera; colori identici alla foto. Si aggiungono qui da soli
+// quando il catalogo si carica (materiali.js) o appena salvati dal pannello «Pavimento».
+export const GRUPPO_PROPRI = 'I miei pavimenti';
+export function aggiungiPavimentoProprio(p) {
+  const i = PAVIMENTI.findIndex((x) => x.id === p.id);
+  if (i >= 0) PAVIMENTI.splice(i, 1, p); else PAVIMENTI.unshift(p);
+  if (!GRUPPI_PAVIMENTI.includes(GRUPPO_PROPRI)) GRUPPI_PAVIMENTI.unshift(GRUPPO_PROPRI);
+}
+export function rimuoviPavimentoProprio(id) {
+  const i = PAVIMENTI.findIndex((x) => x.id === id && x.proprio);
+  if (i >= 0) PAVIMENTI.splice(i, 1);
+  if (!PAVIMENTI.some((x) => x.proprio)) { const g = GRUPPI_PAVIMENTI.indexOf(GRUPPO_PROPRI); if (g >= 0) GRUPPI_PAVIMENTI.splice(g, 1); }
+}

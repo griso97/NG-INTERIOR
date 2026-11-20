@@ -14,7 +14,8 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261122i';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261122j';
+import { pianoComeFoto } from './materiali.js?v=20261122j';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
@@ -472,6 +473,11 @@ export async function telaPavimento(id) {
   if (!_pavScelti[id]) {
     _pavScelti[id] = (async () => {
       if (p.tipo === 'foto') { const im = await immaginePav(p.img); return { c: im, mmX: p.mm, mmY: p.mm * im.height / im.width }; }
+      // pavimento del cliente: la sua foto, alla misura scritta (larghezza × altezza della zona fotografata)
+      if (p.tipo === 'propria') {
+        const im = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = p.url; });
+        return { c: im, mmX: p.mm, mmY: p.mmY || p.mm * im.height / im.width };
+      }
       if (p.tipo === 'lastre' || p.tipo === 'scacchi') { const imgs = await Promise.all([].concat(p.img).map(immaginePav)); return telaLastre(p, imgs); }
       if (p.tipo === 'parquet') { const im = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = 'materials/r3-supra-oak.jpg'; }); const t = telaParquet(im); return { c: t.c, mmX: t.mm, mmY: t.mm }; }
       const t = telaGres(p.colore); return { c: t.c, mmX: t.mm, mmY: t.mm };
@@ -495,6 +501,7 @@ export function materialePavimento(id, w, d, quandoPronto) {
     const tx = _texPav[p.id];
     tx.repeat.set(w / t.mmX, d / t.mmY);
     m.map = tx; m.color.setScalar(p.tono || 1); m.needsUpdate = true;
+    if (p.proprio) pianoComeFoto(m);                 // pavimento del cliente: colori IDENTICI alla sua foto
     if (quandoPronto) quandoPronto();
   }).catch(() => { /* foto non arrivata: resta il colore */ });
   return m;
