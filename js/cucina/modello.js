@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261122k';
+import { parametri } from '../parametri.js?v=20261122l';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -2839,7 +2839,7 @@ export function frontiCassetti(H, n, piccolo = null, gola = false) {
 // Niente maniglie: fra il piano e l'anta resta lo spazio per le dita (25 mm, ⚙ Parametri)
 // e lo stesso fra un cassetto e l'altro. Il profilo entra nel fianco (fianco fresato):
 // la L è alta 57 mm, la C 70 mm, profonde 26. Barre da 4 m, 4 colori.
-// progetto.gola = { base: true/false, colore: 'nero' | 'antracite' | 'bianco' | 'argento', led: true/false }
+// progetto.gola = { base: true/false, colore: 'nero' | 'antracite' | 'bianco' | 'argento' }
 export const COLORI_GOLA = [
   { id: 'nero', nome: 'Nero opaco', hex: '#1f2022' },
   { id: 'antracite', nome: 'Antracite opaco', hex: '#55585a' },
@@ -2850,7 +2850,7 @@ export const GOLA_L_H = 57, GOLA_C_H = 70, GOLA_PROF = 26, BARRA_GOLA = 4000;
 export function spazioGola() { return parametri().gola.spazio; }
 export function golaProgetto(progetto) {
   const g = (progetto && progetto.gola) || {};
-  return { base: !!g.base, colore: COLORI_GOLA.some((c) => c.id === g.colore) ? g.colore : 'nero', led: !!g.led };
+  return { base: !!g.base, colore: COLORI_GOLA.some((c) => c.id === g.colore) ? g.colore : 'nero' };
 }
 export function nomeColoreGola(id) { return (COLORI_GOLA.find((c) => c.id === id) || COLORI_GOLA[0]).nome.toLowerCase(); }
 /** Questo mobile ha la gola? (bassi con le ante / i cassetti, lavastoviglie integrata; non i mobili a giorno) */

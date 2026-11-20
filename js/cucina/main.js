@@ -24,17 +24,17 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, latoApertoDi, latiLiberi, migraProfonditaPensili, PARTI_APERTO, coloreParteAperto, ledAperto,
-  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola } from './modello.js?v=20261122k';
-import { renderPianta } from './pianta.js?v=20261122k';
-import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261122k';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261122k';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261122k';
-import { calcolaDistintaCucina } from './distinta.js?v=20261122k';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261122k';
-import { agganciaTema } from '../tema.js?v=20261122k';
-import { tendinePannello } from '../tendine-pannello.js?v=20261122k';
+  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola } from './modello.js?v=20261122l';
+import { renderPianta } from './pianta.js?v=20261122l';
+import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261122l';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261122l';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261122l';
+import { calcolaDistintaCucina } from './distinta.js?v=20261122l';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261122l';
+import { agganciaTema } from '../tema.js?v=20261122l';
+import { tendinePannello } from '../tendine-pannello.js?v=20261122l';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261122k');
+const _excel = () => import('../modello-export.js?v=20261122l');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -1560,8 +1560,8 @@ function apriPavimentoDaFoto() {
     if (!(w >= 5) || !(h >= 5)) { alert(tt('Scrivi la misura della zona fotografata (almeno 5 cm).')); return; }
     $('pav-salva').disabled = true;
     try {
-      const C = await import('../catalogo.js?v=20261122k');
-      const M = await import('../materiali.js?v=20261122k');
+      const C = await import('../catalogo.js?v=20261122l');
+      const M = await import('../materiali.js?v=20261122l');
       const stato = await C.leggiCatalogo();
       const id = 'pav-' + Date.now().toString(36);
       const prod = { id, sezione: 'pavimento', nome: ($('pav-nome').value || '').trim() || tt('Pavimento del cliente'), campioneCm: { w, h } };
@@ -1578,7 +1578,7 @@ async function eliminaPavimentoProprio(id) {
   const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
   if (!confirm(tt('Eliminare questo pavimento? Sparisce da tutti i progetti.'))) return;
   try {
-    const C = await import('../catalogo.js?v=20261122k');
+    const C = await import('../catalogo.js?v=20261122l');
     const stato = await C.leggiCatalogo();
     stato.prodotti = (stato.prodotti || []).filter((p) => p.id !== id);
     await C.salvaCatalogo(stato); await C.eliminaFoto(id);
@@ -1929,7 +1929,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261122k');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261122l');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2224,12 +2224,7 @@ function renderPannelloModificaMobile(m) {
       <div class="opzioni-anta">
         ${COLORI_GOLA.map((c) => `<button type="button" class="btn-ghost opt-golacol ${gc.colore === c.id ? 'attivo' : ''}" data-golacol="${c.id}"><span aria-hidden="true" style="display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:6px;border:1px solid rgba(0,0,0,.25);background:${c.hex}"></span>${gc.colore === c.id ? '✓ ' : ''}${c.nome}</button>`).join('')}
       </div>
-      <div class="riga-3d" style="margin:10px 0 4px">LED nella gola</div>
-      <div class="opzioni-anta">
-        <button type="button" class="btn-ghost opt-golaled ${!gc.led ? 'attivo' : ''}" data-golaled="0">${!gc.led ? '✓ ' : ''}Senza LED</button>
-        <button type="button" class="btn-ghost opt-golaled ${gc.led ? 'attivo' : ''}" data-golaled="1">${gc.led ? '✓ ' : ''}💡 Con LED</button>
-      </div>
-      <div class="riga-3d" style="margin-top:8px">Niente maniglie: profilo L sotto il piano e profilo C fra i cassetti. L'anta perde ${spazioGola()} mm in alto; il primo cassetto sta ${spazioGola()} mm sotto il piano e fra un cassetto e l'altro restano ${spazioGola()} mm (si cambia in ⚙ Impostazioni → Parametri). In distinta: profili in barre da 4 m, tappi, angoli e supporti.${gc.led ? ' La luce ha il colore dei LED della cucina.' : ''}</div>
+      <div class="riga-3d" style="margin-top:8px">Niente maniglie: profilo L sotto il piano e profilo C fra i cassetti. L'anta perde ${spazioGola()} mm in alto; il primo cassetto sta ${spazioGola()} mm sotto il piano e fra un cassetto e l'altro restano ${spazioGola()} mm (si cambia in ⚙ Impostazioni → Parametri). In distinta: profili in barre da 4 m, tappi, angoli e supporti.</div>
     </section>`;
       return `
     <section class="step3-pannello">
@@ -2402,7 +2397,7 @@ function renderPannelloModificaMobile(m) {
     progetto.push = { ...(progetto.push || {}), [gruppoColore]: b.dataset.push === '1' };
     aggiorna();
   }));
-  // GOLA in alluminio (mobili bassi): niente finger-pull né push; colore del profilo e LED
+  // GOLA in alluminio (mobili bassi): niente finger-pull né push; colore del profilo
   pannello.querySelectorAll('.opt-gola[data-gola]').forEach((b) => b.addEventListener('click', () => {
     if (golaProgetto(progetto).base) return;
     registraStoria();
@@ -2420,11 +2415,7 @@ function renderPannelloModificaMobile(m) {
     progetto.gola = { ...golaProgetto(progetto), colore: b.dataset.golacol };
     aggiorna();
   }));
-  pannello.querySelectorAll('.opt-golaled[data-golaled]').forEach((b) => b.addEventListener('click', () => {
-    registraStoria();
-    progetto.gola = { ...golaProgetto(progetto), led: b.dataset.golaled === '1' };
-    aggiorna();
-  }));
+
   // Colonna: variante "parte alta" e altezza del vano aperto.
   pannello.querySelectorAll('.opt-colvar[data-colvar]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
@@ -2766,13 +2757,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261122k');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261122l');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261122k'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261122l'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

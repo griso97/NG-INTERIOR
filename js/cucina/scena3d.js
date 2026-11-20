@@ -15,28 +15,28 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261122k';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122k';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261122k';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261122k';
+} from './modello.js?v=20261122l';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122l';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261122l';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261122l';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122k').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122l').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122k';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122k';
-import { parametri } from '../parametri.js?v=20261122k';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122k';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122k';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122l';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122l';
+import { parametri } from '../parametri.js?v=20261122l';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122l';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122l';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122k';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122l';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261122k';
+export { telaPavimento } from '../resa.js?v=20261122l';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -771,7 +771,7 @@ export function impostaColoreLuci({ led = null, lampade = null } = {}) {
   if (lampade != null) impostaColoreLampade(lampade);
   gruppo.traverse((o) => {
     if (hL != null) {
-      if (o.isMesh && o.userData.ledStriscia) { o.material.color.setHex(hL); if (o.userData.ledStriscia.scala) o.material.color.multiplyScalar(o.userData.ledStriscia.scala); o.userData.ledStriscia.colore = hL; }
+      if (o.isMesh && o.userData.ledStriscia) { o.material.color.setHex(hL); o.userData.ledStriscia.colore = hL; }
       if (o.isLight && o.userData.ledLuce) o.color.setHex(hL);
     }
     if (lampade != null) {
@@ -1700,7 +1700,7 @@ function leggiParametriAnte() {
 }
 // GOLA IN ALLUMINIO (mobili bassi): niente maniglie; sopra l'anta 25 mm fino al piano (profilo L),
 // fra i cassetti 25 mm (profilo C). _golaQui = il mobile che si sta costruendo ha la gola.
-let _golaCfg = { base: false, colore: 'nero', led: false };
+let _golaCfg = { base: false, colore: 'nero' };
 let _golaQui = false;
 /** Altezza e centro di un'anta (non sporgente): con la gola l'anta normale perde 25 mm in alto (come in distinta). */
 function vertAnta(h) {
@@ -1714,16 +1714,6 @@ function matProfiloGola(c) {
   const k = GOLA_3D[c] ? c : 'nero';
   if (!_matGola[k]) { const [col, r, mt] = GOLA_3D[k]; _matGola[k] = new THREE.MeshStandardMaterial({ color: col, roughness: r, metalness: mt, envMapIntensity: 0.8 }); }
   return _matGola[k];
-}
-// Luce della gola LED: un velo luminoso sul fondo del canale (più forte dove sta il diffusore)
-let _texGlowC = null;
-function texGlowGola() {
-  const fai = (stops) => canvasTex(4, 64, (g, w, h) => {
-    const gr = g.createLinearGradient(0, 0, 0, h);
-    for (const [o, a] of stops) gr.addColorStop(o, `rgba(255,255,255,${a})`);
-    g.clearRect(0, 0, w, h); g.fillStyle = gr; g.fillRect(0, 0, w, h);
-  });
-  return _texGlowC || (_texGlowC = fai([[0, 1], [0.5, 0.75], [1, 1]]));
 }
 /**
  * PROFILO DELLA GOLA lungo x (da x0 a x1), con il fronte della cassa al piano zF.
@@ -1750,23 +1740,6 @@ function profiloGola(g, tipo, x0, x1, yRef, zF) {
     pezzo(5, T, yt - 2.5, zF - 1 - T / 2);
     pezzo(5, T, yb + 2.5, zF - 1 - T / 2);
   }
-  if (!_golaCfg.led) return;
-  // GOLA LED: come quella vera (diffusori sopra e sotto dentro il canale) tutto il canale è acceso:
-  // velo luminoso sul fondo (più forte vicino ai diffusori), sul fondo della L/C e i diffusori accesi
-  const hex = ledHex(_lastProgetto || {});
-  const y0 = tipo === 'L' ? yRef - 56 : yRef - 33, y1 = tipo === 'L' ? yRef - 3 : yRef + 33;
-  // la luce è FORTE (oltre il bianco: si vede accesa anche di giorno, come una striscia vera)
-  const SCALA = 1.6;
-  const luce = (geo, mat, x, y, z, rx = 0) => {
-    const ms = new THREE.Mesh(geo, mat); ms.position.set(x, y, z); ms.rotation.x = rx;
-    ms.userData.ledStriscia = { colore: hex, lunghezza: L, scala: SCALA }; g.add(ms);
-  };
-  const add = (op, map = null) => { const mt = new THREE.MeshBasicMaterial({ color: hex, map, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }); mt.color.multiplyScalar(SCALA); return mt; };
-  luce(new THREE.PlaneGeometry(L, y1 - y0), add(1, texGlowGola()), cx, (y0 + y1) / 2, zF - R + T + 0.4);             // fondo del canale
-  luce(new THREE.PlaneGeometry(L, R - 4), add(0.9), cx, y0 + 0.4, zF - R + T + (R - 4) / 2, -Math.PI / 2);            // piano della L / della C
-  const diff = new THREE.MeshBasicMaterial({ color: hex, toneMapped: false });
-  luce(new THREE.BoxGeometry(L, 3, 8), diff, cx, y0 + 1.5, zF - R + T + 5);                                          // diffusore sotto
-  luce(new THREE.BoxGeometry(L, 3, 8), diff, cx, y1 - 1.5, zF - R + T + 5);                                          // diffusore sopra
 }
 /** Bande dove la cassa rientra per i profili (coordinate del mobile, centrato). */
 function bandeGola(m, h) {
@@ -2460,7 +2433,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122k')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122l')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }

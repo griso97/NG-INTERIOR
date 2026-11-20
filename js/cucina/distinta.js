@@ -13,8 +13,8 @@
 
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
-} from './modello.js?v=20261122k';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261122k';
+} from './modello.js?v=20261122l';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261122l';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -522,29 +522,25 @@ export function calcolaDistintaCucina(progetto) {
     if (m.tipo === 'forno' && !golaSuMobile(progetto, m)) aggiungi(`Griglia aerazione forno ${round(L - ariaL())} mm`, 1);
   }
   // GOLA IN ALLUMINIO: profili L (sotto il piano) e C (fra i cassetti) in barre da 4 m,
-  // tappi sui capi liberi, angoli interni/esterni, supporti di fissaggio (uno per fianco), LED
+  // tappi sui capi liberi, angoli interni/esterni, supporti di fissaggio (uno per fianco)
   { const gc = golaProgetto(progetto);
     if (gc.base) {
-      const pg = profiliGola(progetto), col = nomeColoreGola(gc.colore), led = gc.led ? ' con LED' : '';
-      let barreTot = 0;
+      const pg = profiliGola(progetto), col = nomeColoreGola(gc.colore);
       for (const t of ['L', 'C']) {
         const prof = pg[t];
         if (!prof.length) continue;
         const b = barreGola(prof.map((p) => p.lung));
-        barreTot += b.barre;
-        aggiungi(`Profilo gola ${t}${led} · ${col} · barre da 4 m (tagli ${b.tagli.join(' + ')} mm)`, b.barre);
+        aggiungi(`Profilo gola ${t} · ${col} · barre da 4 m (tagli ${b.tagli.join(' + ')} mm)`, b.barre);
         aggiungi(`Tappi gola ${t} · ${col}`, prof.reduce((n, p) => n + p.capiLiberi, 0));
-        if (gc.led) for (const p of prof) aggiungi(`Striscia LED gola ${Math.round(p.lung / 10)} cm`, 1);
       }
       aggiungi(`Angoli interni gola L · ${col}`, pg.angoliInterni);
       aggiungi(`Angoli esterni gola L · ${col}`, pg.angoliEsterni);
       aggiungi('Supporti fissaggio gola (uno per fianco)', pg.fianchi);
-      if (gc.led) aggiungi('Diffusore gola LED · barre da 4 m', barreTot);
     } }
   // la base angolo ha il suo angolo di zoccolo (interno) e non fa da fila a parte
   aggiungi('Angoli zoccolo 90°', angoliZoccolo(mobili.filter((m) => m.tipo !== 'base-angolo'))
     + mobili.filter((m) => m.tipo === 'base-angolo').length);
-  const ORDINE_ACC = ['Cerniere', 'Cassetti', 'Maniglie', 'Push', 'Profilo gola', 'Tappi gola', 'Angoli interni gola', 'Angoli esterni gola', 'Supporti fissaggio gola', 'Striscia LED gola', 'Diffusore gola', 'Kit', 'Piedini', 'Grappe', 'Angoli', 'Griglia'];
+  const ORDINE_ACC = ['Cerniere', 'Cassetti', 'Maniglie', 'Push', 'Profilo gola', 'Tappi gola', 'Angoli interni gola', 'Angoli esterni gola', 'Supporti fissaggio gola', 'Kit', 'Piedini', 'Grappe', 'Angoli', 'Griglia'];
   const pos = (n) => { const i = ORDINE_ACC.findIndex((k) => n.startsWith(k)); return i < 0 ? 99 : i; };
   const accessori = [...acc.entries()].map(([nome, quantita]) => ({ nome, quantita })).sort((x, y) => pos(x.nome) - pos(y.nome));
 
