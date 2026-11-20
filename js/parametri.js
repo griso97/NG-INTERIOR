@@ -23,6 +23,9 @@ export const PARAMETRI_DEFAULT = Object.freeze({
   manigliaJ: {
     spessore: 2,          // mm del profilo a J sopra l'anta: l'anta si accorcia di tanto (700 → 698 → 696)
   },
+  gola: {
+    spazio: 25,           // mm per le dita con la GOLA in alluminio: dal piano all'anta (profilo L) e fra i cassetti (profilo C)
+  },
   cassetti: {
     marca: 'Syscore',     // sistema di cassetti usato (scritto nella lista accessori)
     profondita: 500,      // mm: cassetto / guide
@@ -47,7 +50,7 @@ function completa(s) {
   if (s && s.cassetti && !s.v && s.cassetti.medioTrasera == null && Number(s.cassetti.grandeTrasera) > 0) {
     s = { ...s, cassetti: { ...s.cassetti, medioTrasera: s.cassetti.grandeTrasera, grandeTrasera: null } };
   }
-  const D = PARAMETRI_DEFAULT, a = (s && s.ante) || {}, j = (s && s.manigliaJ) || {}, c = (s && s.cassetti) || {};
+  const D = PARAMETRI_DEFAULT, a = (s && s.ante) || {}, j = (s && s.manigliaJ) || {}, c = (s && s.cassetti) || {}, go = (s && s.gola) || {};
   return {
     v: 2,
     ante: {
@@ -57,6 +60,7 @@ function completa(s) {
       ariaCassetti: Math.max(0, num(a.ariaCassetti, D.ante.ariaCassetti)),
     },
     manigliaJ: { spessore: Math.max(0, num(j.spessore, D.manigliaJ.spessore)) },
+    gola: { spazio: Math.max(10, Math.min(60, num(go.spazio, D.gola.spazio))) },
     cassetti: {
       marca: String(c.marca ?? D.cassetti.marca).trim(),
       profondita: Math.max(0, num(c.profondita, D.cassetti.profondita)),

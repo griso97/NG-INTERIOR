@@ -8,18 +8,18 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261122j';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261122j';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261122j';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261122j';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261122j';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261122j';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261122j';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261122j';
-import { agganciaTema } from './tema.js?v=20261122j';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261122j';
-import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261122j';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261122j';
+} from './catalogo.js?v=20261122k';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261122k';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261122k';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261122k';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261122k';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261122k';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261122k';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261122k';
+import { agganciaTema } from './tema.js?v=20261122k';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261122k';
+import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261122k';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261122k';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1010,6 +1010,14 @@ function renderParametri(S) {
       <p class="imp-desc">Vale per le maniglie con la forma «Profilo (a J)»: le aggiungi in ⚙ Impostazioni → Maniglie e le scegli in cucina.</p>
     </div>
     <div class="par-gruppo">
+      <h3>Gola in alluminio (mobili bassi)</h3>
+      <div class="par-griglia">
+        ${campo('gola.spazio', 'Spazio per le dita', "tolti in alto all'anta, sopra il primo cassetto e fra un cassetto e l'altro")}
+      </div>
+      <div class="par-esempio" id="par-es-gola" data-no-i18n></div>
+      <p class="imp-desc">Vale quando nei mobili bassi scegli «Gola alluminio» (Porte · mobili bassi).</p>
+    </div>
+    <div class="par-gruppo">
       <h3>Sistema di cassetti</h3>
       <div class="par-griglia">
         ${campo('cassetti.marca', 'Marca', '', { testo: true, ph: 'es. Syscore' })}
@@ -1038,6 +1046,8 @@ function renderParametri(S) {
     const Q = parametri(), A = Q.ante, c = Q.cassetti, f = (n) => String(Math.round(n * 10) / 10);
     el.querySelector('#par-es-ante').textContent = tr(`Esempio: modulo 600 × 700 → 1 anta ${f(600 - A.ariaLarghezza)} × ${f(700 - A.ariaAltezza)} mm, 2 ante ${f((600 - A.ariaLarghezza - A.ariaTraAnte) / 2)} × ${f(700 - A.ariaAltezza)} mm`);
     el.querySelector('#par-es-j').textContent = tr(`Esempio: anta da 700 con maniglia a J → 700 − ${f(A.ariaAltezza)} − ${f(Q.manigliaJ.spessore)} = ${f(700 - A.ariaAltezza - Q.manigliaJ.spessore)} mm`);
+    { const G = Q.gola.spazio, an = 720 - A.ariaAltezza - G, c3 = Math.floor((720 - 3 * G - A.ariaCassetti) / 3);
+      el.querySelector('#par-es-gola').textContent = tr(`Esempio: mobile basso da 720 con la gola → anta 720 − ${f(A.ariaAltezza)} − ${f(G)} = ${f(an)} mm · 3 cassetti da ${f(c3)} mm`); }
     const tL = f(600 - c.traseraMeno), tipi = [[c.piccoloTrasera, 'piccolo'], [c.medioTrasera, 'medio'], [c.grandeTrasera, 'grande']].filter(([h]) => h);
     el.querySelector('#par-es-cass').textContent = tr(`Esempio: modulo da 60 → fondo ${f(600 - c.fondoMeno)} × ${f(c.fondoProfondita)} mm · trasera ${tipi.map(([h, n]) => `${tL} × ${f(h)} ${n}`).join(', ')}`);
   };

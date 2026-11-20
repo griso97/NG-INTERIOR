@@ -604,22 +604,24 @@ export function pezziCostadi(config) {
 }
 
 /**
- * ANTE SCORREVOLI (sezione 4.5 del documento) — formula definitiva.
+ * ANTE SCORREVOLI — formula del falegname:
  *
+ *   Larghezza anta = (larghezza esterna − 2 fianchi) ÷ numero di ante − 35
  *   Altezza anta   = H − 47
- *   Larghezza anta = Lm − 25  (dove Lm = L / numero_moduli)
  *   Spessore       = sA
  *
- * N = numero di ante per modulo (scelto dall'utente; default 2):
- *   - 1 ante/modulo → 1 anta che copre tutto il modulo, scorre sopra il
- *     modulo adiacente
- *   - 2 ante/modulo → 2 ante che si sovrappongono dentro lo stesso modulo
- *
- * Esempio (L=2000, 2 moduli, H=2400): Lm=1000 → anta 975 × 2353 × sA
+ * larghezza esterna = la carcassa (somma dei moduli), fianchi = spessore della carcassa (16/18/19);
+ * numero di ante = moduli × ante per modulo.
+ * Esempio: armadio 1455, fianchi 18, 2 ante → (1455 − 36) ÷ 2 − 35 = 674,5 → 674 (per difetto)
  */
+export function larghezzaAntaScorrevole(config) {
+  const nAnte = Math.max(1, (config.moduli || []).length * (config.scorrevole?.anteModulo ?? 2));
+  const Lest = (config.moduli || []).reduce((t, m) => t + (Number(m.larghezza) || 0), 0);
+  return (Lest - 2 * config.spessoreCarcassa) / nAnte - 35;
+}
 export function pezziAnteScorrevoliModulo(config, modulo, indiceModulo) {
   const N = config.scorrevole?.anteModulo ?? 2;
-  const larAnta = modulo.larghezza - 25;
+  const larAnta = larghezzaAntaScorrevole(config);
   const altAnta = config.altezzaEsterna - 47;
   return [{
     modulo: `Modulo ${indiceModulo + 1}`,

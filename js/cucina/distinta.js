@@ -12,9 +12,9 @@
 // =============================================================================
 
 import {
-  infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
-} from './modello.js?v=20261122j';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261122j';
+  infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
+} from './modello.js?v=20261122k';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261122k';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -69,10 +69,10 @@ function pensileAntaSporge(opt, h) {
 }
 
 const NOMI_VETRO = { trasparente: 'trasparente', satinato: 'satinato', fume: 'fumé' };
-function anteModulo(pz, mod, L, H, N, lato, altAnta, sporg, vetrina, rJ = 0) {
+function anteModulo(pz, mod, L, H, N, lato, altAnta, sporg, vetrina, rJ = 0, extra = '') {
   if (sporg) rJ = 0;                                  // anta sporgente: si apre da sotto, niente maniglia
   const a = dimAnta(L, H, N, rJ);
-  const nota = (N === 1 ? ` (apertura ${lato === 'alto' ? "verso l'alto" : lato === 'sx' ? 'sx' : 'dx'})` : '') + (sporg ? ' sporgente' : '');
+  const nota = (N === 1 ? ` (apertura ${lato === 'alto' ? "verso l'alto" : lato === 'sx' ? 'sx' : 'dx'})` : '') + (sporg ? ' sporgente' : '') + extra;
   if (vetrina) {
     // ANTA VETRINA: telaio in legno (si fresa il vano e si mette il vetro) o telaio alluminio/nero da ordinare
     const ah = altAnta != null ? altAnta : a.h, vt = NOMI_VETRO[vetrina.vetro] || 'trasparente';
@@ -161,6 +161,8 @@ function pezziDiModulo(progetto, m) {
   const pz = [];
   // aria delle ante (⚙ Parametri) e maniglia a J: l'anta si accorcia dello spessore del profilo
   const aH = ariaH(), aL = ariaL(), scP = sceltePorte(progetto, m), rJ = riduzioneJ(scP);
+  // GOLA in alluminio: l'anta parte 25 mm sotto il piano (profilo L), fra i cassetti 25 mm (profilo C)
+  const gola = golaSuMobile(progetto, m), altG = gola ? altezzaAntaGola(H) : null, GN = gola ? ' · gola' : '';
 
   if (cat === 'base' && m.tipo === 'base-angolo') {
     // BASE ANGOLO a L: 2 ante larghe come quelle del pensile angolo
@@ -169,7 +171,7 @@ function pezziDiModulo(progetto, m) {
     const { a, b } = anteBaseAngolo(m);
     for (const aw of a === b ? [a] : [a, b]) {
       const q = a === b ? 2 : 1;
-      pz.push({ modulo: mod, nome: 'Anta (base angolo)', larghezza: Math.max(1, aw), altezza: round(H - aH - rJ), spessore: SP, materiale: 'anta', quantita: q });
+      pz.push({ modulo: mod, nome: 'Anta (base angolo)' + GN, larghezza: Math.max(1, aw), altezza: gola ? altG : round(H - aH - rJ), spessore: SP, materiale: 'anta', quantita: q });
       pz.push({ modulo: mod, nome: 'Zoccolo (frontale)', larghezza: Math.max(1, aw) + 50, altezza: zoccoloH(H), spessore: SP, materiale: 'zoccolo', quantita: q });
     }
   } else if (cat === 'base') {
@@ -179,24 +181,25 @@ function pezziDiModulo(progetto, m) {
       const nc = Math.max(1, m.cassetti || 3);
       // FUGHE: una in più dei cassetti, da 2 mm; frontali per difetto. Tutti
       // uguali, oppure uno piccolo in alto e gli altri uguali.
-      const alt = frontiCassetti(H, nc, m.cassettoPiccolo_mm);
+      const alt = frontiCassetti(H, nc, m.cassettoPiccolo_mm, gola);
       const perH = new Map(); alt.forEach((h) => perH.set(h, (perH.get(h) || 0) + 1));
       for (const [hf, q] of perH) {
         const piccolo = m.cassettoPiccolo_mm && alt.length > 1 && hf === alt[0] && hf !== alt[1];
         const hJ = hf - rJ;                          // con la maniglia a J il frontale si accorcia
-        pz.push({ modulo: mod, nome: (piccolo ? 'Fronte cassetto piccolo' : 'Fronte cassetto') + (rJ ? ` · ${_nomeRid} (−${rJ} mm)` : ''), larghezza: round(L - aL), altezza: hJ, spessore: SP, materiale: 'anta', quantita: q });
+        pz.push({ modulo: mod, nome: (piccolo ? 'Fronte cassetto piccolo' : 'Fronte cassetto') + GN + (rJ ? ` · ${_nomeRid} (−${rJ} mm)` : ''), larghezza: round(L - aL), altezza: hJ, spessore: SP, materiale: 'anta', quantita: q });
         // parti per fare i cassetti: fondo e trasera in melaminico (sistema dei ⚙ Parametri)
         cassettoMelaminico(pz, mod, L, hJ, q);
       }
     } else if (m.tipo === 'forno') {
       // sotto il forno un pannello del colore delle ante (griglia sopra = accessorio)
-      const hp = round(H - aH - GRIGLIA_FORNO - 3 - H_FORNO_INCASSO - 3);
+      // con la gola il forno sta subito sotto la gola (l'aria passa dalla gola: niente griglia)
+      const hp = gola ? round(H - spazioGola() - H_FORNO_INCASSO - 3 - aH / 2) : round(H - aH - GRIGLIA_FORNO - 3 - H_FORNO_INCASSO - 3);
       if (hp > 15) pz.push({ modulo: mod, nome: 'Pannello sotto forno', larghezza: round(L - aL), altezza: hp, spessore: SP, materiale: 'anta', quantita: 1 });
     } else {
       // base-ante / lavello
       const N = m.tipo === 'lavello' ? (L >= 600 ? 2 : 1) : anteDiMobile(m);
       if (apertoDi(m)) mobileAperto(pz, mod, progetto, m);          // APERTO: niente ante
-      else anteModulo(pz, mod, L, H, N, m.antaLato, null, false, m.tipo === 'base-ante' ? m.vetrina : null, rJ);
+      else anteModulo(pz, mod, L, H, N, m.antaLato, altG, false, m.tipo === 'base-ante' ? m.vetrina : null, rJ, GN);
       reglettaAngolo(pz, mod, progetto, m, H);
     }
   } else if (cat === 'pensile') {
@@ -300,7 +303,7 @@ function pezziDiModulo(progetto, m) {
     // ZOCCOLO, così lo zoccolo continuo della cucina ha la lunghezza giusta.
     zoccolo(pz, mod, L, H);
     // lavastoviglie INTEGRATA: l'anta davanti la facciamo noi, come quelle dei mobili bassi
-    if (m.tipo === 'lavastoviglie' && m.colore === 'integrata') anteModulo(pz, mod, L, H, 1, m.antaLato, null, false, null, rJ);
+    if (m.tipo === 'lavastoviglie' && m.colore === 'integrata') anteModulo(pz, mod, L, H, 1, m.antaLato, altG, false, null, rJ, GN);
   } else {
     // fallback generico
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(L), altezza: H, spessore: SP, materiale: 'carcassa', quantita: 1 });
@@ -496,7 +499,7 @@ export function calcolaDistintaCucina(progetto) {
   for (const p of raw) {
     if (!/^anta|^fronte cassetto/i.test(p.nome)) continue;
     const cassetto = /^fronte cassetto/i.test(p.nome);           // i cassetti non hanno mai il push
-    if (fpDi(p) || (!cassetto && pushDi(p))) continue;
+    if (scelteDi(p).gola || fpDi(p) || (!cassetto && pushDi(p))) continue;
     aggiungi(`Maniglie · ${nomeManiglia(p)}`, p.quantita);
   }
   // PUSH: per ogni porta un push pull e la sua base
@@ -516,12 +519,32 @@ export function calcolaDistintaCucina(progetto) {
       aggiungi('Grappe zoccolo (fissaggio ai piedini)', 1);
     }
     if (cat === 'pensile') aggiungi('Kit per appendere i pensili', 1);
-    if (m.tipo === 'forno') aggiungi(`Griglia aerazione forno ${round(L - ariaL())} mm`, 1);
+    if (m.tipo === 'forno' && !golaSuMobile(progetto, m)) aggiungi(`Griglia aerazione forno ${round(L - ariaL())} mm`, 1);
   }
+  // GOLA IN ALLUMINIO: profili L (sotto il piano) e C (fra i cassetti) in barre da 4 m,
+  // tappi sui capi liberi, angoli interni/esterni, supporti di fissaggio (uno per fianco), LED
+  { const gc = golaProgetto(progetto);
+    if (gc.base) {
+      const pg = profiliGola(progetto), col = nomeColoreGola(gc.colore), led = gc.led ? ' con LED' : '';
+      let barreTot = 0;
+      for (const t of ['L', 'C']) {
+        const prof = pg[t];
+        if (!prof.length) continue;
+        const b = barreGola(prof.map((p) => p.lung));
+        barreTot += b.barre;
+        aggiungi(`Profilo gola ${t}${led} · ${col} · barre da 4 m (tagli ${b.tagli.join(' + ')} mm)`, b.barre);
+        aggiungi(`Tappi gola ${t} · ${col}`, prof.reduce((n, p) => n + p.capiLiberi, 0));
+        if (gc.led) for (const p of prof) aggiungi(`Striscia LED gola ${Math.round(p.lung / 10)} cm`, 1);
+      }
+      aggiungi(`Angoli interni gola L · ${col}`, pg.angoliInterni);
+      aggiungi(`Angoli esterni gola L · ${col}`, pg.angoliEsterni);
+      aggiungi('Supporti fissaggio gola (uno per fianco)', pg.fianchi);
+      if (gc.led) aggiungi('Diffusore gola LED · barre da 4 m', barreTot);
+    } }
   // la base angolo ha il suo angolo di zoccolo (interno) e non fa da fila a parte
   aggiungi('Angoli zoccolo 90°', angoliZoccolo(mobili.filter((m) => m.tipo !== 'base-angolo'))
     + mobili.filter((m) => m.tipo === 'base-angolo').length);
-  const ORDINE_ACC = ['Cerniere', 'Cassetti', 'Maniglie', 'Push', 'Kit', 'Piedini', 'Grappe', 'Angoli', 'Griglia'];
+  const ORDINE_ACC = ['Cerniere', 'Cassetti', 'Maniglie', 'Push', 'Profilo gola', 'Tappi gola', 'Angoli interni gola', 'Angoli esterni gola', 'Supporti fissaggio gola', 'Striscia LED gola', 'Diffusore gola', 'Kit', 'Piedini', 'Grappe', 'Angoli', 'Griglia'];
   const pos = (n) => { const i = ORDINE_ACC.findIndex((k) => n.startsWith(k)); return i < 0 ? 99 : i; };
   const accessori = [...acc.entries()].map(([nome, quantita]) => ({ nome, quantita })).sort((x, y) => pos(x.nome) - pos(y.nome));
 

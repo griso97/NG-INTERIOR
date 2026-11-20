@@ -6,9 +6,9 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261122j';
-import { htmlTendineColori } from './tendine-colori.js?v=20261122j';
-import { misureCostado } from './calcoli.js?v=20261122j';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261122k';
+import { htmlTendineColori } from './tendine-colori.js?v=20261122k';
+import { misureCostado } from './calcoli.js?v=20261122k';
 
 export function configDefault() {
   return {
@@ -139,7 +139,7 @@ export function renderPannello(contenitore, config, onChange) {
       </div>
       <div id="sc-colore-bin">${coloriBinario(config)}</div>
       <p class="hint">Default: 2 ante per modulo, scorrono una davanti all'altra. Il binario non entra nella distinta (è a parte).</p>
-      <p class="hint">Formula ante: larghezza = <code>Lm − 25</code>, altezza = <code>H − 47</code>.</p>
+      <p class="hint">Formula ante: larghezza = <code>(L − 2 fianchi) ÷ n° ante − 35</code>, altezza = <code>H − 47</code>.</p>
     </section>
 
     <section>

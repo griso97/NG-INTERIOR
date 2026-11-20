@@ -13,29 +13,30 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
+  golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261122j';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122j';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261122j';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261122j';
+} from './modello.js?v=20261122k';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122k';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261122k';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261122k';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122j').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122k').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122j';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122j';
-import { parametri } from '../parametri.js?v=20261122j';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122j';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122j';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122k';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122k';
+import { parametri } from '../parametri.js?v=20261122k';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122k';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122k';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122j';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122k';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261122j';
+export { telaPavimento } from '../resa.js?v=20261122k';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -770,7 +771,7 @@ export function impostaColoreLuci({ led = null, lampade = null } = {}) {
   if (lampade != null) impostaColoreLampade(lampade);
   gruppo.traverse((o) => {
     if (hL != null) {
-      if (o.isMesh && o.userData.ledStriscia) { o.material.color.setHex(hL); o.userData.ledStriscia.colore = hL; }
+      if (o.isMesh && o.userData.ledStriscia) { o.material.color.setHex(hL); if (o.userData.ledStriscia.scala) o.material.color.multiplyScalar(o.userData.ledStriscia.scala); o.userData.ledStriscia.colore = hL; }
       if (o.isLight && o.userData.ledLuce) o.color.setHex(hL);
     }
     if (lampade != null) {
@@ -1109,12 +1110,36 @@ export function fineSpostamento() {
 
 // ---------------------------------------------------------------------------
 // Primitive
-function corpo(w, h, d, coloreOMat) {
+// GOLA: il profilo entra nel mobile (fianco fresato). `bande` = [[y0, y1], …] (coordinate del
+// mobile, centrato) dove il fronte della cassa RIENTRA di 27 mm per far posto al profilo.
+const RIENTRO_GOLA = GOLA_PROF + 1;
+function spezzaInBande(h, bande) {
+  const out = []; let y = -h / 2;
+  for (const [a, b] of [...bande].sort((p, q) => p[0] - q[0])) {
+    const a2 = Math.max(a, y), b2 = Math.min(b, h / 2);
+    if (a2 > y + 0.5) out.push({ y0: y, y1: a2, dentro: false });
+    if (b2 > a2) out.push({ y0: a2, y1: b2, dentro: true });
+    y = Math.max(y, b2);
+  }
+  if (h / 2 > y + 0.5) out.push({ y0: y, y1: h / 2, dentro: false });
+  return out;
+}
+function corpo(w, h, d, coloreOMat, bande = null) {
   const g = new THREE.Group();
   const geo = new THREE.BoxGeometry(w, h, d);
   const mat = (coloreOMat && coloreOMat.isMaterial)
     ? coloreOMat
     : new THREE.MeshStandardMaterial({ color: coloreOMat, roughness: 0.7, metalness: 0.05 });
+  if (bande && bande.length) {
+    for (const t of spezzaInBande(h, bande)) {
+      const dd = t.dentro ? d - RIENTRO_GOLA : d;
+      const ms = new THREE.Mesh(new THREE.BoxGeometry(w, t.y1 - t.y0, dd), mat);
+      ms.position.set(0, (t.y0 + t.y1) / 2, -(d - dd) / 2);
+      g.add(ms);
+    }
+    g.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), matOro));
+    return g;
+  }
   g.add(new THREE.Mesh(geo, mat));
   g.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), matOro));
   return g;
@@ -1124,7 +1149,7 @@ function corpo(w, h, d, coloreOMat) {
 // Carcassa della colonna a FRONTE APERTO (schiena + fianchi + top + fondo,
 // SENZA faccia frontale): serve per il "vano aperto", dove si deve vedere
 // dentro. Le porte (dove ci sono) coprono comunque il fronte.
-function carcassaColonna(w, h, d, coloreOMat, conTop = true) {
+function carcassaColonna(w, h, d, coloreOMat, conTop = true, bande = null) {
   const g = new THREE.Group();
   const t = 18;
   const mat = (coloreOMat && coloreOMat.isMaterial) ? coloreOMat
@@ -1136,9 +1161,19 @@ function carcassaColonna(w, h, d, coloreOMat, conTop = true) {
     g.add(mesh);
   };
   panel(w, h, t, 0, 0, -d / 2 + t / 2);           // schiena
-  panel(t, h, d, -w / 2 + t / 2, 0, 0);           // fianco sx
-  panel(t, h, d,  w / 2 - t / 2, 0, 0);           // fianco dx
-  if (conTop) panel(w - 2 * t, t, d, 0,  h / 2 - t / 2, 0);   // top
+  if (bande && bande.length) {
+    // GOLA: fianchi fresati dove passa il profilo (e il top più corto davanti)
+    for (const tr of spezzaInBande(h, bande)) {
+      const dd = tr.dentro ? d - RIENTRO_GOLA : d, hh = tr.y1 - tr.y0, yc = (tr.y0 + tr.y1) / 2, zc = -(d - dd) / 2;
+      panel(t, hh, dd, -w / 2 + t / 2, yc, zc);
+      panel(t, hh, dd, w / 2 - t / 2, yc, zc);
+    }
+    if (conTop) panel(w - 2 * t, t, d - RIENTRO_GOLA, 0, h / 2 - t / 2, -RIENTRO_GOLA / 2);
+  } else {
+    panel(t, h, d, -w / 2 + t / 2, 0, 0);           // fianco sx
+    panel(t, h, d,  w / 2 - t / 2, 0, 0);           // fianco dx
+    if (conTop) panel(w - 2 * t, t, d, 0,  h / 2 - t / 2, 0);   // top
+  }
   panel(w - 2 * t, t, d, 0, -h / 2 + t / 2, 0);   // fondo
   g.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)), matOro));
   return g;
@@ -1176,8 +1211,8 @@ function antaVetro(g, px, py, z, pw, ph, matAnta, v) {
   fughe(g, px, py, z, pw, ph, sp);
 }
 /** Cassa aperta davanti (si vede dal vetro) con i suoi ripiani. */
-function carcassaVetrina(w, h, d, coloreCorpo, nRip) {
-  const g = carcassaColonna(w, h, d, coloreCorpo);
+function carcassaVetrina(w, h, d, coloreCorpo, nRip, bande = null) {
+  const g = carcassaColonna(w, h, d, coloreCorpo, true, bande);
   const t = 18, mat = new THREE.MeshStandardMaterial({ color: coloreCorpo, roughness: 0.7, metalness: 0.05 });
   for (let k = 1; k <= nRip; k++) {
     const r = new THREE.Mesh(new THREE.BoxGeometry(w - 2 * t, t, d - t - 25), mat);
@@ -1368,10 +1403,11 @@ function telaioInox(grp, pw, ph, frontZ, fb, frameD) {
 const GRIGLIA_FORNO = 45, H_FORNO_INCASSO = 595;
 function fronteForno(g, w, h, d, matAnta) {
   const z = d / 2, uw = w - FUGA_W;
-  const yTop = h / 2 - FUGA_H / 2, yBot = -h / 2 + FUGA_H / 2;
-  const hF = Math.min(H_FORNO_INCASSO, h - GRIGLIA_FORNO - 40);
-  griglia(g, z, uw, GRIGLIA_FORNO, yTop - GRIGLIA_FORNO / 2);
-  const yFornoTop = yTop - GRIGLIA_FORNO - GAP_ANTE;
+  const yTop = h / 2 - (_golaQui ? G_GOLA : FUGA_H / 2), yBot = -h / 2 + FUGA_H / 2;
+  // con la GOLA il forno sta subito sotto la gola (l'aria passa dalla gola: niente griglia)
+  const hF = Math.min(H_FORNO_INCASSO, h - (_golaQui ? G_GOLA : GRIGLIA_FORNO) - 40);
+  if (!_golaQui) griglia(g, z, uw, GRIGLIA_FORNO, yTop - GRIGLIA_FORNO / 2);
+  const yFornoTop = _golaQui ? yTop : yTop - GRIGLIA_FORNO - GAP_ANTE;
   pannelloElettro(g, yFornoTop - hF / 2, z, Math.min(w - 24, 595), hF, 'forno');
   const yPan = yFornoTop - hF - GAP_ANTE;
   if (yPan - yBot > 15) pannello(g, 0, (yPan + yBot) / 2, z, uw, yPan - yBot, matAnta || COL.cassetto);
@@ -1656,10 +1692,85 @@ function pannelloElettro(g, py, z, pw, ph, tipo) {
 // Fughe reali delle ante: in LARGHEZZA si toglie 3 mm totali (1,5 per lato),
 // in ALTEZZA 2 mm (1 sopra, 1 sotto). GAP = fuga fra due ante/cassetti.
 // (valori dai ⚙ Parametri della falegnameria: si rileggono a ogni aggiornamento della scena)
-let FUGA_W = 3, FUGA_H = 2, GAP_ANTE = 3, FUGA_CASS = 2, SP_J = 2;
+let FUGA_W = 3, FUGA_H = 2, GAP_ANTE = 3, FUGA_CASS = 2, SP_J = 2, G_GOLA = 25;
 function leggiParametriAnte() {
   const P = parametri();
   FUGA_W = P.ante.ariaLarghezza; FUGA_H = P.ante.ariaAltezza; GAP_ANTE = P.ante.ariaTraAnte; FUGA_CASS = P.ante.ariaCassetti; SP_J = P.manigliaJ.spessore;
+  G_GOLA = P.gola.spazio;
+}
+// GOLA IN ALLUMINIO (mobili bassi): niente maniglie; sopra l'anta 25 mm fino al piano (profilo L),
+// fra i cassetti 25 mm (profilo C). _golaQui = il mobile che si sta costruendo ha la gola.
+let _golaCfg = { base: false, colore: 'nero', led: false };
+let _golaQui = false;
+/** Altezza e centro di un'anta (non sporgente): con la gola l'anta normale perde 25 mm in alto (come in distinta). */
+function vertAnta(h) {
+  if (!_golaQui) return { ph: h - FUGA_H, py: 0 };
+  return { ph: h - FUGA_H - G_GOLA, py: -G_GOLA / 2 };
+}
+// Profili in alluminio nei 4 colori (opachi; l'argento è anodizzato, un po' metallico)
+const GOLA_3D = { nero: [0x1f2022, 0.55, 0.3], antracite: [0x55585a, 0.5, 0.35], bianco: [0xeeeeec, 0.5, 0.05], argento: [0xc3c5c8, 0.34, 0.85] };
+const _matGola = {};
+function matProfiloGola(c) {
+  const k = GOLA_3D[c] ? c : 'nero';
+  if (!_matGola[k]) { const [col, r, mt] = GOLA_3D[k]; _matGola[k] = new THREE.MeshStandardMaterial({ color: col, roughness: r, metalness: mt, envMapIntensity: 0.8 }); }
+  return _matGola[k];
+}
+// Luce della gola LED: un velo luminoso sul fondo del canale (più forte dove sta il diffusore)
+let _texGlowC = null;
+function texGlowGola() {
+  const fai = (stops) => canvasTex(4, 64, (g, w, h) => {
+    const gr = g.createLinearGradient(0, 0, 0, h);
+    for (const [o, a] of stops) gr.addColorStop(o, `rgba(255,255,255,${a})`);
+    g.clearRect(0, 0, w, h); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  });
+  return _texGlowC || (_texGlowC = fai([[0, 1], [0.5, 0.75], [1, 1]]));
+}
+/**
+ * PROFILO DELLA GOLA lungo x (da x0 a x1), con il fronte della cassa al piano zF.
+ * 'L': yRef = cima del mobile (sotto il piano): alto 57, profondo 26, risvolto di 7 sotto il piano.
+ * 'C': yRef = centro dello spazio fra due cassetti: alto 70, labbri di 5 sopra e sotto.
+ */
+function profiloGola(g, tipo, x0, x1, yRef, zF) {
+  const L = x1 - x0, cx = (x0 + x1) / 2, mat = matProfiloGola(_golaCfg.colore), T = 2, R = RIENTRO_GOLA;
+  const pezzo = (sy, sz, y, z) => {
+    const ms = new THREE.Mesh(new THREE.BoxGeometry(L, sy, sz), mat);
+    ms.position.set(cx, y, z); ms.castShadow = true; ms.receiveShadow = true; g.add(ms);
+  };
+  if (tipo === 'L') {
+    const yt = yRef - 1, yb = yRef - 58;
+    pezzo(yt - yb, T, (yt + yb) / 2, zF - R + T / 2);              // fondo del canale
+    pezzo(T, 7, yt - T / 2, zF - R + 3.5);                          // risvolto sotto il piano
+    pezzo(T, R - 1, yb + T / 2, zF - R + (R - 1) / 2);              // fondo della L
+    pezzo(5, T, yb + 2.5, zF - 1 - T / 2);                          // labbro dietro l'anta
+  } else {
+    const yt = yRef + 35, yb = yRef - 35;
+    pezzo(70, T, yRef, zF - R + T / 2);
+    pezzo(T, R - 1, yt - T / 2, zF - R + (R - 1) / 2);
+    pezzo(T, R - 1, yb + T / 2, zF - R + (R - 1) / 2);
+    pezzo(5, T, yt - 2.5, zF - 1 - T / 2);
+    pezzo(5, T, yb + 2.5, zF - 1 - T / 2);
+  }
+  if (!_golaCfg.led) return;
+  // GOLA LED: come quella vera (diffusori sopra e sotto dentro il canale) tutto il canale è acceso:
+  // velo luminoso sul fondo (più forte vicino ai diffusori), sul fondo della L/C e i diffusori accesi
+  const hex = ledHex(_lastProgetto || {});
+  const y0 = tipo === 'L' ? yRef - 56 : yRef - 33, y1 = tipo === 'L' ? yRef - 3 : yRef + 33;
+  // la luce è FORTE (oltre il bianco: si vede accesa anche di giorno, come una striscia vera)
+  const SCALA = 1.6;
+  const luce = (geo, mat, x, y, z, rx = 0) => {
+    const ms = new THREE.Mesh(geo, mat); ms.position.set(x, y, z); ms.rotation.x = rx;
+    ms.userData.ledStriscia = { colore: hex, lunghezza: L, scala: SCALA }; g.add(ms);
+  };
+  const add = (op, map = null) => { const mt = new THREE.MeshBasicMaterial({ color: hex, map, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }); mt.color.multiplyScalar(SCALA); return mt; };
+  luce(new THREE.PlaneGeometry(L, y1 - y0), add(1, texGlowGola()), cx, (y0 + y1) / 2, zF - R + T + 0.4);             // fondo del canale
+  luce(new THREE.PlaneGeometry(L, R - 4), add(0.9), cx, y0 + 0.4, zF - R + T + (R - 4) / 2, -Math.PI / 2);            // piano della L / della C
+  const diff = new THREE.MeshBasicMaterial({ color: hex, toneMapped: false });
+  luce(new THREE.BoxGeometry(L, 3, 8), diff, cx, y0 + 1.5, zF - R + T + 5);                                          // diffusore sotto
+  luce(new THREE.BoxGeometry(L, 3, 8), diff, cx, y1 - 1.5, zF - R + T + 5);                                          // diffusore sopra
+}
+/** Bande dove la cassa rientra per i profili (coordinate del mobile, centrato). */
+function bandeGola(m, h) {
+  return righeGola(m, h).map((r) => (r.tipo === 'L' ? [h / 2 - 60, h / 2] : [r.y - h / 2 - 37, r.y - h / 2 + 37]));
 }
 /** Maniglia a J (profilo sopra l'anta) su questo fronte? → di quanto si accorcia (mm). */
 function riduzioneJ() {
@@ -1689,8 +1800,10 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
   const uw = w - FUGA_W;
   const pw = (uw - (n - 1) * GAP_ANTE) / n;
   // sporgente: anta = h + 20 che avanza 2 cm SOTTO (bordo alto a filo).
-  const ph = sporg ? (h + 20) : (h - FUGA_H);
-  const py = sporg ? -10 : 0;
+  // con la GOLA: l'anta parte 25 mm sotto il piano
+  const vA = vertAnta(h);
+  const ph = sporg ? (h + 20) : vA.ph;
+  const py = sporg ? -10 : vA.py;
   // Anta singola: la maniglia (= lato di apertura) va a destra di default,
   // a sinistra se l'utente lo sceglie (antaLato = 'sx').
   const sx = lato === 'sx';
@@ -1701,10 +1814,12 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
     if (_vetrina) {
       // ANTA VETRINA: telaio (legno come le ante, alluminio o nero) + vetro
       antaVetro(g, px, py, z, pw, ph, matAnta, _vetrina);
-      if (!sporg && !_fingerPull) {
+      if (!sporg && !_fingerPull && !_golaQui) {
         const verso = n === 1 ? (sx ? -1 : 1) : (i === 0 ? 1 : -1);
         manigliaOrizzAnta(g, px, py, pw, ph, z, verso, !_anteInBasso);
       }
+    } else if (!sporg && _golaQui) {
+      pannello(g, px, py, z, pw, ph, matAnta || COL.anta);        // GOLA: niente maniglia, si apre dalla gola
     } else if (!sporg && _fingerPull) {
       // canale in alto nei mobili bassi; nei PENSILI in basso, rivolto verso il basso
       const CH = 30, giu = _anteInBasso;
@@ -1730,14 +1845,18 @@ function cassetti(g, w, h, d, n, matAnta, piccolo = null) {
   // Fughe da 2 mm, una in più dei cassetti; frontali tutti uguali oppure uno
   // piccolo in alto e gli altri uguali (stessa regola della distinta)
   const uw = w - FUGA_W, FC = FUGA_CASS;
-  const alt = frontiCassetti(h, n, piccolo);       // dall'alto in basso
-  const rJ = riduzioneJ();                        // maniglia a J: ogni frontale si accorcia in alto
-  let yTop = h / 2 - FC;
+  const alt = frontiCassetti(h, n, piccolo, _golaQui);   // dall'alto in basso
+  const rJ = _golaQui ? 0 : riduzioneJ();                // maniglia a J: ogni frontale si accorcia in alto
+  // con la GOLA: 25 mm sopra il primo frontale e fra un frontale e l'altro (profili L e C)
+  const passo = _golaQui ? G_GOLA : FC;
+  let yTop = h / 2 - passo;
   for (let i = 0; i < alt.length; i++) {
     const ph = alt[i] - rJ;
     const py = yTop - rJ - ph / 2;
-    yTop -= alt[i] + FC;
-    if (_fingerPull) {
+    yTop -= alt[i] + passo;
+    if (_golaQui) {
+      pannello(g, 0, py, z, uw, ph, matAnta || COL.cassetto);
+    } else if (_fingerPull) {
       const CH = Math.min(26, ph * 0.35);
       pannello(g, 0, py - CH / 2, z, uw, Math.max(40, ph - CH), matAnta || COL.cassetto);
       canaleFingerPull(g, 0, py + ph / 2 - CH / 2, z, uw, CH, true, matAnta);
@@ -2051,12 +2170,13 @@ function anteCieche(g, w, h, d, matAnta, cieco) {
   const nAnte = freeW >= 600 ? 2 : 1;                // da 60 cm in su: due ante
   const uw = freeW - FUGA_W;
   const pw = (uw - (nAnte - 1) * GAP_ANTE) / nAnte;
+  const vA = vertAnta(h);                            // con la gola: 25 mm sotto il piano
   for (let i = 0; i < nAnte; i++) {
     const px = doorCx - uw / 2 + pw / 2 + i * (pw + GAP_ANTE);
-    pannello(g, px, 0, z, pw, h - FUGA_H, matAnta || COL.anta);
-    manigliaOrizzAnta(g, px, 0, pw, h - FUGA_H, z, latoDx ? 1 : -1, true);
+    pannello(g, px, vA.py, z, pw, vA.ph, matAnta || COL.anta);
+    if (!_golaQui) manigliaOrizzAnta(g, px, 0, pw, h - FUGA_H, z, latoDx ? 1 : -1, true);
   }
-  // Pannello cieco (fisso): stessa finitura, nessuna maniglia
+  // Pannello cieco (fisso): stessa finitura, nessuna maniglia (l'angolo resta come sempre, anche con la gola)
   pannello(g, blindCx, 0, z, coveredW - FUGA_W, h - FUGA_H, matAnta || COL.anta);
 }
 
@@ -2088,7 +2208,7 @@ function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
   const o = cieco.o;
   const THK = 20;                                        // spessore pannello (come le ante)
   const AVANZ = 20;                                      // a filo esatto con le ante (stesso livello)
-  const hP = h;                                          // ALTEZZA PIENA del modulo (NO -2mm come le ante)
+  const hP = h;                                          // ALTEZZA PIENA del modulo (NO -2mm come le ante), anche con la gola
 
   const A = aabbPlan(m), B = aabbPlan(o);
   const fm = frontDirPlan(m), fo = frontDirPlan(o);
@@ -2340,7 +2460,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122j')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122k')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -2440,19 +2560,24 @@ function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, prof = PROFONDITA_PENS
   // prof = profondità di ogni braccio (pensile 330, base 600); basso = base angolo
   const matCorpo = (coloreCorpo && coloreCorpo.isMaterial) ? coloreCorpo
     : new THREE.MeshStandardMaterial({ color: coloreCorpo, roughness: 0.7, metalness: 0.05 });
-  const mkBox = (bw, bd, cx, cz) => {
-    const geo = new THREE.BoxGeometry(bw, h, bd);
-    const mesh = new THREE.Mesh(geo, matCorpo);
-    mesh.position.set(cx, 0, cz);
-    g.add(mesh);
-    const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), matOro);
-    e.position.copy(mesh.position); g.add(e);
+  // GOLA (base angolo): in cima il fronte di ogni braccio rientra per il profilo L
+  const gola = basso && _golaQui, HB = 60, R = RIENTRO_GOLA;
+  const mkBox = (bw, bd, cx, cz, fronte) => {
+    const parti = gola ? [[-h / 2, h / 2 - HB, 0], [h / 2 - HB, h / 2, R]] : [[-h / 2, h / 2, 0]];
+    for (const [y0, y1, r] of parti) {
+      const geo = new THREE.BoxGeometry(fronte === 'x' ? bw - r : bw, y1 - y0, fronte === 'z' ? bd - r : bd);
+      const mesh = new THREE.Mesh(geo, matCorpo);
+      mesh.position.set(cx - (fronte === 'x' ? r / 2 : 0), (y0 + y1) / 2, cz - (fronte === 'z' ? r / 2 : 0));
+      g.add(mesh);
+      const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), matOro);
+      e.position.copy(mesh.position); g.add(e);
+    }
   };
   // Braccio A: lungo X, addossato al retro (-z).
-  mkBox(w, prof, 0, -d / 2 + prof / 2);
+  mkBox(w, prof, 0, -d / 2 + prof / 2, 'z');
   // Braccio B: lungo Z, addossato al lato sinistro (-x), DAVANTI al braccio A
   // (niente scatole sovrapposte nell'angolo: facce doppie che "sfarfallano")
-  mkBox(prof, d - prof, -w / 2 + prof / 2, prof / 2);
+  mkBox(prof, d - prof, -w / 2 + prof / 2, prof / 2, 'x');
   // Anta A: sul fronte del braccio A (+z), sulla parte non coperta dal braccio B.
   const antaAw = w - prof;
   const antaAcx = (-w / 2 + prof + w / 2) / 2;
@@ -2460,6 +2585,9 @@ function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, prof = PROFONDITA_PENS
   const anta = (gg, cx, z, aw, verso) => {
     if (!basso && sporg) {                           // pensile con anta sporgente sotto (come gli altri pensili)
       pannello(gg, cx, -10, z, aw, h + 20, matAnta || COL.anta);
+    } else if (gola) {                               // GOLA: 25 mm sotto il piano, niente maniglia
+      const v = vertAnta(h);
+      pannello(gg, cx, v.py, z, aw, v.ph, matAnta || COL.anta);
     } else if (_fingerPull) {                        // gola: in alto nella base, in basso nel pensile
       const CH = 30, hA = h - FUGA_H;
       pannello(gg, cx, basso ? -CH / 2 : CH / 2, z, aw, Math.max(60, hA - CH), matAnta || COL.anta);
@@ -2477,6 +2605,11 @@ function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, prof = PROFONDITA_PENS
   subB.rotation.y = Math.PI / 2;                     // fronte +z locale → +x mondo
   subB.position.set(-w / 2 + prof, 0, (-d / 2 + prof + d / 2) / 2);
   g.add(subB);
+  if (gola) {
+    // profili L dei due fronti: arrivano fino all'angolo interno (dove si incontrano)
+    profiloGola(g, 'L', -w / 2 + prof - R, w / 2, h / 2, zA);
+    profiloGola(subB, 'L', -antaBw / 2, antaBw / 2 + R, h / 2, 0);
+  }
 }
 
 /** Pensile ad angolo (63×63): cassa quadrata + anta diagonale a 45°. */
@@ -2576,11 +2709,22 @@ function mobileAperto(g, w, h, d, m, matAnta, coloreCorpo, lato = null, sporg = 
 
 /** Costruisce il mobile completo centrato nell'origine (corpo + fronti). */
 function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
+  // GOLA in alluminio (bassi): cassa fresata, ante/cassetti con 25 mm, profili L e C
+  _golaQui = !!(_golaCfg.base && cat !== 'frigo' && m && _lastProgetto && golaSuMobile(_lastProgetto, m));
+  const g = costruisciMobileCorpo(cat, tipo, m, w, h, d, matAnta, opt);
+  if (_golaQui && tipo !== 'base-angolo') {
+    for (const r of righeGola(m, h)) profiloGola(g, r.tipo, -w / 2, w / 2, r.y - h / 2, d / 2);
+  }
+  _golaQui = false;
+  return g;
+}
+function costruisciMobileCorpo(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   const g = new THREE.Group();
   if (cat === 'frigo') { frigoLibero(g, w, h, d, m && m.colore, m && m.maniglia); return g; }
   _push = pushCat(cat);                  // push: niente maniglia (anche con il finger-pull)
   _fingerPull = fpCat(_fpByCat, cat);   // finger-pull per categoria del mobile
   _maniglia = manigliaCat(cat);         // maniglia del catalogo per categoria
+  if (_golaQui) { _push = false; _fingerPull = false; }
   // PONTE e pensili sotto il ponte: le loro scelte (se fatte), se no come colonne / pensili
   if (opt.porte) {
     _push = opt.porte.push; _fingerPull = opt.porte.fp;
@@ -2608,11 +2752,12 @@ function costruisciMobile(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   // MOBILE APERTO (senza ante): cassa aperta davanti, si vede dentro
   const aperto = apertoDi(m);
   const latoAp = aperto && _lastProgetto ? latoApertoDi(_lastProgetto, m) : null;   // ultimo della fila: senza quel fianco
+  const bande = _golaQui && tipo !== 'base-angolo' ? bandeGola(m, h) : null;    // gola: fianchi fresati
   g.add(colonnaVano ? carcassaColonna(w, h, d, coloreCorpo)
     : aperto ? new THREE.Group()                                       // mobile aperto: tutto a pezzi (sotto)
-    : conLavello ? carcassaColonna(w, h, d, coloreCorpo, false)
-    : vetrina ? carcassaVetrina(w, h, d, coloreCorpo, cat === 'pensile' ? (h >= 850 ? 2 : 1) : 1)
-    : corpo(w, h, d, coloreCorpo));
+    : conLavello ? carcassaColonna(w, h, d, coloreCorpo, false, bande)
+    : vetrina ? carcassaVetrina(w, h, d, coloreCorpo, cat === 'pensile' ? (h >= 850 ? 2 : 1) : 1, bande)
+    : corpo(w, h, d, coloreCorpo, bande));
   if (cat === 'regletta') return g;
   if (opt.cieco && opt.cieco.coperto) { anteCieche(g, w, h, d, matAnta, opt.cieco); return g; }
   if (aperto) { mobileAperto(g, w, h, d, m, matAnta, coloreCorpo, latoAp, cat === 'pensile' && !!opt.sporg); return g; }
@@ -2741,6 +2886,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   _fpByCat = progetto.fingerPull || {};
   _pushByCat = progetto.push || {};
   _manByCat = progetto.maniglie || {};
+  _golaCfg = golaProgetto(progetto);
   _stileForno = (progetto.finiture || {}).forno || 'inox';
   _progColonne = progetto;
   _coloreInterno = COLORI_INTERNO[progetto.coloreInterno] || COLORI_INTERNO.bianco;

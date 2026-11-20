@@ -11,12 +11,12 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado } from './calcoli.js?v=20261122j';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261122j';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261122j';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261122j';
-import { sfondoDi } from './sfondi.js?v=20261122j';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261122j';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado } from './calcoli.js?v=20261122k';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261122k';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261122k';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261122k';
+import { sfondoDi } from './sfondi.js?v=20261122k';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261122k';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -809,7 +809,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
   }
 
   // ANTE SCORREVOLI (per modulo) — formula definitiva (sez. 4.5):
-  // larghezza = Lm − 25, altezza = H − 47. Due casi di layout:
+  // larghezza = (L − 2 fianchi) ÷ n° ante − 35, altezza = H − 47 (calcoli.js). Due casi di layout:
   //   N === 1 : 1 anta per modulo, alternata avanti/dietro tra moduli
   //             adiacenti (modulo 0 avanti, modulo 1 dietro, ...).
   //             L'apertura fa scorrere l'anta "avanti" di W a destra,
@@ -819,7 +819,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
   if (scorrevole) {
     // Il rendering 3D usa dimensioni "visive" (W/N + 20) per far vedere
     // chiaramente la sovrapposizione e lo scorrimento. La DISTINTA invece
-    // usa la formula ufficiale Lm − 25 (vedi calcoli.js) che resta corretta.
+    // usa la formula del falegname (L − 2 fianchi) ÷ n° ante − 35 (vedi calcoli.js).
     const N = config.scorrevole?.anteModulo ?? 2;
     const B = config.scorrevole?.binario ?? 75;
     const altAntaSc = H - B;

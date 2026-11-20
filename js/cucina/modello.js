@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261122j';
+import { parametri } from '../parametri.js?v=20261122k';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -1702,6 +1702,8 @@ export function gruppoPorte(progetto, m) {
 }
 /** Scelte delle porte per un gruppo ('ponte' / 'pensiliPonte' con il gruppo che seguono). */
 export function sceltePorteGruppo(progetto, proprio, segue) {
+  // GOLA in alluminio sui bassi: niente maniglia, niente push, niente finger-pull
+  if (!proprio && segue === 'base' && golaProgetto(progetto).base) return { fp: false, push: false, maniglia: null, gola: true, proprie: false };
   const fp = progetto.fingerPull, fpO = fp && typeof fp === 'object' ? fp : {};
   const pu = progetto.push || {}, ma = progetto.maniglie || {};
   return {
@@ -1713,6 +1715,7 @@ export function sceltePorteGruppo(progetto, proprio, segue) {
 }
 /** Scelte delle porte di UN mobile: { fp, push, maniglia (id o null) }. */
 export function sceltePorte(progetto, m) {
+  if (golaSuMobile(progetto, m)) return { fp: false, push: false, maniglia: null, gola: true, proprie: false };
   const { proprio, segue } = gruppoPorte(progetto, m);
   return sceltePorteGruppo(progetto, proprio, segue);
 }
@@ -2819,13 +2822,193 @@ export function portaBassaColonna(progetto, m) {
  * - con un cassetto PICCOLO in alto (piccolo = sua altezza): gli altri si
  *   dividono in parti uguali lo spazio che resta.
  */
-export function frontiCassetti(H, n, piccolo = null) {
+export function frontiCassetti(H, n, piccolo = null, gola = false) {
   n = Math.max(1, n || 3);
   const fc = parametri().ante.ariaCassetti;            // aria tra i frontali (⚙ Parametri)
-  const netto = H - (n + 1) * fc;
+  // con la GOLA: sopra il primo frontale e fra un frontale e l'altro lo spazio della gola
+  // (25 mm: profilo L sotto il piano, profilo C fra i cassetti); sotto l'aria di sempre
+  const netto = gola ? H - n * spazioGola() - fc : H - (n + 1) * fc;
   if (!piccolo || n < 2) return Array(n).fill(Math.floor(netto / n));
   const hs = Math.floor(Math.max(60, Math.min(Number(piccolo), netto - (n - 1) * 80)));
   return [hs, ...Array(n - 1).fill(Math.floor((netto - hs) / (n - 1)))];
+}
+
+// =============================================================================
+// GOLA IN ALLUMINIO (mobili bassi): profilo «L» sotto il piano, profilo «C» fra i cassetti
+// =============================================================================
+// Niente maniglie: fra il piano e l'anta resta lo spazio per le dita (25 mm, ⚙ Parametri)
+// e lo stesso fra un cassetto e l'altro. Il profilo entra nel fianco (fianco fresato):
+// la L è alta 57 mm, la C 70 mm, profonde 26. Barre da 4 m, 4 colori.
+// progetto.gola = { base: true/false, colore: 'nero' | 'antracite' | 'bianco' | 'argento', led: true/false }
+export const COLORI_GOLA = [
+  { id: 'nero', nome: 'Nero opaco', hex: '#1f2022' },
+  { id: 'antracite', nome: 'Antracite opaco', hex: '#55585a' },
+  { id: 'bianco', nome: 'Bianco opaco', hex: '#efefed' },
+  { id: 'argento', nome: 'Argento opaco (anodizzato)', hex: '#c3c5c8' },
+];
+export const GOLA_L_H = 57, GOLA_C_H = 70, GOLA_PROF = 26, BARRA_GOLA = 4000;
+export function spazioGola() { return parametri().gola.spazio; }
+export function golaProgetto(progetto) {
+  const g = (progetto && progetto.gola) || {};
+  return { base: !!g.base, colore: COLORI_GOLA.some((c) => c.id === g.colore) ? g.colore : 'nero', led: !!g.led };
+}
+export function nomeColoreGola(id) { return (COLORI_GOLA.find((c) => c.id === id) || COLORI_GOLA[0]).nome.toLowerCase(); }
+/** Questo mobile ha la gola? (bassi con le ante / i cassetti, lavastoviglie integrata; non i mobili a giorno) */
+export function golaSuMobile(progetto, m) {
+  if (!m || !golaProgetto(progetto).base || apertoDi(m)) return false;
+  const cat = categoriaTipo(m.tipo);
+  if (cat === 'base') return true;
+  if (cat === 'lavastoviglie') return m.colore === 'integrata';
+  return false;
+}
+/** Altezza dell'anta con la gola: l'anta normale (H − aria) meno lo spazio della gola in alto (720 → 718 → 693). */
+export function altezzaAntaGola(H) { return Math.round(H - parametri().ante.ariaAltezza - spazioGola()); }
+/**
+ * Dove passano i profili in un mobile alto H (mm dal fondo del mobile):
+ * [{ tipo: 'L', y: cima }, { tipo: 'C', y: centro dello spazio fra due cassetti }, …]
+ */
+export function righeGola(m, H) {
+  const out = [{ tipo: 'L', y: H }];
+  if (m && m.tipo === 'base-cassetti') {
+    const G = spazioGola(), alt = frontiCassetti(H, Math.max(1, m.cassetti || 3), m.cassettoPiccolo_mm, true);
+    let top = H - G;
+    for (let i = 0; i < alt.length - 1; i++) { top -= alt[i]; out.push({ tipo: 'C', y: top - G / 2 }); top -= G; }
+  }
+  return out;
+}
+/** Facce con la gola di un mobile, in pianta: [{ a, b (estremi del fronte), n (verso la stanza), righe }]. */
+function facceGola(m) {
+  const d = dimMobile(m), H = m.altezza_mm || 700, righe = righeGola(m, H);
+  if (m.tipo === 'base-angolo') {
+    // base a L: due fronti (come nel 3D: gruppo girato di +rot)
+    const P = profBraccioL('base-angolo', m), rr = ((m.rot || 0) * Math.PI) / 180, c = Math.cos(rr), s = Math.sin(rr);
+    const pt = (lx, lz) => ({ x: m.x + lx * c + lz * s, y: m.y + lx * s - lz * c });
+    const w = d.w, dd = d.d, zA = -dd / 2 + P, xB = -w / 2 + P;
+    return [
+      { a: pt(xB, zA), b: pt(w / 2, zA), n: { x: s, y: -c }, righe },
+      { a: pt(xB, zA), b: pt(xB, dd / 2), n: { x: c, y: s }, righe },
+    ];
+  }
+  const { ux, uz } = assiMobile(m);
+  const f = { x: m.x + uz.x * d.d / 2, y: m.y + uz.y * d.d / 2 };
+  return [{ a: { x: f.x - ux.x * d.w / 2, y: f.y - ux.y * d.w / 2 }, b: { x: f.x + ux.x * d.w / 2, y: f.y + ux.y * d.w / 2 }, n: uz, righe }];
+}
+/** Rettangolo in pianta di un mobile (girato come il mobile) → per sapere se copre un fronte. */
+function copreFronte(o, p, n) {
+  const d = dimMobile(o), { ux, uz } = assiMobile(o);
+  // il punto appena davanti al fronte (5 cm) sta dentro l'ingombro dell'altro mobile?
+  const q = { x: p.x + n.x * 50 - o.x, y: p.y + n.y * 50 - o.y };
+  return Math.abs(q.x * ux.x + q.y * ux.y) < d.w / 2 - 1 && Math.abs(q.x * uz.x + q.y * uz.y) < d.d / 2 - 1;
+}
+/**
+ * PROFILI DELLA GOLA di tutta la cucina (per la distinta): i fronti uno accanto all'altro,
+ * sulla stessa linea e alla stessa altezza, fanno UN profilo. Le parti coperte da un altro
+ * mobile (angolo cieco) non contano. Due profili L che si incontrano ad angolo → angolo
+ * interno / esterno (e la lunghezza arriva fino all'angolo).
+ * Ritorna { L: [{ lung, moduli }], C: [{ lung, moduli }], angoliInterni, angoliEsterni, fianchi }.
+ */
+export function profiliGola(progetto) {
+  const mobili = (progetto.mobiliLiberi || []);
+  const conGola = mobili.filter((m) => golaSuMobile(progetto, m));
+  const altri = mobili.filter((o) => { const c = categoriaTipo(o.tipo); return ['base', 'colonna', 'frigo', 'lavastoviglie', 'lavatrice', 'costado'].includes(c); });
+  const tratti = [];      // { tipo, quota, n, dir, off, t0, t1, id }
+  let fianchi = 0;
+  for (const m of conGola) {
+    const zocc = (m.altezza_mm || 700) >= 800 ? 100 : 150;
+    for (const f of facceGola(m)) {
+      const L = Math.hypot(f.b.x - f.a.x, f.b.y - f.a.y);
+      if (L < 20) continue;
+      const dir = { x: (f.b.x - f.a.x) / L, y: (f.b.y - f.a.y) / L };
+      // parti libere del fronte (a passi di 1 cm): niente mobile davanti
+      const passo = 10, liberi = [];
+      let inizio = null;
+      for (let t = passo / 2; t < L; t += passo) {
+        const p = { x: f.a.x + dir.x * t, y: f.a.y + dir.y * t };
+        const coperto = altri.some((o) => o.id !== m.id && copreFronte(o, p, f.n));
+        if (!coperto && inizio == null) inizio = t - passo / 2;
+        if (coperto && inizio != null) { liberi.push([inizio, t - passo / 2]); inizio = null; }
+      }
+      if (inizio != null) liberi.push([inizio, L]);
+      for (const r of f.righe) {
+        if (liberi.some(([a, b]) => b - a >= 20)) fianchi += 2;      // supporti: solo dove c'è il profilo
+        for (const [t0, t1] of liberi) {
+          if (t1 - t0 < 20) continue;
+          // coordinate della linea: direzione unica (verso) per unire i tratti
+          let D = dir, a0 = t0, a1 = t1, A = f.a;
+          if (D.x < -1e-6 || (Math.abs(D.x) < 1e-6 && D.y < 0)) { D = { x: -dir.x, y: -dir.y }; A = f.b; a0 = L - t1; a1 = L - t0; }
+          const base = A.x * D.x + A.y * D.y;
+          tratti.push({ tipo: r.tipo, quota: Math.round(zocc + r.y), n: f.n, dir: D, off: A.x * f.n.x + A.y * f.n.y,
+            t0: base + a0, t1: base + a1, id: m.id });
+        }
+      }
+    }
+  }
+  // unisco i tratti in profili: stesso tipo, stessa quota, stesso verso, stessa linea, che si toccano
+  const profili = [];
+  for (const t of tratti.sort((a, b) => a.t0 - b.t0)) {
+    const p = profili.find((q) => q.tipo === t.tipo && Math.abs(q.quota - t.quota) <= 5
+      && q.n.x * t.n.x + q.n.y * t.n.y > 0.99 && Math.abs(q.off - t.off) < 30 && t.t0 - q.t1 < 15 && q.t0 - t.t1 < 15);
+    if (p) { p.t0 = Math.min(p.t0, t.t0); p.t1 = Math.max(p.t1, t.t1); if (!p.moduli.includes(t.id)) p.moduli.push(t.id); }
+    else profili.push({ ...t, moduli: [t.id] });
+  }
+  // ANGOLI fra due profili L (stessa quota, perpendicolari) che arrivano allo stesso punto.
+  // Angolo con la REGLETTA (angolo cieco, come sempre): l'angolo non cambia, i profili finiscono
+  // contro la regletta (niente pezzo d'angolo, il capo resta nascosto). Senza regletta (base ad
+  // angolo) i due profili si uniscono con l'angolo interno.
+  const cieche = progetto.autoRegletta === false ? [] : mobili.filter((m) => infoAngoloCieco(progetto, m));
+  let angoliInterni = 0, angoliEsterni = 0;
+  const Ls = profili.filter((p) => p.tipo === 'L');
+  for (const p of Ls) { p.e0 = 0; p.e1 = 0; }
+  for (let i = 0; i < Ls.length; i++) for (let j = i + 1; j < Ls.length; j++) {
+    const A = Ls[i], B = Ls[j];
+    if (Math.abs(A.quota - B.quota) > 5 || Math.abs(A.dir.x * B.dir.x + A.dir.y * B.dir.y) > 0.05) continue;
+    // incrocio delle due linee del fronte
+    const pA = { x: A.dir.x * A.t0 + A.n.x * A.off, y: A.dir.y * A.t0 + A.n.y * A.off };
+    const den = A.dir.x * B.dir.y - A.dir.y * B.dir.x;
+    if (Math.abs(den) < 1e-6) continue;
+    const pB = { x: B.dir.x * B.t0 + B.n.x * B.off, y: B.dir.y * B.t0 + B.n.y * B.off };
+    const k = ((pB.x - pA.x) * B.dir.y - (pB.y - pA.y) * B.dir.x) / den;
+    const X = { x: pA.x + A.dir.x * k, y: pA.y + A.dir.y * k };
+    const sA = X.x * A.dir.x + X.y * A.dir.y, sB = X.x * B.dir.x + X.y * B.dir.y;
+    const vicinoA = Math.min(Math.abs(sA - A.t0), Math.abs(sA - A.t1)), vicinoB = Math.min(Math.abs(sB - B.t0), Math.abs(sB - B.t1));
+    if (vicinoA > 200 || vicinoB > 200) continue;
+    if (cieche.some((m) => Math.hypot(m.x - X.x, m.y - X.y) < 900)) {
+      for (const [P, s] of [[A, sA], [B, sB]]) { if (Math.abs(s - P.t0) <= Math.abs(s - P.t1)) P.e0 = 1; else P.e1 = 1; }
+      continue;
+    }
+    // interno: ognuno dei due sta DAVANTI al fronte dell'altro
+    const cA = (A.t0 + A.t1) / 2, cB = (B.t0 + B.t1) / 2;
+    const PA = { x: A.dir.x * cA + A.n.x * A.off, y: A.dir.y * cA + A.n.y * A.off };
+    const PB = { x: B.dir.x * cB + B.n.x * B.off, y: B.dir.y * cB + B.n.y * B.off };
+    const davA = (PB.x - X.x) * A.n.x + (PB.y - X.y) * A.n.y, davB = (PA.x - X.x) * B.n.x + (PA.y - X.y) * B.n.y;
+    if (davA > 0 && davB > 0) angoliInterni++; else angoliEsterni++;
+    // il profilo arriva fino all'angolo
+    for (const [P, s] of [[A, sA], [B, sB]]) {
+      if (Math.abs(s - P.t0) <= Math.abs(s - P.t1)) { P.t0 = Math.min(P.t0, s); P.e0 = 1; } else { P.t1 = Math.max(P.t1, s); P.e1 = 1; }
+    }
+  }
+  const fuori = (tipo) => profili.filter((p) => p.tipo === tipo).map((p) => ({ lung: Math.round(p.t1 - p.t0), moduli: p.moduli, capiLiberi: 2 - (p.e0 || 0) - (p.e1 || 0) }));
+  return { L: fuori('L'), C: fuori('C'), angoliInterni, angoliEsterni, fianchi };
+}
+/**
+ * Barre da 4 m per dei pezzi di profilo: i pezzi più lunghi di una barra si fanno con barre
+ * intere + il resto; poi i pezzi si mettono nelle barre (il più lungo prima, 3 mm di taglio).
+ * Ritorna { barre, tagli: [mm, …] }.
+ */
+export function barreGola(lunghezze, barra = BARRA_GOLA) {
+  const pezzi = [];
+  for (const l of lunghezze) {
+    let r = Math.round(l);
+    while (r > barra) { pezzi.push(barra); r -= barra; }
+    if (r > 0) pezzi.push(r);
+  }
+  pezzi.sort((a, b) => b - a);
+  const libere = [];
+  for (const p of pezzi) {
+    const i = libere.findIndex((x) => x >= p);
+    if (i >= 0) libere[i] -= p + 3; else libere.push(barra - p - 3);
+  }
+  return { barre: libere.length, tagli: pezzi };
 }
 
 // =============================================================================
