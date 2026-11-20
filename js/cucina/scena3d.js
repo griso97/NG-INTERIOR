@@ -15,28 +15,28 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261122s';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122s';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261122s';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261122s';
+} from './modello.js?v=20261122t';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122t';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261122t';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261122t';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122s').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122t').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122s';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122s';
-import { parametri } from '../parametri.js?v=20261122s';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122s';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122s';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122t';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122t';
+import { parametri } from '../parametri.js?v=20261122t';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122t';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122t';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122s';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122t';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261122s';
+export { telaPavimento } from '../resa.js?v=20261122t';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -1208,7 +1208,7 @@ function antaVetro(g, px, py, z, pw, ph, matAnta, v) {
   vetro.position.set(px, py, z + sp / 2); vetro.renderOrder = 2; g.add(vetro);
   const e = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(pw, ph, sp)), matOro);
   e.position.set(px, py, z + sp / 2); g.add(e);
-  fughe(g, px, py, z, pw, ph, sp);
+  fughe(g, px, py, z, pw, ph, sp, { w: pw - 2 * F, h: ph - 2 * F });   // il fondo scuro solo dietro il telaio: dal vetro si vede dentro
 }
 /** Cassa aperta davanti (si vede dal vetro) con i suoi ripiani. */
 function carcassaVetrina(w, h, d, coloreCorpo, nRip, bande = null) {
@@ -1229,11 +1229,19 @@ function carcassaVetrina(w, h, d, coloreCorpo, nRip, bande = null) {
 // (un pelo meno marcate: si capisce che c'è la fuga, senza la riga nera evidente)
 const matFugaLinea = new THREE.LineBasicMaterial({ color: 0x2c2925, transparent: true, opacity: 0.4 });
 const matFugaFondo = new THREE.MeshBasicMaterial({ color: 0x24211d });
-function fughe(g, px, py, z, pw, ph, sp = 20) {
+function fughe(g, px, py, z, pw, ph, sp = 20, buco = null) {
   const x0 = px - pw / 2, x1 = px + pw / 2, y0 = py - ph / 2, y1 = py + ph / 2, zf = z + sp + 0.4;
   const v = [[x0, y0], [x1, y0], [x1, y0], [x1, y1], [x1, y1], [x0, y1], [x0, y1], [x0, y0]].map(([x, y]) => new THREE.Vector3(x, y, zf));
   const l = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(v), matFugaLinea); l.userData.fuga = true; g.add(l);
-  const f = new THREE.Mesh(new THREE.PlaneGeometry(pw + FUGA_W, ph + FUGA_H), matFugaFondo); f.position.set(px, py, z + 0.6); f.userData.fondoFuga = true; g.add(f);
+  // fondo scuro dietro l'anta (fa vedere le fughe); con il VETRO (buco) è una cornice: dentro si vede la cassa
+  let geo;
+  if (buco && buco.w > 1 && buco.h > 1) {
+    const W = (pw + FUGA_W) / 2, H = (ph + FUGA_H) / 2, bw = buco.w / 2, bh = buco.h / 2;
+    const sh = new THREE.Shape([new THREE.Vector2(-W, -H), new THREE.Vector2(W, -H), new THREE.Vector2(W, H), new THREE.Vector2(-W, H)]);
+    sh.holes.push(new THREE.Path([new THREE.Vector2(-bw, -bh), new THREE.Vector2(-bw, bh), new THREE.Vector2(bw, bh), new THREE.Vector2(bw, -bh)]));
+    geo = new THREE.ShapeGeometry(sh);
+  } else geo = new THREE.PlaneGeometry(pw + FUGA_W, ph + FUGA_H);
+  const f = new THREE.Mesh(geo, matFugaFondo); f.position.set(px, py, z + 0.6); f.userData.fondoFuga = true; g.add(f);
 }
 function pannello(g, px, py, z, pw, ph, mat) {
   // Anta: uso direttamente il materiale (legno con texture o tinta piena),
@@ -2434,7 +2442,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122s')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122t')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
