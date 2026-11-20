@@ -24,17 +24,17 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, latoApertoDi, latiLiberi, migraProfonditaPensili, PARTI_APERTO, coloreParteAperto, ledAperto,
-  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola } from './modello.js?v=20261122m';
-import { renderPianta } from './pianta.js?v=20261122m';
-import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261122m';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261122m';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261122m';
-import { calcolaDistintaCucina } from './distinta.js?v=20261122m';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261122m';
-import { agganciaTema } from '../tema.js?v=20261122m';
-import { tendinePannello } from '../tendine-pannello.js?v=20261122m';
+  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola } from './modello.js?v=20261122n';
+import { renderPianta } from './pianta.js?v=20261122n';
+import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261122n';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261122n';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261122n';
+import { calcolaDistintaCucina } from './distinta.js?v=20261122n';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261122n';
+import { agganciaTema } from '../tema.js?v=20261122n';
+import { tendinePannello } from '../tendine-pannello.js?v=20261122n';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261122m');
+const _excel = () => import('../modello-export.js?v=20261122n');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -1560,8 +1560,8 @@ function apriPavimentoDaFoto() {
     if (!(w >= 5) || !(h >= 5)) { alert(tt('Scrivi la misura della zona fotografata (almeno 5 cm).')); return; }
     $('pav-salva').disabled = true;
     try {
-      const C = await import('../catalogo.js?v=20261122m');
-      const M = await import('../materiali.js?v=20261122m');
+      const C = await import('../catalogo.js?v=20261122n');
+      const M = await import('../materiali.js?v=20261122n');
       const stato = await C.leggiCatalogo();
       const id = 'pav-' + Date.now().toString(36);
       const prod = { id, sezione: 'pavimento', nome: ($('pav-nome').value || '').trim() || tt('Pavimento del cliente'), campioneCm: { w, h } };
@@ -1578,7 +1578,7 @@ async function eliminaPavimentoProprio(id) {
   const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
   if (!confirm(tt('Eliminare questo pavimento? Sparisce da tutti i progetti.'))) return;
   try {
-    const C = await import('../catalogo.js?v=20261122m');
+    const C = await import('../catalogo.js?v=20261122n');
     const stato = await C.leggiCatalogo();
     stato.prodotti = (stato.prodotti || []).filter((p) => p.id !== id);
     await C.salvaCatalogo(stato); await C.eliminaFoto(id);
@@ -1929,7 +1929,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261122m');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261122n');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2757,13 +2757,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261122m');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261122n');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261122m'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261122n'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

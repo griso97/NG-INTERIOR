@@ -325,6 +325,7 @@ body {
 .hint { font-size: 12px; color: var(--testo-dim); margin: 6px 0 0; }
 .hint.ok { color: var(--ok); }
 .hint.err { color: var(--err); }
+.hint a { color: var(--oro); text-decoration: underline; text-underline-offset: 2px; }
 
 /* Pulsanti */
 .btn-oro, .btn-ghost, .btn-mini {

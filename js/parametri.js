@@ -26,6 +26,13 @@ export const PARAMETRI_DEFAULT = Object.freeze({
   gola: {
     spazio: 25,           // mm per le dita con la GOLA in alluminio: dal piano all'anta (profilo L) e fra i cassetti (profilo C)
   },
+  // BINARI degli armadi scorrevoli: ognuno con i suoi numeri per calcolare le ante.
+  //   larghezza anta = (larghezza esterna − 2 fianchi) ÷ n° ante − larghezzaMeno
+  //   altezza anta   = altezza esterna totale − altezzaMeno
+  //   con la maniglia alta come l'anta: larghezza anta − maniglia
+  binari: [
+    { id: 'syscore', nome: 'Syscore', larghezzaMeno: 35, altezzaMeno: 82, maniglia: 0 },
+  ],
   cassetti: {
     marca: 'Syscore',     // sistema di cassetti usato (scritto nella lista accessori)
     profondita: 500,      // mm: cassetto / guide
@@ -51,6 +58,18 @@ function completa(s) {
     s = { ...s, cassetti: { ...s.cassetti, medioTrasera: s.cassetti.grandeTrasera, grandeTrasera: null } };
   }
   const D = PARAMETRI_DEFAULT, a = (s && s.ante) || {}, j = (s && s.manigliaJ) || {}, c = (s && s.cassetti) || {}, go = (s && s.gola) || {};
+  const visti = new Set();
+  const binari = (Array.isArray(s && s.binari) ? s.binari : []).filter((b) => b && typeof b === 'object').map((b, i) => {
+    let id = String(b.id || '').trim() || `b${i}`;
+    while (visti.has(id)) id += 'x';
+    visti.add(id);
+    return {
+      id, nome: String(b.nome ?? '').trim(),
+      larghezzaMeno: Math.max(0, num(b.larghezzaMeno, 0)),
+      altezzaMeno: Math.max(0, num(b.altezzaMeno, 0)),
+      maniglia: Math.max(0, num(b.maniglia, 0)),
+    };
+  });
   return {
     v: 2,
     ante: {
@@ -61,6 +80,7 @@ function completa(s) {
     },
     manigliaJ: { spessore: Math.max(0, num(j.spessore, D.manigliaJ.spessore)) },
     gola: { spazio: Math.max(10, Math.min(60, num(go.spazio, D.gola.spazio))) },
+    binari: binari.length ? binari : D.binari.map((b) => ({ ...b })),
     cassetti: {
       marca: String(c.marca ?? D.cassetti.marca).trim(),
       profondita: Math.max(0, num(c.profondita, D.cassetti.profondita)),
@@ -99,6 +119,13 @@ export function ripristinaParametri() {
 }
 // un'altra scheda (o la copia completa) ha cambiato i parametri: si rileggono
 if (typeof window !== 'undefined') window.addEventListener('storage', (e) => { if (e.key === CHIAVE || e.key === null) _cache = null; });
+
+/** I binari degli armadi scorrevoli (almeno uno). */
+export function binariScorrevoli(p = parametri()) { return p.binari; }
+/** Il binario scelto (per id); se non c'è più, il primo dell'elenco. */
+export function binarioScorrevole(id, p = parametri()) {
+  return p.binari.find((b) => b.id === id) || p.binari[0];
+}
 
 /** Che cassetto è (dall'altezza del frontale): 'piccolo' | 'medio' | 'grande', con l'altezza della trasera.
  *  piccolo: frontale fino a piccoloFinoA · grande (solo se ha la sua trasera): frontale più alto del

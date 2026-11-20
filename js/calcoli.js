@@ -11,6 +11,8 @@
 // materiale.
 // =============================================================================
 
+import { binarioScorrevole } from './parametri.js?v=20261122n';
+
 /**
  * Profondità dei pezzi "esterni" della carcassa.
  * BATTENTE  (Passo 0):           Pc = P − sA − sS
@@ -604,10 +606,12 @@ export function pezziCostadi(config) {
 }
 
 /**
- * ANTE SCORREVOLI — formula del falegname:
+ * ANTE SCORREVOLI — formula del falegname, con i numeri del BINARIO scelto
+ * (⚙ Impostazioni → Parametri → Binari; di partenza Syscore: 35 e 82):
  *
- *   Larghezza anta = (larghezza esterna − 2 fianchi) ÷ numero di ante − 35
- *   Altezza anta   = H − 82   (H = altezza esterna totale: fianchi + top + fondo)
+ *   Larghezza anta = (larghezza esterna − 2 fianchi) ÷ numero di ante − larghezzaMeno
+ *                    (con la maniglia alta come l'anta: − maniglia)
+ *   Altezza anta   = H − altezzaMeno   (H = altezza esterna totale: fianchi + top + fondo)
  *   Spessore       = sA
  *
  * larghezza esterna = la carcassa (somma dei moduli), fianchi = spessore della carcassa (16/18/19);
@@ -615,15 +619,26 @@ export function pezziCostadi(config) {
  * Esempio: armadio 1455, fianchi 18, 2 ante → (1455 − 36) ÷ 2 − 35 = 674,5 → 674 (per difetto)
  * Esempio altezza: armadio alto 2500 → anta 2500 − 82 = 2418
  */
+export function binarioArmadio(config) {
+  return binarioScorrevole(config.scorrevole?.tipoBinario);
+}
+/** La maniglia è alta come l'anta (da terra a soffitto)? */
+export function manigliaTuttaAltezza(config) {
+  return !!config.maniglia && config.manigliaLunghezza === 'anta';
+}
 export function larghezzaAntaScorrevole(config) {
+  const b = binarioArmadio(config);
   const nAnte = Math.max(1, (config.moduli || []).length * (config.scorrevole?.anteModulo ?? 2));
   const Lest = (config.moduli || []).reduce((t, m) => t + (Number(m.larghezza) || 0), 0);
-  return (Lest - 2 * config.spessoreCarcassa) / nAnte - 35;
+  return (Lest - 2 * config.spessoreCarcassa) / nAnte - b.larghezzaMeno - (manigliaTuttaAltezza(config) ? b.maniglia : 0);
+}
+export function altezzaAntaScorrevole(config) {
+  return config.altezzaEsterna - binarioArmadio(config).altezzaMeno;
 }
 export function pezziAnteScorrevoliModulo(config, modulo, indiceModulo) {
   const N = config.scorrevole?.anteModulo ?? 2;
   const larAnta = larghezzaAntaScorrevole(config);
-  const altAnta = config.altezzaEsterna - 82;
+  const altAnta = altezzaAntaScorrevole(config);
   return [{
     modulo: `Modulo ${indiceModulo + 1}`,
     nome: N === 1 ? 'Anta scorrevole' : `Anta scorrevole (×${N})`,

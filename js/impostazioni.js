@@ -8,18 +8,18 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261122m';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261122m';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261122m';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261122m';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261122m';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261122m';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261122m';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261122m';
-import { agganciaTema } from './tema.js?v=20261122m';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261122m';
-import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261122m';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261122m';
+} from './catalogo.js?v=20261122n';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261122n';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261122n';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261122n';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261122n';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261122n';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261122n';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261122n';
+import { agganciaTema } from './tema.js?v=20261122n';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261122n';
+import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261122n';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261122n';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -28,7 +28,7 @@ const CON_AGGIUNTA = ['legno', 'fingerpull', 'encimera', 'pannello', 'zoccolo', 
 
 let stato = await leggiCatalogo();
 // scheda in più (non è una sezione del catalogo): i PARAMETRI della falegnameria
-const SEZ_PARAMETRI = { id: 'parametri', nome: 'Parametri', desc: 'I numeri del tuo modo di lavorare: aria delle ante, maniglia a J, sistema di cassetti. Li usano la distinta di taglio e il 3D della cucina.' };
+const SEZ_PARAMETRI = { id: 'parametri', nome: 'Parametri', desc: 'I numeri del tuo modo di lavorare: aria delle ante, maniglia a J, gola, binari degli armadi scorrevoli, sistema di cassetti. Li usano la distinta di taglio e il 3D.' };
 const TUTTE = [...SEZIONI, SEZ_PARAMETRI];
 let sezione = (location.hash || '').slice(1);
 if (!TUTTE.some((s) => s.id === sezione)) sezione = 'legno';
@@ -82,6 +82,23 @@ function render() {
   const visibili = lista.filter((m) => !nascosto(stato, sezione, m.id)).length;
   const puoAggiungere = CON_AGGIUNTA.includes(sezione);
   const el = document.getElementById('imp-sezione');
+  const campoBin = (i, k, et, aiuto) => `<label class="par-campo"><span class="par-et">${esc(et)}</span>
+      <span class="par-input"><input type="number" inputmode="decimal" step="0.1" min="0" data-bin="${i}.${k}" value="${esc(P.binari[i][k])}"><em>mm</em></span>
+      <small>${esc(aiuto)}</small></label>`;
+  const cardBinario = (b, i, n) => `
+      <div class="par-binario">
+        <div class="par-bin-testa">
+          <label class="par-campo"><span class="par-et">Nome del binario</span>
+            <span class="par-input"><input type="text" data-bin="${i}.nome" value="${esc(b.nome)}" placeholder="es. Syscore"></span></label>
+          ${n > 1 ? `<button type="button" class="btn-ghost btn-mini" data-bin-togli="${i}">✕ Togli</button>` : ''}
+        </div>
+        <div class="par-griglia">
+          ${campoBin(i, 'larghezzaMeno', 'Larghezza anta: togli', '(larghezza esterna − 2 fianchi) ÷ n° ante − questo numero')}
+          ${campoBin(i, 'altezzaMeno', 'Altezza anta: togli', 'altezza esterna totale (fianchi + top + fondo) − questo numero')}
+          ${campoBin(i, 'maniglia', "Maniglia alta come l'anta: togli", "in più, alla larghezza di ogni anta, quando la maniglia va da terra a soffitto")}
+        </div>
+        <div class="par-esempio" data-bin-es="${i}" data-no-i18n></div>
+      </div>`;
   el.innerHTML = `
     <p class="imp-desc">${esc(S.desc)}</p>
     <div class="imp-barra">
@@ -988,6 +1005,23 @@ function renderParametri(S) {
       <span class="par-input"><input type="${opz.testo ? 'text' : 'number'}" ${opz.testo ? '' : 'inputmode="decimal" step="0.1" min="0"'} data-par="${path}" value="${v == null ? '' : esc(v)}" placeholder="${esc(opz.ph || '')}">${opz.testo ? '' : '<em>mm</em>'}</span>
       ${aiuto ? `<small>${esc(aiuto)}</small>` : ''}</label>`;
   };
+  const campoBin = (i, k, et, aiuto) => `<label class="par-campo"><span class="par-et">${esc(et)}</span>
+      <span class="par-input"><input type="number" inputmode="decimal" step="0.1" min="0" data-bin="${i}.${k}" value="${esc(P.binari[i][k])}"><em>mm</em></span>
+      <small>${esc(aiuto)}</small></label>`;
+  const cardBinario = (b, i, n) => `
+      <div class="par-binario">
+        <div class="par-bin-testa">
+          <label class="par-campo"><span class="par-et">Nome del binario</span>
+            <span class="par-input"><input type="text" data-bin="${i}.nome" value="${esc(b.nome)}" placeholder="es. Syscore"></span></label>
+          ${n > 1 ? `<button type="button" class="btn-ghost btn-mini" data-bin-togli="${i}">✕ Togli</button>` : ''}
+        </div>
+        <div class="par-griglia">
+          ${campoBin(i, 'larghezzaMeno', 'Larghezza anta: togli', '(larghezza esterna − 2 fianchi) ÷ n° ante − questo numero')}
+          ${campoBin(i, 'altezzaMeno', 'Altezza anta: togli', 'altezza esterna totale (fianchi + top + fondo) − questo numero')}
+          ${campoBin(i, 'maniglia', "Maniglia alta come l'anta: togli", "in più, alla larghezza di ogni anta, quando la maniglia va da terra a soffitto")}
+        </div>
+        <div class="par-esempio" data-bin-es="${i}" data-no-i18n></div>
+      </div>`;
   el.innerHTML = `
     <p class="imp-desc">${esc(S.desc)}</p>
     <p class="imp-desc">Valgono su questo dispositivo; con la «copia completa» li porti anche sugli altri. Si salvano da soli mentre scrivi.</p>
@@ -1016,6 +1050,12 @@ function renderParametri(S) {
       </div>
       <div class="par-esempio" id="par-es-gola" data-no-i18n></div>
       <p class="imp-desc">Vale quando nei mobili bassi scegli «Gola alluminio» (Porte · mobili bassi).</p>
+    </div>
+    <div class="par-gruppo">
+      <h3>Binari degli armadi scorrevoli</h3>
+      <p class="imp-desc">Ogni binario ha i suoi numeri per calcolare le ante. Nell'armadio scorrevole scegli quale binario usi.</p>
+      <div id="par-binari">${P.binari.map((b, i) => cardBinario(b, i, P.binari.length)).join('')}</div>
+      <button type="button" class="btn-ghost" id="par-bin-agg">+ Aggiungi binario</button>
     </div>
     <div class="par-gruppo">
       <h3>Sistema di cassetti</h3>
@@ -1049,6 +1089,12 @@ function renderParametri(S) {
     { const G = Q.gola.spazio, an = 720 - A.ariaAltezza - G, c3 = Math.floor((720 - 3 * G - A.ariaCassetti) / 3);
       el.querySelector('#par-es-gola').textContent = tr(`Esempio: mobile basso da 720 con la gola → anta 720 − ${f(A.ariaAltezza)} − ${f(G)} = ${f(an)} mm · 3 cassetti da ${f(c3)} mm`); }
     const tL = f(600 - c.traseraMeno), tipi = [[c.piccoloTrasera, 'piccolo'], [c.medioTrasera, 'medio'], [c.grandeTrasera, 'grande']].filter(([h]) => h);
+    Q.binari.forEach((b, i) => {
+      const box = el.querySelector(`[data-bin-es="${i}"]`); if (!box) return;
+      const w = Math.floor((1455 - 36) / 2 - b.larghezzaMeno), h = Math.floor(2500 - b.altezzaMeno);
+      box.textContent = tr(`Esempio: armadio 1455 × 2500, fianchi 18, 2 ante → anta ${w} × ${h} mm`)
+        + (b.maniglia > 0 ? ' · ' + tr(`con la maniglia alta come l'anta: ${Math.floor((1455 - 36) / 2 - b.larghezzaMeno - b.maniglia)} × ${h} mm`) : '');
+    });
     el.querySelector('#par-es-cass').textContent = tr(`Esempio: modulo da 60 → fondo ${f(600 - c.fondoMeno)} × ${f(c.fondoProfondita)} mm · trasera ${tipi.map(([h, n]) => `${tL} × ${f(h)} ${n}`).join(', ')}`);
   };
   esempi();
@@ -1060,6 +1106,27 @@ function renderParametri(S) {
     nuovo[a][b] = inp.type === 'number' ? (inp.value === '' ? '' : Number(String(inp.value).replace(',', '.'))) : inp.value;
     salvaParametri(nuovo); esempi();
     msg.hidden = false; clearTimeout(timer); timer = setTimeout(() => { msg.hidden = true; }, 1400);
+  }));
+  // binari degli scorrevoli: nome e numeri di ognuno, aggiungi / togli
+  el.querySelectorAll('[data-bin]').forEach((inp) => inp.addEventListener('input', () => {
+    const nuovo = JSON.parse(JSON.stringify(parametri()));
+    const [i, k] = inp.dataset.bin.split('.');
+    if (!nuovo.binari[i]) return;
+    nuovo.binari[i][k] = inp.type === 'number' ? (inp.value === '' ? 0 : Number(String(inp.value).replace(',', '.'))) : inp.value;
+    salvaParametri(nuovo); esempi();
+    msg.hidden = false; clearTimeout(timer); timer = setTimeout(() => { msg.hidden = true; }, 1400);
+  }));
+  el.querySelector('#par-bin-agg').addEventListener('click', () => {
+    const nuovo = JSON.parse(JSON.stringify(parametri()));
+    nuovo.binari.push({ id: 'b' + Date.now().toString(36), nome: '', larghezzaMeno: 0, altezzaMeno: 0, maniglia: 0 });
+    salvaParametri(nuovo); renderParametri(S);
+    const ins = el.querySelectorAll('[data-bin$=".nome"]'); if (ins.length) ins[ins.length - 1].focus();
+  });
+  el.querySelectorAll('[data-bin-togli]').forEach((btn) => btn.addEventListener('click', () => {
+    const nuovo = JSON.parse(JSON.stringify(parametri())), i = Number(btn.dataset.binTogli), b = nuovo.binari[i];
+    if (!b || nuovo.binari.length < 2) return;
+    if (!confirm(tr(`Togliere il binario «${b.nome || '—'}»?`))) return;
+    nuovo.binari.splice(i, 1); salvaParametri(nuovo); renderParametri(S);
   }));
   el.querySelector('#par-ripristina').addEventListener('click', () => {
     if (!confirm(tr('Rimettere tutti i parametri ai valori di partenza?'))) return;

@@ -6,9 +6,10 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261122m';
-import { htmlTendineColori } from './tendine-colori.js?v=20261122m';
-import { misureCostado } from './calcoli.js?v=20261122m';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261122n';
+import { htmlTendineColori } from './tendine-colori.js?v=20261122n';
+import { misureCostado, binarioArmadio, manigliaTuttaAltezza } from './calcoli.js?v=20261122n';
+import { binariScorrevoli } from './parametri.js?v=20261122n';
 
 export function configDefault() {
   return {
@@ -46,6 +47,20 @@ export function configDefault() {
   };
 }
 
+const escAttr = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/** Formula delle ante scorrevoli con i numeri del binario scelto (e la maniglia alta come l'anta). */
+function formulaScorrevole(config) {
+  const b = binarioArmadio(config), m = manigliaTuttaAltezza(config) && b.maniglia > 0;
+  const n = (x) => String(Math.round(x * 10) / 10).replace('.', ',');
+  const t = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);    // il <code> non passa dalla traduzione automatica
+  return `Formula ante: larghezza = <code>${t(`(L − 2 fianchi) ÷ n° ante − ${n(b.larghezzaMeno)}${m ? ` − ${n(b.maniglia)}` : ''}`)}</code>${m ? ' (maniglia alta come l\'anta)' : ''}, altezza = <code>H − ${n(b.altezzaMeno)}</code> (H = altezza esterna totale).`;
+}
+function aggiornaFormulaScorrevole(config) {
+  const el = document.getElementById('sc-formula');
+  if (el) el.innerHTML = formulaScorrevole(config);
+}
+
 export function renderPannello(contenitore, config, onChange) {
   // Normalizza all'avvio: la larghezza di ogni modulo è sempre
   // totale/n (parti uguali), l'utente sceglie solo "quanti moduli".
@@ -55,7 +70,7 @@ export function renderPannello(contenitore, config, onChange) {
   if (config.materiali && !config.materiali.costadi) config.materiali.costadi = config.materiali.ante;
   // ogni modifica aggiorna anche le misure del costado scritte nel pannello
   const onChangeBase = onChange;
-  onChange = (c, o) => { infoCostadi(config); onChangeBase(c, o); };
+  onChange = (c, o) => { infoCostadi(config); aggiornaFormulaScorrevole(config); onChangeBase(c, o); };
   const cs = config.costadi, lati = cs.lati || 'nessuno';
   contenitore.innerHTML = `
     <section>
@@ -126,6 +141,12 @@ export function renderPannello(contenitore, config, onChange) {
 
     <section id="sez-scorrevole" ${config.tipoArmadio === 'scorrevole' ? '' : 'style="display:none"'}>
       <h3>Scorrevole</h3>
+      <label>Tipo di binario
+        <select id="sc-tipo">
+          ${binariScorrevoli().map((b) => `<option value="${escAttr(b.id)}" ${b.id === binarioArmadio(config).id ? 'selected' : ''}>${escAttr(b.nome || '—')}</option>`).join('')}
+        </select>
+      </label>
+      <p class="hint" style="margin-bottom:10px">I dati di ogni binario (quanto togliere alle ante) si cambiano in <a href="impostazioni.html#parametri">⚙ Impostazioni → Parametri</a>.</p>
       <div class="grid-2">
         <label>Nº ante per modulo
           <input type="number" id="sc-n" value="${config.scorrevole?.anteModulo ?? 2}" min="1" max="4" step="1" />
@@ -139,7 +160,7 @@ export function renderPannello(contenitore, config, onChange) {
       </div>
       <div id="sc-colore-bin">${coloriBinario(config)}</div>
       <p class="hint">Default: 2 ante per modulo, scorrono una davanti all'altra. Il binario non entra nella distinta (è a parte).</p>
-      <p class="hint">Formula ante: larghezza = <code>(L − 2 fianchi) ÷ n° ante − 35</code>, altezza = <code>H − 82</code> (H = altezza esterna totale).</p>
+      <p class="hint" id="sc-formula">${formulaScorrevole(config)}</p>
     </section>
 
     <section>
@@ -287,6 +308,10 @@ export function renderPannello(contenitore, config, onChange) {
     config.scorrevole.anteModulo = Math.max(1, Math.round(Number(e.target.value) || 2));
     onChange(config);
   });
+  bind('#sc-tipo', (e) => {
+    config.scorrevole.tipoBinario = e.target.value;
+    onChange(config);
+  }, 'change');
   bind('#sc-bin', (e) => {
     const v = Number(e.target.value);
     config.scorrevole.binario = (v === 85) ? 85 : 75;

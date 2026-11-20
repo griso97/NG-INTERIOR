@@ -157,5 +157,10 @@
 .par-tab tbody th { font-weight: 600; white-space: nowrap; }
 .par-tab .par-campo .par-et:empty { display: none; }
 .par-tab .par-piu { color: var(--testo-dim); }
+.par-binario { padding: 10px 0 4px; }
+.par-binario + .par-binario { border-top: 1px dashed var(--bordo, rgba(201,169,74,.35)); margin-top: 8px; }
+.par-bin-testa { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.par-bin-testa .par-input input { max-width: 240px; }
+#par-bin-agg { margin-top: 10px; }
 .par-azioni { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 24px; }
 @media (max-width: 520px) { .par-tab tbody th { white-space: normal; } .par-input input { max-width: 110px; } }
