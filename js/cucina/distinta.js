@@ -13,8 +13,9 @@
 
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
-} from './modello.js?v=20261123f';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261123f';
+  costadoCopreAnte,
+} from './modello.js?v=20261123h';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261123h';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -289,7 +290,8 @@ function pezziDiModulo(progetto, m) {
       }
       if (best && dMin < 2500) { const hp = best.altezza_mm || 700; hC = hp + (pensileAntaSporge(progetto.antaPensile, hp) ? 20 : 0); }
     }
-    pz.push({ modulo: mod, nome: 'Pannello fianco (costado)', larghezza: round(m.profondita_mm || d.d || 620), altezza: hC, spessore: m.spessore_mm || 20, materiale: 'anta', quantita: 1 });
+    // accanto ai mobili il costado copre anche le ante (2 cm oltre la cassa): misura vera da tagliare
+    pz.push({ modulo: mod, nome: 'Pannello fianco (costado)', larghezza: round((m.profondita_mm || d.d || 620) + costadoCopreAnte(progetto, m)), altezza: hC, spessore: m.spessore_mm || 20, materiale: 'anta', quantita: 1 });
   } else if (cat === 'pannello') {
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(m.larghezza_mm || L), altezza: H, spessore: SP, materiale: 'anta', quantita: 1 });
   } else if (cat === 'regletta') {

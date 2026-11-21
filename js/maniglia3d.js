@@ -14,7 +14,7 @@ export const FORME_MANIGLIA = [
   { id: 'barra', nome: 'Barra tonda', svg: '<svg viewBox="0 0 48 24"><line x1="6" y1="9" x2="42" y2="9" stroke-width="5" stroke-linecap="round"/><line x1="12" y1="9" x2="12" y2="19"/><line x1="36" y1="9" x2="36" y2="19"/></svg>' },
   { id: 'piatta', nome: 'Barra piatta', svg: '<svg viewBox="0 0 48 24"><rect x="5" y="6" width="38" height="6" rx="1"/><line x1="12" y1="12" x2="12" y2="19"/><line x1="36" y1="12" x2="36" y2="19"/></svg>' },
   { id: 'profilo', nome: 'Profilo (a J)', svg: '<svg viewBox="0 0 48 24"><polyline points="6,20 6,6 42,6 42,20" fill="none"/><line x1="6" y1="6" x2="6" y2="2"/><line x1="42" y1="6" x2="42" y2="2"/></svg>' },
-  { id: 'bordol', nome: 'Profilo sul bordo (L dietro la porta)', svg: '<svg viewBox="0 0 48 24"><path d="M6 8 H34 Q42 8 42 15 Q42 20 36 21" fill="none" stroke-width="3"/><line x1="6" y1="8" x2="6" y2="20" stroke-dasharray="2 2"/></svg>' },
+  { id: 'bordol', nome: 'Profilo sul bordo (L dietro la porta)', svg: '<svg viewBox="0 0 48 24"><path d="M6 8 H38 Q42 8 42 11 V14" fill="none" stroke-width="3"/><line x1="6" y1="8" x2="6" y2="20" stroke-dasharray="2 2"/></svg>' },
   { id: 'bordo', nome: 'A bordo anta', svg: '<svg viewBox="0 0 48 24"><rect x="12" y="4" width="24" height="5"/><rect x="12" y="9" width="24" height="9" fill="none"/></svg>' },
   { id: 'pomolo', nome: 'Pomolo', svg: '<svg viewBox="0 0 48 24"><circle cx="24" cy="12" r="8"/></svg>' },
   { id: 'incasso', nome: 'Incasso (conchiglia)', svg: '<svg viewBox="0 0 48 24"><rect x="10" y="6" width="28" height="12" rx="5" fill="none"/><rect x="14" y="9" width="20" height="6" rx="3"/></svg>' },
@@ -114,16 +114,19 @@ export function costruisciManiglia(forma, finitura, L, colore = null) {
       // PROFILO SUL BORDO: aletta sopra il bordo dell'anta (y 0…2: i 2 mm tolti all'anta), labbro
       // ARROTONDATO che sporge davanti e scende (la presa), e la L dietro la porta (non si vede da fuori).
       // Origine: bordo dell'anta (y = 0), faccia davanti dell'anta (z = 0).
+      // Profilo SOTTILE (di lato una riga pulita, non un uncino): aletta piatta da 2 mm che sporge
+      // 13 mm davanti all'anta con il bordo arrotondato e un labbro corto (6 mm) per le dita.
       const f = new THREE.Shape();
       f.moveTo(-20, 0); f.lineTo(-20, 2); f.lineTo(10, 2);
-      f.quadraticCurveTo(25, 2, 25, -9); f.quadraticCurveTo(25, -19, 17, -22);
-      f.lineTo(16.2, -20.2); f.quadraticCurveTo(22.8, -17.6, 22.8, -9); f.quadraticCurveTo(22.8, 0, 10, 0);
-      f.lineTo(-20, 0);
-      const geo = new THREE.ExtrudeGeometry(f, { depth: L, bevelEnabled: false, curveSegments: 14 });
+      f.quadraticCurveTo(13, 2, 13, -1); f.lineTo(13, -6);
+      f.quadraticCurveTo(13, -6.8, 12.2, -6.8); f.lineTo(11.8, -6.8);
+      f.quadraticCurveTo(11, -6.8, 11, -6); f.lineTo(11, -1);
+      f.quadraticCurveTo(11, 0, 10, 0); f.lineTo(-20, 0);
+      const geo = new THREE.ExtrudeGeometry(f, { depth: L, bevelEnabled: false, curveSegments: 10 });
       geo.rotateY(-Math.PI / 2); geo.translate(L / 2, 0, 0);
       g.add(new THREE.Mesh(geo, mat));
       g.add(box(L, 26, 2, 0, -12, -21, mat));                   // la L dietro la porta
-      g.add(box(L - 2, 1, 21, 0, -0.5, 11.5, matOmbra));        // ombra sotto il labbro (la presa)
+      g.add(box(L - 2, 1, 10, 0, -0.5, 5.5, matOmbra));         // ombra sotto l'aletta (la presa)
       break;
     }
     case 'bordo': {

@@ -15,28 +15,29 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261123f';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261123f';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261123f';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261123f';
+  costadoCopreAnte,
+} from './modello.js?v=20261123h';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261123h';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261123h';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261123h';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261123f').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261123h').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261123f';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261123f';
-import { parametri } from '../parametri.js?v=20261123f';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261123f';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261123f';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261123h';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261123h';
+import { parametri } from '../parametri.js?v=20261123h';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261123h';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261123h';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261123f';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261123h';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261123f';
+export { telaPavimento } from '../resa.js?v=20261123h';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -2512,7 +2513,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261123f')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261123h')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -3228,7 +3229,11 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
         if (vicino && dMin < 2500) { h = vicino.hAnta; base = vicino.cima - h; }
         else if (topLine != null) base = topLine - h;
       }
-      fianchi.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, h, cat: 'costado' });
+      // costado basso accanto ai mobili: arriva fino al davanti delle ANTE (2 cm oltre la cassa);
+      // il piano lo copre fino lì (impronta allungata davanti)
+      const avanti = costadoCopreAnte(progetto, m);
+      const rC = ((m.rot || 0) * Math.PI) / 180;
+      fianchi.push({ x: m.x - Math.sin(rC) * avanti / 2, y: m.y - Math.cos(rC) * avanti / 2, rot: m.rot, w: dim.w, d: dim.d + avanti, h, cat: 'costado' });
       // Colore: costadi DIVERSI → quello scelto per questo costado; UGUALI (o
       // non ancora scelto) → come sempre: alto = ante dei pensili, basso = colore costadi
       const matProprio = progetto.costadiDiversi && m.colore ? matDa(m.colore) : null;
@@ -3237,7 +3242,9 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       // basso → mobili bassi
       const matC = matProprio || (alto ? (matPensile || matCostado)
         : (matCostado || (h >= 1500 ? (matColonna || matBase) : matBase))) || COL.costado;
-      g3d = collocaMobile(corpo(dim.w, h, dim.d, matC), cx, base, cz, h, m.rot);
+      const gC = new THREE.Group(), cpC = corpo(dim.w, h, dim.d + avanti, matC);
+      cpC.position.z = avanti / 2; gC.add(cpC);
+      g3d = collocaMobile(gC, cx, base, cz, h, m.rot);
     } else if (cat === 'tavolo') {
       tavoli.push(m);
     } else {

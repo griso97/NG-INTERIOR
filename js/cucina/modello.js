@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261123f';
+import { parametri } from '../parametri.js?v=20261123h';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -809,6 +809,32 @@ export function centroPianta(progetto) {
   return { x: (bb.minX + bb.maxX) / 2, y: (bb.minY + bb.maxY) / 2 };
 }
 
+/**
+ * COSTADO che copre anche le ANTE: in pianta il costado si allinea al davanti del mobile (60 cm), ma
+ * le ante stanno 2 cm più avanti della cassa (come nel 3D). Un costado basso allineato al davanti di un
+ * mobile accanto arriva fino al davanti delle ante: ritorna di quanto allungarlo davanti (mm), se no 0.
+ */
+export const SPESSORE_ANTA_3D = 20;
+export function costadoCopreAnte(progetto, m) {
+  if (!m || categoriaTipo(m.tipo) !== 'costado') return 0;
+  if ((m.profondita_mm || 620) < 500 || (m.altezza_mm || 850) >= 1500) return 0;
+  const r = ((m.rot || 0) * Math.PI) / 180, Fx = -Math.sin(r), Fy = -Math.cos(r), ax = Math.cos(r), ay = Math.sin(r);
+  const dm = dimMobile(m), frM = (m.x * Fx + m.y * Fy) + dm.d / 2;          // davanti del costado lungo F
+  for (const o of (progetto.mobiliLiberi || [])) {
+    if (o.id === m.id) continue;
+    const c = categoriaTipo(o.tipo);
+    if (!['base', 'lavastoviglie', 'lavatrice', 'forno', 'colonna'].includes(c) && !String(o.tipo).startsWith('base')) continue;
+    const ro = ((o.rot || 0) * Math.PI) / 180;
+    if ((-Math.sin(ro)) * Fx + (-Math.cos(ro)) * Fy < 0.9) continue;          // stesso verso del fronte
+    const dO = dimMobile(o);
+    const frO = (o.x * Fx + o.y * Fy) + dO.d / 2;
+    if (Math.abs(frO - frM) > 30) continue;                                  // davanti allineati
+    const du = Math.abs((o.x - m.x) * ax + (o.y - m.y) * ay) - (dO.w + dm.w) / 2;
+    if (du > 40) continue;                                                   // accanto (si toccano)
+    return SPESSORE_ANTA_3D + Math.max(0, frO - frM);
+  }
+  return 0;
+}
 export function aggiungiMobileLibero(progetto, tipo, props = {}) {
   const c = centroPianta(progetto);
   const n = progetto.mobiliLiberi.length;
