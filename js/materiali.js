@@ -15,9 +15,9 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261123h';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261123h';
-import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261123h';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261123m';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261123m';
+import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261123m';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -150,7 +150,7 @@ export const MATERIALI = [
   // SM Negro (Alvic Zenit Supermate) al posto del vecchio "Nero opaco": stesso id, così i
   // progetti salvati restano uguali
   { id: 'nero-matte',    nome: 'SM Negro',       categoria: 'tinta',
-    thumb: 'materials/sm-negro-thumb.jpg',      colore: 0x141414,
+    thumb: 'materials/sm-negro-thumb.jpg',      colore: 0x0e0e0e,      // il colore del campione (foto ufficiale)
     solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Negro Supermate' },
   { id: 'grigio-matte',  nome: 'Grigio opaco',   categoria: 'tinta',
     thumb: 'materials/grigio-matte-thumb.jpg',  colore: 0x8a8a8a,
@@ -588,7 +588,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261123h');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261123m');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -722,7 +722,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261123h';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261123m';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
@@ -1227,31 +1227,37 @@ function lastraNitida(img) {
   return c;
 }
 /**
- * NERO OPACO VERO: un pannello nero opaco (es. SM Negro Supermate, zoccolo nero) riflette comunque
- * circa il 3–4% della luce: dal vivo è un antracite molto scuro con un riflesso morbido, non un buco
- * nero piatto. I colori pieni troppo scuri salgono a questo minimo (stessa tinta) e prendono un
- * riflesso satinato morbido della stanza. Vale anche per i colori aggiunti in Impostazioni.
- */
-function neroOpacoVero(mat) {
-  const c = mat.color, L = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;   // luminanza (lineare)
-  if (L >= 0.03) return;
-  const MIN = 0.022;                                                     // ≈ #28292b
-  if (L < MIN) {
-    if (L < 1e-5) c.setRGB(MIN, MIN, MIN * 1.04);
-    else c.multiplyScalar(MIN / L);
-  }
-  mat.roughness = Math.min(mat.roughness, 0.62);                         // satinato morbido (Supermate)
-  mat.envMapIntensity = Math.max(mat.envMapIntensity || 0, 0.9);
-  mat.userData.neroOpaco = true;
-}
-/**
  * LUXE (laccato lucido) con il COLORE ESATTO del campione: sotto, il colore pieno identico alla
  * foto (come gli opachi: la luce della scena non lo schiarisce né lo slava); sopra, lo strato
  * lucido che SPECCHIA la stanza (finestre, luci, mobili di fronte) come un laccato vero.
  * Prima il riflesso della stanza si sommava a tutto il pannello e il colore usciva slavato
  * (Agua marina color menta, Ultramar azzurro chiaro).
  */
+// STANZA DEI RIFLESSI dei laccati (armadi, mobili modulari: in cucina c'è quella vera della stanza):
+// pareti tenui, due finestre luminose e una luce sul soffitto → sul lucido si vedono riflessi netti
+// (come in una foto vera) invece di un velo uniforme che lo faceva sembrare opaco.
+let _envLaccato = null;
+function envLaccato() {
+  if (_envLaccato || typeof document === 'undefined') return _envLaccato;
+  const W = 512, H = 256, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 0, H);
+  gr.addColorStop(0, '#9a9893'); gr.addColorStop(0.45, '#6f6d68'); gr.addColorStop(0.55, '#4a4844'); gr.addColorStop(1, '#262523');
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#ffffff';
+  // (verso +z, cioè di fronte ai mobili = alle spalle di chi guarda, è u ≈ 0,75)
+  // finestra grande di fronte (a cavallo dell'orizzonte: si specchia a metà delle ante), a due ante
+  g.fillRect(W * 0.64, H * 0.34, W * 0.105, H * 0.30); g.fillRect(W * 0.755, H * 0.34, W * 0.105, H * 0.30);
+  g.fillRect(W * 0.53, H * 0.38, W * 0.05, H * 0.22);                                                        // finestra di lato
+  g.fillRect(W * 0.62, H * 0.07, W * 0.26, H * 0.02);                                                        // luce sul soffitto
+  const t = new THREE.CanvasTexture(c);
+  t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace;
+  _envLaccato = t;
+  return t;
+}
 function laccatoFoto(mat, colore) {
+  const env = envLaccato();
+  if (env) mat.envMap = env;               // in cucina la sostituisce la stanza vera (riflessi della cucina)
   const c = new THREE.Color(colore), lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
   mat.userData.ccF0 = { value: 0.06 + 0.02 * Math.min(1, lum / 0.8) };   // 6% scuri … 8% chiari (di fronte); di lato specchia di più
   mat.userData.riflesso = 1.6;            // finestre e luci si specchiano nette; il colore resta il protagonista (vedi sotto)
@@ -1280,7 +1286,13 @@ function laccatoFoto(mat, colore) {
           float ngB = smoothstep( 0.04, 0.18, ngL );                       // solo le cose luminose (finestre, luci)
           // punto di luce: un velo PROPORZIONATO al colore (sul nero un velo fisso lo faceva grigio)
           float ngBaseL = dot( base, vec3( 0.2126, 0.7152, 0.0722 ) );
-          vec3 ngLuce = ngR * ( min( 1.0, ( 0.0015 + 0.06 * ngBaseL ) / max( ngL, 1e-4 ) ) * ngB );
+          // I COLORI SCURI (nero, blu notte, antracita): schiarirli del 12% non si vede, il lucido
+          // sembrava un opaco. Come nel laccato vero, sullo scuro la finestra e le luci si specchiano
+          // nette (grigio chiaro sul nero), nella tinta del pannello; il resto resta nero pieno.
+          float ngScuro = 1.0 - smoothstep( 0.0, 0.08, ngBaseL );
+          vec3 ngTono = mix( vec3( 1.0 ), clamp( base / max( ngBaseL, 1e-4 ), 0.0, 3.0 ), 0.6 );
+          vec3 ngLuce = ngR * ( min( 1.0, ( 0.006 + 0.06 * ngBaseL + 0.045 * ngScuro ) / max( ngL, 1e-4 ) ) * ngB );
+          ngLuce *= mix( vec3( 1.0 ), ngTono, ngScuro );
           outgoingLight = base * ( 1.0 + 0.12 * ngB ) + ngLuce + totalEmissiveRadiance;
         #else
           outgoingLight = base + totalEmissiveRadiance;
@@ -1316,10 +1328,9 @@ export function getMaterialeTHREE(id, onPronto) {
         metalness: def.metalness ?? 0.0,
         envMapIntensity: def.envMapIntensity ?? 0.4,
       });
-      neroOpacoVero(mat);
-      // COLORE VERO come le foto (es. «Bianco opaco»: prima la luce della scena lo faceva grigio-beige):
-      // un'anta vista di fronte ha esattamente il colore del catalogo. Il nero opaco resta satinato.
-      if (!mat.userData.neroOpaco) { const c = mat.color.clone(); coloreFoto(mat); mat.color.copy(c); }
+      // MATTE = OPACO PIENO: nessun riflesso, il colore ESATTO del campione (anche il nero: prima
+      // veniva schiarito a grigio antracite con un riflesso satinato e non era più il nero del campione)
+      { const c = mat.color.clone(); coloreFoto(mat); mat.color.copy(c); }
     }
     // finger-pull in tinta unita: la gola ha il suo materiale (es. nero)
     if (def.gola) {

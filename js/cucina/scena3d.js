@@ -16,28 +16,29 @@ import {
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
   costadoCopreAnte,
-} from './modello.js?v=20261123h';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261123h';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261123h';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261123h';
+} from './modello.js?v=20261123m';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261123m';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261123m';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261123m';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261123h').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261123m').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261123h';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261123h';
-import { parametri } from '../parametri.js?v=20261123h';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261123h';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261123h';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261123m';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261123m';
+import { parametri } from '../parametri.js?v=20261123m';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261123m';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261123m';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261123m';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261123h';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261123m';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261123h';
+export { telaPavimento } from '../resa.js?v=20261123m';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -670,52 +671,17 @@ function ambienteLucidi(rnd) {
   return _envLucidi;
 }
 /**
- * LACCATI LUCIDI (bianco lucido, nero lucido…): nel lucido si deve VEDERE il riflesso, sennò sembra
- * un opaco. Riflettono la CUCINA VERA (pavimento, piano, mobili) ripresa a 360° davanti ai mobili, più
- * una grande finestra luminosa alle spalle di chi guarda e le plafoniere: come nelle foto delle cucine
- * laccate (righe di luce nette e il pavimento nelle ante basse). Il resto della stanza nella ripresa
- * è più scuro (niente riflesso grigio uniforme che fa sembrare il nero un grigio).
- * Si rifà solo quando la scena cambia e solo se ci sono ante laccate lucide.
+ * LACCATI LUCIDI (bianco lucido, nero lucido…): riflettono la CUCINA VERA ripresa a 360° davanti
+ * ai mobili, con la finestra alle spalle di chi guarda e le plafoniere (la stessa ripresa degli
+ * armadi e dei mobili modulari: vedi riflessi-laccati.js).
  */
-let _cubeRT = null, _cubeCam = null;
 function riflessiVeri(bb, dir) {
   if (!gruppo || !renderer || !scene) return;
-  const lucidi = new Set();
-  gruppo.traverse((o) => {
-    if (!o.isMesh) return;
-    for (const m of [].concat(o.material)) if (m && m.isMeshPhysicalMaterial && m.clearcoat > 0 && !(m.userData && m.userData.vetro)) lucidi.add(m);
+  riprendiRiflessiLaccati({
+    renderer, scene, radice: gruppo, dir: dir || { x: 0, z: 1 },
+    centro: { x: (bb.minX + bb.maxX) / 2, z: -(bb.minY + bb.maxY) / 2 },
+    largo: Math.hypot(bb.maxX - bb.minX, bb.maxY - bb.minY),
   });
-  if (!lucidi.size) return;
-  if (!_cubeRT) {
-    _cubeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
-    _cubeCam = new THREE.CubeCamera(10, 40000, _cubeRT);
-  }
-  const d = dir || { x: 0, z: 1 };
-  const cx = (bb.minX + bb.maxX) / 2, cz = -(bb.minY + bb.maxY) / 2;
-  const L = Math.max(2000, Math.hypot(bb.maxX - bb.minX, bb.maxY - bb.minY));
-  _cubeCam.position.set(cx + d.x * 1200, 1000, cz + d.z * 1200);
-  // luci della ripresa: finestra di fronte ai mobili (alle spalle di chi guarda) e due plafoniere
-  const extra = new THREE.Group();
-  const pannello = (w, h, forza, x, y, z, guarda) => {
-    const me = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.98, 0.95).multiplyScalar(forza), side: THREE.DoubleSide, toneMapped: false }));
-    me.position.set(x, y, z); me.lookAt(guarda); extra.add(me);
-  };
-  const davanti = new THREE.Vector3(cx + d.x * 4200, 1500, cz + d.z * 4200);
-  pannello(1300, 1600, 2.2, davanti.x - d.z * 900, davanti.y, davanti.z + d.x * 900, new THREE.Vector3(cx, 1500, cz));   // finestra
-  pannello(1300, 1600, 2.2, davanti.x + d.z * 900, davanti.y, davanti.z - d.x * 900, new THREE.Vector3(cx, 1500, cz));   // seconda anta della finestra
-  for (const k of [-0.25, 0.25]) pannello(900, 300, 3, cx + d.x * 1600 - d.z * L * k, 2690, cz + d.z * 1600 + d.x * L * k, new THREE.Vector3(cx + d.x * 1600 - d.z * L * k, 0, cz + d.z * 1600 + d.x * L * k));
-  scene.add(extra);
-  const bg = scene.background, bgC = bg && bg.isColor ? bg.clone() : null;
-  if (bgC) scene.background = bgC.clone().multiplyScalar(0.18);
-  const autoClear = renderer.autoClear; renderer.autoClear = true;
-  try { scene.add(_cubeCam); _cubeCam.update(renderer, scene); } finally {
-    scene.remove(_cubeCam); scene.remove(extra); renderer.autoClear = autoClear;
-    if (bgC) scene.background = bg;
-    extra.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
-  }
-  _cubeRT.texture.needsPMREMUpdate = true;
-  // forza del riflesso: 1, oppure quella del materiale (userData.riflesso, es. il vetro nero dei forni)
-  for (const m of lucidi) { m.envMap = _cubeRT.texture; m.envMapIntensity = m.userData && m.userData.riflesso != null ? m.userData.riflesso : 1; m.needsUpdate = true; }
 }
 /** I materiali lucidi della cucina riflettono la stanza dei riflessi (vedi ambienteLucidi). */
 function riflettiStanza(radice, rnd) {
@@ -1780,8 +1746,8 @@ function leggiParametriAnte() {
 let _golaCfg = { base: false, colore: 'nero' };
 let _golaQui = false;
 /** Altezza e centro di un'anta (non sporgente): con la gola l'anta normale perde 25 mm in alto (come in distinta). */
-function vertAnta(h) {
-  if (!_golaQui) return { ph: h - FUGA_H, py: 0 };
+function vertAnta(h, gola = _golaQui) {
+  if (!gola) return { ph: h - FUGA_H, py: 0 };
   return { ph: h - G_GOLA, py: -G_GOLA / 2 };            // anta con la gola: modulo − gola (700 → 675)
 }
 // Profili in alluminio nei 4 colori (opachi; l'argento è anodizzato, un po' metallico)
@@ -2229,8 +2195,8 @@ function anteCieche(g, w, h, d, matAnta, cieco) {
     pannello(g, px, vA.py, z, pw, vA.ph, matAnta || COL.anta);
     if (!_golaQui) manigliaOrizzAnta(g, px, 0, pw, h - FUGA_H, z, latoDx ? 1 : -1, true);
   }
-  // Pannello cieco (fisso): stessa finitura, nessuna maniglia (l'angolo resta come sempre, anche con la gola)
-  pannello(g, blindCx, 0, z, coveredW - FUGA_W, h - FUGA_H, matAnta || COL.anta);
+  // Pannello cieco (fisso): stessa finitura, nessuna maniglia; alto come le ante (con la gola sotto il profilo)
+  pannello(g, blindCx, vA.py, z, coveredW - FUGA_W, vA.ph, matAnta || COL.anta);
 }
 
 /**
@@ -2261,7 +2227,11 @@ function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
   const o = cieco.o;
   const THK = 20;                                        // spessore pannello (come le ante)
   const AVANZ = 20;                                      // a filo esatto con le ante (stesso livello)
-  const hP = h;                                          // ALTEZZA PIENA del modulo (NO -2mm come le ante), anche con la gola
+  // ALTA COME LE ANTE E I CASSETTI accanto: parte e finisce dove partono e finiscono loro (con la
+  // gola sotto il profilo, 700 → 675; senza, con l'aria delle ante); prima saliva fino al piano e
+  // con la gola copriva il profilo nell'angolo
+  const vA = vertAnta(h, !!(_golaCfg.base && _lastProgetto && golaSuMobile(_lastProgetto, m)));
+  const hP = vA.ph;
 
   const A = aabbPlan(m), B = aabbPlan(o);
   const fm = frontDirPlan(m), fo = frontDirPlan(o);
@@ -2288,7 +2258,7 @@ function renderRegolettaAngolo(cieco, m, h, zocc, matAnta, dims) {
   // Stesso materiale delle ante: la regletta si confonde con la finitura
   // della cucina (il blu di debug era solo per verificare il posizionamento).
   const mat = matAnta || new THREE.MeshStandardMaterial({ color: COL.anta, roughness: 0.45, metalness: 0.05 });
-  const yC = zocc + hP / 2;
+  const yC = zocc + h / 2 + vA.py;
   const addBox = (sx, sz, cx, cy) => {
     const geo = new THREE.BoxGeometry(sx, hP, sz);
     const mesh = new THREE.Mesh(geo, mat);
@@ -2513,7 +2483,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261123h')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261123m')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }

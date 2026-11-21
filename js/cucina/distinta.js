@@ -14,8 +14,8 @@
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte,
-} from './modello.js?v=20261123h';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261123h';
+} from './modello.js?v=20261123m';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261123m';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -124,12 +124,14 @@ function reglettaAngolo(pz, mod, progetto, m, H) {
   if (progetto.autoRegletta === false) return;
   const info = infoAngoloCieco(progetto, m);
   if (!info) return;
+  // alti come le ANTE e i cassetti accanto (con la gola sotto il profilo: 700 → 675)
+  const hF = golaSuMobile(progetto, m) ? altezzaAntaGola(H) : round(H - ariaH());
   if (info.coperto) {
-    pz.push({ modulo: mod, nome: 'Pannello cieco (angolo)', larghezza: round(info.coveredW || 0), altezza: H, spessore: SP, materiale: 'anta', quantita: 1 });
+    pz.push({ modulo: mod, nome: 'Pannello cieco (angolo)', larghezza: round(info.coveredW || 0), altezza: hF, spessore: SP, materiale: 'anta', quantita: 1 });
   } else {
     const ra = progetto.reglettaAngolo || {};
     const vis = (info.gap != null && info.gap > 0) ? Math.max(ra.spessore || 18, info.gap) : (ra.base || 30);
-    pz.push({ modulo: mod, nome: 'Regletta angolo (braccio)', larghezza: round(vis), altezza: H, spessore: THK_REG, materiale: 'anta', quantita: 2 });
+    pz.push({ modulo: mod, nome: 'Regletta angolo (braccio)', larghezza: round(vis), altezza: hF, spessore: THK_REG, materiale: 'anta', quantita: 2 });
   }
 }
 

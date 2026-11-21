@@ -9,9 +9,10 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261123h';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261123h';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261123h';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261123m';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261123m';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261123m';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261123m';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -85,7 +86,7 @@ export function monta(canvas) {
   taraLuceCatalogo(renderer, scene, [[0, 0, 1]]); // ante di fronte · prodotti del catalogo: colori identici alla foto
 
   const pav = new THREE.Mesh(new THREE.PlaneGeometry(30000, 30000),
-    pavimentoVero('chiaro', 0xd2cbbf, 30000, 30000, () => { if (resa) resa.cambiato(); }));
+    pavimentoVero('chiaro', 0xd2cbbf, 30000, 30000, () => { riflessiLucidi(); if (resa) resa.cambiato(); }));
   pav.rotation.x = -Math.PI / 2; pav.position.y = -1; pav.receiveShadow = true;
   scene.add(pav);
 
@@ -337,6 +338,20 @@ export function aggiorna(forma, elementi, opz) {
   ultimaVista = nuova;
   disegnaSelezione();
   if (opz.reinquadra || cambiata) inquadra('tre4');
+  riflessiLucidi();
+}
+
+// Ante LACCATE LUCIDE: riflettono la stanza vera (pavimento, finestra alle spalle di chi guarda,
+// plafoniere) come in cucina e negli armadi; si rifà quando cambiano i mobili o arriva il pavimento.
+function riflessiLucidi() {
+  if (!renderer || !scene || !gruppo || !ultimaVista) return;
+  const { W, H, P } = ultimaVista;
+  try {
+    riprendiRiflessiLaccati({
+      renderer, scene, radice: gruppo, dir: { x: 0, z: 1 }, centro: { x: W / 2, z: P / 2 },
+      largo: W, altLuci: Math.max(2690, H + 250),
+    });
+  } catch (e) { console.warn('Riflessi dei lucidi', e); }
 }
 
 // ---------------------------------------------------------------------------

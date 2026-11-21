@@ -11,12 +11,13 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado } from './calcoli.js?v=20261123h';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261123h';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261123h';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261123h';
-import { sfondoDi } from './sfondi.js?v=20261123h';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261123h';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado } from './calcoli.js?v=20261123m';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261123m';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261123m';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261123m';
+import { sfondoDi } from './sfondi.js?v=20261123m';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261123m';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261123m';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -187,9 +188,26 @@ export function impostaSfondo(id, pavimento = pavimentoAttuale) {
   const sf = sfondoDi(id);
   scene.background = new THREE.Color(sf.bg);
   // pavimento vero (parquet / gres, o quello scelto: legni, marmi, pietre), niente griglia da disegno tecnico
-  if (floorMesh) { floorMesh.material.dispose(); floorMesh.material = pavimentoVero(id, sf.pav, 30000, 30000, () => { if (resa) resa.cambiato(); }, pavimentoAttuale); }
+  if (floorMesh) { floorMesh.material.dispose(); floorMesh.material = pavimentoVero(id, sf.pav, 30000, 30000, () => { riflessiLucidi(); if (resa) resa.cambiato(); }, pavimentoAttuale); }
   if (gridMesh) { scene.remove(gridMesh); gridMesh = null; }
+  riflessiLucidi();
   if (resa) resa.cambiato();
+}
+
+// Ante LACCATE LUCIDE: riflettono la stanza vera (pavimento, muro, finestra alle spalle di chi
+// guarda, plafoniere) come in cucina; si rifà quando cambiano l'armadio, lo sfondo o il pavimento.
+function riflessiLucidi() {
+  if (!renderer || !scene || !gruppoArmadio || !gruppoArmadio.children.length) return;
+  gruppoArmadio.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(gruppoArmadio);
+  if (bb.isEmpty()) return;
+  try {
+    riprendiRiflessiLaccati({
+      renderer, scene, radice: gruppoArmadio, dir: { x: 0, z: 1 },
+      centro: { x: (bb.min.x + bb.max.x) / 2, z: (bb.min.z + bb.max.z) / 2 },
+      largo: bb.max.x - bb.min.x, altLuci: Math.max(2690, bb.max.y + 250),
+    });
+  } catch (e) { console.warn('Riflessi dei lucidi', e); }
 }
 
 export function inizializzaScena(canvas) {
@@ -557,6 +575,7 @@ export function aggiornaScena(config) {
     muroDietro.visible = true;
   }
   if (luceOmbre && !bbA.isEmpty()) inquadraOmbre(renderer, luceOmbre, bbA, new THREE.Vector3(0.55, 1.3, 1));
+  riflessiLucidi();
 
   // Inquadratura 3/4 fissa, adatta alle dimensioni del mobile
   const W = config.larghezzaTotale;
