@@ -15,9 +15,9 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261123m';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261123m';
-import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261123m';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261123n';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261123n';
+import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261123n';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -588,7 +588,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261123m');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261123n');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -722,7 +722,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261123m';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261123n';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
@@ -1284,16 +1284,16 @@ function laccatoFoto(mat, colore) {
           vec3 ngR = clearcoatSpecularDirect + clearcoatSpecularIndirect;
           float ngL = dot( ngR, vec3( 0.2126, 0.7152, 0.0722 ) );
           float ngB = smoothstep( 0.04, 0.18, ngL );                       // solo le cose luminose (finestre, luci)
-          // punto di luce: un velo PROPORZIONATO al colore (sul nero un velo fisso lo faceva grigio)
           float ngBaseL = dot( base, vec3( 0.2126, 0.7152, 0.0722 ) );
-          // I COLORI SCURI (nero, blu notte, antracita): schiarirli del 12% non si vede, il lucido
-          // sembrava un opaco. Come nel laccato vero, sullo scuro la finestra e le luci si specchiano
-          // nette (grigio chiaro sul nero), nella tinta del pannello; il resto resta nero pieno.
-          float ngScuro = 1.0 - smoothstep( 0.0, 0.08, ngBaseL );
+          // IL RIFLESSO SI VEDE «APPENA APPENA», come il pavimento nelle ante basse (approvato così):
+          // finestre e luci NON fanno più strisce grigie sui pensili (un nero resta nero, un blu resta
+          // blu). Il riflesso cresce piano e si ferma a un tetto basso, proporzionato al colore, nella
+          // tinta del pannello (niente velo grigio); di lato (costado, fianchi visti di sbieco) un po' di più.
           vec3 ngTono = mix( vec3( 1.0 ), clamp( base / max( ngBaseL, 1e-4 ), 0.0, 3.0 ), 0.6 );
-          vec3 ngLuce = ngR * ( min( 1.0, ( 0.006 + 0.06 * ngBaseL + 0.045 * ngScuro ) / max( ngL, 1e-4 ) ) * ngB );
-          ngLuce *= mix( vec3( 1.0 ), ngTono, ngScuro );
-          outgoingLight = base * ( 1.0 + 0.12 * ngB ) + ngLuce + totalEmissiveRadiance;
+          float ngC = ( 0.0035 + 0.03 * ngBaseL ) * ( 1.0 + 6.0 * pow( 1.0 - ngNV, 3.0 ) );
+          float ngV = ngL * ngB;
+          vec3 ngLuce = ngTono * ( ngC * ( 1.0 - exp( -ngV / ngC ) ) );
+          outgoingLight = base * ( 1.0 + 0.03 * ngB ) + ngLuce + totalEmissiveRadiance;
         #else
           outgoingLight = base + totalEmissiveRadiance;
         #endif
