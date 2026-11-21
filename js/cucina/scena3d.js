@@ -15,28 +15,28 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-} from './modello.js?v=20261122w';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122w';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261122w';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261122w';
+} from './modello.js?v=20261122x';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261122x';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261122x';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261122x';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122w').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261122x').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122w';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122w';
-import { parametri } from '../parametri.js?v=20261122w';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122w';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122w';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261122x';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261122x';
+import { parametri } from '../parametri.js?v=20261122x';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261122x';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261122x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122w';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261122x';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261122w';
+export { telaPavimento } from '../resa.js?v=20261122x';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -945,6 +945,25 @@ function muriVisibili() {
     if (!n) continue;
     o.visible = (camera.position.x - o.position.x) * n.x + (camera.position.z - o.position.z) * n.z > -40;
   }
+}
+/**
+ * MATERIALI PRONTI PRIMA DI GIRARE: la scheda grafica prepara il «programma» di ogni materiale
+ * la prima volta che lo vede. Girando la vista, gli oggetti che entravano nell'inquadratura per la
+ * prima volta (sgabelli, lampade, l'altro lato dell'isola) fermavano il disegno per un attimo
+ * (su Windows anche mezzo secondo): scatti. Ora si preparano tutti subito dopo aver costruito la
+ * scena, in parallelo e senza bloccare (dove il browser lo permette).
+ */
+let _prepara = 0;
+function preparaMateriali() {
+  if (!renderer || !scene || !camera) return;
+  const n = ++_prepara;
+  setTimeout(() => {
+    if (n !== _prepara) return;                                  // nel frattempo un'altra modifica: aspetto quella
+    try {
+      const p = renderer.compileAsync ? renderer.compileAsync(scene, camera) : (renderer.compile(scene, camera), null);
+      if (p && p.catch) p.catch(() => { /* niente: si prepareranno quando servono */ });
+    } catch (_) { /* niente */ }
+  }, 60);
 }
 /** Quanto lavoro fa il disegno (per le prove): disegni, triangoli, luci accese, pixel. */
 export function scenaPerProve() { return { scene, renderer, camera }; }
@@ -2493,7 +2512,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122w')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261122x')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -2900,6 +2919,7 @@ async function caricaModelloOgg(id) {
 export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   const vecchi = gruppo ? gruppo.children.slice() : [];
   costruisciScena3d(progetto, reframe, selezionato);
+  preparaMateriali();
   if (!vecchi.length || !gruppo) return;
   const usate = new Set();
   gruppo.traverse((o) => { if (o.geometry) usate.add(o.geometry); });

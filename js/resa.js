@@ -14,8 +14,8 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261122w';
-import { pianoComeFoto } from './materiali.js?v=20261122w';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261122x';
+import { pianoComeFoto } from './materiali.js?v=20261122x';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
@@ -73,7 +73,9 @@ export function creaResa(opz) {
   const tel = eTelefono();
   const DPR = window.devicePixelRatio || 1;
   // Nitidezza: sempre quella piena di prima mentre si gira.
-  const DPR_MOTO = Math.min(DPR, tel ? 1.25 : 1.5);          // mentre si gira
+  // mentre si gira: al massimo 1,25 pixel per punto (a occhio, in movimento, non si vede la differenza
+  // con 1,5–2 e il lavoro della scheda grafica scende di un terzo/metà); da fermo torna tutto nitido
+  const DPR_MOTO = Math.min(DPR, 1.25);
   // Da fermo: telefono a tutti i suoi pixel; COMPUTER al doppio dei pixel dello
   // schermo, poi rimpicciolito come una foto: bordi e ombre negli angoli puliti,
   // niente linee zigrinate (le ombre di contatto da sole non sono levigate).
@@ -82,8 +84,11 @@ export function creaResa(opz) {
   // (meno pixel, ombre di contatto più leggere) e se lo ricorda; se è velocissimo risale.
   // Scheda grafica potente = qualità piena come prima.
   const LIVELLI = [{ pix: 8e6, ao: 32 }, { pix: 4.5e6, ao: 24 }, { pix: 2.6e6, ao: 16 }, { pix: 0, ao: 12 }];
-  let livello = 0;
-  if (!tel) { try { livello = Math.min(LIVELLI.length - 1, Math.max(0, Number(localStorage.getItem('ng-3d-livello-fermo')) || 0)); } catch (_) { /* niente */ } }
+  // si PARTE da un gradino medio (2,6 milioni di pixel): su un computer normale il disegno nitido da
+  // 8 milioni con 32 campioni durava mezzo secondo e bloccava il mouse. Se il computer è veloce risale da solo.
+  const K_FERMO = 'ng-3d-fermo-v2', K_MOTO = 'ng-3d-moto-v2';
+  let livello = 2;
+  if (!tel) { try { const v = localStorage.getItem(K_FERMO); if (v != null) livello = Math.min(LIVELLI.length - 1, Math.max(0, Number(v) || 0)); } catch (_) { /* niente */ } }
   const areaCss = () => { const el = renderer.domElement; return Math.max(1, (el.clientWidth || el.width) * (el.clientHeight || el.height)); };
   // telefono da fermo: al massimo 2× (a 3× erano 9 volte i pixel di prima, con le ombre di contatto:
   // su iPhone il disegno nitido bloccava il dito per un attimo a ogni pausa)
@@ -98,10 +103,13 @@ export function creaResa(opz) {
   // LIVELLI MENTRE SI GIRA (si regola da solo, e se lo ricorda): 0 = ombre di contatto piene;
   // 1 = ombre di contatto leggere; 2 = niente ombre di contatto mentre si gira (tornano appena ti fermi);
   // 3 = anche meno pixel mentre si gira. Da fermo la qualità resta sempre piena.
-  let livMoto = tel ? 1 : 0;
-  try { const v = localStorage.getItem('ng-3d-moto-livello'); if (v != null) livMoto = Math.min(3, Math.max(tel ? 1 : 0, Number(v) || 0)); else if (!tel && localStorage.getItem('ng-3d-ao-leggera') === '1') livMoto = 1; } catch (_) { /* niente */ }
+  // si PARTE senza ombre di contatto mentre si gira (tornano appena ti fermi): è la parte più pesante e,
+  // in movimento, non si nota. Se la scheda grafica è veloce le rimette da sola (leggere, poi piene).
+  // 4 = anche meno pixel di quelli dello schermo mentre si gira (computer molto lenti).
+  let livMoto = 2;
+  try { const v = localStorage.getItem(K_MOTO); if (v != null) livMoto = Math.min(4, Math.max(tel ? 1 : 0, Number(v) || 0)); } catch (_) { /* niente */ }
   let aoLeggera = livMoto >= 1;
-  const dprMoto = () => (livMoto >= 3 ? 1 : DPR_MOTO);
+  const dprMoto = () => (livMoto >= 4 ? Math.min(DPR, 0.75) : livMoto >= 3 ? Math.min(DPR, 1) : DPR_MOTO);
   let ao = null, aoMoto = null, quad = null, guasto = false;
   const nuovoAO = (w, h) => {
     const a = new GTAOPass(scene, camera, Math.max(2, w), Math.max(2, h));
@@ -220,7 +228,7 @@ export function creaResa(opz) {
     else veloci = 0;
     if (nuovo === livello) return;
     livello = nuovo; campioniFermo();
-    try { localStorage.setItem('ng-3d-livello-fermo', String(livello)); } catch (_) { /* niente */ }
+    try { localStorage.setItem(K_FERMO, String(livello)); } catch (_) { /* niente */ }
     if (nitido) { dimensiona(dprFermo()); sporco = true; }                 // il prossimo disegno nitido è più leggero
   }
   // Il tempo del disegno nitido si misura al giro SUCCESSIVO (il browser aspetta che la scheda
@@ -245,21 +253,22 @@ export function creaResa(opz) {
   function misura(ora, consecutivo) {
     const dt = ora - tPrec; tPrec = ora;
     if (!consecutivo) return;
-    if (++nMoto < 20) return;                                  // i primi fotogrammi (preparazione) non contano
+    if (++nMoto < 6) return;                                   // i primi fotogrammi (preparazione) non contano
     campioni.push(dt);
-    if (campioni.length < 12) return;
+    if (campioni.length < 8) return;
     campioni.sort((x, y) => x - y);
-    const med = campioni[6]; campioni.length = 0;
-    // lento (sotto i ~38 fotogrammi al secondo) due volte di fila → un gradino più leggero;
-    // molto veloce tre volte di fila → un gradino più bello
+    const med = campioni[4]; campioni.length = 0;
+    // lento (sotto i ~38 fotogrammi al secondo) due volte di fila → un gradino più leggero (MOLTO lento,
+    // sotto i 22: subito); molto veloce tre volte di fila → un gradino più bello
     let nuovo = livMoto;
-    if (med > 26) { lenti++; veloceMoto = 0; if (lenti >= 2 && livMoto < 3) { nuovo = livMoto + 1; lenti = 0; } }
+    if (med > 45 && livMoto < 4) { nuovo = livMoto + 1; lenti = 0; veloceMoto = 0; }
+    else if (med > 26) { lenti++; veloceMoto = 0; if (lenti >= 2 && livMoto < 4) { nuovo = livMoto + 1; lenti = 0; } }
     else if (med < 12) { veloceMoto++; lenti = 0; if (veloceMoto >= 3 && livMoto > (tel ? 1 : 0)) { nuovo = livMoto - 1; veloceMoto = 0; } }
     else { lenti = 0; veloceMoto = 0; }
     if (nuovo === livMoto) return;
     livMoto = nuovo; aoLeggera = livMoto >= 1; campioniMoto();
     if (!nitido) dimensiona(dprMoto());
-    try { localStorage.setItem('ng-3d-moto-livello', String(livMoto)); } catch (_) { /* niente */ }
+    try { localStorage.setItem(K_MOTO, String(livMoto)); } catch (_) { /* niente */ }
   }
 
   /**
@@ -284,7 +293,9 @@ export function creaResa(opz) {
     }
     motoPrec = false;
     // ferma da un attimo → una volta a piena qualità (col dito ancora giù aspetta di più)
-    if (!nitido && ora - ultimoMoto > (giu.size ? 700 : 160)) {
+    // (computer: dopo 0,35 s fermo; prima 0,16 s: ogni piccola pausa mentre si girava rifaceva l'immagine
+    // nitida, pesante, e la ripresa del movimento andava a scatti)
+    if (!nitido && ora - ultimoMoto > (giu.size ? 900 : tel ? 160 : 350)) {
       dimensiona(dprFermo()); nitido = true; disegnaOra(false);
       return;
     }
