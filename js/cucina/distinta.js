@@ -14,8 +14,9 @@
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte,
-} from './modello.js?v=20261123o';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261123o';
+} from './modello.js?v=20261123p';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261123p';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261123p';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -465,9 +466,10 @@ export function calcolaDistintaCucina(progetto) {
   const fpDi = (p) => (p.fp != null ? p.fp : scelteDi(p).fp);
   const pushDi = (p) => (p.push != null ? p.push : scelteDi(p).push);
   const nomeManiglia = (p) => {
-    const id = scelteDi(p).maniglia;
+    const sc = scelteDi(p), id = sc.maniglia;
     const def = id && typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === id);
-    return def ? def.nome : 'standard';
+    const col = sc.coloreManiglia ? nomeFinituraManiglia(sc.coloreManiglia) : '';
+    return (def ? def.nome : 'standard') + (col ? ` · ${col}` : '');
   };
 
   // CERNIERE: porte da 70 a 92 → 2 (110°); pensile angolo 63×63 → 2 per porta

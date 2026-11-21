@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261123o';
+import { parametri } from '../parametri.js?v=20261123p';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -1732,12 +1732,15 @@ export function sceltePorteGruppo(progetto, proprio, segue) {
   // GOLA in alluminio sui bassi: niente maniglia, niente push, niente finger-pull
   if (!proprio && segue === 'base' && golaProgetto(progetto).base) return { fp: false, push: false, maniglia: null, gola: true, proprie: false };
   const fp = progetto.fingerPull, fpO = fp && typeof fp === 'object' ? fp : {};
-  const pu = progetto.push || {}, ma = progetto.maniglie || {};
+  const pu = progetto.push || {}, ma = progetto.maniglie || {}, cm = progetto.coloriManiglie || {};
   return {
     fp: proprio && fpO[proprio] != null ? !!fpO[proprio] : !!(segue && (fp === true || fpO[segue])),
     push: proprio && pu[proprio] != null ? !!pu[proprio] : !!(segue && pu[segue]),
     maniglia: (proprio && ma[proprio]) || (segue && ma[segue]) || null,
-    proprie: !!proprio && (fpO[proprio] != null || pu[proprio] != null || ma[proprio] != null),
+    // COLORE della maniglia (come il rubinetto): null = il suo colore di sempre ('originale' sul ponte:
+    // scelto apposta il colore di sempre, anche se le colonne hanno un altro colore)
+    coloreManiglia: (() => { const v = proprio && cm[proprio] != null ? cm[proprio] : (segue && cm[segue]) || null; return v && v !== 'originale' ? v : null; })(),
+    proprie: !!proprio && (fpO[proprio] != null || pu[proprio] != null || ma[proprio] != null || cm[proprio] != null),
   };
 }
 /** Scelte delle porte di UN mobile: { fp, push, maniglia (id o null) }. */

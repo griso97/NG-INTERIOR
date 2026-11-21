@@ -16,29 +16,30 @@ import {
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
   costadoCopreAnte,
-} from './modello.js?v=20261123o';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261123o';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261123o';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261123o';
+} from './modello.js?v=20261123p';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261123p';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261123p';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261123p';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261123o').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261123p').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261123o';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261123o';
-import { parametri } from '../parametri.js?v=20261123o';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261123o';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261123o';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261123o';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261123p';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261123p';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261123p';
+import { parametri } from '../parametri.js?v=20261123p';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261123p';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261123p';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261123p';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261123o';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261123p';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261123o';
+export { telaPavimento } from '../resa.js?v=20261123p';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -1297,6 +1298,16 @@ function pannello(g, px, py, z, pw, ph, mat) {
 // Maniglia scelta per categoria (catalogo): progetto.maniglie = { base, pensile, colonna }
 let _maniglia = null;
 let _manByCat = {};
+// COLORE della maniglia per gruppo (progetto.coloriManiglie = { base, pensile, colonna, ponte, pensiliPonte }):
+// null = il colore di sempre di quella maniglia
+let _finMan = null;
+let _finManByCat = {};
+function finManCat(cat) {
+  const g = cat === 'pensile' ? 'pensile' : (cat === 'colonna' || cat === 'altillo') ? 'colonna' : 'base';
+  return _finManByCat[g] || null;
+}
+/** Materiale della maniglia standard / semplice: il colore scelto, o l'acciaio di sempre. */
+function matManigliaScelta() { return _finMan ? materialeFinitura(_finMan) : matManiglia; }
 let _reRenderMan = null;
 function manigliaCat(cat) {
   const g = cat === 'pensile' ? 'pensile' : (cat === 'colonna' || cat === 'altillo') ? 'colonna' : 'base';
@@ -1353,7 +1364,7 @@ function maniglia(g, x, y, z, orizz, lung, giu = false, max = Infinity) {
   // "La mia forma" (o maniglie salvate prima della scelta della forma): 3D dalle foto
   if (def && def.texture && def.lunghezzaMm && (def.forma === 'foto' || !def.formaV)) {
     // MANIGLIA DALLE FOTO (davanti, + sopra/lato se ci sono): 3D reale ricostruito dalle viste
-    const r = manigliaDaFoto(def, _reRenderMan);
+    const r = manigliaDaFoto(_finMan ? { ...def, finitura: _finMan } : def, _reRenderMan);
     if (r) {
       const mesh = new THREE.Mesh(r.geo, r.mat); mesh.castShadow = true; mesh.receiveShadow = true;
       const grp = new THREE.Group(); grp.add(mesh);
@@ -1366,7 +1377,7 @@ function maniglia(g, x, y, z, orizz, lung, giu = false, max = Infinity) {
   }
   if (def && def.texture && def.lunghezzaMm) {
     // MANIGLIA DEL CATALOGO: modello 3D vero del suo tipo, misura e finitura reali
-    const grp = costruisciManiglia(!def.forma || def.forma === 'foto' ? 'barra' : def.forma, def.finitura, Lcat, def.colore);
+    const grp = costruisciManiglia(!def.forma || def.forma === 'foto' ? 'barra' : def.forma, _finMan || def.finitura, Lcat, def.colore);
     grp.position.set(x, y, z + 20);                    // 20 = faccia davanti dell'anta
     if (!orizz) grp.rotation.z = Math.PI / 2;
     else if (giu) grp.rotation.z = Math.PI;
@@ -1374,7 +1385,7 @@ function maniglia(g, x, y, z, orizz, lung, giu = false, max = Infinity) {
     return;
   }
   // maniglia standard: barra in acciaio con i suoi piedini
-  barraManiglia(g, x, y, z, orizz ? lung : 12, orizz ? 12 : lung, 12, null, matManiglia, false);
+  barraManiglia(g, x, y, z, orizz ? lung : 12, orizz ? 12 : lung, 12, null, matManigliaScelta(), false);
 }
 
 // Finger-pull: quando attivo, invece della maniglia si disegna una GOLA scura
@@ -2483,7 +2494,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261123o')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261123p')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -2650,7 +2661,7 @@ function pensileAngoloFronte(g, w, h, d, matAnta) {
   e.position.copy(porta.position); e.rotation.copy(porta.rotation); g.add(e);
   // Maniglia verticale sul fronte diagonale
   const nx = Math.sin(Math.PI / 4), nz = Math.cos(Math.PI / 4);  // normale anta
-  const man = new THREE.Mesh(new THREE.BoxGeometry(16, Math.min(300, (h - FUGA_H) * 0.45), 16), matManiglia);
+  const man = new THREE.Mesh(new THREE.BoxGeometry(16, Math.min(300, (h - FUGA_H) * 0.45), 16), matManigliaScelta());
   man.visible = !_push;
   man.position.set(w * 0.16 + nx * 16 - 120 * nz, 0, d * 0.16 + nz * 16 + 120 * nx);
   g.add(man);
@@ -2747,11 +2758,13 @@ function costruisciMobileCorpo(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   _push = pushCat(cat);                  // push: niente maniglia (anche con il finger-pull)
   _fingerPull = fpCat(_fpByCat, cat);   // finger-pull per categoria del mobile
   _maniglia = manigliaCat(cat);         // maniglia del catalogo per categoria
+  _finMan = finManCat(cat);             // e il suo colore
   if (_golaQui) { _push = false; _fingerPull = false; }
   // PONTE e pensili sotto il ponte: le loro scelte (se fatte), se no come colonne / pensili
   if (opt.porte) {
     _push = opt.porte.push; _fingerPull = opt.porte.fp;
     _maniglia = (opt.porte.maniglia && MATERIALI.find((x) => x.id === opt.porte.maniglia && x.categoria === 'maniglia')) || null;
+    _finMan = opt.porte.coloreManiglia || null;
   }
   // Colonna: il fianco si vede (sopra i pensili, di lato) → stesso materiale
   // delle ante della colonna, non il colore crema del corpo
@@ -2910,6 +2923,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   _fpByCat = progetto.fingerPull || {};
   _pushByCat = progetto.push || {};
   _manByCat = progetto.maniglie || {};
+  _finManByCat = progetto.coloriManiglie || {};
   _golaCfg = golaProgetto(progetto);
   _stileForno = (progetto.finiture || {}).forno || 'inox';
   _progColonne = progetto;

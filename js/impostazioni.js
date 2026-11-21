@@ -8,18 +8,19 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261123o';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261123o';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261123o';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261123o';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261123o';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261123o';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261123o';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261123o';
-import { agganciaTema } from './tema.js?v=20261123o';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261123o';
-import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261123o';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261123o';
+} from './catalogo.js?v=20261123p';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261123p';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261123p';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261123p';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261123p';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261123p';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261123p';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261123p';
+import { agganciaTema } from './tema.js?v=20261123p';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261123p';
+import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261123p';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261123p';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261123p';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -999,15 +1000,16 @@ function apriSchedaPronto(p, o = null, statoRicerca = null) {
 function renderParametri(S) {
   const el = document.getElementById('imp-sezione'), P = parametri();
   const leggi = (path) => path.split('.').reduce((o, k) => (o ? o[k] : undefined), P);
+  // ogni parametro con le SUE FOTO (una o più): un promemoria visivo di cosa vuol dire quel numero
   const campo = (path, et, aiuto = '', opz = {}) => {
     const v = leggi(path);
-    return `<label class="par-campo ${opz.largo ? 'largo' : ''}"><span class="par-et">${esc(et)}</span>
+    return `<div class="par-campo-box"><label class="par-campo ${opz.largo ? 'largo' : ''}"><span class="par-et">${esc(et)}</span>
       <span class="par-input"><input type="${opz.testo ? 'text' : 'number'}" ${opz.testo ? '' : 'inputmode="decimal" step="0.1" min="0"'} data-par="${path}" value="${v == null ? '' : esc(v)}" placeholder="${esc(opz.ph || '')}">${opz.testo ? '' : '<em>mm</em>'}</span>
-      ${aiuto ? `<small>${esc(aiuto)}</small>` : ''}</label>`;
+      ${aiuto ? `<small>${esc(aiuto)}</small>` : ''}</label>${htmlFotoParametro(path)}</div>`;
   };
-  const campoBin = (i, k, et, aiuto) => `<label class="par-campo"><span class="par-et">${esc(et)}</span>
+  const campoBin = (i, k, et, aiuto) => `<div class="par-campo-box"><label class="par-campo"><span class="par-et">${esc(et)}</span>
       <span class="par-input"><input type="number" inputmode="decimal" step="0.1" min="0" data-bin="${i}.${k}" value="${esc(P.binari[i][k])}"><em>mm</em></span>
-      <small>${esc(aiuto)}</small></label>`;
+      <small>${esc(aiuto)}</small></label>${htmlFotoParametro(`binario:${P.binari[i].id}.${k}`)}</div>`;
   const cardBinario = (b, i, n) => `
       <div class="par-binario">
         <div class="par-bin-testa">
@@ -1025,6 +1027,7 @@ function renderParametri(S) {
   el.innerHTML = `
     <p class="imp-desc">${esc(S.desc)}</p>
     <p class="imp-desc">Valgono su questo dispositivo; con la «copia completa» li porti anche sugli altri. Si salvano da soli mentre scrivi.</p>
+    <p class="imp-desc">📷 Ogni parametro può avere una o più foto (es. dove si misura): tocca «+ Foto» sotto il numero; tocca una foto per vederla grande o toglierla.</p>
     <div class="par-gruppo">
       <h3>Aria delle ante e dei frontali</h3>
       <div class="par-griglia">
@@ -1098,6 +1101,7 @@ function renderParametri(S) {
     el.querySelector('#par-es-cass').textContent = tr(`Esempio: modulo da 60 → fondo ${f(600 - c.fondoMeno)} × ${f(c.fondoProfondita)} mm · trasera ${tipi.map(([h, n]) => `${tL} × ${f(h)} ${n}`).join(', ')}`);
   };
   esempi();
+  agganciaFotoParametri(el);
   let timer = null;
   const msg = el.querySelector('#par-msg');
   el.querySelectorAll('[data-par]').forEach((inp) => inp.addEventListener('input', () => {

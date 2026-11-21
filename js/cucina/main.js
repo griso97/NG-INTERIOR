@@ -24,17 +24,18 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, latoApertoDi, latiLiberi, migraProfonditaPensili, PARTI_APERTO, coloreParteAperto, ledAperto,
-  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola } from './modello.js?v=20261123o';
-import { renderPianta } from './pianta.js?v=20261123o';
-import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261123o';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261123o';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261123o';
-import { calcolaDistintaCucina } from './distinta.js?v=20261123o';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261123o';
-import { agganciaTema } from '../tema.js?v=20261123o';
-import { tendinePannello } from '../tendine-pannello.js?v=20261123o';
+  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola } from './modello.js?v=20261123p';
+import { renderPianta } from './pianta.js?v=20261123p';
+import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261123p';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261123p';
+import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261123p';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261123p';
+import { calcolaDistintaCucina } from './distinta.js?v=20261123p';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261123p';
+import { agganciaTema } from '../tema.js?v=20261123p';
+import { tendinePannello } from '../tendine-pannello.js?v=20261123p';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261123o');
+const _excel = () => import('../modello-export.js?v=20261123p');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -99,7 +100,7 @@ function mostraSceltaTipoCucina() {
     </div>`;
   document.body.appendChild(ov);
   // CUCINE DI ESEMPIO: la scheda c'è solo se ce ne sono (l'elenco è piccolo: solo nomi e foto)
-  fetch('esempi/cucine/indice.json?v=20261123o').then((r) => (r.ok ? r.json() : null)).then((j) => {
+  fetch('esempi/cucine/indice.json?v=20261123p').then((r) => (r.ok ? r.json() : null)).then((j) => {
     const a = ov.querySelector('#scelta-esempi');
     if (a && j && Array.isArray(j.cucine) && j.cucine.length) a.style.display = 'flex';
   }).catch(() => { /* niente esempi */ });
@@ -1327,12 +1328,33 @@ function htmlFiniture(solo = null) {
         ${[['inox', 'Inox'], ['nero', 'Nero'], ['bianco', 'Bianco']].map(([v, et]) =>
           `<button type="button" class="btn-ghost opt-fin ${forno === v ? 'attivo' : ''}" data-fin="forno" data-val="${v}" style="flex:1">${forno === v ? '✓ ' : ''}${et}</button>`).join('')}
       </div>
+    </section>
+    ${htmlLavastoviglieTutte()}`;
+}
+/** LAVASTOVIGLIE: il colore di tutte quelle della cucina insieme (acciaio, nera, bianca, integrata). */
+function htmlLavastoviglieTutte() {
+  const lav = (progetto.mobiliLiberi || []).filter((x) => x.tipo === 'lavastoviglie');
+  if (!lav.length) return '';
+  const c0 = lav[0].colore || 'acciaio', sel = lav.every((x) => (x.colore || 'acciaio') === c0) ? c0 : null;
+  return `
+    <section class="step3-pannello">
+      <h3>Lavastoviglie</h3>
+      <div class="opzioni-anta">
+        ${COLORI_LAVAST.map((c) => `<button type="button" class="btn-ghost opt-lavtutte ${c.id === sel ? 'attivo' : ''}" data-lavtutte="${c.id}" style="display:flex;align-items:center;gap:8px;justify-content:center">
+          <span style="width:18px;height:18px;border-radius:3px;border:1px solid #777;background:${c.css}"></span>${c.id === sel ? '✓ ' : ''}${c.nome}</button>`).join('')}
+      </div>
+      ${lav.length > 1 ? '<div class="riga-3d" style="margin-top:6px">Vale per tutte le lavastoviglie della cucina (una sola: toccala nel 3D).</div>' : ''}
     </section>`;
 }
 function agganciaFiniture(root) {
   root.querySelectorAll('.opt-fin').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     progetto.finiture = { ...(progetto.finiture || {}), [b.dataset.fin]: b.dataset.val };
+    aggiorna();
+  }));
+  root.querySelectorAll('.opt-lavtutte[data-lavtutte]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    for (const x of progetto.mobiliLiberi || []) if (x.tipo === 'lavastoviglie') x.colore = b.dataset.lavtutte;
     aggiorna();
   }));
 }
@@ -1571,8 +1593,8 @@ function apriPavimentoDaFoto() {
     if (!(w >= 5) || !(h >= 5)) { alert(tt('Scrivi la misura della zona fotografata (almeno 5 cm).')); return; }
     $('pav-salva').disabled = true;
     try {
-      const C = await import('../catalogo.js?v=20261123o');
-      const M = await import('../materiali.js?v=20261123o');
+      const C = await import('../catalogo.js?v=20261123p');
+      const M = await import('../materiali.js?v=20261123p');
       const stato = await C.leggiCatalogo();
       const id = 'pav-' + Date.now().toString(36);
       const prod = { id, sezione: 'pavimento', nome: ($('pav-nome').value || '').trim() || tt('Pavimento del cliente'), campioneCm: { w, h } };
@@ -1589,7 +1611,7 @@ async function eliminaPavimentoProprio(id) {
   const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
   if (!confirm(tt('Eliminare questo pavimento? Sparisce da tutti i progetti.'))) return;
   try {
-    const C = await import('../catalogo.js?v=20261123o');
+    const C = await import('../catalogo.js?v=20261123p');
     const stato = await C.leggiCatalogo();
     stato.prodotti = (stato.prodotti || []).filter((p) => p.id !== id);
     await C.salvaCatalogo(stato); await C.eliminaFoto(id);
@@ -1940,7 +1962,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261123o');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261123p');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2045,7 +2067,8 @@ function renderPannelloModificaMobile(m) {
   // TOCCATO nel 3D il lavello, il rubinetto, il piano cottura o il forno: le SUE opzioni per prime
   // (il colore in cima), aperte; poi il resto del modulo
   const parteT = step2.parteSel && step2.parteSel.id === m.id ? step2.parteSel.parte : null;
-  const primaDiTutto = parteT === 'lavello' || parteT === 'rubinetto' || parteT === 'forno' ? htmlFiniture(parteT)
+  const primaDiTutto = m.tipo === 'lavastoviglie' ? htmlColoreLavastoviglie(m, true)
+    : parteT === 'lavello' || parteT === 'rubinetto' || parteT === 'forno' ? htmlFiniture(parteT)
     : parteT === 'placca' && (m.placca || m.tipo === 'forno') ? `
     <section class="step3-pannello" data-aperta>
       <h3>Piano cottura</h3>${htmlFuochi(m)}
@@ -2098,7 +2121,6 @@ function renderPannelloModificaMobile(m) {
     </section>`;
     })() : ''}
     ${htmlColoreFrigo(m)}
-    ${htmlColoreLavastoviglie(m)}
     ${htmlAperturaColonna(m)}
     ${htmlPensileSottoPonte(m)}
     ${m.tipo === 'ponte' || (categoriaTipo(m.tipo) === 'pensile' && pontiSopra(progetto, m).length) ? htmlColoriPonte() : ''}
@@ -2256,12 +2278,12 @@ function renderPannelloModificaMobile(m) {
       ${man ? (() => {
         const lista = (scena3dMod && scena3dMod.materialiPer) ? scena3dMod.materialiPer('maniglie') : [];
         const sel = (progetto.maniglie || {})[gruppoColore] || 'maniglia-standard';
-        return lista.length > 1 ? `
+        return (lista.length > 1 ? `
       <div class="riga-3d" style="margin:10px 0 6px">Maniglia</div>
       <div class="palette-colori">
         ${lista.map((mt) => `<button type="button" class="swatch ${mt.id === sel ? 'sel' : ''}" data-man="${mt.id}" title="${mt.nome}"
           style="background:${scena3dMod.sfondoSwatch(mt)}"></button>`).join('')}
-      </div>` : '';
+      </div>` : '') + htmlColoreManiglia((progetto.coloriManiglie || {})[gruppoColore], 'mancol');
       })() : ''}
     </section>`;
     })()}
@@ -2354,6 +2376,13 @@ function renderPannelloModificaMobile(m) {
   pannello.querySelectorAll('.swatch[data-man]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     progetto.maniglie = { ...(progetto.maniglie || {}), [gruppoColore]: b.dataset.man };
+    aggiorna();
+  }));
+  pannello.querySelectorAll('[data-mancol]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    const o = { ...(progetto.coloriManiglie || {}) };
+    if (b.dataset.mancol) o[gruppoColore] = b.dataset.mancol; else delete o[gruppoColore];
+    progetto.coloriManiglie = o;
     aggiorna();
   }));
   pannello.querySelectorAll('.opt-anta').forEach((b) => b.addEventListener('click', () => {
@@ -2768,13 +2797,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261123o');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261123p');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261123o'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261123p'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -2820,6 +2849,19 @@ function htmlColoriPonte() {
       <div class="riga-3d" style="margin-top:4px">«—» = ${parte.come.toLowerCase()}.</div>
     </section>`;
 }
+// COLORE DELLE MANIGLIE (come il rubinetto): ogni maniglia, anche quelle aggiunte in Impostazioni,
+// si può fare in tutti i colori. «Il suo colore» = quello di sempre della maniglia scelta.
+function htmlColoreManiglia(sel, attr) {
+  const v = sel || '';
+  return `
+      <div class="riga-3d" style="margin:10px 0 6px">Maniglia · colore</div>
+      <div class="palette-zoccolo">
+        <button type="button" class="swatch-zocc ${!v ? 'sel' : ''}" data-${attr}="" title="Il suo colore" style="background:repeating-linear-gradient(135deg,#d9d9d9 0 6px,#8a8a8a 6px 12px)"></button>
+          <span class="et-zocc">Il suo colore</span>
+        ${FINITURE_MANIGLIA.map((f) => `<button type="button" class="swatch-zocc ${v === f.id ? 'sel' : ''}" data-${attr}="${f.id}" title="${f.nome}" style="background:${f.css}"></button>
+          <span class="et-zocc">${f.nome}</span>`).join('')}
+      </div>`;
+}
 // PORTE DEL PONTE: porta normale o finger-pull, maniglia o push (e quale maniglia), per il
 // ponte e per i pensili sotto, indipendenti dal resto. Finché non si sceglie: come colonne / pensili.
 const PARTI_PORTE_PONTE = [
@@ -2860,6 +2902,7 @@ function htmlPortePonte(parteFissa = null) {
         ${lista.map((mt) => `<button type="button" class="swatch ${mt.id === sel ? 'sel' : ''}" data-manponte="${mt.id}" title="${mt.nome}"
           style="background:${mod.sfondoSwatch(mt)}"></button>`).join('')}
       </div>` : ''}
+      ${man ? htmlColoreManiglia(sc.coloreManiglia, 'mancolponte') : ''}
       ${sc.proprie
         ? `<button type="button" class="btn-ghost porte-ponte-reset" style="margin-top:8px;width:100%">↺ Torna ${parte.come}</button>`
         : `<div class="riga-3d" style="margin-top:6px">Per ora ${parte.come}: tocca una scelta per cambiarla solo qui.</div>`}
@@ -2889,9 +2932,17 @@ function agganciaPortePonte(root) {
     progetto.maniglie = { ...(progetto.maniglie || {}), [k]: b.dataset.manponte };
     aggiorna();
   }));
+  sezione.querySelectorAll('[data-mancolponte]').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    const o = { ...(progetto.coloriManiglie || {}) };
+    // «il suo colore» sul ponte: scelto apposta (non segue più il colore delle colonne)
+    o[k] = b.dataset.mancolponte || 'originale';
+    progetto.coloriManiglie = o;
+    aggiorna();
+  }));
   sezione.querySelector('.porte-ponte-reset')?.addEventListener('click', () => {
     registraStoria();
-    for (const chiave of ['fingerPull', 'push', 'maniglie']) {
+    for (const chiave of ['fingerPull', 'push', 'maniglie', 'coloriManiglie']) {
       if (progetto[chiave] && typeof progetto[chiave] === 'object') { const o = { ...progetto[chiave] }; delete o[k]; progetto[chiave] = o; }
     }
     aggiorna();
@@ -3205,11 +3256,11 @@ const COLORI_LAVAST = [
   { id: 'bianco', nome: 'Bianca', css: '#f1f1ee' },
   { id: 'integrata', nome: 'Integrata (anta come i mobili)', css: 'repeating-linear-gradient(90deg,#cfc8b8 0 8px,#bdb5a3 8px 9px)' },
 ];
-function htmlColoreLavastoviglie(m) {
+function htmlColoreLavastoviglie(m, aperta = false) {
   if (m.tipo !== 'lavastoviglie') return '';
   const sel = m.colore || 'acciaio';
   return `
-    <section class="step3-pannello">
+    <section class="step3-pannello"${aperta ? ' data-aperta' : ''}>
       <h3>Lavastoviglie</h3>
       <div class="opzioni-anta">
         ${COLORI_LAVAST.map((c) => `<button type="button" class="btn-ghost opt-lavast ${c.id === sel ? 'attivo' : ''}" data-lavast="${c.id}" style="display:flex;align-items:center;gap:8px;justify-content:center">

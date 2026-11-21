@@ -8,6 +8,7 @@
 // Assi (mm): x = lunghezza (−L/2..L/2) · y = altezza · z = sporgenza (0 = anta)
 // =============================================================================
 import * as THREE from 'three';
+import { FINITURE_MANIGLIA } from './finiture-maniglia.js?v=20261123p';
 
 export const FORME_MANIGLIA = [
   { id: 'foto', nome: 'La mia forma (dalla foto)', svg: '<svg viewBox="0 0 48 24"><rect x="9" y="5" width="30" height="16" rx="3" fill="none"/><circle cx="24" cy="13" r="4.5" fill="none"/><rect x="17" y="2" width="9" height="4" rx="1"/></svg>' },
@@ -20,16 +21,8 @@ export const FORME_MANIGLIA = [
   { id: 'incasso', nome: 'Incasso (conchiglia)', svg: '<svg viewBox="0 0 48 24"><rect x="10" y="6" width="28" height="12" rx="5" fill="none"/><rect x="14" y="9" width="20" height="6" rx="3"/></svg>' },
 ];
 
-export const FINITURE_MANIGLIA = [
-  { id: 'inox', nome: 'Acciaio inox', colore: 0xc5c8cc, metal: 0.9, rough: 0.28 },
-  { id: 'alluminio', nome: 'Alluminio', colore: 0xb9bcc0, metal: 0.75, rough: 0.42 },
-  { id: 'nero', nome: 'Nero opaco', colore: 0x1c1c1c, metal: 0.35, rough: 0.5 },
-  { id: 'antracite', nome: 'Antracite / titanio', colore: 0x4a4c50, metal: 0.8, rough: 0.35 },
-  { id: 'oro', nome: 'Oro / ottone', colore: 0xc9a65c, metal: 0.92, rough: 0.28 },
-  { id: 'bronzo', nome: 'Bronzo', colore: 0x6f5238, metal: 0.85, rough: 0.38 },
-  { id: 'rame', nome: 'Rame', colore: 0xb2704a, metal: 0.9, rough: 0.3 },
-  { id: 'bianco', nome: 'Bianco', colore: 0xeeeeec, metal: 0.05, rough: 0.4 },
-];
+// i COLORI stanno in finiture-maniglia.js (li usano anche la distinta e i pannelli, senza 3D)
+export { FINITURE_MANIGLIA };
 
 /** "Colore della foto": la maniglia tiene i colori veri delle foto. */
 export const FINITURA_FOTO = { id: 'foto', nome: 'Colore della foto' };
@@ -47,6 +40,7 @@ export function finituraVicina(col) {
   if (sat < 28) return l < 55 ? 'nero' : l < 115 ? 'antracite' : l > 225 ? 'bianco' : l > 175 ? 'inox' : 'alluminio';
   let best = 'inox', bd = Infinity;
   for (const f of FINITURE_MANIGLIA) {
+    if (f.extra) continue;                       // i colori in più non cambiano il riconoscimento dalla foto
     const fr = (f.colore >> 16) & 255, fg = (f.colore >> 8) & 255, fb = f.colore & 255;
     const d = (r - fr) ** 2 * 0.3 + (g - fg) ** 2 * 0.59 + (b - fb) ** 2 * 0.11;
     if (d < bd) { bd = d; best = f.id; }

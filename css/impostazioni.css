@@ -164,3 +164,22 @@
 #par-bin-agg { margin-top: 10px; }
 .par-azioni { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 24px; }
 @media (max-width: 520px) { .par-tab tbody th { white-space: normal; } .par-input input { max-width: 110px; } }
+
+/* FOTO DEI PARAMETRI: miniature sotto ogni numero, foto grande a tutto schermo */
+.par-campo-box { display: flex; flex-direction: column; gap: 6px; }
+.par-foto { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.par-foto-lista { display: contents; }
+.par-foto-min { all: unset; cursor: pointer; width: 46px; height: 46px; border-radius: 6px; overflow: hidden; border: 1px solid var(--bordo, #3a3326); background: #111; }
+.par-foto-min:hover, .par-foto-min:focus-visible { border-color: var(--oro, #c9a94a); }
+.par-foto-min img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.par-foto-agg { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; border-radius: 999px; border: 1px dashed var(--bordo, #4a4030); font-size: 12px; color: var(--testo-dim, #a99f8a); }
+.par-foto-agg:hover { border-color: var(--oro, #c9a94a); color: var(--oro, #c9a94a); }
+.par-tab .par-foto-agg span { display: none; }
+.par-visore { position: fixed; inset: 0; z-index: 200; background: #060504; display: flex; flex-direction: column; color: #f3efe6; }
+.par-visore-su { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+.par-visore-conta { flex: 1; font-size: 13px; letter-spacing: 1px; color: #b8ad97; }
+.par-visore-btn { cursor: pointer; padding: 9px 13px; border-radius: 999px; border: 1px solid #4a4030; background: #1d1912; color: #f3efe6; font: 14px inherit; }
+.par-visore-foto { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 0 8px 16px; touch-action: pan-y; }
+.par-visore-foto img { max-width: 100%; max-height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+.par-visore-freccia { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(201,169,74,.5); background: rgba(10,10,11,.55); color: #f6e2a0; font-size: 22px; cursor: pointer; }
+.par-visore-freccia.sx { left: 10px; } .par-visore-freccia.dx { right: 10px; }
