@@ -15,9 +15,9 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261122z';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261122z';
-import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261122z';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261123c';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261123c';
+import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261123c';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -588,7 +588,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261122z');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261123c');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -722,7 +722,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261122z';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261123c';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
@@ -1253,8 +1253,8 @@ function neroOpacoVero(mat) {
  */
 function laccatoFoto(mat, colore) {
   const c = new THREE.Color(colore), lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-  mat.userData.ccF0 = { value: 0.07 + 0.03 * Math.min(1, lum / 0.8) };   // 7% scuri … 10% chiari (di fronte); di lato specchia di più
-  mat.userData.riflesso = 1.6;            // la stanza si specchia netta (finestre, luci, mobili di fronte) come nelle foto
+  mat.userData.ccF0 = { value: 0.06 + 0.02 * Math.min(1, lum / 0.8) };   // 6% scuri … 8% chiari (di fronte); di lato specchia di più
+  mat.userData.riflesso = 1.6;            // finestre e luci si specchiano nette; il colore resta il protagonista (vedi sotto)
   mat.userData.ngRif = LUCE_FOTO;
   mat.toneMapped = false;
   mat.onBeforeCompile = (sh) => {
@@ -1272,9 +1272,19 @@ function laccatoFoto(mat, colore) {
         vec3 base = diffuseColor.rgb * mix(1.0, f, ${CONTRASTO_FOTO.toFixed(2)}) * tinta;
         #ifdef USE_CLEARCOAT
           float ngNV = saturate( dot( geometryClearcoatNormal, geometryViewDir ) );
-          vec3 ngF = F_Schlick( material.clearcoatF0, material.clearcoatF90, ngNV );
-          // il colore resta pieno; lo specchio si somma sopra (e copre un po' il colore dove riflette di più)
-          outgoingLight = base * ( 1.0 - ngF ) + ( clearcoatSpecularDirect + clearcoatSpecularIndirect ) + totalEmissiveRadiance;
+          // anche di lato (dove un laccato specchia di più) il pannello tiene almeno ~85% del suo colore
+          vec3 ngF0 = F_Schlick( material.clearcoatF0, material.clearcoatF90, ngNV );
+          vec3 ngF = min( ngF0, vec3( 0.15 ) );
+          float ngK = ngF.g / max( ngF0.g, 1e-4 );
+          vec3 ngR = ( clearcoatSpecularDirect + clearcoatSpecularIndirect ) * ngK;
+          // COME UN LACCATO VERO: il colore resta sempre quello; si specchiano NETTE le cose luminose
+          // (finestre, lampade, luci) e appena appena muri e soffitto (che prima sbiadivano il colore)
+          float ngL = dot( ngR, vec3( 0.2126, 0.7152, 0.0722 ) );
+          ngR *= 0.2 + 0.8 * smoothstep( 0.05, 0.16, ngL );
+          // tetto: anche la finestra più luminosa specchiata non schiarisce il pannello oltre un velo
+          ngL = dot( ngR, vec3( 0.2126, 0.7152, 0.0722 ) );
+          ngR *= min( 1.0, 0.13 / max( ngL, 1e-4 ) );
+          outgoingLight = base * ( 1.0 - ngF * 0.5 ) + ngR + totalEmissiveRadiance;
         #else
           outgoingLight = base + totalEmissiveRadiance;
         #endif
