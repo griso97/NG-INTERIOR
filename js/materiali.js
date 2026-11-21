@@ -15,9 +15,9 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261123n';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261123n';
-import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261123n';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261123o';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261123o';
+import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261123o';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -80,16 +80,79 @@ export const MATERIALI = [
     thumb: 'materials/rovere-nodoso-thumb.jpg',
     texture: 'materials/rovere-nodoso.jpg', colore: 0xa0804c,
     nota: 'nome provvisorio' },
-  // ---- Alvic Syncron / Zenit (foto ufficiali Alvic: la foto è la tavola intera 1240 × 2750 mm,
-  //      così venatura e disegno escono nella misura vera) ----
+  // ---- TAVOLE INTERE (foto ufficiali, alta qualità): ogni foto è il PANNELLO intero (lato lungo
+  //      2750 mm; l'altro lato dalla proporzione della foto, così niente è stirato né schiacciato).
+  //      La foto si usa ESATTAMENTE com'è (nessuna correzione): ogni anta è un pezzo TAGLIATO dalla
+  //      tavola, alla misura vera (tavola: true → vedi uvInScala e getMaterialeTHREE) ----
   { id: 'aok-01', nome: 'AOK 01', categoria: 'legno',
-    thumb: 'materials/aok-01-thumb.jpg',
-    texture: 'materials/aok-01.jpg', colore: 0xcfc2b2,
-    campione: { wMm: 1240, hMm: 2750 }, nota: 'Alvic Syncron Anniversary Oak 01' },
+    thumb: 'materials/aok-01-v2-thumb.jpg',
+    texture: 'materials/aok-01-v2.jpg', colore: 0xcdc2b3,
+    campione: { wMm: 1373, hMm: 2750 }, tavola: true, nota: 'Alvic Syncron Anniversary Oak 01 (tavola intera)' },
+  { id: 'aok-02', nome: 'AOK 02', categoria: 'legno',
+    thumb: 'materials/aok-02-thumb.jpg',
+    texture: 'materials/aok-02.jpg', colore: 0xbca389,
+    campione: { wMm: 1377, hMm: 2750 }, tavola: true, nota: 'Alvic Syncron Anniversary Oak 02 (tavola intera)' },
+  { id: 'aok-03', nome: 'AOK 03', categoria: 'legno',
+    thumb: 'materials/aok-03-thumb.jpg',
+    texture: 'materials/aok-03.jpg', colore: 0x8b7161,
+    campione: { wMm: 1369, hMm: 2750 }, tavola: true, nota: 'Alvic Syncron Anniversary Oak 03 (tavola intera)' },
   { id: 'syncron-noce-01', nome: 'Syncron Noce 01', categoria: 'legno',
-    thumb: 'materials/syncron-noce-01-thumb.jpg',
-    texture: 'materials/syncron-noce-01.jpg', colore: 0xae9179,
-    campione: { wMm: 1240, hMm: 2750 }, nota: 'Alvic Syncron Nocce 01 HO' },
+    thumb: 'materials/syncron-noce-01-v2-thumb.jpg',
+    texture: 'materials/syncron-noce-01-v2.jpg', colore: 0xac907a,
+    campione: { wMm: 1269, hMm: 2750 }, tavola: true, nota: 'Alvic Syncron Nocce 01 (tavola intera)' },
+  { id: 'syncron-noce-03', nome: 'Syncron Noce 03', categoria: 'legno',
+    thumb: 'materials/syncron-noce-03-thumb.jpg',
+    texture: 'materials/syncron-noce-03.jpg', colore: 0x755c49,
+    campione: { wMm: 1269, hMm: 2750 }, tavola: true, nota: 'Alvic Syncron Nocce 03 (tavola intera)' },
+  { id: 'lakeland-oak-03', nome: 'Lakeland Oak 03', categoria: 'legno',
+    thumb: 'materials/lakeland-oak-03-thumb.jpg',
+    texture: 'materials/lakeland-oak-03.jpg', colore: 0x956e4f,
+    campione: { wMm: 1537, hMm: 2750 }, tavola: true, nota: 'Alvic Lakeland Oak 03 (tavola intera)' },
+  { id: 'ice-cream-01', nome: 'Ice Cream 01', categoria: 'legno',
+    thumb: 'materials/ice-cream-01-thumb.jpg',
+    texture: 'materials/ice-cream-01.jpg', colore: 0xdfdad5,
+    campione: { wMm: 1342, hMm: 2750 }, tavola: true, nota: 'Alvic Ice Cream 01 (tavola intera)' },
+  { id: 'ice-cream-04', nome: 'Ice Cream 04', categoria: 'legno',
+    thumb: 'materials/ice-cream-04-thumb.jpg',
+    texture: 'materials/ice-cream-04.jpg', colore: 0x615c5a,
+    campione: { wMm: 1342, hMm: 2750 }, tavola: true, nota: 'Alvic Ice Cream 04 (tavola intera)' },
+  { id: 'rosales-01', nome: 'Rosales 01', categoria: 'legno',
+    thumb: 'materials/rosales-01-thumb.jpg',
+    texture: 'materials/rosales-01.jpg', colore: 0xa97f5f,
+    campione: { wMm: 1323, hMm: 2750 }, tavola: true, nota: 'Alvic Rosales 01 (tavola intera)' },
+  { id: 'rosales-chiaro', nome: 'Rosales (chiaro)', categoria: 'legno',
+    thumb: 'materials/rosales-chiaro-thumb.jpg',
+    texture: 'materials/rosales-chiaro.jpg', colore: 0xe1d0c1,
+    campione: { wMm: 1323, hMm: 2750 }, tavola: true, nota: 'Alvic Rosales chiaro: numero da confermare (tavola intera)' },
+  { id: 'rosales-03', nome: 'Rosales 03', categoria: 'legno',
+    thumb: 'materials/rosales-03-thumb.jpg',
+    texture: 'materials/rosales-03.jpg', colore: 0x604c38,
+    campione: { wMm: 1375, hMm: 2750 }, tavola: true, nota: 'Alvic Rosales 03 (tavola intera)' },
+  { id: 'rosales-04', nome: 'Rosales 04', categoria: 'legno',
+    thumb: 'materials/rosales-04-thumb.jpg',
+    texture: 'materials/rosales-04.jpg', colore: 0xa78a6d,
+    campione: { wMm: 1312, hMm: 2750 }, tavola: true, nota: 'Alvic Rosales 04 (tavola intera)' },
+  { id: 'roble-muratti-04', nome: 'Roble Muratti 04', categoria: 'legno',
+    thumb: 'materials/roble-muratti-04-thumb.jpg',
+    texture: 'materials/roble-muratti-04.jpg', colore: 0xe8e7e3,
+    campione: { wMm: 1396, hMm: 2750 }, tavola: true, nota: 'Alvic Roble Muratti 04 (tavola intera)' },
+  { id: 'roble-muratti-grigio', nome: 'Roble Muratti (grigio)', categoria: 'legno',
+    thumb: 'materials/roble-muratti-grigio-thumb.jpg',
+    texture: 'materials/roble-muratti-grigio.jpg', colore: 0x817874,
+    campione: { wMm: 1456, hMm: 2750 }, tavola: true, nota: 'Alvic Roble Muratti grigio: numero da confermare (tavola intera)' },
+  { id: 'marmol-versilia', nome: 'Mármol Versilia', categoria: 'legno',
+    thumb: 'materials/marmol-versilia-thumb.jpg',
+    texture: 'materials/marmol-versilia.jpg', colore: 0xf5f5f3,
+    campione: { wMm: 1358, hMm: 2750 }, tavola: true, nota: 'Alvic Mármol Versilia (tavola intera)' },
+  { id: 'porcelain-01-gold', nome: 'Porcelain 01 Gold', categoria: 'legno',
+    thumb: 'materials/porcelain-01-gold-thumb.jpg',
+    texture: 'materials/porcelain-01-gold.jpg', colore: 0xc4b9b0,
+    campione: { wMm: 2750, hMm: 1702 }, tavola: true, nota: 'Alvic Porcelain 01 Gold (tavola intera, misura dalla proporzione della foto)' },
+  { id: 'porcelain-03-silver', nome: 'Porcelain 03 Silver', categoria: 'legno',
+    thumb: 'materials/porcelain-03-silver-thumb.jpg',
+    texture: 'materials/porcelain-03-silver.jpg', colore: 0x686866,
+    campione: { wMm: 2750, hMm: 1702 }, tavola: true, nota: 'Alvic Porcelain 03 Silver (tavola intera, misura dalla proporzione della foto)' },
+  // ---- Alvic Zenit marmi (la foto è la tavola intera 1240 × 2750 mm) ----
   { id: 'sm-nuvola-01', nome: 'SM Nuvola 01', categoria: 'legno',
     thumb: 'materials/sm-nuvola-01-thumb.jpg',
     texture: 'materials/sm-nuvola-01.jpg', colore: 0xf0ece2,
@@ -260,9 +323,11 @@ export const MATERIALI = [
     // foto di un pezzo VERO da 570 × 570 mm, in scala vera sul piano (continua, senza specchi)
     texture: 'materials/r3-supra-marmol-markina.jpg', colore: 0x2c2b29,
     campione: { wMm: 570, hMm: 570 }, spessore: 38 },
+  // stessa foto del pannello Mármol Versilia (la tavola intera, identica): il lato lungo corre lungo il piano
   { id: 'r3-supra-marmol-versilia', nome: 'R3 Supra Mármol Versilia Alvic', categoria: 'encimera',
-    thumb: 'materials/r3-supra-marmol-versilia-thumb.jpg',
-    texture: 'materials/r3-supra-marmol-versilia.jpg', colore: 0xeeeeee, spessore: 38 },
+    thumb: 'materials/marmol-versilia-thumb.jpg',
+    texture: 'materials/marmol-versilia.jpg', colore: 0xf5f5f3,
+    campione: { wMm: 1358, hMm: 2750 }, tavola: true, ruota: true, spessore: 38 },
   { id: 'r3-supra-picasso-03', nome: 'R3 Supra Picasso 03 Alvic', categoria: 'encimera',
     thumb: 'materials/r3-supra-picasso-03-thumb.jpg',
     texture: 'materials/r3-supra-picasso-03.jpg', colore: 0x9c7a56, spessore: 38 },
@@ -588,7 +653,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261123n');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261123o');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -722,7 +787,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261123n';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261123o';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
@@ -942,6 +1007,7 @@ export function uvInScala(radice) {
       if (a < -1e-6) a += Math.PI;
       if (a >= Math.PI - 1e-6) a -= Math.PI;
       const ax = Math.cos(a), az = Math.sin(a);          // lungo la fila (piano XZ)
+      const gira = !!mc.userData.ruota;
       nm.getNormalMatrix(o.matrixWorld);
       const pos = geo.attributes.position, nor = geo.attributes.normal, uv = geo.attributes.uv;
       for (let i = 0; i < pos.count; i++) {
@@ -953,7 +1019,9 @@ export function uvInScala(radice) {
         if (nY >= nL && nY >= nT) { u = lungo; v = trav; }          // sopra / sotto
         else if (nL >= nT) { u = trav; v = P.y; }                  // testate
         else { u = lungo; v = P.y; }                               // bordo davanti / dietro
-        uv.setXY(i, (u + wMm / 2) / unitaUV.u, (v + hMm / 2) / unitaUV.v);
+        // tavola in piedi (foto verticale): il suo lato LUNGO corre lungo il piano, senza girare la foto
+        if (gira) uv.setXY(i, (v + wMm / 2) / unitaUV.u, (u + hMm / 2) / unitaUV.v);
+        else uv.setXY(i, (u + wMm / 2) / unitaUV.u, (v + hMm / 2) / unitaUV.v);
       }
       uv.needsUpdate = true;
       geo.userData.uvMm = true;
@@ -967,13 +1035,21 @@ export function uvInScala(radice) {
     o.getWorldPosition(pw);
     const caso = (sx, sy) => { const t = Math.sin(Math.round(pw.x / 10) * sx + Math.round(pw.y / 10) * 0.37 + Math.round(pw.z / 10) * sy) * 43758.5453; return t - Math.floor(t); };
     const ox = mc.userData.continuo ? caso(12.9898, 78.233) * 4000 : 0, oy = mc.userData.continuo ? caso(39.346, 11.135) * 4000 : 0;
+    // TAVOLA INTERA: il pezzo (anta, fianco, ripiano…) è TAGLIATO dalla tavola come in falegnameria:
+    // un punto diverso per ogni pezzo, ma sempre tutto DENTRO la tavola (niente giunte a specchio
+    // in mezzo a un'anta); solo un pezzo più grande della tavola continua a specchio ai bordi
+    const tav = !!mc.userData.tavola;
+    const ex = bb.max.x - bb.min.x, ey = bb.max.y - bb.min.y, ez = bb.max.z - bb.min.z;
+    const r1 = tav ? caso(12.9898, 78.233) : 0.5, r2 = tav ? caso(39.346, 11.135) : 0.5;
+    const taglio = (eU, eV) => tav ? [(r1 - 0.5) * Math.max(0, wMm - eU), (r2 - 0.5) * Math.max(0, hMm - eV)] : [ox, oy];
+    const tX = taglio(ez, ey), tY = taglio(ex, ez), tZ = taglio(ex, ey);   // facce girate verso x, y, z
     for (let i = 0; i < pos.count; i++) {
       const ax = Math.abs(nor.getX(i)), ay = Math.abs(nor.getY(i)), az = Math.abs(nor.getZ(i));
-      let u, v;
-      if (ax >= ay && ax >= az) { u = pos.getZ(i) - c.z; v = pos.getY(i) - c.y; }
-      else if (ay >= az) { u = pos.getX(i) - c.x; v = pos.getZ(i) - c.z; }
-      else { u = pos.getX(i) - c.x; v = pos.getY(i) - c.y; }
-      uv.setXY(i, (u + wMm / 2 + ox) / unitaUV.u, (v + hMm / 2 + oy) / unitaUV.v);
+      let u, v, t;
+      if (ax >= ay && ax >= az) { u = pos.getZ(i) - c.z; v = pos.getY(i) - c.y; t = tX; }
+      else if (ay >= az) { u = pos.getX(i) - c.x; v = pos.getZ(i) - c.z; t = tY; }
+      else { u = pos.getX(i) - c.x; v = pos.getY(i) - c.y; t = tZ; }
+      uv.setXY(i, (u + wMm / 2 + t[0]) / unitaUV.u, (v + hMm / 2 + t[1]) / unitaUV.v);
     }
     uv.needsUpdate = true;
     geo.userData.uvMm = true;
@@ -1356,7 +1432,8 @@ export function getMaterialeTHREE(id, onPronto) {
   // Legno: carica la texture in background e la applica quando è pronta.
   // Prodotti PROPRI (foto del campione): superficie opaca e poco riflettente,
   // così il colore resta quello della foto.
-  const mat = new THREE.MeshStandardMaterial(def.proprio
+  // TAVOLE INTERE (foto ufficiali): come i prodotti propri, il colore resta ESATTAMENTE quello della foto
+  const mat = new THREE.MeshStandardMaterial(def.proprio || def.tavola
     ? { color: def.colore, ...PARAM_FOTO, ...(def.lucido ? { roughness: 0.2, envMapIntensity: 0.9 } : {}) }
     : { color: def.colore, roughness: 0.6, metalness: 0.05 });
   // misura reale del legno: quella del campione fotografato, o ~60 cm per i legni
@@ -1368,9 +1445,11 @@ export function getMaterialeTHREE(id, onPronto) {
     || (def.categoria === 'encimera' && def.texture ? { wMm: 1500, hMm: 1500 } : null);
   // CONTINUO (senza specchi né giunte, la foto prosegue): legni e piani di lavoro. Ripetere la
   // foto a specchio fa disegni simmetrici (a "farfalla") che si notano subito.
-  const continuo = !!campione && (def.categoria === 'legno' || def.categoria === 'encimera');
+  // (le TAVOLE INTERE no: la foto resta com'è e ogni pezzo ne è un ritaglio)
+  const continuo = !!campione && !def.tavola && (def.categoria === 'legno' || def.categoria === 'encimera');
   if (campione) { mat.userData.campioneMm = campione; if (continuo) mat.userData.continuo = true; }
   if (def.campione) mat.userData.campioneVero = true;     // misura VERA data dal prodotto (non quella di ripiego)
+  if (def.tavola) { mat.userData.tavola = true; if (def.ruota) mat.userData.ruota = true; }
   if (def.proprio && def.lucido) mat.userData.ngSpec = 1;   // foto lucida: riflessi veri nel 3D
   // Finger-pull da foto: materiale della GOLA (la parte sopra, es. nera)
   if (def.gola) {
@@ -1394,7 +1473,12 @@ export function getMaterialeTHREE(id, onPronto) {
       // la foto è IDENTICA, come un pezzo di marmo vero; oltre la lastra la seconda è "a libro"
       // (a specchio), come la mette il marmista
       const lastra = (def.categoria === 'encimera' || def.marmo) && def.campione && Math.max(def.campione.wMm, def.campione.hMm) >= 2000;
-      if (campione && lastra) {
+      if (def.tavola && campione) {
+        // TAVOLA INTERA: la foto ESATTAMENTE com'è (niente nitidezza, niente legno «continuo», niente
+        // ritocchi), alla misura vera; ogni pezzo è ritagliato dentro la tavola (uvInScala)
+        tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping;
+        tex.repeat.set(unitaUV.u / campione.wMm, unitaUV.v / campione.hMm);
+      } else if (campione && lastra) {
         const ln = lastraNitida(tex.image);
         if (ln) {
           const t2 = new THREE.CanvasTexture(ln);
@@ -1420,7 +1504,7 @@ export function getMaterialeTHREE(id, onPronto) {
       }
       cacheTex.set(id, tex);
       mat.map = tex;
-      if (def.proprio) coloreFoto(mat); else mat.color.set(0xffffff); // la texture esprime il colore
+      if (def.proprio || def.tavola) coloreFoto(mat); else mat.color.set(0xffffff); // la texture esprime il colore
       mat.needsUpdate = true;
       if (onPronto) onPronto();
     });
