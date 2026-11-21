@@ -15,9 +15,9 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261122x';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261122x';
-import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261122x';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261122z';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261122z';
+import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261122z';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -99,11 +99,54 @@ export const MATERIALI = [
     texture: 'materials/sm-nuvola-03.jpg', colore: 0xe9ebeb,
     campione: { wMm: 1240, hMm: 2750 }, marmo: true, nota: 'Alvic Zenit Nuvola 03 Supermate' },
   // ---- Tinte solide (matte e lucide) ----
-  // OPACHI: superficie totalmente matte, tono un filo "schiarito/polveroso"
-  // così lo stacco con il lucido è netto anche senza riflessi.
-  { id: 'bianco-matte',  nome: 'Bianco opaco',   categoria: 'tinta',
-    thumb: 'materials/bianco-matte-thumb.jpg',  colore: 0xf6f6f4,      // bianco vero e neutro (prima #f3f2ee, ancora un filo crema)
-    solido: true, roughness: 1.0, metalness: 0.0 },
+  // COLORI ALVIC dalle foto dei campioni (il colore è quello della foto, identico):
+  //  - MATTE (Zenit Supermate, «SM»): opaco pieno, niente riflessi, la luce si spande morbida;
+  //  - LUXE (lucido): stesso colore + laccato a specchio (riflette la stanza come le foto di riferimento).
+  // I colori che c'erano già tengono il loro id (bianco-matte, sm-agua-marina, …): i progetti salvati restano validi.
+  { id: 'sm-agave', nome: 'SM Agave', categoria: 'tinta', thumb: 'materials/sm-agave-thumb.jpg', colore: 0xa4b1a0,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Agave Supermate (colore dalla foto del campione)' },
+  { id: 'sm-agua-marina', nome: 'SM Agua Marina', categoria: 'tinta', thumb: 'materials/sm-agua-marina-thumb.jpg', colore: 0x86a09f,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Agua Marina Supermate (colore dalla foto del campione)' },
+  { id: 'sm-almagra', nome: 'SM Almagra', categoria: 'tinta', thumb: 'materials/sm-almagra-thumb.jpg', colore: 0x73403d,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Almagra Supermate (colore dalla foto del campione)' },
+  { id: 'sm-amarillo-albero', nome: 'SM Amarillo Albero', categoria: 'tinta', thumb: 'materials/sm-amarillo-albero-thumb.jpg', colore: 0xf4ba71,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Amarillo Albero Supermate (colore dalla foto del campione)' },
+  { id: 'sm-antracita', nome: 'SM Antracita', categoria: 'tinta', thumb: 'materials/sm-antracita-thumb.jpg', colore: 0x3e3e3c,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Antracita Supermate (colore dalla foto del campione)' },
+  { id: 'sm-arena', nome: 'SM Arena', categoria: 'tinta', thumb: 'materials/sm-arena-thumb.jpg', colore: 0xefdfd0,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Arena Supermate (colore dalla foto del campione)' },
+  { id: 'sm-azul-indaco', nome: 'SM Azul Indaco', categoria: 'tinta', thumb: 'materials/sm-azul-indaco-thumb.jpg', colore: 0x40526a,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Azul Indaco Supermate (colore dalla foto del campione)' },
+  { id: 'sm-azul-marino', nome: 'SM Azul Marino', categoria: 'tinta', thumb: 'materials/sm-azul-marino-thumb.jpg', colore: 0x1d2538,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Azul Marino Supermate (colore dalla foto del campione)' },
+  { id: 'sm-azul-ultramar', nome: 'SM Azul Ultramar', categoria: 'tinta', thumb: 'materials/sm-azul-ultramar-thumb.jpg', colore: 0x2a4e8c,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Azul Ultramar Supermate (colore dalla foto del campione)' },
+  { id: 'sm-basalto', nome: 'SM Basalto', categoria: 'tinta', thumb: 'materials/sm-basalto-thumb.jpg', colore: 0x847b76,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Basalto Supermate (colore dalla foto del campione)' },
+  { id: 'bianco-matte', nome: 'SM Blanco', categoria: 'tinta', thumb: 'materials/bianco-matte-thumb.jpg', colore: 0xfdfeff,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Blanco Supermate (colore dalla foto del campione)' },
+  { id: 'sm-camel', nome: 'SM Camel', categoria: 'tinta', thumb: 'materials/sm-camel-thumb.jpg', colore: 0xc8a57d,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Camel Supermate (colore dalla foto del campione)' },
+  { id: 'sm-cashmere', nome: 'SM Cashmere', categoria: 'tinta', thumb: 'materials/sm-cashmere-thumb.jpg', colore: 0xcdc6bc,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Cashmere Supermate (colore dalla foto del campione)' },
+  { id: 'sm-coral', nome: 'SM Coral', categoria: 'tinta', thumb: 'materials/sm-coral-thumb.jpg', colore: 0xd2816c,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Coral Supermate (colore dalla foto del campione)' },
+  { id: 'sm-cotto', nome: 'SM Cotto', categoria: 'tinta', thumb: 'materials/sm-cotto-thumb.jpg', colore: 0xa65f4b,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Cotto Supermate (colore dalla foto del campione)' },
+  { id: 'sm-gris-nube', nome: 'SM Gris Nube', categoria: 'tinta', thumb: 'materials/sm-gris-nube-thumb.jpg', colore: 0xcbcbcb,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Gris Nube Supermate (colore dalla foto del campione)' },
+  { id: 'sm-gris-plomo', nome: 'SM Gris Plomo', categoria: 'tinta', thumb: 'materials/sm-gris-plomo-thumb.jpg', colore: 0x5f5e59,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Gris Plomo Supermate (colore dalla foto del campione)' },
+  { id: 'sm-ice-blue', nome: 'SM Ice Blue', categoria: 'tinta', thumb: 'materials/sm-ice-blue-thumb.jpg', colore: 0xbdcbcc,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Ice Blue Supermate (colore dalla foto del campione)' },
+  { id: 'sm-lavander', nome: 'SM Lavander', categoria: 'tinta', thumb: 'materials/sm-lavander-thumb.jpg', colore: 0xd9d1e0,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Lavander Supermate (colore dalla foto del campione)' },
+  { id: 'sm-naranja-citrus', nome: 'SM Naranja Citrus', categoria: 'tinta', thumb: 'materials/sm-naranja-citrus-thumb.jpg', colore: 0xdc5d34,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Naranja Citrus Supermate (colore dalla foto del campione)' },
+  { id: 'sm-rojo-pompei', nome: 'SM Rojo Pompei', categoria: 'tinta', thumb: 'materials/sm-rojo-pompei-thumb.jpg', colore: 0xbd564f,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Rojo Pompei Supermate (colore dalla foto del campione)' },
+  { id: 'sm-verde-salvia', nome: 'SM Verde Salvia', categoria: 'tinta', thumb: 'materials/sm-verde-salvia-thumb.jpg', colore: 0x4a4f49,
+    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Verde Salvia Supermate (colore dalla foto del campione)' },
   // SM Negro (Alvic Zenit Supermate) al posto del vecchio "Nero opaco": stesso id, così i
   // progetti salvati restano uguali
   { id: 'nero-matte',    nome: 'SM Negro',       categoria: 'tinta',
@@ -112,26 +155,51 @@ export const MATERIALI = [
   { id: 'grigio-matte',  nome: 'Grigio opaco',   categoria: 'tinta',
     thumb: 'materials/grigio-matte-thumb.jpg',  colore: 0x8a8a8a,
     solido: true, roughness: 1.0, metalness: 0.0 },
-  // ---- Alvic Zenit Supermate (SM): opachi pieni, colori dalle foto ufficiali ----
-  { id: 'sm-agua-marina', nome: 'SM Agua Marina', categoria: 'tinta',
-    thumb: 'materials/sm-agua-marina-thumb.jpg', colore: 0x91a5a3,
-    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Agua Marina Supermate' },
-  { id: 'sm-azul-marino', nome: 'SM Azul Marino', categoria: 'tinta',
-    thumb: 'materials/sm-azul-marino-thumb.jpg', colore: 0x2d354c,
-    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Azul Marino Supermate' },
-  { id: 'sm-basalto', nome: 'SM Basalto', categoria: 'tinta',
-    thumb: 'materials/sm-basalto-thumb.jpg', colore: 0x8d7b77,
-    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Basalto Supermate' },
-  { id: 'sm-gris-nube', nome: 'SM Gris Nube', categoria: 'tinta',
-    thumb: 'materials/sm-gris-nube-thumb.jpg', colore: 0xcac7c2,
-    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Gris Nube Supermate' },
-  { id: 'sm-gris-plomo', nome: 'SM Gris Plomo', categoria: 'tinta',
-    thumb: 'materials/sm-gris-plomo-thumb.jpg', colore: 0x645e5e,
-    solido: true, roughness: 1.0, metalness: 0.0, nota: 'Alvic Zenit Gris Plomo Supermate' },
-  // LUCIDI: laccato lucido con riflessi netti (roughness bassissima + clearcoat).
-  { id: 'bianco-lucido', nome: 'Bianco lucido',  categoria: 'tinta',
-    thumb: 'materials/bianco-lucido-thumb.jpg', colore: 0xf6f6f6,   // un filo sotto il bianco pieno: i riflessi si vedono più chiari
-    solido: true, roughness: 0.04, metalness: 0.0, lucido: true },
+  // LUXE: laccato lucido con riflessi netti a specchio (roughness bassissima + clearcoat).
+  { id: 'lx-agave', nome: 'Luxe Agave', categoria: 'tinta', thumb: 'materials/lx-agave-thumb.jpg', colore: 0xa4b1a0,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Agave lucido (colore dalla foto del campione)' },
+  { id: 'lx-agua-marina', nome: 'Luxe Agua Marina', categoria: 'tinta', thumb: 'materials/lx-agua-marina-thumb.jpg', colore: 0x86a09f,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Agua Marina lucido (colore dalla foto del campione)' },
+  { id: 'lx-almagra', nome: 'Luxe Almagra', categoria: 'tinta', thumb: 'materials/lx-almagra-thumb.jpg', colore: 0x73403d,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Almagra lucido (colore dalla foto del campione)' },
+  { id: 'lx-amarillo-albero', nome: 'Luxe Amarillo Albero', categoria: 'tinta', thumb: 'materials/lx-amarillo-albero-thumb.jpg', colore: 0xf4ba71,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Amarillo Albero lucido (colore dalla foto del campione)' },
+  { id: 'lx-antracita', nome: 'Luxe Antracita', categoria: 'tinta', thumb: 'materials/lx-antracita-thumb.jpg', colore: 0x3e3e3c,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Antracita lucido (colore dalla foto del campione)' },
+  { id: 'lx-arena', nome: 'Luxe Arena', categoria: 'tinta', thumb: 'materials/lx-arena-thumb.jpg', colore: 0xefdfd0,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Arena lucido (colore dalla foto del campione)' },
+  { id: 'lx-azul-indaco', nome: 'Luxe Azul Indaco', categoria: 'tinta', thumb: 'materials/lx-azul-indaco-thumb.jpg', colore: 0x40526a,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Azul Indaco lucido (colore dalla foto del campione)' },
+  { id: 'lx-azul-marino', nome: 'Luxe Azul Marino', categoria: 'tinta', thumb: 'materials/lx-azul-marino-thumb.jpg', colore: 0x1d2538,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Azul Marino lucido (colore dalla foto del campione)' },
+  { id: 'lx-azul-ultramar', nome: 'Luxe Azul Ultramar', categoria: 'tinta', thumb: 'materials/lx-azul-ultramar-thumb.jpg', colore: 0x2a4e8c,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Azul Ultramar lucido (colore dalla foto del campione)' },
+  { id: 'lx-basalto', nome: 'Luxe Basalto', categoria: 'tinta', thumb: 'materials/lx-basalto-thumb.jpg', colore: 0x847b76,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Basalto lucido (colore dalla foto del campione)' },
+  { id: 'bianco-lucido', nome: 'Luxe Blanco', categoria: 'tinta', thumb: 'materials/bianco-lucido-thumb.jpg', colore: 0xfdfeff,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Blanco lucido (colore dalla foto del campione)' },
+  { id: 'lx-camel', nome: 'Luxe Camel', categoria: 'tinta', thumb: 'materials/lx-camel-thumb.jpg', colore: 0xc8a57d,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Camel lucido (colore dalla foto del campione)' },
+  { id: 'lx-cashmere', nome: 'Luxe Cashmere', categoria: 'tinta', thumb: 'materials/lx-cashmere-thumb.jpg', colore: 0xcdc6bc,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Cashmere lucido (colore dalla foto del campione)' },
+  { id: 'lx-coral', nome: 'Luxe Coral', categoria: 'tinta', thumb: 'materials/lx-coral-thumb.jpg', colore: 0xd2816c,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Coral lucido (colore dalla foto del campione)' },
+  { id: 'lx-cotto', nome: 'Luxe Cotto', categoria: 'tinta', thumb: 'materials/lx-cotto-thumb.jpg', colore: 0xa65f4b,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Cotto lucido (colore dalla foto del campione)' },
+  { id: 'lx-gris-nube', nome: 'Luxe Gris Nube', categoria: 'tinta', thumb: 'materials/lx-gris-nube-thumb.jpg', colore: 0xcbcbcb,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Gris Nube lucido (colore dalla foto del campione)' },
+  { id: 'lx-gris-plomo', nome: 'Luxe Gris Plomo', categoria: 'tinta', thumb: 'materials/lx-gris-plomo-thumb.jpg', colore: 0x5f5e59,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Gris Plomo lucido (colore dalla foto del campione)' },
+  { id: 'lx-ice-blue', nome: 'Luxe Ice Blue', categoria: 'tinta', thumb: 'materials/lx-ice-blue-thumb.jpg', colore: 0xbdcbcc,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Ice Blue lucido (colore dalla foto del campione)' },
+  { id: 'lx-lavander', nome: 'Luxe Lavander', categoria: 'tinta', thumb: 'materials/lx-lavander-thumb.jpg', colore: 0xd9d1e0,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Lavander lucido (colore dalla foto del campione)' },
+  { id: 'lx-naranja-citrus', nome: 'Luxe Naranja Citrus', categoria: 'tinta', thumb: 'materials/lx-naranja-citrus-thumb.jpg', colore: 0xdc5d34,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Naranja Citrus lucido (colore dalla foto del campione)' },
+  { id: 'lx-rojo-pompei', nome: 'Luxe Rojo Pompei', categoria: 'tinta', thumb: 'materials/lx-rojo-pompei-thumb.jpg', colore: 0xbd564f,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Rojo Pompei lucido (colore dalla foto del campione)' },
+  { id: 'lx-verde-salvia', nome: 'Luxe Verde Salvia', categoria: 'tinta', thumb: 'materials/lx-verde-salvia-thumb.jpg', colore: 0x4a4f49,
+    solido: true, roughness: 0.04, metalness: 0.0, lucido: true, nota: 'Alvic Luxe Verde Salvia lucido (colore dalla foto del campione)' },
   { id: 'nero-lucido',   nome: 'Nero lucido',    categoria: 'tinta',
     thumb: 'materials/nero-lucido-thumb.jpg',   colore: 0x060607,
     solido: true, roughness: 0.04, metalness: 0.0, lucido: true },
@@ -520,7 +588,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261122x');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261122z');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -654,7 +722,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261122x';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261122z';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
@@ -1177,20 +1245,44 @@ function neroOpacoVero(mat) {
   mat.userData.neroOpaco = true;
 }
 /**
- * LACCATO LUCIDO che SI VEDE lucido: lo strato lucido riflette un po' più della vernice vera (4%):
- * 5% sui colori scuri, 8% sui chiari. Con molto di più il bianco prende il colore del pavimento e
- * sembra sporco; i riflessi netti (finestra, stanza vera) vengono dalla «foto a 360°» della cucina.
+ * LUXE (laccato lucido) con il COLORE ESATTO del campione: sotto, il colore pieno identico alla
+ * foto (come gli opachi: la luce della scena non lo schiarisce né lo slava); sopra, lo strato
+ * lucido che SPECCHIA la stanza (finestre, luci, mobili di fronte) come un laccato vero.
+ * Prima il riflesso della stanza si sommava a tutto il pannello e il colore usciva slavato
+ * (Agua marina color menta, Ultramar azzurro chiaro).
  */
-function laccatoLucido(mat, colore) {
-  const c = new THREE.Color(colore), lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;   // 0 nero … 1 bianco (lineare)
-  mat.userData.ccF0 = { value: 0.05 + 0.03 * Math.min(1, lum / 0.8) };   // 5% scuri … 8% chiari (oltre, il bianco prende il colore del pavimento)
+function laccatoFoto(mat, colore) {
+  const c = new THREE.Color(colore), lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  mat.userData.ccF0 = { value: 0.07 + 0.03 * Math.min(1, lum / 0.8) };   // 7% scuri … 10% chiari (di fronte); di lato specchia di più
+  mat.userData.riflesso = 1.6;            // la stanza si specchia netta (finestre, luci, mobili di fronte) come nelle foto
+  mat.userData.ngRif = LUCE_FOTO;
+  mat.toneMapped = false;
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.ngCcF0 = mat.userData.ccF0;
-    // il pezzo del programma con lo strato lucido si inserisce dopo: lo metto io, già cambiato
-    sh.fragmentShader = 'uniform float ngCcF0;\n' + sh.fragmentShader.replace('#include <lights_physical_fragment>',
-      THREE.ShaderChunk.lights_physical_fragment.replace('material.clearcoatF0 = vec3( 0.04 );', 'material.clearcoatF0 = vec3( ngCcF0 );'));
+    sh.uniforms.ngLuceRif = mat.userData.ngRif;
+    sh.uniforms.ngTintaLed = TINTA_LED;
+    sh.fragmentShader = 'uniform float ngCcF0;\nuniform float ngLuceRif;\nuniform vec3 ngTintaLed;\n' + sh.fragmentShader
+      .replace('#include <lights_physical_fragment>',
+        THREE.ShaderChunk.lights_physical_fragment.replace('material.clearcoatF0 = vec3( 0.04 );', 'material.clearcoatF0 = vec3( ngCcF0 );'))
+      .replace('#include <opaque_fragment>', `{
+        vec3 wl = vec3(0.2126, 0.7152, 0.0722);
+        float f = dot(totalDiffuse, wl) / max(dot(diffuseColor.rgb, wl), 1e-4) / ngLuceRif;
+        vec3 tinta = mix(vec3(1.0), ngTintaLed, 0.6 * clamp((f - 1.0) * 1.5, 0.0, 1.0));
+        if (f > 1.0) f = 1.0 + 0.45 * (1.0 - exp(-(f - 1.0) * 1.6));
+        vec3 base = diffuseColor.rgb * mix(1.0, f, ${CONTRASTO_FOTO.toFixed(2)}) * tinta;
+        #ifdef USE_CLEARCOAT
+          float ngNV = saturate( dot( geometryClearcoatNormal, geometryViewDir ) );
+          vec3 ngF = F_Schlick( material.clearcoatF0, material.clearcoatF90, ngNV );
+          // il colore resta pieno; lo specchio si somma sopra (e copre un po' il colore dove riflette di più)
+          outgoingLight = base * ( 1.0 - ngF ) + ( clearcoatSpecularDirect + clearcoatSpecularIndirect ) + totalEmissiveRadiance;
+        #else
+          outgoingLight = base + totalEmissiveRadiance;
+        #endif
+      }
+      #include <opaque_fragment>`);
   };
-  mat.customProgramCacheKey = () => 'ng-laccato';
+  mat.customProgramCacheKey = () => 'ng-laccato-foto';
+  mat.needsUpdate = true;
 }
 export function getMaterialeTHREE(id, onPronto) {
   if (cacheMat.has(id)) return cacheMat.get(id);
@@ -1209,7 +1301,7 @@ export function getMaterialeTHREE(id, onPronto) {
         clearcoatRoughness: 0.0,
         envMapIntensity: 2.6,
       });
-      laccatoLucido(mat, def.colore);
+      laccatoFoto(mat, def.colore);
     } else {
       mat = new THREE.MeshStandardMaterial({
         color: def.colore,

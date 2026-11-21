@@ -8,9 +8,9 @@
 // è un file del sito, resta sempre com'è).
 // =============================================================================
 
-import { nuovoDaEsempio } from './preventivi.js?v=20261122x';
+import { nuovoDaEsempio } from './preventivi.js?v=20261122z';
 
-const VER = '20261122x';
+const VER = '20261122z';
 const CARTELLA = 'esempi/cucine/';
 const t = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
 const lingua = () => (window.NGI18N && window.NGI18N.lingua === 'es' ? 'es' : 'it');
