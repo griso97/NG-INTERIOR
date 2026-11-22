@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261124f';
-import { htmlTendineColori } from './tendine-colori.js?v=20261124f';
-import { misureCostado, binarioArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261124f';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261124f';
-import { binariScorrevoli, parametri, montaggioArmadio } from './parametri.js?v=20261124f';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261124g';
+import { htmlTendineColori } from './tendine-colori.js?v=20261124g';
+import { misureCostado, binarioArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261124g';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261124g';
+import { binariScorrevoli, parametri, montaggioArmadio } from './parametri.js?v=20261124g';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -99,20 +99,7 @@ export function renderPannello(contenitore, config, onChange) {
       </label>
     </section>
 
-    <section>
-      <h3>Tipo armadio</h3>
-      <div class="radio-row">
-        <label class="radio">
-          <input type="radio" name="tipo" value="battente" ${config.tipoArmadio !== 'scorrevole' ? 'checked' : ''} />
-          <span>A battente</span>
-        </label>
-        <label class="radio">
-          <input type="radio" name="tipo" value="scorrevole" ${config.tipoArmadio === 'scorrevole' ? 'checked' : ''} />
-          <span>Scorrevole</span>
-        </label>
-      </div>
-    </section>
-
+    <!-- Niente «Tipo armadio»: il tipo si sceglie all'entrata (Armadio a battente / Armadio scorrevole) -->
     <section>
       <h3>Dimensioni esterne</h3>
       <div class="grid-3">
@@ -443,7 +430,10 @@ export function renderPannello(contenitore, config, onChange) {
 
   // Pulsanti globali
   bind('#btn-reset', () => {
-    if (confirm('Reset configurazione?')) onChange(configDefault(), { reset: true });
+    if (!confirm('Reset configurazione?')) return;
+    const nuova = configDefault();                       // resta lo stesso tipo di armadio della pagina
+    nuova.tipoArmadio = config.tipoArmadio === 'scorrevole' ? 'scorrevole' : 'battente';
+    onChange(applicaMontaggioTipo(nuova), { reset: true });
   }, 'click');
 
   // I pulsanti salva/export/import vengono gestiti in main.js
