@@ -114,7 +114,8 @@ export async function nuovoDaEsempio(tipo, nome, dati) {
   const ora = Date.now();
   let sicurezza = null;
   const prima = datiCorrenti(tipo), idC = correnteId(tipo);
-  if (prima && Array.isArray(prima.mobiliLiberi) && prima.mobiliLiberi.length) {
+  // un esempio lasciato a metà della modifica (es. tornando indietro) non è un progetto di un cliente: niente copia
+  if (prima && !prima.esempioInModifica && Array.isArray(prima.mobiliLiberi) && prima.mobiliLiberi.length) {
     const salvato = idC ? await leggiPreventivo(idC) : null;
     if (!salvato || JSON.stringify(salvato.dati) !== JSON.stringify(prima)) {
       sicurezza = `${t('Copia di sicurezza')} – ${salvato ? salvato.nome : t(TIPI[tipo].nome)} (${data(ora)})`;

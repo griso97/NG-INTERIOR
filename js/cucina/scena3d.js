@@ -15,31 +15,31 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-  costadoCopreAnte,
-} from './modello.js?v=20261123s';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261123s';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261123s';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261123s';
+  costadoCopreAnte, costadoColonnaATerra,
+} from './modello.js?v=20261123t';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261123t';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261123t';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261123t';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261123s').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261123t').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261123s';
-import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261123s';
-export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261123s';
-import { parametri } from '../parametri.js?v=20261123s';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261123s';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261123s';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261123s';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261123t';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261123t';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261123t';
+import { parametri } from '../parametri.js?v=20261123t';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261123t';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261123t';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261123t';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261123s';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261123t';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261123s';
+export { telaPavimento } from '../resa.js?v=20261123t';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -2500,7 +2500,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261123s')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261123t')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -3211,6 +3211,8 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       // la porta: 70, 72, 90, 92) e ha il colore delle ante dei pensili.
       const alto = (m.profondita_mm || 620) < 500;
       let base = alto ? MONTAGGIO_PENSILE : cimaCostadoAlto(m, topLine) - h;
+      // COSTADO ESTERNO DELLE COLONNE: fino a terra (alto colonna + piedini), lo zoccolo finisce contro di lui
+      if (!alto && base > 0 && costadoColonnaATerra(progetto, m)) { h += base; base = 0; }
       if (alto) {
         let vicino = null, dMin = Infinity;
         for (const pz of cimePensili) { const dd = Math.hypot(pz.x - m.x, pz.y - m.y); if (dd < dMin) { dMin = dd; vicino = pz; } }
@@ -3218,6 +3220,24 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
         // cambia da sola quando si sceglie l'anta sporgente
         if (vicino && dMin < 2500) { h = vicino.hAnta; base = vicino.cima - h; }
         else if (topLine != null) base = topLine - h;
+      }
+      // ZOCCOLO SOTTO IL COSTADO: il costado che sta SOPRA lo zoccolo (fra due colonne, in fondo a una
+      // fila di colonne…) non arriva a terra: lo zoccolo passa sotto di lui, tutto unico, senza buchi
+      // (prima sotto il costado restava un vuoto, come una fuga nello zoccolo)
+      if (!alto && base > 20 && base < 400) {
+        const rC0 = rotNorm(m.rot), cs = Math.cos(rC0 * Math.PI / 180), sn = Math.sin(rC0 * Math.PI / 180);
+        const lungo = (o) => o.x * cs + o.y * sn, trav = (o) => -o.x * sn + o.y * cs;
+        const vicino = (progetto.mobiliLiberi || []).find((o) => {
+          if (o.id === m.id || rotNorm(o.rot) !== rC0) return false;
+          if (!['base', 'colonna', 'lavastoviglie', 'lavatrice'].includes(categoriaTipo(o.tipo))) return false;
+          const dO = dimMobile(o);
+          if (Math.abs(trav(o) - trav(m)) > Math.max(dO.d, dim.d) / 2) return false;          // stessa fila
+          return Math.abs(Math.abs(lungo(o) - lungo(m)) - (dO.w + dim.w) / 2) <= 6;            // appoggiato al costado
+        });
+        if (vicino) {
+          const al = lungo(m), tr = trav(vicino);
+          zoccoli.push({ x: cs * al - sn * tr, y: sn * al + cs * tr, rot: vicino.rot, w: dim.w, d: dimMobile(vicino).d, zocc: base });
+        }
       }
       // costado basso accanto ai mobili: arriva fino al davanti delle ANTE (2 cm oltre la cassa);
       // il piano lo copre fino lì (impronta allungata davanti)
@@ -3697,8 +3717,18 @@ function renderTavoli(tavoli, basiTop, spTop, matTop, muri, selId, reRender, acc
       if (Math.abs(c.x) > w / 2 || Math.abs(c.z) > d / 2) continue;
       fori.push(dr === 90 ? { u: c.x, v: c.z, w: fd, d: fw } : { u: c.x, v: c.z, w: fw, d: fd });
     }
-    const lastra = fori.length ? slabConFori(w, sp, d, matLastra, fori) : corpo(w, sp, d, matLastra);
-    lastra.position.y = quota - sp / 2;
+    // LASTRA LISCIA: le teste e i bordi hanno lo stesso materiale e la stessa venatura dei fianchi a
+    // cascata (prima il bordo usciva più chiaro, come una fuga fra piano e fianco)
+    const cascata = (m.appoggio || 'cascata') === 'cascata' || m.appoggio === 'cascata-due';
+    let lastra;
+    if (!fori.length && cascata) {
+      const geoL = new THREE.BoxGeometry(w, sp, d); geoL.translate(0, quota - sp / 2, 0);
+      uvContinue(geoL, matFianco);
+      lastra = new THREE.Mesh(geoL, [matFianco, matFianco, matLastra, matLastra, matFianco, matFianco]);
+    } else {
+      lastra = fori.length ? slabConFori(w, sp, d, matLastra, fori) : corpo(w, sp, d, matLastra);
+      lastra.position.y = quota - sp / 2;
+    }
     lastra.traverse((o) => { if (o.isMesh) { o.userData.appoggio = true; o.castShadow = true; o.receiveShadow = true; } if (o.isLineSegments) o.visible = false; });
     g.add(lastra);
     // PANNELLI INCOLLATI uno sopra l'altro: la riga di giunta si vede sul bordo, tutto intorno
@@ -3719,10 +3749,13 @@ function renderTavoli(tavoli, basiTop, spTop, matTop, muri, selId, reRender, acc
       if (app !== 'cascata-due' && (nelMobile || alMuro)) continue;
       const xE = e * (w / 2);
       if (app === 'cascata' || app === 'cascata-due') {
-        // fianco a cascata: stesso materiale e spessore, a filo della testa della lastra, fino a terra
-        const f = corpo(sp, hGamba, d, matFianco);
-        f.position.set(xE - e * sp / 2, hGamba / 2, 0);
-        f.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } if (o.isLineSegments) o.visible = false; });
+        // FIANCO A CASCATA: la lastra arriva fino in fondo e il fianco parte da sotto di lei, a filo della
+        // sua testa, fino a terra: stesso materiale, la venatura continua (UV con la stessa origine) e
+        // il fianco entra 1 mm nella lastra (niente riga chiara fra i due)
+        const geoF = new THREE.BoxGeometry(sp, hGamba + 1, d); geoF.translate(xE - e * sp / 2, (hGamba + 1) / 2, 0);
+        uvContinue(geoF, matFianco);
+        const f = new THREE.Mesh(geoF, matFianco);
+        f.castShadow = true; f.receiveShadow = true;
         g.add(f);
       } else if (app === 'vetro') {
         const geo = new THREE.BoxGeometry(12, hGamba, Math.max(100, d - 160));

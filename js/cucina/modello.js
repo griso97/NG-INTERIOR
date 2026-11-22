@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261123s';
+import { parametri } from '../parametri.js?v=20261123t';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -2879,6 +2879,42 @@ export function altezzaBassiCucina(progetto) {
 /** Porta bassa della colonna: alta come i mobili bassi (se ce ne sono). */
 export function portaBassaColonna(progetto, m) {
   return altezzaBassiCucina(progetto) ?? m.altezzaBassa_mm ?? 700;
+}
+/** Piedini delle COLONNE (mm): come i mobili bassi (bassi da 70 → 150, da 80 → 100); senza bassi, dalla porta bassa della colonna. Uguale al 3D. */
+export function zoccoloColonnaDi(progetto, m) {
+  const h = altezzaBassiCucina(progetto) ?? (m && m.altezzaBassa_mm) ?? 700;
+  return h >= 800 ? 100 : 150;
+}
+/** Cima delle colonne (mm da terra: colonna + piedini), null se non ci sono colonne. */
+export function cimaColonne(progetto) {
+  const cols = (progetto.mobiliLiberi || []).filter((m) => categoriaTipo(m.tipo) === 'colonna');
+  return cols.length ? Math.max(...cols.map((c) => (c.altezza_mm || 2200) + zoccoloColonnaDi(progetto, c))) : null;
+}
+/**
+ * COSTADO ESTERNO DELLE COLONNE: il costado alto che chiude una fila di colonne (da una parte una
+ * colonna, dall'altra niente) arriva FINO A TERRA: alto quanto la colonna + i piedini (10 o 15 cm).
+ * Il costado fra due mobili (es. fra due colonne) resta sopra lo zoccolo, che gli passa sotto unito.
+ */
+export function costadoColonnaATerra(progetto, m) {
+  if (!m || categoriaTipo(m.tipo) !== 'costado' || m.seguiFrigo != null) return false;
+  if ((m.profondita_mm || 620) < 500 || (m.altezza_mm || 850) < 1500) return false;
+  const rN = (r) => ((Math.round((r || 0) / 90) * 90) % 360 + 360) % 360;
+  const rM = rN(m.rot), a = rM * Math.PI / 180, cs = Math.cos(a), sn = Math.sin(a);
+  const lungo = (o) => o.x * cs + o.y * sn, trav = (o) => -o.x * sn + o.y * cs;
+  const dM = dimMobile(m);
+  let colonna = false, lati = 0;
+  for (const lato of [-1, 1]) {
+    const v = (progetto.mobiliLiberi || []).find((o) => {
+      if (o.id === m.id || rN(o.rot) !== rM) return false;
+      if (!['base', 'colonna', 'frigo', 'lavastoviglie', 'lavatrice', 'costado'].includes(categoriaTipo(o.tipo))) return false;
+      const dO = dimMobile(o);
+      if (Math.abs(trav(o) - trav(m)) > Math.max(dO.d, dM.d) / 2) return false;          // stessa fila
+      const du = (lungo(o) - lungo(m)) * lato;
+      return du > 0 && Math.abs(du - (dO.w + dM.w) / 2) <= 6;                              // appoggiato da questa parte
+    });
+    if (v) { lati++; if (['colonna', 'frigo'].includes(categoriaTipo(v.tipo))) colonna = true; }
+  }
+  return colonna && lati === 1;
 }
 
 /**

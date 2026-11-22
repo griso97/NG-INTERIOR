@@ -13,10 +13,10 @@
 
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
-  costadoCopreAnte,
-} from './modello.js?v=20261123s';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261123s';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261123s';
+  costadoCopreAnte, costadoColonnaATerra, cimaColonne,
+} from './modello.js?v=20261123t';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261123t';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261123t';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -296,8 +296,11 @@ function pezziDiModulo(progetto, m) {
       }
       if (best && dMin < 2500) { const hp = best.altezza_mm || 700; hC = hp + (pensileAntaSporge(progetto.antaPensile, hp) ? 20 : 0); }
     }
+    // COSTADO ESTERNO DELLE COLONNE: fino a terra (colonna + piedini 10 o 15 cm), come nel 3D
+    const aTerra = costadoColonnaATerra(progetto, m) && cimaColonne(progetto) != null;
+    if (aTerra) hC = Math.max(hC, cimaColonne(progetto));
     // accanto ai mobili il costado copre anche le ante (2 cm oltre la cassa): misura vera da tagliare
-    pz.push({ modulo: mod, nome: 'Pannello fianco (costado)', larghezza: round((m.profondita_mm || d.d || 620) + costadoCopreAnte(progetto, m)), altezza: hC, spessore: m.spessore_mm || 20, materiale: 'anta', quantita: 1 });
+    pz.push({ modulo: mod, nome: 'Pannello fianco (costado)' + (aTerra ? ' · fino a terra' : ''), larghezza: round((m.profondita_mm || d.d || 620) + costadoCopreAnte(progetto, m)), altezza: hC, spessore: m.spessore_mm || 20, materiale: 'anta', quantita: 1 });
   } else if (cat === 'pannello') {
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(m.larghezza_mm || L), altezza: H, spessore: SP, materiale: 'anta', quantita: 1 });
   } else if (cat === 'regletta') {

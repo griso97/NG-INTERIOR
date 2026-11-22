@@ -8,10 +8,10 @@
 // è un file del sito, resta sempre com'è).
 // =============================================================================
 
-import { nuovoDaEsempio, modificaEsempio } from './preventivi.js?v=20261123s';
-import { esempioModificato, fotoEsempioModificato, ripristinaEsempio } from './esempi-dati.js?v=20261123s';
+import { nuovoDaEsempio, modificaEsempio } from './preventivi.js?v=20261123t';
+import { esempioModificato, fotoEsempioModificato, ripristinaEsempio } from './esempi-dati.js?v=20261123t';
 
-const VER = '20261123s';
+const VER = '20261123t';
 const CARTELLA = 'esempi/cucine/';
 const t = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
 const lingua = () => (window.NGI18N && window.NGI18N.lingua === 'es' ? 'es' : 'it');
@@ -67,15 +67,30 @@ function mostra(i) {
   // le vicine si preparano già (scorrere è subito pronto)
   for (const d of [-1, 1]) { const v = cucine[(indice + d + cucine.length) % cucine.length]; if (v) new Image().src = grandeDi(v); }
 }
+// INDIETRO (tasto del telefono o del browser) con una cucina aperta: torna a TUTTE LE CUCINE, non alla
+// pagina di prima. La foto aperta è un passo nella cronologia; indietro lo toglie e chiude la foto.
+let lbInStoria = false;
 function apri(i) {
   ultimoFuoco = document.activeElement;
   lb.hidden = false; document.body.style.overflow = 'hidden';
   mostra(i);
+  if (!lbInStoria) { try { history.pushState({ ngEsempio: true }, ''); lbInStoria = true; } catch (_) { /* senza cronologia */ } }
   $('lb-chiudi').focus();
 }
-function chiudiLb() {
+function nascondiLb() {
   lb.hidden = true; document.body.style.overflow = '';
   if (ultimoFuoco && ultimoFuoco.focus) ultimoFuoco.focus();
+}
+function chiudiLb() {
+  if (lbInStoria) { history.back(); return; }             // il popstate qui sotto chiude la foto
+  nascondiLb();
+}
+window.addEventListener('popstate', () => { lbInStoria = false; if (!lb.hidden) nascondiLb(); });
+// tornando qui dalla cucina (pagina tenuta in memoria dal browser) si vedono tutte le cucine
+window.addEventListener('pageshow', (e) => { if (e.persisted && !lb.hidden) { lbInStoria = false; nascondiLb(); } });
+/** Va alla cucina: la foto aperta lascia il posto alla cucina, così indietro dalla cucina torna alla galleria. */
+function vaiA(pagina) {
+  if (lbInStoria) { lbInStoria = false; location.replace(pagina); } else location.href = pagina;
 }
 $('lb-chiudi').addEventListener('click', chiudiLb);
 $('lb-prec').addEventListener('click', () => mostra(indice - 1));
@@ -127,12 +142,12 @@ async function crea() {
   try {
     const dati = await datiDi(c);
     const esito = await nuovoDaEsempio(c.tipo === 'cucinaPonte' ? 'cucinaPonte' : 'cucina', nome, dati);
-    if (!esito.sicurezza) { location.href = esito.pagina; return; }
+    if (!esito.sicurezza) { vaiA(esito.pagina); return; }
     // il progetto aperto prima non era salvato: è nei Preventivi (lo dico, poi si apre la cucina)
     msg.hidden = false; msg.style.color = '#9fd49f';
     msg.innerHTML = `${esc(t('Il progetto che avevi aperto non era salvato: l\'ho messo nei Preventivi come'))} «<span data-no-i18n>${esc(esito.sicurezza)}</span>».`;
     const ok = $('dlg-ok'); ok.disabled = false; ok.textContent = t('Apri la cucina →');
-    ok.replaceWith(ok.cloneNode(true)); $('dlg-ok').addEventListener('click', () => { location.href = esito.pagina; });
+    ok.replaceWith(ok.cloneNode(true)); $('dlg-ok').addEventListener('click', () => { vaiA(esito.pagina); });
     $('dlg-annulla').hidden = true;
   } catch (e) {
     msg.hidden = false; msg.textContent = e.message || t('Non sono riuscito a creare il progetto.');
@@ -157,7 +172,7 @@ async function modifica() {
   try {
     const esito = await modificaEsempio(c.tipo === 'cucinaPonte' ? 'cucinaPonte' : 'cucina', { id: idDi(c), nome: testo(c.nome) }, await datiDi(c));
     if (esito.sicurezza) alert(`${t('Il progetto che avevi aperto non era salvato: l\'ho messo nei Preventivi come')} «${esito.sicurezza}».`);
-    location.href = esito.pagina;
+    vaiA(esito.pagina);
   } catch (e) { alert(e.message || t('Non sono riuscito ad aprire la cucina.')); b.disabled = false; }
 }
 async function ripristina() {
