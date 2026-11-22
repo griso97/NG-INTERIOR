@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>/* iPhone e iPad: quando tocchi un campo la pagina NON si ingrandisce da sola (con due dita si può ancora) */
+  (function(){var u=navigator.userAgent;if(/iPhone|iPad|iPod/.test(u)||(navigator.maxTouchPoints>1&&/Macintosh/.test(u))){var m=document.querySelector('meta[name=viewport]');if(m&&!/maximum-scale/.test(m.content))m.content+=', maximum-scale=1';}})();</script>
+  <script src="js/i18n.js?v=20261123y"></script>
+<title>NG Interior · Prima configurazione</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@300;400;500&display=swap">
+<style>
+  :root{
+    --ink:#0a0a0b; --ink-2:#131212;
+    --gold-1:#f6e2a0; --gold-2:#e8c25a; --gold-3:#c8971f;
+    --muted:#8a8470; --bordo:#2a2416; --testo:#f3efe6;
+    --oro-chiaro:#e8c25a; --testo-dim:#b8ad97;
+    --font-display:"Cormorant Garamond", Georgia, serif;
+    --font-ui:"Jost", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;min-height:100%;}
+  body{background:var(--ink);color:var(--testo);font-family:var(--font-ui);-webkit-font-smoothing:antialiased;}
+  body::before{content:"";position:fixed;inset:0;z-index:0;background:radial-gradient(130% 100% at 50% 20%,var(--ink-2) 0%,var(--ink) 62%);pointer-events:none;}
+  header{position:relative;z-index:2;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,var(--gold-2),transparent);}
+  .brand{font-family:var(--font-display);font-weight:700;letter-spacing:2px;font-size:22px;background:linear-gradient(180deg,var(--gold-1),var(--gold-3));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
+  main{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:22px 16px 40px;}
+  h1{font-family:var(--font-display);font-weight:500;font-size:clamp(28px,5vw,40px);line-height:1.15;margin:4px 0 6px;color:var(--gold-2);}
+  .passo{color:var(--muted);font-size:13px;letter-spacing:1.5px;text-transform:uppercase;}
+  .punti{display:flex;gap:6px;margin:10px 0 18px;flex-wrap:wrap}
+  .punti span{width:26px;height:4px;border-radius:2px;background:#3a3122}
+  .punti span.fatto{background:var(--gold-3)} .punti span.ora{background:var(--gold-1)}
+  .intro{font-size:16px;line-height:1.5;color:#e6dcc6;margin:0 0 16px}
+  .box{background:#110e0a;border:1px solid var(--bordo);border-radius:12px;padding:16px;margin-bottom:14px}
+  .campi{display:flex;flex-wrap:wrap;gap:12px}
+  .campi label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--testo-dim);min-width:180px;flex:1 1 180px}
+  .campi input{padding:9px 10px;border-radius:8px;border:1px solid #4a4030;background:#0d0a06;color:#fff;font:16px var(--font-ui);max-width:220px}
+  .campi small{color:#8a8470;font-size:12px;line-height:1.3}
+  .scelte{display:flex;flex-wrap:wrap;gap:10px}
+  .scelta{all:unset;cursor:pointer;box-sizing:border-box;padding:12px 14px;border:1px solid #4a4030;border-radius:10px;background:#14110d;color:#e6dcc6;min-width:180px;flex:1 1 180px;font-size:14px;line-height:1.35}
+  .scelta b{display:block;color:var(--gold-2);font-weight:600;margin-bottom:2px}
+  .scelta.sel{border-color:var(--gold-2);box-shadow:0 0 0 2px rgba(232,194,90,.35);background:#1d1812}
+  .bottoni{display:flex;justify-content:space-between;gap:10px;margin-top:22px;position:sticky;bottom:0;padding:12px 0;background:linear-gradient(180deg,transparent,var(--ink) 35%)}
+  .btn{all:unset;cursor:pointer;padding:13px 20px;border-radius:999px;font-weight:500;font-size:15px;text-align:center}
+  .btn-oro{background:linear-gradient(180deg,#e8c25a,#a77c16);color:#14110d;font-weight:600}
+  .btn-ghost{border:1px solid #4a4030;color:#e6dcc6}
+  .btn[disabled]{opacity:.35;pointer-events:none}
+  .riep{margin:0;padding-left:18px;line-height:1.6;color:#e6dcc6}
+  .riep b{color:var(--gold-2)}
+  .nota{color:var(--testo-dim);font-size:13px;line-height:1.4;margin:10px 0 0}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">NG INTERIOR</div>
+    <div data-lingua="grande"></div>
+  </header>
+  <main>
+    <div class="passo" id="passo"></div>
+    <h1 id="titolo"></h1>
+    <div class="punti" id="punti" aria-hidden="true"></div>
+    <div id="corpo"></div>
+    <div class="bottoni">
+      <button type="button" class="btn btn-ghost" id="indietro">← Indietro</button>
+      <button type="button" class="btn btn-oro" id="avanti">Avanti →</button>
+    </div>
+  </main>
+  <script type="module" src="js/benvenuto.js?v=20261123y"></script>
+</body>
+</html>

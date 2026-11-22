@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script>/* iPhone e iPad: quando tocchi un campo la pagina NON si ingrandisce da sola (con due dita si può ancora) */
   (function(){var u=navigator.userAgent;if(/iPhone|iPad|iPod/.test(u)||(navigator.maxTouchPoints>1&&/Macintosh/.test(u))){var m=document.querySelector('meta[name=viewport]');if(m&&!/maximum-scale/.test(m.content))m.content+=', maximum-scale=1';}})();</script>
-  <script src="js/i18n.js?v=20261123x"></script>
+  <script src="js/i18n.js?v=20261123y"></script>
 <title>NG Interior · Cucine di esempio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,8 +25,11 @@
   header{position:relative;z-index:2;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--bordo);}
   header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,var(--gold-2),transparent);}
   .brand{font-family:var(--font-display);font-weight:700;letter-spacing:2px;font-size:22px;background:linear-gradient(180deg,var(--gold-1),var(--gold-3));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
-  .back{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-decoration:none;}
-  .back:hover{color:var(--gold-2);}
+  /* INDIETRO ben visibile, a sinistra accanto al nome (prima era piccolo e grigio in alto a destra) */
+  .header-sinistra{display:flex;align-items:center;gap:14px;}
+  .indietro{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--gold-3);border-radius:999px;color:var(--gold-2);text-decoration:none;font-size:14px;letter-spacing:.5px;white-space:nowrap;}
+  .indietro:hover{background:rgba(232,194,90,.08);color:var(--gold-1);}
+  @media (max-width:520px){ .brand{font-size:18px;} .indietro{padding:7px 11px;font-size:13px;} }
   .header-destra{display:flex;align-items:center;gap:18px;}
   .ng-lingua{--oro:var(--gold-2);--oro-scuro:var(--gold-3);--testo-dim:var(--muted);}
   main{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:40px 16px 60px;}
@@ -83,10 +86,12 @@
 </head>
 <body>
   <header>
-    <div class="brand">NG INTERIOR</div>
+    <div class="header-sinistra">
+      <a class="indietro" href="./cucina.html" title="Torna alla cucina">← Indietro</a>
+      <div class="brand">NG INTERIOR</div>
+    </div>
     <div class="header-destra">
       <div data-lingua="grande"></div>
-      <a class="back" href="./cucina.html">← Cucina</a>
     </div>
   </header>
   <main>
@@ -131,6 +136,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/esempi.js?v=20261123x"></script>
+  <script type="module" src="js/esempi.js?v=20261123y"></script>
 </body>
 </html>

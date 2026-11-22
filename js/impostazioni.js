@@ -8,19 +8,20 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261123x';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261123x';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261123x';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261123x';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261123x';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261123x';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261123x';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261123x';
-import { agganciaTema } from './tema.js?v=20261123x';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261123x';
-import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261123x';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261123x';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261123x';
+} from './catalogo.js?v=20261123y';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261123y';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261123y';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261123y';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261123y';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261123y';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261123y';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261123y';
+import { agganciaTema } from './tema.js?v=20261123y';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261123y';
+import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261123y';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261123y';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri } from './scelte-montaggio.js?v=20261123y';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261123y';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1087,6 +1088,12 @@ function renderParametri(S) {
     </div>
     <h2 class="par-sezione">🚪 Armadi</h2>
     <div class="par-gruppo">
+      <h3>Come monti gli armadi</h3>
+      <p class="imp-desc">I valori di partenza di ogni armadio nuovo: tocca il modo in cui lavori. Nel singolo armadio li puoi sempre cambiare (Setup carcassa e Schiena).</p>
+      <div id="par-montaggio"></div>
+      <p style="margin:12px 0 0"><a class="btn-ghost" href="./benvenuto.html" style="display:inline-block;text-decoration:none;padding:9px 14px">▶ Rifai la configurazione guidata</a></p>
+    </div>
+    <div class="par-gruppo">
       <h3>Ante interne (armadi a battente)</h3>
       <div class="par-griglia">
         ${campo('anteInterne.aria', 'Aria attorno all\'anta', 'attorno a ogni anta e fra un\'anta e l\'altra, dentro il vano')}
@@ -1112,7 +1119,7 @@ function renderParametri(S) {
     { const G = Q.gola.spazio, es = (H) => tr(`mobile basso da ${H} con la gola → anta ${H} − ${f(G)} = ${f(H - G)} mm · 3 cassetti da ${f(Math.floor((H - 3 * G) / 3))} mm`);
       el.querySelector('#par-es-gola').textContent = tr('Esempio:') + ' ' + es(700) + ' · ' + es(800); }
     { const I = Q.anteInterne, w = (1000 - 36 - 3 * I.aria) / 2, h = 2000 - 36 - 2 * I.aria;
-      el.querySelector('#par-es-int').textContent = tr(`Esempio: armadio 1000 × 2000 × 600, struttura 18, schiena 10, 2 ante da 18 → vano 964 × 1964 → ante interne ${f(w)} × ${f(h)} mm · struttura profonda 590 · ripiani 964 × ${f(600 - 18 - 10 - I.spazioRipiano)} mm`); }
+      el.querySelector('#par-es-int').textContent = tr(`Esempio: armadio 1000 × 2000, struttura 18, 2 ante → vano 964 × 1964 → ante interne ${f(w)} × ${f(h)} mm · ripiani ${f(I.spazioRipiano)} mm più indietro dell'anta`); }
     { const R = Q.regletta; el.querySelector('#par-es-reg').textContent = tr(`Esempio: regletta ${f(R.vista / 10)} × ${f(R.vista / 10)} cm con ante da ${f(R.spessoreAnta)} → pezzi da ${f(R.vista)} e ${f(R.vista + R.spessoreAnta)} mm`); }
     const tL = f(600 - c.traseraMeno), tipi = [[c.piccoloTrasera, 'piccolo'], [c.medioTrasera, 'medio'], [c.grandeTrasera, 'grande']].filter(([h]) => h);
     Q.binari.forEach((b, i) => {
@@ -1124,6 +1131,13 @@ function renderParametri(S) {
   };
   esempi();
   agganciaFotoParametri(el);
+  // COME MONTI GLI ARMADI: schede col disegno (le stesse della configurazione guidata)
+  const disegnaMontaggio = () => {
+    const box = el.querySelector('#par-montaggio'); if (!box) return;
+    box.innerHTML = htmlMontaggio(valoriDaParametri(), { numeriAnte: false });
+    agganciaMontaggio(box, valoriDaParametri, scriviParametri, disegnaMontaggio);
+  };
+  disegnaMontaggio();
   let timer = null;
   const msg = el.querySelector('#par-msg');
   el.querySelectorAll('[data-par]').forEach((inp) => inp.addEventListener('input', () => {

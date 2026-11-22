@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani } from './calcoli.js?v=20261123x';
-import { parametri } from './parametri.js?v=20261123x';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261123x';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261123x';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261123x';
-import { sfondoDi } from './sfondi.js?v=20261123x';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261123x';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261123x';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro } from './calcoli.js?v=20261123y';
+import { parametri } from './parametri.js?v=20261123y';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261123y';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261123y';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261123y';
+import { sfondoDi } from './sfondi.js?v=20261123y';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261123y';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261123y';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -658,8 +658,11 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
   const W = modulo.larghezza;
   const scorrevole = config.tipoArmadio === 'scorrevole';
 
-  // Z di riferimento: retro al muro (dopo schiena), carcassa davanti
-  const zRetro = sS;
+  // Z di riferimento: retro della struttura. Con la schiena AVVITATA DIETRO la struttura parte dopo
+  // la schiena; a filo o in canale la schiena sta dentro e la struttura tocca il muro.
+  const ms = misureSchiena(config);
+  const zRetro = ms.tipo === 'dietro' ? sS : 0;
+  const zUtile = zRetro + schienaDentro(config);   // davanti alla schiena: da qui partono ripiani e barra
   const zCarcassaCentro = zRetro + prof / 2;
   const zFrontePezzi = zRetro + prof; // z del fronte carcassa
   // ANTE INTERNE: l'anta sta dentro il vano, a filo del fronte della struttura (non davanti)
@@ -714,10 +717,14 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       matDi(config, "carcassa"), 'fondo');
   }
 
-  // Schiena (dietro)
-  aggiungiBox(W - 2, H - 2, sS,
-    xOffset + W / 2, H / 2, sS / 2,
-    matDi(config, "schiena"), 'schiena');
+  // Schiena: dietro (copre tutto), a filo del retro dei fianchi o nel canale (fra fianchi, top e fondo;
+  // la parte che entra nel canale è nascosta dentro i pannelli)
+  if (ms.tipo === 'dietro') {
+    aggiungiBox(W - 2, H - 2, sS, xOffset + W / 2, H / 2, sS / 2, matDi(config, "schiena"), 'schiena');
+  } else {
+    const zS = (ms.tipo === 'canale' ? ms.dentro : 0) + sS / 2;
+    aggiungiBox(W - 2 * sC, H - 2 * sC, sS, xOffset + W / 2, H / 2, zS, matDi(config, "schiena"), 'schiena');
+  }
 
   // Ripiani — distribuiti uniformemente nello spazio LIBERO del modulo.
   // Se ci sono cassettiere (appoggiate in basso), i ripiani si centrano
@@ -755,7 +762,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       const yCentro = aMano ? Math.min(yMax, Math.max(yMin, modulo.ripianiY[r - 1])) : yBase + r * passo;
       const m = aggiungiBox(larRipiano, sC, profRipianoVisivo,
         xOffset + W / 2, yCentro,
-        sS + profRipianoVisivo / 2,
+        zUtile + profRipianoVisivo / 2,
         matDi(config, "carcassa"), 'ripiano');
       Object.assign(m.userData, { modulo: indice, indice: r - 1, yMin, yMax });
     }
@@ -770,7 +777,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
     const yMinB = sC + 150, yMaxB = H - sC - 40;
     const yBarra = Number.isFinite(modulo.barraY) ? Math.min(yMaxB, Math.max(yMinB, modulo.barraY)) : ySotto - 60;
     const profUtile = scorrevole ? prof - (config.scorrevole?.binario ?? 75) : profonditaDentro(config);
-    const zB = sS + profUtile / 2;
+    const zB = zUtile + profUtile / 2;
     const matB = materialeBarra(modulo.barra);
     const gB = new THREE.Group();
     gB.position.set(xOffset + W / 2, yBarra, zB);
@@ -927,18 +934,18 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       let larTF, profScatola, zScatolaFronte;
       if (scorrevole) {
         const B = config.scorrevole?.binario ?? 75;
-        const Pcas = config.profonditaEsterna - sS - B;
+        const Pcas = profonditaDentro(config) - B;            // davanti alla schiena (dietro / a filo / in canale)
         const Pscatola = Pcas - sC - 2;
         const M = c.maniglia?.attiva ? (c.maniglia.M ?? 50) : 0;
         larTF = W - 4 * sC;
         profScatola = Pscatola - M;
-        zScatolaFronte = sS + Pcas; // fronte della scatola allineato con i binari
+        zScatolaFronte = zUtile + Pcas; // fronte della scatola allineato con i binari
       } else {
         // BATTENTE: la cassettiera resta INTERNA al mobile (dietro le ante).
         // Il fronte della scatola è arretrato di sC + 3mm rispetto al retro
         // delle ante, così il fronte cassetto (spessore sC) sta dietro
         // l'anta e si vede solo quando si aprono le porte.
-        const Pc = config.profonditaEsterna - config.spessoreAnte - sS;
+        const Pc = profonditaDentro(config);                   // davanti alla schiena, dietro l'anta
         larTF = W - 2 * sC - 80;
         profScatola = Pc - 80 - sC;
         zScatolaFronte = config.profonditaEsterna - config.spessoreAnte - sC - 3;

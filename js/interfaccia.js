@@ -6,12 +6,14 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261123x';
-import { htmlTendineColori } from './tendine-colori.js?v=20261123x';
-import { misureCostado, binarioArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, profonditaRipiani } from './calcoli.js?v=20261123x';
-import { binariScorrevoli, parametri } from './parametri.js?v=20261123x';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261123y';
+import { htmlTendineColori } from './tendine-colori.js?v=20261123y';
+import { misureCostado, binarioArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261123y';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261123y';
+import { binariScorrevoli, parametri } from './parametri.js?v=20261123y';
 
 export function configDefault() {
+  const PA = parametri().armadi;        // come monti gli armadi (⚙ Parametri → Armadi): valori di partenza
   return {
     meta: { cliente: '' },
     tipoArmadio: 'battente', // 'battente' | 'scorrevole'
@@ -20,10 +22,11 @@ export function configDefault() {
     altezzaEsterna: 2400,
     profonditaEsterna: 600,
     spessoreCarcassa: 18,
-    spessoreSchiena: 10,
+    spessoreSchiena: PA.spessoreSchiena,
     spessoreAnte: 18,
-    setupCarcassa: 1,
-    anteInterne: false,      // battente: ante DENTRO il vano (a filo della struttura) invece che sopra
+    setupCarcassa: PA.setup,
+    anteInterne: PA.ante === 'interne',   // battente: ante DENTRO il vano (a filo della struttura) invece che sopra
+    schiena: { tipo: PA.schiena, canale: PA.canale, dentro: PA.dentro },   // avvitata dietro / a filo / in canale
     moduliPersonalizzati: false, // false = tutti uguali (L/N); true = l'utente sceglie ogni larghezza
     materiali: materialiDefault(),
     moduli: [
@@ -129,29 +132,14 @@ export function renderPannello(contenitore, config, onChange) {
 
     <section id="sez-setup" ${config.tipoArmadio === 'scorrevole' ? 'style="display:none"' : ''}>
       <h3>Setup carcassa</h3>
-      <div class="radio-row">
-        <label class="radio">
-          <input type="radio" name="setup" value="1" ${config.setupCarcassa === 1 ? 'checked' : ''} />
-          <span>Setup 1 — top/fondo passanti (default)</span>
-        </label>
-        <label class="radio">
-          <input type="radio" name="setup" value="2" ${config.setupCarcassa === 2 ? 'checked' : ''} />
-          <span>Setup 2 — fianchi passanti</span>
-        </label>
-      </div>
-      <p class="hint">(Solo battente. Lo scorrevole ha un unico setup.)</p>
-      <h3 style="margin-top:14px">Ante</h3>
-      <div class="radio-row">
-        <label class="radio">
-          <input type="radio" name="ante-int" value="sopra" ${config.anteInterne ? '' : 'checked'} />
-          <span>Sopra la struttura (normali)</span>
-        </label>
-        <label class="radio">
-          <input type="radio" name="ante-int" value="interne" ${config.anteInterne ? 'checked' : ''} />
-          <span>Interne (dentro il vano)</span>
-        </label>
-      </div>
-      <p class="hint" id="ante-int-hint" data-no-i18n></p>
+      <p class="hint">(Solo battente. Lo scorrevole ha un unico setup.) I valori di partenza li scegli in ⚙ Parametri → Armadi.</p>
+      <div id="mont-setup"></div>
+    </section>
+
+    <section id="sez-schiena">
+      <h3>Schiena</h3>
+      <div id="mont-schiena"></div>
+      <p class="hint" id="mont-hint" data-no-i18n></p>
     </section>
 
     <section id="sez-scorrevole" ${config.tipoArmadio === 'scorrevole' ? '' : 'style="display:none"'}>
@@ -296,34 +284,39 @@ export function renderPannello(contenitore, config, onChange) {
     onChange(config);
   });
 
-  contenitore.querySelectorAll('input[name="setup"]').forEach((r) => {
-    r.addEventListener('change', (e) => {
-      config.setupCarcassa = Number(e.target.value);
-      onChange(config);
-    });
-  });
-  // ANTE INTERNE (battente): l'anta sta dentro il vano; struttura P − schiena, ripiani più indietro
-  const hintInterne = () => {
-    const el = document.getElementById('ante-int-hint'); if (!el) return;
-    const t = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
-    if (!config.anteInterne) { el.textContent = t("L'anta copre il davanti della struttura (come sempre)."); return; }
-    const A = parametri().anteInterne, sC = config.spessoreCarcassa, m0 = (config.moduli || [])[0];
-    const f = (n) => String(Math.round(n * 10) / 10);
-    let es = '';
-    if (m0) {
-      const N = m0.numeroAnte || 1;
-      es = ' ' + t('Modulo 1:') + ` ${f((m0.larghezza - 2 * sC - (N + 1) * A.aria) / N)} × ${f(config.altezzaEsterna - 2 * sC - 2 * A.aria)} mm (×${N}) · ` + t('ripiani profondi') + ` ${f(profonditaRipiani(config))} mm.`;
-    }
-    el.textContent = t(`L'anta sta dentro il vano, a filo della struttura (struttura profonda come l'armadio meno la schiena). Aria ${f(A.aria)} mm attorno a ogni anta, ripiani ${f(A.spazioRipiano)} mm più indietro dell'anta (⚙ Parametri → Armadi).`) + es;
+  // COME È MONTATO QUESTO ARMADIO (struttura, ante a battente, schiena): le schede col disegno.
+  // I valori di partenza vengono dai ⚙ Parametri → Armadi; qui si cambiano per questo armadio.
+  const leggiMont = () => {
+    const ms = misureSchiena(config), A = parametri().anteInterne;
+    return { setup: config.setupCarcassa === 2 ? 2 : 1, ante: config.anteInterne ? 'interne' : 'sopra', schiena: ms.tipo,
+      spessoreSchiena: config.spessoreSchiena, canale: ms.canale, dentro: ms.dentro, aria: A.aria, spazioRipiano: A.spazioRipiano };
   };
-  hintInterne();
-  contenitore.querySelectorAll('input[name="ante-int"]').forEach((r) => {
-    r.addEventListener('change', (e) => {
-      config.anteInterne = e.target.value === 'interne';
-      hintInterne();
-      onChange(config);
-    });
-  });
+  const scriviMont = (p) => {
+    if ('setup' in p) config.setupCarcassa = p.setup;
+    if ('ante' in p) config.anteInterne = p.ante === 'interne';
+    if ('schiena' in p || 'canale' in p || 'dentro' in p) {
+      const ms = misureSchiena(config);
+      config.schiena = { tipo: p.schiena ?? ms.tipo, canale: p.canale ?? ms.canale, dentro: p.dentro ?? ms.dentro };
+    }
+    if ('spessoreSchiena' in p) { config.spessoreSchiena = p.spessoreSchiena; const fs = contenitore.querySelector('#sp-schiena'); if (fs) fs.value = p.spessoreSchiena; }
+    onChange(config);
+  };
+  // le misure vere di QUESTO armadio (modulo 1), come in distinta
+  const hintInterne = () => {
+    const el = document.getElementById('mont-hint'); if (!el) return;
+    const t = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
+    let pz = [];
+    try { pz = calcolaDistintaCompleta(config).pezzi.filter((x) => x.modulo === 'Modulo 1' && x.larghezza != null); } catch (_) { el.textContent = ''; return; }
+    const r = (re) => pz.filter((x) => re.test(x.nome)).map((x) => `${t(x.nome)} ${x.larghezza} × ${x.altezza}`);
+    el.textContent = `${t('Questo armadio, modulo 1:')} ${[...r(/^Top/), ...r(/^Fianco/), ...r(/^Schiena/), ...r(/^Ripiano/), ...r(/^Anta/)].join(' · ')}`;
+  };
+  const disegnaMont = () => {
+    const a = document.getElementById('mont-setup'), b = document.getElementById('mont-schiena');
+    if (a) { a.innerHTML = htmlMontaggio(leggiMont(), { struttura: true, schiena: false, ante: true, numeriAnte: false, esempio: false }); agganciaMontaggio(a, leggiMont, scriviMont, disegnaMont); }
+    if (b) { b.innerHTML = htmlMontaggio(leggiMont(), { struttura: false, schiena: true, ante: false, esempio: false }); agganciaMontaggio(b, leggiMont, scriviMont, disegnaMont); }
+    hintInterne();
+  };
+  disegnaMont();
 
   // Selettore tipo armadio (battente / scorrevole)
   contenitore.querySelectorAll('input[name="tipo"]').forEach((r) => {

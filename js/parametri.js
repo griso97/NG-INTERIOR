@@ -32,6 +32,10 @@ export const PARAMETRI_DEFAULT = Object.freeze({
     vista: 30,
     spessoreAnta: 18,
   },
+  // CUCINA: piedini di partenza di ogni cucina nuova (0 = automatico: bassi da 70 → 15 cm, da 80 → 10 cm)
+  cucina: {
+    piedini: 0,
+  },
   // BINARI degli armadi scorrevoli: ognuno con i suoi numeri per calcolare le ante.
   //   larghezza anta = larghezza esterna ÷ n° ante − larghezzaMeno − profilo
   //   (di partenza: l'anta è larga come il modulo, es. armadio 1000 a 2 moduli → 500;
@@ -48,6 +52,15 @@ export const PARAMETRI_DEFAULT = Object.freeze({
   anteInterne: {
     aria: 2,              // mm attorno a ogni anta e fra un'anta e l'altra
     spazioRipiano: 10,    // mm liberi fra l'anta chiusa e il ripiano
+  },
+  // COME MONTI GLI ARMADI: valori di partenza di ogni armadio nuovo (nel singolo armadio si cambiano)
+  armadi: {
+    setup: 1,             // struttura: 1 = top e fondo sopra e sotto i fianchi (standard) · 2 = fianchi esterni, top e fondo dentro
+    ante: 'sopra',        // ante a battente: 'sopra' la struttura (normali) · 'interne' (dentro il vano)
+    schiena: 'dietro',    // 'dietro' avvitata dietro · 'filo' incassata a filo del retro · 'canale' nel canale
+    spessoreSchiena: 10,  // mm
+    canale: 8,            // mm: profondità del canale (la schiena entra tanto per lato)
+    dentro: 10,           // mm: quanto dentro sta la schiena (dal retro dei fianchi al canale)
   },
   cassetti: {
     marca: 'Syscore',     // sistema di cassetti usato (scritto nella lista accessori)
@@ -105,6 +118,15 @@ function completa(s) {
       spessoreAnta: Math.max(0, num(((s && s.regletta) || {}).spessoreAnta, D.regletta.spessoreAnta)),
     },
     binari: binari.length ? binari : D.binari.map((b) => ({ ...b })),
+    cucina: { piedini: [100, 150].includes(Number(((s && s.cucina) || {}).piedini)) ? Number(s.cucina.piedini) : 0 },
+    armadi: (() => { const a = (s && s.armadi) || {}, d = D.armadi; return {
+      setup: Number(a.setup) === 2 ? 2 : 1,
+      ante: a.ante === 'interne' ? 'interne' : 'sopra',
+      schiena: ['filo', 'canale'].includes(a.schiena) ? a.schiena : 'dietro',
+      spessoreSchiena: Math.max(1, num(a.spessoreSchiena, d.spessoreSchiena)),
+      canale: Math.max(0, num(a.canale, d.canale)),
+      dentro: Math.max(0, num(a.dentro, d.dentro)),
+    }; })(),
     anteInterne: {
       aria: Math.max(0, num(((s && s.anteInterne) || {}).aria, D.anteInterne.aria)),
       spazioRipiano: Math.max(0, num(((s && s.anteInterne) || {}).spazioRipiano, D.anteInterne.spazioRipiano)),

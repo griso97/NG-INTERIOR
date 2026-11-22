@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261123x';
+import { parametri } from '../parametri.js?v=20261123y';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -40,6 +40,7 @@ export function progettoDefault() {
     zoccoloColore: 'nero-opaco',
     sfondo: 'chiaro',            // sfondo vista 3D: chiaro | neutro | scuro
     reglettaAngolo: { base: parametri().regletta.vista, spessore: parametri().regletta.spessoreAnta },  // regletta a L d'angolo (mm) · ⚙ Parametri
+    ...(parametri().cucina.piedini ? { piedini: parametri().cucina.piedini } : {}),   // piedini di partenza (⚙ Parametri)
     autoRegletta: true,          // regletta d'angolo automatica (3×3 cm) on/off
     // Stile anta pensili: 'standard' (−2 alt / −3 largh come i bassi),
     // 'sporg70' (pensili 70 → anta 72, sporge 2cm sotto),

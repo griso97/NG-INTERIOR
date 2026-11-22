@@ -5,27 +5,27 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261123x';
+import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261123y';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo, fotoRealisticaArmadio,
   iniziaSpostamentoRipiano, muoviSpostamentoRipiano, fineSpostamentoRipiano,
   toccoArmadio, ripianiCorrenti, posizioneNuovoRipiano, evidenziaRipiano,
-} from './scena3d.js?v=20261123x';
-import { SFONDI_LISTA } from './sfondi.js?v=20261123x';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261123x';
-import { agganciaTema } from './tema.js?v=20261123x';
-import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli } from './interfaccia.js?v=20261123x';
-import { tendinePannello } from './tendine-pannello.js?v=20261123x';
-import { renderDistinta } from './distinta.js?v=20261123x';
-import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261123x';
+} from './scena3d.js?v=20261123y';
+import { SFONDI_LISTA } from './sfondi.js?v=20261123y';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261123y';
+import { agganciaTema } from './tema.js?v=20261123y';
+import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli } from './interfaccia.js?v=20261123y';
+import { tendinePannello } from './tendine-pannello.js?v=20261123y';
+import { renderDistinta } from './distinta.js?v=20261123y';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261123y';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('./modello-export.js?v=20261123x');
+const _excel = () => import('./modello-export.js?v=20261123y');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js?v=20261123x';
+} from './storage.js?v=20261123y';
 
 // PANNELLO ORDINATO: ogni sezione è una tendina (chiusa, si apre toccando il titolo);
 // la prima volta aperte solo Tipo armadio e Dimensioni. Poi resta come la lasci.
@@ -161,7 +161,7 @@ function agganciaExport(distinta) {
   if (btnMod) btnMod.onclick = () => apriModelloExcel({ pezzi: pezziModello(), progetto: progettoNome });
   const btnFoto = document.getElementById('btn-foto-reale');
   if (btnFoto) btnFoto.onclick = async () => {
-    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261123x');
+    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261123y');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaArmadio(p), tela3d: document.getElementById('canvas3d'), nome: 'armadio' });
   };
   const btnImg = document.getElementById('btn-img');

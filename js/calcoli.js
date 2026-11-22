@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, parametri } from './parametri.js?v=20261123x';
+import { binarioScorrevole, parametri } from './parametri.js?v=20261123y';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -20,12 +20,34 @@ import { binarioScorrevole, parametri } from './parametri.js?v=20261123x';
  *                                Pc = P − sS
  */
 export function profonditaCarcassa(config) {
-  if (config.tipoArmadio === 'scorrevole') {
-    return config.profonditaEsterna - config.spessoreSchiena;
-  }
-  // ANTE INTERNE: l'anta sta dentro il vano, la struttura arriva fino davanti → Pc = P − sS
-  if (anteInterne(config)) return config.profonditaEsterna - config.spessoreSchiena;
-  return config.profonditaEsterna - config.spessoreAnte - config.spessoreSchiena;
+  // la SCHIENA AVVITATA DIETRO sta fuori dalla struttura (si toglie); a filo o in canale sta dentro
+  const sS = tipoSchiena(config) === 'dietro' ? config.spessoreSchiena : 0;
+  if (config.tipoArmadio === 'scorrevole') return config.profonditaEsterna - sS;
+  // ANTE INTERNE: l'anta sta dentro il vano, la struttura arriva fino davanti (non si toglie l'anta)
+  if (anteInterne(config)) return config.profonditaEsterna - sS;
+  return config.profonditaEsterna - config.spessoreAnte - sS;
+}
+
+/**
+ * SCHIENA: come è montata (⚙ Parametri → Armadi, e nel singolo armadio).
+ *   'dietro' = avvitata dietro (copre tutto il retro: modulo − 2 × altezza − 2) — come sempre
+ *   'filo'   = incassata dentro, a filo del retro dei fianchi (vano interno: modulo − 2·sC × altezza − 2·sC)
+ *   'canale' = nel canale fatto su fianchi, top e fondo, «dentro» mm dal retro, canale profondo «canale» mm
+ *              (più grande del vano: + 2 × canale per lato)
+ */
+export function tipoSchiena(config) {
+  const t = config && config.schiena && config.schiena.tipo;
+  return t === 'filo' || t === 'canale' ? t : 'dietro';
+}
+export function misureSchiena(config) {
+  const s = (config && config.schiena) || {};
+  const n = (v, d) => (Number.isFinite(Number(v)) && v !== '' && v !== null ? Math.max(0, Number(v)) : d);
+  return { tipo: tipoSchiena(config), canale: n(s.canale, 8), dentro: n(s.dentro, 10) };
+}
+/** Quanti mm dal retro della struttura occupa la schiena (dietro 0 · a filo = spessore · in canale = dentro + spessore). */
+export function schienaDentro(config) {
+  const m = misureSchiena(config), sS = config.spessoreSchiena;
+  return m.tipo === 'dietro' ? 0 : m.tipo === 'filo' ? sS : m.dentro + sS;
 }
 
 /** Armadio a battente con le ANTE INTERNE (dentro il vano, a filo della struttura)? */
@@ -37,8 +59,10 @@ export function anteInterne(config) {
  * (con le ante sopra o interne è la stessa); scorrevole = profondità della carcassa.
  */
 export function profonditaDentro(config) {
-  if (config.tipoArmadio === 'scorrevole') return profonditaCarcassa(config);
-  return config.profonditaEsterna - config.spessoreAnte - config.spessoreSchiena;
+  // davanti alla schiena (a filo o in canale sta dentro la struttura) e dietro l'anta
+  const p = profonditaCarcassa(config) - schienaDentro(config);
+  if (config.tipoArmadio === 'scorrevole') return p;
+  return p - (anteInterne(config) ? config.spessoreAnte : 0);
 }
 /** Profondità dei RIPIANI: lo spazio dentro; con le ANTE INTERNE ancora indietro di «spazio anta–ripiano» (10 mm). */
 export function profonditaRipiani(config) {
@@ -56,7 +80,7 @@ export function cerniereAnta(h) {
  */
 export function profonditaFiancoInterno(config) {
   const B = config.scorrevole?.binario ?? 75;
-  return config.profonditaEsterna - config.spessoreSchiena - B;
+  return profonditaCarcassa(config) - B;                 // P − sS − B (schiena dietro); P − B se la schiena sta dentro
 }
 
 /**
@@ -187,11 +211,15 @@ export function pezziCarcassaModulo(config, modulo, indiceModulo, totaleModuli =
  * I −2 mm sono tolleranza di taglio (viene avvitata sul retro).
  */
 export function pezziSchienaModulo(config, modulo, indiceModulo) {
+  const ms = misureSchiena(config), sC = config.spessoreCarcassa;
+  // vano interno del modulo (fra i fianchi, fra top e fondo): la schiena a filo è grande così, in canale + 2 × canale
+  const piu = ms.tipo === 'canale' ? 2 * ms.canale : 0;
+  const dietro = ms.tipo === 'dietro';
   return [{
     modulo: `Modulo ${indiceModulo + 1}`,
-    nome: 'Schiena',
-    larghezza: modulo.larghezza - 2,
-    altezza: config.altezzaEsterna - 2,
+    nome: dietro ? 'Schiena' : ms.tipo === 'filo' ? 'Schiena (incassata a filo)' : `Schiena (nel canale da ${ms.canale} mm)`,
+    larghezza: dietro ? modulo.larghezza - 2 : modulo.larghezza - 2 * sC + piu,
+    altezza: dietro ? config.altezzaEsterna - 2 : config.altezzaEsterna - 2 * sC + piu,
     spessore: config.spessoreSchiena,
     materiale: 'schiena',
     quantita: 1,
@@ -391,7 +419,7 @@ export function pezziCassettieraScorrevoleModulo(config, modulo, indiceModulo) {
   const nomeModulo = `Modulo ${indiceModulo + 1}`;
   const Lm = modulo.larghezza;
   const sC = config.spessoreCarcassa;
-  const Pcas = profonditaFiancoInterno(config);          // P − sS − B
+  const Pcas = profonditaDentro(config) - (config.scorrevole?.binario ?? 75);   // P − sS − B (davanti alla schiena)
   const Pscatola = Pcas - sC - 2;                        // 5.1
 
   modulo.cassettiere.forEach((c) => {
@@ -628,7 +656,7 @@ export function misureCostado(config) {
     spessore: c.spessore > 0 ? c.spessore : config.spessoreAnte,
     sporgenza, top, battente, sopra, sotto,
     // con le ANTE INTERNE davanti non c'è l'anta: la struttura arriva già fino davanti
-    profondita: top + config.spessoreSchiena + (battente && !anteInterne(config) ? config.spessoreAnte : 0) + sporgenza,
+    profondita: top + (tipoSchiena(config) === 'dietro' ? config.spessoreSchiena : 0) + (battente && !anteInterne(config) ? config.spessoreAnte : 0) + sporgenza,
     altezza: config.altezzaEsterna + sopra + sotto,
   };
 }
