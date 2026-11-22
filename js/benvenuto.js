@@ -9,9 +9,9 @@
 // («lo imposto dopo»): restano a 0, la distinta avvisa che mancano e alla fine c'è il promemoria.
 // Alla fine: 'ng-configurato' = 1 e si va al programma.
 // =============================================================================
-import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124e';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124e';
-import { svgGola, svgRegletta } from './disegni-cucina.js?v=20261124e';
+import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124f';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124f';
+import { svgGola, svgRegletta } from './disegni-cucina.js?v=20261124f';
 
 const $ = (id) => document.getElementById(id);
 const t = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -182,7 +182,18 @@ function mostra() {
   $('indietro').disabled = i === 0;
   $('avanti').textContent = i === V.length - 1 ? t('Inizia a lavorare →') : t('Avanti →');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  setTimeout(controllaSotto, 350);
+  corpo.querySelectorAll('img').forEach((im) => im.addEventListener('load', controllaSotto, { once: true }));
 }
+/** «↓ Continua a leggere sotto»: si vede finché sotto c'è ancora qualcosa da leggere. */
+function controllaSotto() {
+  const b = $('sotto'); if (!b) return;
+  const resta = document.documentElement.scrollHeight - (window.scrollY + window.innerHeight);
+  b.hidden = resta < 40;
+}
+window.addEventListener('scroll', controllaSotto, { passive: true });
+window.addEventListener('resize', controllaSotto);
+$('sotto').addEventListener('click', () => window.scrollBy({ top: Math.round(window.innerHeight * 0.7), behavior: 'smooth' }));
 /** Dopo «sì / no» degli scorrevoli cambiano i passi: rifà solo numeri e puntini. */
 function aggiornaContatore() {
   const V = visibili(), i = indice();

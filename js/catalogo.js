@@ -76,6 +76,14 @@ export async function leggiFoto(id, tipo = 'foto') { try { return await get(`${t
 export async function salvaFoto(id, blob, tipo = 'foto') { await put(`${tipo}:${id}`, blob); }
 export async function eliminaFoto(id) { for (const t of ['foto', 'thumb', 'gola', 'lato', 'sopra', 'orig', 'fronte', 'dietro']) await del(`${t}:${id}`); }
 export async function eliminaFotoTipo(id, tipo) { await del(`${tipo}:${id}`); }
+/** Le chiavi dell'archivio che cominciano con `prefisso` (es. 'esempio:mio-'). */
+export async function chiaviCatalogo(prefisso) {
+  const db = await apri();
+  return new Promise((ok, ko) => {
+    const r = db.transaction(STORE, 'readonly').objectStore(STORE).getAllKeys(IDBKeyRange.bound(prefisso, prefisso + '\uffff'));
+    r.onsuccess = () => ok(r.result || []); r.onerror = () => ko(r.error);
+  });
+}
 
 /** Nascosto in quella sezione? */
 export function nascosto(stato, sezione, id) { return ((stato.nascosti || {})[sezione] || []).includes(id); }

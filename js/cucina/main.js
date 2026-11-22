@@ -24,21 +24,21 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, latoApertoDi, latiLiberi, migraProfonditaPensili, PARTI_APERTO, coloreParteAperto, ledAperto,
-  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola, piediniCucina, altezzaBassiCucina } from './modello.js?v=20261124e';
-import { renderPianta } from './pianta.js?v=20261124e';
-import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261124e';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261124e';
-import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124e';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261124e';
-import { calcolaDistintaCucina } from './distinta.js?v=20261124e';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261124e';
-import { salvaEsempioModificato } from '../esempi-dati.js?v=20261124e';
-import { parametri, daImpostare } from '../parametri.js?v=20261124e';
-import { htmlAvvisoMancanti, confermaEsportazione } from '../avviso-parametri.js?v=20261124e';
-import { agganciaTema } from '../tema.js?v=20261124e';
-import { tendinePannello } from '../tendine-pannello.js?v=20261124e';
+  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola, piediniCucina, altezzaBassiCucina } from './modello.js?v=20261124f';
+import { renderPianta } from './pianta.js?v=20261124f';
+import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261124f';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261124f';
+import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124f';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261124f';
+import { calcolaDistintaCucina } from './distinta.js?v=20261124f';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261124f';
+import { salvaEsempioModificato, salvaProgettoPredefinito } from '../esempi-dati.js?v=20261124f';
+import { parametri, daImpostare } from '../parametri.js?v=20261124f';
+import { htmlAvvisoMancanti, confermaEsportazione } from '../avviso-parametri.js?v=20261124f';
+import { agganciaTema } from '../tema.js?v=20261124f';
+import { tendinePannello } from '../tendine-pannello.js?v=20261124f';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261124e');
+const _excel = () => import('../modello-export.js?v=20261124f');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -103,7 +103,7 @@ function mostraSceltaTipoCucina() {
     </div>`;
   document.body.appendChild(ov);
   // CUCINE DI ESEMPIO: la scheda c'è solo se ce ne sono (l'elenco è piccolo: solo nomi e foto)
-  fetch('esempi/cucine/indice.json?v=20261124e').then((r) => (r.ok ? r.json() : null)).then((j) => {
+  fetch('esempi/cucine/indice.json?v=20261124f').then((r) => (r.ok ? r.json() : null)).then((j) => {
     const a = ov.querySelector('#scelta-esempi');
     if (a && j && Array.isArray(j.cucine) && j.cucine.length) a.style.display = 'flex';
   }).catch(() => { /* niente esempi */ });
@@ -1606,8 +1606,8 @@ function apriPavimentoDaFoto() {
     if (!(w >= 5) || !(h >= 5)) { alert(tt('Scrivi la misura della zona fotografata (almeno 5 cm).')); return; }
     $('pav-salva').disabled = true;
     try {
-      const C = await import('../catalogo.js?v=20261124e');
-      const M = await import('../materiali.js?v=20261124e');
+      const C = await import('../catalogo.js?v=20261124f');
+      const M = await import('../materiali.js?v=20261124f');
       const stato = await C.leggiCatalogo();
       const id = 'pav-' + Date.now().toString(36);
       const prod = { id, sezione: 'pavimento', nome: ($('pav-nome').value || '').trim() || tt('Pavimento del cliente'), campioneCm: { w, h } };
@@ -1624,7 +1624,7 @@ async function eliminaPavimentoProprio(id) {
   const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
   if (!confirm(tt('Eliminare questo pavimento? Sparisce da tutti i progetti.'))) return;
   try {
-    const C = await import('../catalogo.js?v=20261124e');
+    const C = await import('../catalogo.js?v=20261124f');
     const stato = await C.leggiCatalogo();
     stato.prodotti = (stato.prodotti || []).filter((p) => p.id !== id);
     await C.salvaCatalogo(stato); await C.eliminaFoto(id);
@@ -2000,7 +2000,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261124e');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261124f');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2804,34 +2804,98 @@ function barraEsempio() {
   });
 }
 let _uscitaEsempio = false;
+/**
+ * La FOTO per la galleria delle cucine: la vista 3D com'è adesso (se non era aperta, la apro e aspetto
+ * che sia pronta). 16:10 al centro, grande 1600 e anteprima 480. Ricorda anche la vista (vistaFoto).
+ */
+async function fotoPerGalleria() {
+  let attesa = 0;
+  if (progetto.stepCorrente !== P_3D) { progetto.stepCorrente = P_3D; aggiorna(); attesa = 4500; }
+  const S = await caricaScena3d();
+  if (attesa) await new Promise((r) => setTimeout(r, attesa));
+  let cv = null;
+  for (let k = 0; k < 20 && !cv; k++) {
+    try { cv = S && S.fotoRealistica3d ? await S.fotoRealistica3d({ larghezza: 1600 }) : null; } catch (_) { cv = null; }
+    if (!cv) await new Promise((r) => setTimeout(r, 500));
+  }
+  let grande = null, mini = null;
+  if (cv) {
+    const W = cv.width, H0 = cv.height, Hc = Math.min(H0, Math.round(W / 1.6)), Wc = Math.min(W, Math.round(Hc * 1.6));
+    const c1 = document.createElement('canvas'); c1.width = Wc; c1.height = Hc;
+    c1.getContext('2d').drawImage(cv, (W - Wc) / 2, (H0 - Hc) / 2, Wc, Hc, 0, 0, Wc, Hc);
+    const c2 = document.createElement('canvas'); c2.width = 480; c2.height = Math.round(Hc * 480 / Wc);
+    c2.getContext('2d').drawImage(c1, 0, 0, c2.width, c2.height);
+    grande = await new Promise((r) => c1.toBlob(r, 'image/jpeg', 0.86));
+    mini = await new Promise((r) => c2.toBlob(r, 'image/jpeg', 0.8));
+  }
+  try { const v = S && S.vistaAttuale ? S.vistaAttuale() : null; if (v) progetto.vistaFoto = v; } catch (_) { /* niente */ }
+  return { cv, grande, mini };
+}
+
+// ---------------------------------------------------------------------------
+// ⭐ SALVA COME PROGETTO PREDEFINITO: la cucina aperta diventa un progetto da cui partire, nella
+// galleria «Cucine di esempio» (i miei progetti, prima degli esempi del sito). Quante volte si vuole.
+// ---------------------------------------------------------------------------
+function montaBtnPredefinito() {
+  const posto = document.querySelector('.header-strumenti');
+  if (!posto || document.getElementById('btn-predefinito')) return;
+  const b = document.createElement('button');
+  b.type = 'button'; b.id = 'btn-predefinito'; b.className = 'ngp-btn'; b.title = 'Salva come progetto predefinito';
+  b.innerHTML = '<span aria-hidden="true">⭐</span><span class="ngp-txt">Predefinito</span>';
+  posto.insertBefore(b, document.getElementById('tema-toggle'));
+  b.addEventListener('click', finestraPredefinito);
+}
+function finestraPredefinito() {
+  const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
+  document.getElementById('pred-modale')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'pred-modale'; ov.className = 'modale-fondo';
+  ov.innerHTML = `<div class="modale" role="dialog" aria-modal="true" style="max-width:460px">
+    <h3>⭐ Salva come progetto predefinito</h3>
+    <div class="riga-3d" style="margin-bottom:10px">La cucina aperta diventa un progetto da cui partire: la trovi nei progetti delle cucine (<b>Cucine di esempio</b>), prima degli esempi. Da lì la usi per un cliente quando vuoi; la cucina di adesso resta com'è. La foto è la vista 3D di quando salvi: prima gira la vista come preferisci.</div>
+    <label class="riga-3d" style="display:block;margin-bottom:8px">Nome del progetto<br>
+      <input type="text" id="pred-nome" maxlength="80" autocomplete="off" placeholder="${escHtml(tt('es. Cucina a L rovere e nero'))}" style="width:100%;padding:10px;border-radius:8px;border:1px solid #4a4030;background:#0d0a06;color:#fff;font:16px inherit"></label>
+    <label class="riga-3d" style="display:block;margin-bottom:12px">Descrizione (facoltativa)<br>
+      <textarea id="pred-desc" rows="2" maxlength="240" style="width:100%;padding:10px;border-radius:8px;border:1px solid #4a4030;background:#0d0a06;color:#fff;font:15px inherit;resize:vertical"></textarea></label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button type="button" class="btn-oro" id="pred-salva" style="flex:1">⭐ Salva</button>
+      <button type="button" class="btn-ghost" id="pred-annulla">Annulla</button>
+    </div>
+    <div class="riga-3d" id="pred-msg" hidden style="margin-top:10px"></div>
+  </div>`;
+  document.body.appendChild(ov);
+  const chiudi = () => ov.remove();
+  ov.addEventListener('click', (e) => { if (e.target === ov) chiudi(); });
+  ov.querySelector('#pred-annulla').addEventListener('click', chiudi);
+  const nome = ov.querySelector('#pred-nome'), msg = ov.querySelector('#pred-msg'), bS = ov.querySelector('#pred-salva');
+  setTimeout(() => nome.focus(), 50);
+  bS.addEventListener('click', async () => {
+    const n = nome.value.trim();
+    if (!n) { msg.hidden = false; msg.style.color = '#ff9b8c'; msg.textContent = tt('Scrivi il nome del progetto.'); nome.focus(); return; }
+    bS.disabled = true; bS.textContent = tt('Preparo la foto…'); msg.hidden = true;
+    try {
+      const { cv, grande, mini } = await fotoPerGalleria();
+      await salvaProgettoPredefinito({ nome: n, desc: ov.querySelector('#pred-desc').value, tipo: MODO_CUCINA === 'ponte' ? 'cucinaPonte' : 'cucina', progetto, grande, mini });
+      salvaProgetto(progetto);
+      msg.hidden = false; msg.style.color = '#9fd49f';
+      msg.innerHTML = `✓ ${escHtml(tt('Aggiunta ai progetti delle cucine:'))} «<span data-no-i18n>${escHtml(n)}</span>».${cv ? '' : ' ' + escHtml(tt('(Senza foto: il 3D non era pronto.)'))}
+        <br><a href="esempi.html" style="color:var(--oro-chiaro,#e8c25a);font-weight:600">${escHtml(tt('Vai alle cucine di esempio →'))}</a>`;
+      bS.textContent = tt('✓ Salvata'); 
+    } catch (e) {
+      msg.hidden = false; msg.style.color = '#ff9b8c'; msg.textContent = tt('Non sono riuscito a salvare:') + ' ' + (e.message || e);
+      bS.disabled = false; bS.textContent = tt('⭐ Salva');
+    }
+  });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', montaBtnPredefinito); else montaBtnPredefinito();
+
 async function salvaComeEsempio() {
   const es = progetto.esempioInModifica;
   if (!es) return;
   const b = document.getElementById('es-salva'), msg = document.getElementById('es-msg');
   b.disabled = true; const et = b.textContent; b.textContent = '…';
   try {
-    // la foto per la galleria: la vista 3D (se non era aperta, la apro e aspetto che sia pronta)
-    let attesa = 0;
-    if (progetto.stepCorrente !== P_3D) { progetto.stepCorrente = P_3D; aggiorna(); attesa = 4500; }
-    const S = await caricaScena3d();
-    if (attesa) await new Promise((r) => setTimeout(r, attesa));
-    let cv = null;
-    for (let k = 0; k < 20 && !cv; k++) {
-      try { cv = S && S.fotoRealistica3d ? await S.fotoRealistica3d({ larghezza: 1600 }) : null; } catch (_) { cv = null; }
-      if (!cv) await new Promise((r) => setTimeout(r, 500));
-    }
-    let grande = null, mini = null;
-    if (cv) {
-      // come le foto della galleria: 16:10 al centro, grande 1600 e anteprima 480
-      const W = cv.width, H0 = cv.height, Hc = Math.min(H0, Math.round(W / 1.6)), Wc = Math.min(W, Math.round(Hc * 1.6));
-      const c1 = document.createElement('canvas'); c1.width = Wc; c1.height = Hc;
-      c1.getContext('2d').drawImage(cv, (W - Wc) / 2, (H0 - Hc) / 2, Wc, Hc, 0, 0, Wc, Hc);
-      const c2 = document.createElement('canvas'); c2.width = 480; c2.height = Math.round(Hc * 480 / Wc);
-      c2.getContext('2d').drawImage(c1, 0, 0, c2.width, c2.height);
-      grande = await new Promise((r) => c1.toBlob(r, 'image/jpeg', 0.86));
-      mini = await new Promise((r) => c2.toBlob(r, 'image/jpeg', 0.8));
-    }
-    try { const v = S && S.vistaAttuale ? S.vistaAttuale() : null; if (v) progetto.vistaFoto = v; } catch (_) { /* niente */ }
+    const { cv, grande, mini } = await fotoPerGalleria();
     await salvaEsempioModificato(es.id, progetto, grande, mini);
     _ultimoEsempioSalvato = JSON.stringify(progetto);
     msg.hidden = false;
@@ -2926,13 +2990,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261124e');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261124f');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261124e'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261124f'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

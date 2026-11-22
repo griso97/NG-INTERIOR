@@ -8,10 +8,10 @@
 // è un file del sito, resta sempre com'è).
 // =============================================================================
 
-import { nuovoDaEsempio, modificaEsempio } from './preventivi.js?v=20261124e';
-import { esempioModificato, fotoEsempioModificato, ripristinaEsempio } from './esempi-dati.js?v=20261124e';
+import { nuovoDaEsempio, modificaEsempio } from './preventivi.js?v=20261124f';
+import { esempioModificato, fotoEsempioModificato, ripristinaEsempio, progettiPredefiniti, eliminaProgettoPredefinito } from './esempi-dati.js?v=20261124f';
 
-const VER = '20261124e';
+const VER = '20261124f';
 const CARTELLA = 'esempi/cucine/';
 const t = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
 const lingua = () => (window.NGI18N && window.NGI18N.lingua === 'es' ? 'es' : 'it');
@@ -21,8 +21,8 @@ const $ = (id) => document.getElementById(id);
 
 let cucine = [], indice = 0;
 const idDi = (c) => c.id || String(c.file || '').replace(/\.json$/, '');
-const miniDi = (c) => c._mini || `${CARTELLA}${c.mini}?v=${VER}`;
-const grandeDi = (c) => c._grande || `${CARTELLA}${c.grande}?v=${VER}`;
+const miniDi = (c) => c._mini || (c._mio ? '' : `${CARTELLA}${c.mini}?v=${VER}`);
+const grandeDi = (c) => c._grande || c._mini || (c._mio ? '' : `${CARTELLA}${c.grande}?v=${VER}`);   // i miei progetti senza foto: niente
 
 async function carica() {
   try {
@@ -30,6 +30,11 @@ async function carica() {
     const j = await r.json();
     cucine = Array.isArray(j.cucine) ? j.cucine : [];
   } catch (_) { cucine = []; }
+  // i PROGETTI PREDEFINITI del falegname («⭐ Predefinito» nella cucina): prima di tutti
+  try {
+    const miei = await progettiPredefiniti();
+    cucine = [...miei.map((m) => ({ id: m.id, nome: m.nome, desc: m.desc, breve: m.desc, tipo: m.tipo, _mio: true })), ...cucine];
+  } catch (_) { /* niente */ }
   // le cucine che il falegname ha modificato e salvato come predefinite: la SUA versione e le sue foto
   await Promise.all(cucine.map(async (c) => {
     const mod = await esempioModificato(idDi(c));
@@ -42,7 +47,7 @@ async function carica() {
   const g = $('griglia');
   g.innerHTML = cucine.map((c, i) => `
     <button type="button" class="voce" data-i="${i}">
-      <div class="foto"><img src="${miniDi(c)}" alt="${esc(testo(c.nome))}" loading="lazy" decoding="async">${c._mod ? `<span class="tua">${esc(t('✎ La tua versione'))}</span>` : ''}</div>
+      <div class="foto">${c._mio && !c._mini ? '<div class="senza-foto">⭐</div>' : `<img src="${miniDi(c)}" alt="${esc(testo(c.nome))}" loading="lazy" decoding="async">`}${c._mio ? `<span class="tua">${esc(t('⭐ Tuo progetto'))}</span>` : c._mod ? `<span class="tua">${esc(t('✎ La tua versione'))}</span>` : ''}</div>
       <div class="testo"><div class="nome">${esc(testo(c.nome))}</div><div class="desc">${esc(testo(c.breve || c.desc))}</div></div>
     </button>`).join('');
   $('vuoto').hidden = cucine.length > 0;
@@ -59,7 +64,9 @@ function mostra(i) {
   img.style.opacity = '0.35';
   img.onload = () => { img.style.opacity = '1'; };
   img.src = grandeDi(c);
-  $('lb-ripristina').hidden = !c._mod;
+  $('lb-ripristina').hidden = !c._mod || !!c._mio;
+  $('lb-elimina').hidden = !c._mio;
+  $('lb-modifica').textContent = t(c._mio ? '✏️ Modifica il progetto' : '✏️ Modifica l\'esempio');
   img.alt = testo(c.nome);
   $('lb-conta').textContent = `${indice + 1} / ${cucine.length}`;
   $('lb-nome').textContent = testo(c.nome);
@@ -98,6 +105,7 @@ $('lb-succ').addEventListener('click', () => mostra(indice + 1));
 $('lb-usa').addEventListener('click', () => chiediNome());
 $('lb-modifica').addEventListener('click', () => modifica());
 $('lb-ripristina').addEventListener('click', () => ripristina());
+$('lb-elimina').addEventListener('click', () => elimina());
 document.addEventListener('keydown', (e) => {
   if (!$('dlg').hidden) { if (e.key === 'Escape') chiudiDlg(); return; }
   if (lb.hidden) return;
@@ -181,6 +189,16 @@ async function ripristina() {
   await ripristinaEsempio(idDi(c));
   delete c._mod; delete c._mini; delete c._grande;
   await carica(); mostra(indice);
+}
+
+/** Toglie un progetto predefinito del falegname (gli esempi del sito non si possono togliere). */
+async function elimina() {
+  const c = cucine[indice]; if (!c || !c._mio) return;
+  if (!confirm(`${t('Eliminare il progetto predefinito')} «${testo(c.nome)}»? ${t('I preventivi già fatti partendo da qui restano.')}`)) return;
+  await eliminaProgettoPredefinito(c.id);
+  await carica();
+  if (!cucine.length) { chiudiLb(); return; }
+  mostra(Math.min(indice, cucine.length - 1));
 }
 
 carica();
