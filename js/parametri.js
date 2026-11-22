@@ -35,9 +35,9 @@ export const PARAMETRI_DEFAULT = Object.freeze({
   // CUCINA: piedini di partenza di ogni cucina nuova (0 = automatico: bassi da 70 → 15 cm, da 80 → 10 cm)
   cucina: {
     piedini: 0,
-    // PIANO DI LAVORO: quanto sporge davanti alle ante e sui lati liberi (mm); alzatina sul muro sì/no e altezza
-    sporgDavanti: 20,
-    sporgLati: 20,
+    // PIANO DI LAVORO: profondità (mm, dal muro: si appoggia al muro come i mobili; di serie 625 = 25 davanti
+    // alle ante dei mobili da 600); sui lati niente sporgenza. Alzatina sul muro sì/no e altezza
+    profonditaPiano: 625,
     alzatina: false,
     altezzaAlzatina: 100,
   },
@@ -136,8 +136,7 @@ function completa(s) {
     binari: binari.length ? binari : D.binari.map((b) => ({ ...b })),
     cucina: (() => { const k = (s && s.cucina) || {}, d = D.cucina; return {
       piedini: [100, 150].includes(Number(k.piedini)) ? Number(k.piedini) : 0,
-      sporgDavanti: Math.max(0, Math.min(200, num(k.sporgDavanti, d.sporgDavanti))),
-      sporgLati: Math.max(0, Math.min(200, num(k.sporgLati, d.sporgLati))),
+      profonditaPiano: Math.max(500, Math.min(1200, num(k.profonditaPiano, d.profonditaPiano))),
       alzatina: k.alzatina === true,
       altezzaAlzatina: Math.max(20, Math.min(600, num(k.altezzaAlzatina, d.altezzaAlzatina))),
     }; })(),

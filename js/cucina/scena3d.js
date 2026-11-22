@@ -16,30 +16,30 @@ import {
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
   costadoCopreAnte, costadoColonnaATerra, fronteCieco, piediniCucina, zoccoloColonnaDi, sporgenzaPiano, altezzaAlzatina, scendeAntaPensile,
-} from './modello.js?v=20261124k';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261124k';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261124k';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261124k';
+} from './modello.js?v=20261124m';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261124m';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261124m';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261124m';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261124k').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261124m').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261124k';
-import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261124k';
-export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124k';
-import { parametri } from '../parametri.js?v=20261124k';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261124k';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261124k';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261124k';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261124m';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261124m';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124m';
+import { parametri } from '../parametri.js?v=20261124m';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261124m';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261124m';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261124m';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261124k';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261124m';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261124k';
+export { telaPavimento } from '../resa.js?v=20261124m';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -2479,7 +2479,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261124k')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261124m')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -3369,7 +3369,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   const muriPiano = full.map((p, i) => (p.assente ? null : { a: vertici[i], b: vertici[i + 1] })).filter(Boolean);
   // PIANO / TAVOLO: la lastra, gli appoggi e dove il piano dell'isola si deve aprire
   const tagliPiano = renderTavoli(tavoli, basiTop, spTop, matTop, muriPiano, selId, reRender, accessori.filter((a) => a.lavello || a.placca));
-  _sporgPiano = sporgenzaPiano(progetto);       // quanto sporge il piano davanti e sui lati liberi
+  _sporgPiano = sporgenzaPiano(progetto);       // piano: profondità dal muro (davanti = profondità − 600), lati e dietro a filo
   renderTopContinui(basiTop, fianchi, spTop, matTop, accessori.filter((a) => a.lavello || a.placca), schienale, muriPiano, tagliPiano);
   // Oggetti: sul piano che c'è DAVVERO sotto (anche la parte di piano che sporge
   // oltre i mobili, es. l'isola dal lato sgabelli, o il piano allungato nell'angolo)
@@ -3780,9 +3780,9 @@ function distSegmento(p, a, b) {
 const SP_SCHIENALE = 12;          // spessore del pannello dietro il piano
 const H_SCHIENALE = 600;          // altezza se sopra non ci sono pensili
 
-let _sporgPiano = { davanti: 20, lati: 20 };
+let _sporgPiano = { davanti: 25, lati: 0, dietro: 0 };
 function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, lavelli = [], schienale = null, muriPiano = [], tagli = []) {
-  const SD = _sporgPiano.davanti, SL = _sporgPiano.lati;     // sporgenza del piano davanti alle ante e sui lati liberi
+  const SD = _sporgPiano.davanti, SL = _sporgPiano.lati, SB = _sporgPiano.dietro;   // davanti alle ante, sui lati, dietro (al muro)
   let matTop = materialePerTop(mat);
   // Il piano deve SEMPRE vincere lo z-fighting contro costadi/colonne che gli
   // arrivano a filo (stessa quota): con polygonOffset la lastra viene disegnata
@@ -3815,7 +3815,7 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
       const lo = run.lo, hi = run.hi;
       let perpSum = 0; for (const b of run.items) perpSum += b.x * (-s) + b.y * c;
       const perp = perpSum / run.items.length;
-      let endLo = lo - SL, endHi = hi + SL;   // estremità libere: la sporgenza sui lati (⚙ Parametri)
+      let endLo = lo - SL, endHi = hi + SL;   // estremità libere: a filo dell'ultimo mobile (niente sporgenza sui lati)
       let fermoLo = false, fermoHi = false;   // fermati da una colonna / un costado
       for (const f of fianchi) {
         const pf = proiettaFianco(f, c, s);
@@ -3847,9 +3847,9 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
       }
       // BORDI DEL PIANO: 2 cm oltre i mobili; ma dove c'è un COSTADO il piano finisce A FILO del
       // costado (costado da 1000 → piano da 1000), non 2 cm oltre
-      // davanti (lato ante, a perp − k·d/2) la sporgenza scelta; dietro (verso il muro) 2 cm come sempre
+      // davanti (lato ante, a perp − k·d/2): profondità del piano − 600; dietro: a filo del retro dei mobili (il muro)
       const mMin = perp - G.d / 2, mMax = perp + G.d / 2;
-      const sMin = k === 1 ? SD : 20, sMax = k === 1 ? 20 : SD;
+      const sMin = k === 1 ? SD : SB, sMax = k === 1 ? SB : SD;
       const bMin = cMin <= mMin + 1 ? cMin : mMin - sMin;
       const bMax = cMax >= mMax - 1 ? cMax : mMax + sMax;
       tratti1.push({ G, c, s, rotN, topY, k, lo, hi, perp, pMin, pMax, bMin, bMax, endLo, endHi, fermoLo, fermoHi });

@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261124k';
+import { parametri } from '../parametri.js?v=20261124m';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -41,8 +41,8 @@ export function progettoDefault() {
     sfondo: 'chiaro',            // sfondo vista 3D: chiaro | neutro | scuro
     reglettaAngolo: { base: parametri().regletta.vista, spessore: parametri().regletta.spessoreAnta },  // regletta a L d'angolo (mm) · ⚙ Parametri
     ...(parametri().cucina.piedini ? { piedini: parametri().cucina.piedini } : {}),   // piedini di partenza (⚙ Parametri)
-    // piano di lavoro: sporgenza davanti e sui lati liberi; alzatina sul muro (⚙ Parametri)
-    pianoLavoro: { davanti: parametri().cucina.sporgDavanti, lati: parametri().cucina.sporgLati },
+    // piano di lavoro: profondità dal muro (di serie 625); alzatina sul muro (⚙ Parametri)
+    pianoLavoro: { profondita: parametri().cucina.profonditaPiano },
     ...(parametri().cucina.alzatina ? { schienale: { attivo: true, altezza: parametri().cucina.altezzaAlzatina } } : {}),
     autoRegletta: true,          // regletta d'angolo automatica (3×3 cm) on/off
     // Stile anta pensili: 'standard' (−2 alt / −3 largh come i bassi),
@@ -850,9 +850,8 @@ export function aggiungiMobileLibero(progetto, tipo, props = {}) {
     larghezza_mm: info?.larghezze[0] ?? 600,
     altezza_mm: altezzeTipo(tipo)[0],
   };
-  // COSTADO nuovo: a filo del bordo davanti del piano (mobili 600 + sporgenza del piano; di serie 620)
-  const sd = sporgenzaPiano(progetto).davanti;
-  if (categoriaTipo(tipo) === 'costado' && props.profondita_mm == null && sd !== 20) base.profondita_mm = PROFONDITA_BASE + sd;
+  // COSTADO nuovo: a filo del bordo davanti del piano (profondo quanto il piano: di serie 625)
+  if (categoriaTipo(tipo) === 'costado' && props.profondita_mm == null) base.profondita_mm = sporgenzaPiano(progetto).profondita;
   progetto.mobiliLiberi.push({
     id, tipo, ...base, ...props,
     x: snap(c.x + (n % 4) * 150), y: snap(c.y - (n % 4) * 150), rot: 0,
@@ -3500,13 +3499,15 @@ export function fasceCierreTecho(progetto, spessore = 18) {
 }
 
 /**
- * PIANO DI LAVORO: quanto sporge davanti alle ante e sui lati liberi (mm). Le cucine fatte prima
- * di questa scelta restano com'erano: 20 e 20.
+ * PIANO DI LAVORO: si appoggia al muro come i mobili e ha la sua PROFONDITÀ (di serie 625). Davanti alle
+ * ante dei mobili da 600 esce quindi profondità − 600 (25 mm); sui lati e dietro niente sporgenza.
+ * { profondita, davanti, lati: 0, dietro: 0 }
  */
 export function sporgenzaPiano(progetto) {
   const p = (progetto && progetto.pianoLavoro) || {};
-  const n = (v, d) => { const x = Number(v); return Number.isFinite(x) && x >= 0 ? Math.min(200, x) : d; };
-  return { davanti: n(p.davanti, 20), lati: n(p.lati, 20) };
+  const v = Number(p.profondita);
+  const profondita = Number.isFinite(v) && v >= 500 ? Math.min(1200, Math.round(v)) : 625;
+  return { profondita, davanti: profondita - PROFONDITA_BASE, lati: 0, dietro: 0 };
 }
 /** Pannello dietro il piano: null = fino ai pensili; un numero = ALZATINA alta tanto (mm). */
 export function altezzaAlzatina(progetto) {

@@ -9,9 +9,9 @@
 // («lo imposto dopo»): restano a 0, la distinta avvisa che mancano e alla fine c'è il promemoria.
 // Alla fine: 'ng-configurato' = 1 e si va al programma.
 // =============================================================================
-import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124k';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124k';
-import { svgGola, svgRegletta, svgParametro } from './disegni-cucina.js?v=20261124k';
+import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124m';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124m';
+import { svgGola, svgRegletta, svgParametro } from './disegni-cucina.js?v=20261124m';
 
 const $ = (id) => document.getElementById(id);
 const t = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -64,8 +64,7 @@ const PASSI = [
       ${sc(100, 'Piedini da 10 cm', 'Zoccolo alto 10 cm')}${sc(150, 'Piedini da 15 cm', 'Zoccolo alto 15 cm')}${sc(0, 'Automatico', 'Bassi da 70 → 15 cm, bassi da 80 → 10 cm')}
     </div>${figura('piedini', 'Schema: mobile basso visto di lato')}</div>
     <div class="box"><h3 style="margin:0 0 8px;color:var(--gold-2);font-size:16px">${esc(t('Piano di lavoro'))}</h3><div class="campi">
-      ${campo('cucina.sporgDavanti', 'Sporgenza davanti alle ante (mm)', 'quanto il piano esce davanti alle ante (di serie 20)')}
-      ${campo('cucina.sporgLati', 'Sporgenza sui lati liberi (mm)', 'alle estremità senza muro e senza costado (di serie 20)')}
+      ${campo('cucina.profonditaPiano', 'Profondità del piano (mm)', 'dal muro, come i mobili (di serie 625: con i mobili da 600 esce 25 mm davanti alle ante); sui lati a filo')}
     </div>
     <div class="scelte" style="margin-top:10px">
       <button type="button" class="scelta ${parametri().cucina.alzatina ? '' : 'sel'}" data-alz="no"><b>${esc(t('Senza alzatina'))}</b>${esc(t('Il piano finisce al muro'))}</button>

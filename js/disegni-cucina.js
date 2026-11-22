@@ -177,35 +177,41 @@ export function svgBinario(b = {}) {
 }
 
 /**
- * PIANO DI LAVORO: di lato (sporgenza davanti alle ante, alzatina sul muro) e da sopra (sporgenza sui
- * lati liberi). k = { sporgDavanti, sporgLati, alzatina, altezzaAlzatina }.
+ * PIANO DI LAVORO: di lato (profondità dal muro, quanto esce davanti alle ante, alzatina) e da sopra
+ * (sui lati a filo dei mobili). k = { profonditaPiano, alzatina, altezzaAlzatina }.
  */
 export function svgPianoLavoro(k = {}) {
-  const dav = Number(k.sporgDavanti) || 0, lat = Number(k.sporgLati) || 0, alz = !!k.alzatina, hA = Number(k.altezzaAlzatina) || 0;
+  const prof = Number(k.profonditaPiano) || 625, dav = prof - 600, alz = !!k.alzatina, hA = Number(k.altezzaAlzatina) || 0;
   const p = [];
-  // --- di lato ---
-  const xM = 34, xA = 150, yP = 92, sp = 12, dPx = 6 + dav * 0.3;
+  // --- di lato: muro a sinistra, mobile da 600 (anta compresa), piano dal muro fino a «prof» ---
+  const xM = 34, sc = 0.19, xA = xM + (600 - 18) * sc, wA = 18 * sc + 1, yP = 92, sp = 12;
+  const xP = xM + Math.max(prof * sc, 600 * sc + 4);              // bordo davanti del piano (un filo esagerato se esce poco)
   p.push(`<rect x="${xM - 12}" y="16" width="12" height="190" fill="${C.muro}"/>`, txt(xM - 6, 216, t('muro'), 'text-anchor="middle" fill="#b8ad97" font-size="8.5"'));
   p.push(rect(xM, yP + sp, xA - xM, 84, C.fianco), txt((xM + xA) / 2, yP + sp + 46, t('mobile'), 'text-anchor="middle" fill="#14110d" font-size="10"'));
-  p.push(rect(xA, yP + sp + 2, 7, 80, C.anta), txt(xA + 3.5, yP + sp + 96, t('anta'), 'text-anchor="middle" fill="#cfc6b3" font-size="8.5"'));
-  p.push(rect(xM, yP, xA + 7 - xM + dPx, sp, C.piano), txt((xM + xA) / 2, yP + 9, t('piano'), 'text-anchor="middle" fill="#cfc6b3" font-size="9"'));
+  p.push(rect(xA, yP + sp + 2, wA, 80, C.anta), txt(xA + 2, yP + sp + 96, t('anta'), 'text-anchor="middle" fill="#cfc6b3" font-size="8.5"'));
+  p.push(rect(xM, yP, xP - xM, sp, C.piano), txt((xM + xA) / 2, yP + 9, t('piano'), 'text-anchor="middle" fill="#cfc6b3" font-size="9"'));
   if (alz) {
     const hPx = Math.min(70, 12 + hA * 0.12);
     p.push(rect(xM, yP - hPx, 6, hPx, '#6a6560'), txt(xM + 10, yP - hPx / 2 + 3, `${t('alzatina')} ${f(hA)} mm`, `fill="${C.dim}" font-size="9.5"`));
-  } else p.push(txt(xM + 10, yP - 10, t('senza alzatina'), 'fill="#b8ad97" font-size="9"'));
-  const xF = xA + 7, xP = xF + dPx;
-  p.push(riga(xF, yP - 8, xP, yP - 8), riga(xF, yP - 12, xF, yP - 4), riga(xP, yP - 12, xP, yP - 4));
-  p.push(txt(xP + 4, yP - 14, `${t('davanti')} ${f(dav)} mm`, `fill="${C.dim}" font-size="9.5"`));
+  } else p.push(txt(xM + 10, yP - 30, t('senza alzatina'), 'fill="#b8ad97" font-size="9"'));
+  // quota: profondità del piano dal muro (in alto, con le linee che scendono fino al piano)
+  const yQ = 30;
+  const tratt = (x) => `<line x1="${x}" y1="${yQ}" x2="${x}" y2="${yP}" stroke="${C.dim}" stroke-width=".7" stroke-dasharray="2 2"/>`;
+  p.push(tratt(xM), tratt(xP), riga(xM, yQ, xP, yQ), riga(xM, yQ - 4, xM, yQ + 4), riga(xP, yQ - 4, xP, yQ + 4));
+  p.push(txt((xM + xP) / 2, yQ - 4, `${t('profondità')} ${f(prof)} mm`, `text-anchor="middle" fill="${C.dim}" font-size="9.5"`));
+  // quanto esce davanti all'anta
+  const xF = xA + wA;
+  p.push(riga(xF, yP + sp + 6, xP, yP + sp + 6));
+  p.push(txt(xP + 4, yP + sp + 9, `${f(dav)} mm ${t('davanti alle ante')}`, `fill="${C.dim}" font-size="9"`));
   p.push(txt(95, 236, t('vista di lato'), 'text-anchor="middle" fill="#b8ad97" font-size="9"'));
-  // --- da sopra: fila contro il muro a sinistra, lato libero a destra ---
-  const x0 = 262, y0 = 70, W = 96, D = 60, lPx = 6 + lat * 0.3;
-  p.push(`<rect x="${x0 - 8}" y="${y0 - 14}" width="8" height="${D + 40}" fill="${C.muro}"/>`, `<rect x="${x0 - 8}" y="${y0 - 14}" width="${W + 40}" height="8" fill="${C.muro}"/>`);
-  p.push(rect(x0, y0 - 6, W + lPx, D + dPx + 6, C.piano, 'opacity=".9"'), rect(x0, y0 - 6, W, D + 6, C.fianco, 'opacity=".55"'));
+  // --- da sopra: fila contro il muro, lato libero a destra: il piano finisce a filo ---
+  const x0 = 262, y0 = 70, W = 96, D = 60, dPx = 4;
+  p.push(`<rect x="${x0 - 8}" y="${y0 - 8}" width="8" height="${D + 34}" fill="${C.muro}"/>`, `<rect x="${x0 - 8}" y="${y0 - 8}" width="${W + 40}" height="8" fill="${C.muro}"/>`);
+  p.push(rect(x0, y0, W, D + dPx, C.piano, 'opacity=".9"'), rect(x0, y0, W, D, C.fianco, 'opacity=".55"'));
   p.push(txt(x0 + W / 2, y0 + D / 2, t('mobili'), 'text-anchor="middle" fill="#14110d" font-size="9.5"'));
-  p.push(riga(x0 + W, y0 + D + dPx + 8, x0 + W + lPx, y0 + D + dPx + 8), riga(x0 + W, y0 + D + dPx + 4, x0 + W, y0 + D + dPx + 12), riga(x0 + W + lPx, y0 + D + dPx + 4, x0 + W + lPx, y0 + D + dPx + 12));
-  p.push(txt(x0 + W + lPx / 2, y0 + D + dPx + 24, `${t('lato libero')} ${f(lat)} mm`, `text-anchor="middle" fill="${C.dim}" font-size="9.5"`));
+  p.push(txt(x0 + W + 6, y0 + D / 2 + 3, t('lato: a filo'), `fill="${C.dim}" font-size="9.5"`));
   p.push(txt(x0 + W / 2 + 10, 236, t('vista da sopra'), 'text-anchor="middle" fill="#b8ad97" font-size="9"'));
-  return `<svg viewBox="0 0 410 244" width="410" height="244" role="img" aria-label="${t('Piano di lavoro: sporgenze e alzatina')}">${p.join('')}</svg>`;
+  return `<svg viewBox="0 0 410 244" width="410" height="244" role="img" aria-label="${t('Piano di lavoro: profondità e alzatina')}">${p.join('')}</svg>`;
 }
 
 /** Lo schema giusto per un gruppo dei ⚙ Parametri, con i numeri di adesso (P = parametri()). */
