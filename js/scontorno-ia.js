@@ -14,7 +14,7 @@
 
 const VENDOR = new URL('../vendor/', import.meta.url).href;
 const ORT_DIR = `${VENDOR}onnxruntime-web/1.31.1/`;
-import { togliRiflesso } from './riflesso.js?v=20261123w';
+import { togliRiflesso } from './riflesso.js?v=20261123x';
 const UA = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
 const TELEFONO = /iPhone|iPad|iPod|Android|Mobile/i.test(UA)
   || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && /Macintosh/.test(UA))   // iPad "da computer"

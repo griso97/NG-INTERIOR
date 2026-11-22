@@ -41,6 +41,14 @@ export const PARAMETRI_DEFAULT = Object.freeze({
   binari: [
     { id: 'syscore', nome: 'Syscore', larghezzaMeno: 0, altezzaMeno: 82, maniglia: 0 },
   ],
+  // ANTE INTERNE degli armadi a battente (l'anta sta DENTRO il vano, a filo della struttura):
+  //   anta larga = (modulo − 2 fianchi − aria × (n° ante + 1)) ÷ n° ante
+  //   anta alta  = altezza − top − fondo − 2 × aria
+  //   ripiani    = profondità − anta − schiena − spazioRipiano (stanno più indietro dell'anta)
+  anteInterne: {
+    aria: 2,              // mm attorno a ogni anta e fra un'anta e l'altra
+    spazioRipiano: 10,    // mm liberi fra l'anta chiusa e il ripiano
+  },
   cassetti: {
     marca: 'Syscore',     // sistema di cassetti usato (scritto nella lista accessori)
     profondita: 500,      // mm: cassetto / guide
@@ -97,6 +105,10 @@ function completa(s) {
       spessoreAnta: Math.max(0, num(((s && s.regletta) || {}).spessoreAnta, D.regletta.spessoreAnta)),
     },
     binari: binari.length ? binari : D.binari.map((b) => ({ ...b })),
+    anteInterne: {
+      aria: Math.max(0, num(((s && s.anteInterne) || {}).aria, D.anteInterne.aria)),
+      spazioRipiano: Math.max(0, num(((s && s.anteInterne) || {}).spazioRipiano, D.anteInterne.spazioRipiano)),
+    },
     cassetti: {
       marca: String(c.marca ?? D.cassetti.marca).trim(),
       profondita: Math.max(0, num(c.profondita, D.cassetti.profondita)),

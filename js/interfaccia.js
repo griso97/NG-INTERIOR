@@ -6,10 +6,10 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261123w';
-import { htmlTendineColori } from './tendine-colori.js?v=20261123w';
-import { misureCostado, binarioArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole } from './calcoli.js?v=20261123w';
-import { binariScorrevoli } from './parametri.js?v=20261123w';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261123x';
+import { htmlTendineColori } from './tendine-colori.js?v=20261123x';
+import { misureCostado, binarioArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, profonditaRipiani } from './calcoli.js?v=20261123x';
+import { binariScorrevoli, parametri } from './parametri.js?v=20261123x';
 
 export function configDefault() {
   return {
@@ -23,6 +23,7 @@ export function configDefault() {
     spessoreSchiena: 10,
     spessoreAnte: 18,
     setupCarcassa: 1,
+    anteInterne: false,      // battente: ante DENTRO il vano (a filo della struttura) invece che sopra
     moduliPersonalizzati: false, // false = tutti uguali (L/N); true = l'utente sceglie ogni larghezza
     materiali: materialiDefault(),
     moduli: [
@@ -139,6 +140,18 @@ export function renderPannello(contenitore, config, onChange) {
         </label>
       </div>
       <p class="hint">(Solo battente. Lo scorrevole ha un unico setup.)</p>
+      <h3 style="margin-top:14px">Ante</h3>
+      <div class="radio-row">
+        <label class="radio">
+          <input type="radio" name="ante-int" value="sopra" ${config.anteInterne ? '' : 'checked'} />
+          <span>Sopra la struttura (normali)</span>
+        </label>
+        <label class="radio">
+          <input type="radio" name="ante-int" value="interne" ${config.anteInterne ? 'checked' : ''} />
+          <span>Interne (dentro il vano)</span>
+        </label>
+      </div>
+      <p class="hint" id="ante-int-hint" data-no-i18n></p>
     </section>
 
     <section id="sez-scorrevole" ${config.tipoArmadio === 'scorrevole' ? '' : 'style="display:none"'}>
@@ -256,7 +269,8 @@ export function renderPannello(contenitore, config, onChange) {
   // ======== Collegamento eventi ========
   const bind = (id, handler, evento = 'input') => {
     const el = contenitore.querySelector(id);
-    if (el) el.addEventListener(evento, handler);
+    // dopo ogni misura cambiata si aggiorna anche l'esempio delle ante interne
+    if (el) el.addEventListener(evento, (e) => { handler(e); if (typeof hintInterne === 'function') hintInterne(); });
   };
 
   bind('#meta-cliente', (e) => { config.meta.cliente = e.target.value; onChange(config, { leggero: true }); });
@@ -285,6 +299,28 @@ export function renderPannello(contenitore, config, onChange) {
   contenitore.querySelectorAll('input[name="setup"]').forEach((r) => {
     r.addEventListener('change', (e) => {
       config.setupCarcassa = Number(e.target.value);
+      onChange(config);
+    });
+  });
+  // ANTE INTERNE (battente): l'anta sta dentro il vano; struttura P − schiena, ripiani più indietro
+  const hintInterne = () => {
+    const el = document.getElementById('ante-int-hint'); if (!el) return;
+    const t = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
+    if (!config.anteInterne) { el.textContent = t("L'anta copre il davanti della struttura (come sempre)."); return; }
+    const A = parametri().anteInterne, sC = config.spessoreCarcassa, m0 = (config.moduli || [])[0];
+    const f = (n) => String(Math.round(n * 10) / 10);
+    let es = '';
+    if (m0) {
+      const N = m0.numeroAnte || 1;
+      es = ' ' + t('Modulo 1:') + ` ${f((m0.larghezza - 2 * sC - (N + 1) * A.aria) / N)} × ${f(config.altezzaEsterna - 2 * sC - 2 * A.aria)} mm (×${N}) · ` + t('ripiani profondi') + ` ${f(profonditaRipiani(config))} mm.`;
+    }
+    el.textContent = t(`L'anta sta dentro il vano, a filo della struttura (struttura profonda come l'armadio meno la schiena). Aria ${f(A.aria)} mm attorno a ogni anta, ripiani ${f(A.spazioRipiano)} mm più indietro dell'anta (⚙ Parametri → Armadi).`) + es;
+  };
+  hintInterne();
+  contenitore.querySelectorAll('input[name="ante-int"]').forEach((r) => {
+    r.addEventListener('change', (e) => {
+      config.anteInterne = e.target.value === 'interne';
+      hintInterne();
       onChange(config);
     });
   });

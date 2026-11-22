@@ -11,13 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado } from './calcoli.js?v=20261123w';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261123w';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261123w';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261123w';
-import { sfondoDi } from './sfondi.js?v=20261123w';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261123w';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261123w';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani } from './calcoli.js?v=20261123x';
+import { parametri } from './parametri.js?v=20261123x';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261123x';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261123x';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261123x';
+import { sfondoDi } from './sfondi.js?v=20261123x';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261123x';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261123x';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -661,7 +662,9 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
   const zRetro = sS;
   const zCarcassaCentro = zRetro + prof / 2;
   const zFrontePezzi = zRetro + prof; // z del fronte carcassa
-  const zAnteCentro = zFrontePezzi + sA / 2;
+  // ANTE INTERNE: l'anta sta dentro il vano, a filo del fronte della struttura (non davanti)
+  const interne = anteInterne(config);
+  const zAnteCentro = interne ? zFrontePezzi - sA / 2 : zFrontePezzi + sA / 2;
 
   if (scorrevole) {
     // SCORREVOLE: setup unico top/fondo passanti, prof = P - sS
@@ -721,7 +724,8 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
   // SOPRA la cassettiera e sono equidistanti tra sé e tra top/cassettiera.
   if (modulo.ripiani > 0) {
     const larRipiano = W - 2 * sC;
-    let profRipianoVisivo = prof - (modulo.riduzioneRipiano || 0);
+    // dietro le ante (con le ante interne 10 mm più indietro dell'anta), come in distinta
+    let profRipianoVisivo = (scorrevole ? prof : profonditaRipiani(config)) - (modulo.riduzioneRipiano || 0);
     if (scorrevole) {
       const B = config.scorrevole?.binario ?? 75;
       profRipianoVisivo = Math.min(profRipianoVisivo, prof - B);
@@ -765,7 +769,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
     // spostato a mano (trascinandolo a porte aperte) oppure 6 cm sotto il ripiano più alto
     const yMinB = sC + 150, yMaxB = H - sC - 40;
     const yBarra = Number.isFinite(modulo.barraY) ? Math.min(yMaxB, Math.max(yMinB, modulo.barraY)) : ySotto - 60;
-    const profUtile = scorrevole ? prof - (config.scorrevole?.binario ?? 75) : prof;
+    const profUtile = scorrevole ? prof - (config.scorrevole?.binario ?? 75) : profonditaDentro(config);
     const zB = sS + profUtile / 2;
     const matB = materialeBarra(modulo.barra);
     const gB = new THREE.Group();
@@ -791,10 +795,13 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
   // pivot apre/chiude la porta senza dover rifare il mesh.
   if (config.tipoArmadio !== 'scorrevole') {
     const N = modulo.numeroAnte || 1;
-    const larAnta = (W - (N + 1) * 2) / N;
-    const altAnta = H - 4;
+    // sopra la struttura: (W − (N+1)·2) ÷ N × (H − 4) · INTERNE: dentro il vano, con l'aria attorno
+    const aI = interne ? parametri().anteInterne.aria : 2;
+    const x0V = interne ? sC : 0;                                  // le ante interne partono dentro il fianco
+    const larAnta = interne ? (W - 2 * sC - (N + 1) * aI) / N : (W - (N + 1) * 2) / N;
+    const altAnta = interne ? H - 2 * sC - 2 * aI : H - 4;
     for (let k = 0; k < N; k++) {
-      const xStart = xOffset + 2 + k * (larAnta + 2); // bordo sinistro
+      const xStart = xOffset + x0V + aI + k * (larAnta + aI); // bordo sinistro
       // Regola cardini:
       // - 1 anta: lato scelto dall'utente (antaLato). 'dx' (maniglia a destra)
       //   = cardine a sinistra; 'sx' (maniglia a sinistra) = cardine a destra.
@@ -819,7 +826,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       mesh.castShadow = true; mesh.receiveShadow = true;
       mesh.userData.tipo = 'anta';
       pivot.add(mesh);
-      fugheAnta(pivot, mesh.position.x, 0, larAnta, altAnta, sA, 2);
+      fugheAnta(pivot, mesh.position.x, 0, larAnta, altAnta, sA, aI);
       // maniglia sul bordo che si apre (lontano dal cardine)
       const man = manigliaScelta(config);
       if (man) aggiungiManiglia(pivot, man, cardineSx ? larAnta - 40 : -larAnta + 40, yManiglia(man, altAnta, H / 2 - altAnta / 2, config), sA / 2, lunghezzaManigliaAnta(man, config, altAnta));

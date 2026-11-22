@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole } from './parametri.js?v=20261123w';
+import { binarioScorrevole, parametri } from './parametri.js?v=20261123x';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -23,7 +23,30 @@ export function profonditaCarcassa(config) {
   if (config.tipoArmadio === 'scorrevole') {
     return config.profonditaEsterna - config.spessoreSchiena;
   }
+  // ANTE INTERNE: l'anta sta dentro il vano, la struttura arriva fino davanti → Pc = P − sS
+  if (anteInterne(config)) return config.profonditaEsterna - config.spessoreSchiena;
   return config.profonditaEsterna - config.spessoreAnte - config.spessoreSchiena;
+}
+
+/** Armadio a battente con le ANTE INTERNE (dentro il vano, a filo della struttura)? */
+export function anteInterne(config) {
+  return config.tipoArmadio !== 'scorrevole' && config.anteInterne === true;
+}
+/**
+ * Profondità dello spazio DENTRO, dietro le ante (cassettiere, barra): a battente P − sA − sS
+ * (con le ante sopra o interne è la stessa); scorrevole = profondità della carcassa.
+ */
+export function profonditaDentro(config) {
+  if (config.tipoArmadio === 'scorrevole') return profonditaCarcassa(config);
+  return config.profonditaEsterna - config.spessoreAnte - config.spessoreSchiena;
+}
+/** Profondità dei RIPIANI: lo spazio dentro; con le ANTE INTERNE ancora indietro di «spazio anta–ripiano» (10 mm). */
+export function profonditaRipiani(config) {
+  return profonditaDentro(config) - (anteInterne(config) ? parametri().anteInterne.spazioRipiano : 0);
+}
+/** Cerniere per anta, dall'altezza dell'anta. */
+export function cerniereAnta(h) {
+  return h <= 900 ? 2 : h <= 1600 ? 3 : h <= 2000 ? 4 : h <= 2400 ? 5 : 6;
 }
 
 /**
@@ -182,7 +205,7 @@ export function pezziSchienaModulo(config, modulo, indiceModulo) {
  */
 export function pezziRipianiModulo(config, modulo, indiceModulo) {
   if (!modulo.ripiani || modulo.ripiani <= 0) return [];
-  const prof = profonditaCarcassa(config);
+  const prof = profonditaRipiani(config);                // con le ante interne: 10 mm più indietro dell'anta
   const profRipiano = prof - (modulo.riduzioneRipiano || 0);
   return [{
     modulo: `Modulo ${indiceModulo + 1}`,
@@ -219,6 +242,23 @@ export function pezziBarraModulo(config, modulo, indiceModulo) {
  */
 export function pezziAnteModulo(config, modulo, indiceModulo) {
   const N = modulo.numeroAnte || 1;
+  if (anteInterne(config)) {
+    // ANTE INTERNE: dentro il vano (modulo − 2 fianchi) × (altezza − top − fondo), con l'aria attorno
+    //   larghezza = (Lm − 2·sC − (N + 1) × aria) ÷ N   ·   altezza = H − 2·sC − 2 × aria
+    //   es. 1000 × 2000, 2 ante, struttura 18, aria 2 → (1000 − 36 − 6) ÷ 2 = 479 × (2000 − 36 − 4) = 1960
+    const a = parametri().anteInterne.aria, sC = config.spessoreCarcassa;
+    const larI = (modulo.larghezza - 2 * sC - (N + 1) * a) / N;
+    const altI = config.altezzaEsterna - 2 * sC - 2 * a;
+    return [{
+      modulo: `Modulo ${indiceModulo + 1}`,
+      nome: N === 1 ? `Anta interna (apertura ${modulo.antaLato === 'sx' ? 'sx' : 'dx'})` : `Anta interna (×${N})`,
+      larghezza: larI, altezza: altI, spessore: config.spessoreAnte, materiale: 'ante', quantita: N,
+    }, {
+      modulo: `Modulo ${indiceModulo + 1}`, nome: 'Cerniere a gomito per anta interna',
+      larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', finituraNome: 'Acciaio',
+      quantita: N * cerniereAnta(altI),
+    }];
+  }
   const larAnta = (modulo.larghezza - (N + 1) * 2) / N;
   const altAnta = config.altezzaEsterna - 4;
   return [{
@@ -405,7 +445,7 @@ export function pezziCassettieraBattenteModulo(config, modulo, indiceModulo) {
   const nomeModulo = `Modulo ${indiceModulo + 1}`;
   const Lm = modulo.larghezza;
   const sC = config.spessoreCarcassa;
-  const Pc = profonditaCarcassa(config);                 // P − sA − sS
+  const Pc = profonditaDentro(config);                   // P − sA − sS (anche con le ante interne: sta dietro l'anta)
   const Pscatola = Pc - 80 - sC;                         // 5BIS.1
 
   modulo.cassettiere.forEach((c) => {
@@ -587,7 +627,8 @@ export function misureCostado(config) {
     dx: lati === 'dx' || lati === 'entrambi',
     spessore: c.spessore > 0 ? c.spessore : config.spessoreAnte,
     sporgenza, top, battente, sopra, sotto,
-    profondita: top + config.spessoreSchiena + (battente ? config.spessoreAnte : 0) + sporgenza,
+    // con le ANTE INTERNE davanti non c'è l'anta: la struttura arriva già fino davanti
+    profondita: top + config.spessoreSchiena + (battente && !anteInterne(config) ? config.spessoreAnte : 0) + sporgenza,
     altezza: config.altezzaEsterna + sopra + sotto,
   };
 }
