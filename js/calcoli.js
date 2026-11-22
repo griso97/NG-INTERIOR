@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole } from './parametri.js?v=20261123r';
+import { binarioScorrevole } from './parametri.js?v=20261123s';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -606,39 +606,48 @@ export function pezziCostadi(config) {
 }
 
 /**
- * ANTE SCORREVOLI — formula del falegname, con i numeri del BINARIO scelto
- * (⚙ Impostazioni → Parametri → Binari; di partenza Syscore: 35 e 82):
+ * ANTE SCORREVOLI — con i numeri del BINARIO scelto (⚙ Impostazioni → Parametri → Binari):
  *
- *   Larghezza anta = (larghezza esterna − 2 fianchi) ÷ numero di ante − larghezzaMeno
- *                    (con la maniglia alta come l'anta: − maniglia)
+ *   Larghezza anta = larghezza esterna ÷ numero di ante − larghezzaMeno − profilo
  *   Altezza anta   = H − altezzaMeno   (H = altezza esterna totale: fianchi + top + fondo)
  *   Spessore       = sA
  *
- * larghezza esterna = la carcassa (somma dei moduli), fianchi = spessore della carcassa (16/18/19);
- * numero di ante = moduli × ante per modulo.
- * Esempio: armadio 1455, fianchi 18, 2 ante → (1455 − 36) ÷ 2 − 35 = 674,5 → 674 (per difetto)
+ * Di partenza l'anta è larga come il MODULO (larghezzaMeno e profilo = 0): armadio 1000 a 2 moduli,
+ * 1 anta per modulo → 500. Ogni falegname toglie poi quello che serve al suo binario.
+ * profilo = i profili verticali a tutta altezza sui due lati di ogni anta (al posto delle maniglie).
  * Esempio altezza: armadio alto 2500 → anta 2500 − 82 = 2418
  */
 export function binarioArmadio(config) {
   return binarioScorrevole(config.scorrevole?.tipoBinario);
 }
-/** La maniglia è alta come l'anta (da terra a soffitto)? */
+/** La maniglia è alta come l'anta (da terra a soffitto)? (ante a battente) */
 export function manigliaTuttaAltezza(config) {
   return !!config.maniglia && config.manigliaLunghezza === 'anta';
 }
+export function numeroAnteScorrevoli(config) {
+  return Math.max(1, (config.moduli || []).length * (config.scorrevole?.anteModulo ?? 1));
+}
 export function larghezzaAntaScorrevole(config) {
   const b = binarioArmadio(config);
-  const nAnte = Math.max(1, (config.moduli || []).length * (config.scorrevole?.anteModulo ?? 2));
   const Lest = (config.moduli || []).reduce((t, m) => t + (Number(m.larghezza) || 0), 0);
-  return (Lest - 2 * config.spessoreCarcassa) / nAnte - b.larghezzaMeno - (manigliaTuttaAltezza(config) ? b.maniglia : 0);
+  return Lest / numeroAnteScorrevoli(config) - b.larghezzaMeno - b.maniglia;
 }
 export function altezzaAntaScorrevole(config) {
   return config.altezzaEsterna - binarioArmadio(config).altezzaMeno;
 }
+/** Colore dei profili delle ante scorrevoli (come i binari; di partenza bianco). */
+export const PROFILO_SCORREVOLE_DEFAULT = 'binario-bianco';
+export function coloreProfiloScorrevole(config) { return config.scorrevole?.coloreProfilo || PROFILO_SCORREVOLE_DEFAULT; }
+function nomeColoreProfilo(id) {
+  const m = typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === id);
+  if (m) return m.nome;
+  return { 'binario-bianco': 'Bianco', 'binario-nero': 'Nero', 'binario-grigio': 'Grigio' }[id] || id;
+}
 export function pezziAnteScorrevoliModulo(config, modulo, indiceModulo) {
-  const N = config.scorrevole?.anteModulo ?? 2;
+  const N = config.scorrevole?.anteModulo ?? 1;
   const larAnta = larghezzaAntaScorrevole(config);
   const altAnta = altezzaAntaScorrevole(config);
+  const col = coloreProfiloScorrevole(config);
   return [{
     modulo: `Modulo ${indiceModulo + 1}`,
     nome: N === 1 ? 'Anta scorrevole' : `Anta scorrevole (×${N})`,
@@ -647,6 +656,13 @@ export function pezziAnteScorrevoliModulo(config, modulo, indiceModulo) {
     spessore: config.spessoreAnte,
     materiale: 'ante',
     quantita: N,
+  }, {
+    // PROFILO VERTICALE a tutta altezza su ENTRAMBI i lati di ogni anta (al posto delle maniglie)
+    modulo: `Modulo ${indiceModulo + 1}`,
+    nome: `Profilo verticale anta scorrevole · ${nomeColoreProfilo(col)}`,
+    larghezza: null, altezza: Math.round(altAnta), spessore: null,
+    materiale: 'accessorio', finitura: col === 'binario-nero' ? 'nero' : col, finituraNome: nomeColoreProfilo(col),
+    quantita: 2 * N,
   }];
 }
 

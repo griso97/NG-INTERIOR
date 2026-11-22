@@ -6,10 +6,10 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261123r';
-import { htmlTendineColori } from './tendine-colori.js?v=20261123r';
-import { misureCostado, binarioArmadio, manigliaTuttaAltezza } from './calcoli.js?v=20261123r';
-import { binariScorrevoli } from './parametri.js?v=20261123r';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261123s';
+import { htmlTendineColori } from './tendine-colori.js?v=20261123s';
+import { misureCostado, binarioArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole } from './calcoli.js?v=20261123s';
+import { binariScorrevoli } from './parametri.js?v=20261123s';
 
 export function configDefault() {
   return {
@@ -30,9 +30,10 @@ export function configDefault() {
       { larghezza: 1000, numeroAnte: 2, antaLato: 'dx', ripiani: 3, riduzioneRipiano: 0, cassettiere: [] },
     ],
     scorrevole: {
-      anteModulo: 2, // ante per modulo (default: 2, scorrono una davanti all'altra)
+      anteModulo: 1, // ante per modulo (default: 1 = anta larga come il modulo, alternate avanti/dietro)
       binario: 75,   // 75 default, oppure 85
       coloreBinario: 'binario-grigio', // colore del binario (catalogo: Impostazioni → Binari)
+      coloreProfilo: 'binario-bianco', // profili verticali sui due lati di ogni anta (stessi colori del binario)
     },
     cassettiere: [], // lista GLOBALE di cassettiere; ciascuna ha `moduli: [i,...]`
     tamponamenti: {
@@ -49,12 +50,13 @@ export function configDefault() {
 
 const escAttr = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-/** Formula delle ante scorrevoli con i numeri del binario scelto (e la maniglia alta come l'anta). */
+/** Formula delle ante scorrevoli con i numeri del binario scelto (anta di partenza = larga come il modulo). */
 function formulaScorrevole(config) {
-  const b = binarioArmadio(config), m = manigliaTuttaAltezza(config) && b.maniglia > 0;
+  const b = binarioArmadio(config);
   const n = (x) => String(Math.round(x * 10) / 10).replace('.', ',');
   const t = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);    // il <code> non passa dalla traduzione automatica
-  return `Formula ante: larghezza = <code>${t(`(L − 2 fianchi) ÷ n° ante − ${n(b.larghezzaMeno)}${m ? ` − ${n(b.maniglia)}` : ''}`)}</code>${m ? ' (maniglia alta come l\'anta)' : ''}, altezza = <code>H − ${n(b.altezzaMeno)}</code> (H = altezza esterna totale).`;
+  const meno = (b.larghezzaMeno > 0 ? ` − ${n(b.larghezzaMeno)}` : '') + (b.maniglia > 0 ? ` − ${n(b.maniglia)}` : '');
+  return `Formula ante: larghezza = <code>${t(`L ÷ n° ante${meno}`)}</code> = <strong>${n(Math.floor(larghezzaAntaScorrevole(config)))} mm</strong>, altezza = <code>H − ${n(b.altezzaMeno)}</code> (H = altezza esterna totale).`;
 }
 function aggiornaFormulaScorrevole(config) {
   const el = document.getElementById('sc-formula');
@@ -149,7 +151,7 @@ export function renderPannello(contenitore, config, onChange) {
       <p class="hint" style="margin-bottom:10px">I dati di ogni binario (quanto togliere alle ante) si cambiano in <a href="impostazioni.html#parametri">⚙ Impostazioni → Parametri</a>.</p>
       <div class="grid-2">
         <label>Nº ante per modulo
-          <input type="number" id="sc-n" value="${config.scorrevole?.anteModulo ?? 2}" min="1" max="4" step="1" />
+          <input type="number" id="sc-n" value="${config.scorrevole?.anteModulo ?? 1}" min="1" max="4" step="1" />
         </label>
         <label>Binario (mm)
           <select id="sc-bin">
@@ -159,7 +161,8 @@ export function renderPannello(contenitore, config, onChange) {
         </label>
       </div>
       <div id="sc-colore-bin">${coloriBinario(config)}</div>
-      <p class="hint">Default: 2 ante per modulo, scorrono una davanti all'altra. Il binario non entra nella distinta (è a parte).</p>
+      <div id="sc-colore-prof">${coloriProfilo(config)}</div>
+      <p class="hint">Di partenza 1 anta per modulo, larga come il modulo (es. armadio 1000 a 2 moduli → ante da 500): quanto togliere lo decide ogni binario in ⚙ Parametri. Ogni anta ha il profilo verticale a tutta altezza sui due lati (le maniglie non servono). Il binario non entra nella distinta (è a parte).</p>
       <p class="hint" id="sc-formula">${formulaScorrevole(config)}</p>
     </section>
 
@@ -295,6 +298,8 @@ export function renderPannello(contenitore, config, onChange) {
       const sezSetup = document.getElementById('sez-setup');
       if (sezSc) sezSc.style.display = scorrevole ? '' : 'none';
       if (sezSetup) sezSetup.style.display = scorrevole ? 'none' : '';
+      renderMateriali(config);
+      attaccaEventiMateriali(contenitore, config, onChange);
       renderModuli(config);
       attaccaEventiModuli(contenitore, config, onChange);
       renderCassettiere(config);
@@ -305,7 +310,7 @@ export function renderPannello(contenitore, config, onChange) {
 
   // Parametri scorrevole
   bind('#sc-n', (e) => {
-    config.scorrevole.anteModulo = Math.max(1, Math.round(Number(e.target.value) || 2));
+    config.scorrevole.anteModulo = Math.max(1, Math.round(Number(e.target.value) || 1));
     onChange(config);
   });
   bind('#sc-tipo', (e) => {
@@ -327,6 +332,16 @@ export function renderPannello(contenitore, config, onChange) {
     }));
   };
   attaccaColoreBinario();
+  // Colore dei profili delle ante scorrevoli (gli stessi colori del binario)
+  const attaccaColoreProfilo = () => {
+    contenitore.querySelectorAll('[data-profilo]').forEach((btn) => btn.addEventListener('click', () => {
+      config.scorrevole.coloreProfilo = btn.dataset.profilo;
+      const box = contenitore.querySelector('#sc-colore-prof');
+      if (box) { box.innerHTML = coloriProfilo(config); attaccaColoreProfilo(); }
+      onChange(config);
+    }));
+  };
+  attaccaColoreProfilo();
 
   bind('#n-moduli', (e) => {
     const n = Math.max(1, Math.min(10, Math.round(Number(e.target.value) || 1)));
@@ -952,8 +967,23 @@ function coloriBinario(config) {
       </div>`;
 }
 
-/** Maniglie delle ante (catalogo, come in cucina): nessuna = ante lisce. */
+/** Colore dei PROFILI verticali delle ante scorrevoli: gli stessi colori del binario (di partenza bianco). */
+function coloriProfilo(config) {
+  const lista = materialiPer('binari');
+  if (!lista.length) return '';
+  const sel = coloreProfiloScorrevole(config);
+  return `
+      <span class="mat-parte">Colore dei profili delle ante (sui due lati, a tutta altezza)</span>
+      <div class="mat-grid bin-grid">
+        ${lista.map((m) => `
+          <button type="button" class="mat-swatch ${m.id === sel ? 'sel' : ''}" data-profilo="${m.id}" title="${m.nome}">
+            <span class="man-tessera" style="background:${sfondoSwatch(m)}"></span><span>${m.nome}</span></button>`).join('')}
+      </div>`;
+}
+
+/** Maniglie delle ante (catalogo, come in cucina): nessuna = ante lisce. Scorrevoli: niente maniglie (ci sono i profili). */
 function cardManiglie(config) {
+  if (config.tipoArmadio === 'scorrevole') return '';
   const lista = materialiPer('maniglie');
   const sel = config.maniglia || 'nessuna';
   const corr = lista.find((m) => m.id === sel);

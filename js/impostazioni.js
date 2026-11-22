@@ -8,19 +8,19 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261123r';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261123r';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261123r';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261123r';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261123r';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261123r';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261123r';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261123r';
-import { agganciaTema } from './tema.js?v=20261123r';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261123r';
-import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261123r';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261123r';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261123r';
+} from './catalogo.js?v=20261123s';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261123s';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261123s';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261123s';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261123s';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261123s';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261123s';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261123s';
+import { agganciaTema } from './tema.js?v=20261123s';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261123s';
+import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261123s';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261123s';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261123s';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1018,9 +1018,9 @@ function renderParametri(S) {
           ${n > 1 ? `<button type="button" class="btn-ghost btn-mini" data-bin-togli="${i}">✕ Togli</button>` : ''}
         </div>
         <div class="par-griglia">
-          ${campoBin(i, 'larghezzaMeno', 'Larghezza anta: togli', '(larghezza esterna − 2 fianchi) ÷ n° ante − questo numero')}
+          ${campoBin(i, 'larghezzaMeno', 'Larghezza anta: togli', 'larghezza esterna ÷ n° ante − questo numero (0 = anta larga come il modulo)')}
           ${campoBin(i, 'altezzaMeno', 'Altezza anta: togli', 'altezza esterna totale (fianchi + top + fondo) − questo numero')}
-          ${campoBin(i, 'maniglia', "Maniglia alta come l'anta: togli", "in più, alla larghezza di ogni anta, quando la maniglia va da terra a soffitto")}
+          ${campoBin(i, 'maniglia', 'Profili delle ante: togli', 'in più, alla larghezza di ogni anta, per i profili verticali sui due lati')}
         </div>
         <div class="par-esempio" data-bin-es="${i}" data-no-i18n></div>
       </div>`;
@@ -1028,6 +1028,7 @@ function renderParametri(S) {
     <p class="imp-desc">${esc(S.desc)}</p>
     <p class="imp-desc">Valgono su questo dispositivo; con la «copia completa» li porti anche sugli altri. Si salvano da soli mentre scrivi.</p>
     <p class="imp-desc">📷 Ogni parametro può avere una o più foto (es. dove si misura): tocca «+ Foto» sotto il numero; tocca una foto per vederla grande o toglierla.</p>
+    <h2 class="par-sezione">🍳 Cucina</h2>
     <div class="par-gruppo">
       <h3>Aria delle ante e dei frontali</h3>
       <div class="par-griglia">
@@ -1055,10 +1056,13 @@ function renderParametri(S) {
       <p class="imp-desc">Vale quando nei mobili bassi scegli «Gola alluminio» (Porte · mobili bassi).</p>
     </div>
     <div class="par-gruppo">
-      <h3>Binari degli armadi scorrevoli</h3>
-      <p class="imp-desc">Ogni binario ha i suoi numeri per calcolare le ante. Nell'armadio scorrevole scegli quale binario usi.</p>
-      <div id="par-binari">${P.binari.map((b, i) => cardBinario(b, i, P.binari.length)).join('')}</div>
-      <button type="button" class="btn-ghost" id="par-bin-agg">+ Aggiungi binario</button>
+      <h3>Regletta d'angolo</h3>
+      <div class="par-griglia">
+        ${campo('regletta.vista', 'Quanto si vede (per lato)', 'di partenza 3 × 3 cm: la parte della regletta che si vede nell\'angolo')}
+        ${campo('regletta.spessoreAnta', 'Spessore dell\'anta', 'un pezzo è largo quanto si vede, l\'altro + questo spessore: sormonta il primo')}
+      </div>
+      <div class="par-esempio" id="par-es-reg" data-no-i18n></div>
+      <p class="imp-desc">Vale per le cucine nuove; in una cucina già fatta la cambi toccando il mobile dell'angolo.</p>
     </div>
     <div class="par-gruppo">
       <h3>Sistema di cassetti</h3>
@@ -1081,6 +1085,13 @@ function renderParametri(S) {
       <p class="imp-desc">Il cassetto grande: lascialo vuoto finché non ti serve. Quando lo usi, scrivi anche fino a che altezza di frontale arriva il medio: i frontali più alti diventano grandi.</p>
       <div class="par-esempio" id="par-es-cass" data-no-i18n></div>
     </div>
+    <h2 class="par-sezione">🚪 Armadi</h2>
+    <div class="par-gruppo">
+      <h3>Binari degli armadi scorrevoli</h3>
+      <p class="imp-desc">Ogni binario ha i suoi numeri per calcolare le ante. Nell'armadio scorrevole scegli quale binario usi.</p>
+      <div id="par-binari">${P.binari.map((b, i) => cardBinario(b, i, P.binari.length)).join('')}</div>
+      <button type="button" class="btn-ghost" id="par-bin-agg">+ Aggiungi binario</button>
+    </div>
     <div class="par-azioni">
       <button type="button" class="btn-ghost" id="par-ripristina">↺ Rimetti i valori di partenza</button>
       <span class="imp-auto-msg" id="par-msg" hidden>✓ Salvato</span>
@@ -1091,12 +1102,12 @@ function renderParametri(S) {
     el.querySelector('#par-es-j').textContent = tr(`Esempio: anta da 700 con maniglia a J → 700 − ${f(A.ariaAltezza)} − ${f(Q.manigliaJ.spessore)} = ${f(700 - A.ariaAltezza - Q.manigliaJ.spessore)} mm`);
     { const G = Q.gola.spazio, es = (H) => tr(`mobile basso da ${H} con la gola → anta ${H} − ${f(G)} = ${f(H - G)} mm · 3 cassetti da ${f(Math.floor((H - 3 * G) / 3))} mm`);
       el.querySelector('#par-es-gola').textContent = tr('Esempio:') + ' ' + es(700) + ' · ' + es(800); }
+    { const R = Q.regletta; el.querySelector('#par-es-reg').textContent = tr(`Esempio: regletta ${f(R.vista / 10)} × ${f(R.vista / 10)} cm con ante da ${f(R.spessoreAnta)} → pezzi da ${f(R.vista)} e ${f(R.vista + R.spessoreAnta)} mm`); }
     const tL = f(600 - c.traseraMeno), tipi = [[c.piccoloTrasera, 'piccolo'], [c.medioTrasera, 'medio'], [c.grandeTrasera, 'grande']].filter(([h]) => h);
     Q.binari.forEach((b, i) => {
       const box = el.querySelector(`[data-bin-es="${i}"]`); if (!box) return;
-      const w = Math.floor((1455 - 36) / 2 - b.larghezzaMeno), h = Math.floor(2500 - b.altezzaMeno);
-      box.textContent = tr(`Esempio: armadio 1455 × 2500, fianchi 18, 2 ante → anta ${w} × ${h} mm`)
-        + (b.maniglia > 0 ? ' · ' + tr(`con la maniglia alta come l'anta: ${Math.floor((1455 - 36) / 2 - b.larghezzaMeno - b.maniglia)} × ${h} mm`) : '');
+      const w = Math.floor(1000 / 2 - b.larghezzaMeno - b.maniglia), h = Math.floor(2500 - b.altezzaMeno);
+      box.textContent = tr(`Esempio: armadio 1000 × 2500 a 2 moduli (1 anta per modulo) → anta ${w} × ${h} mm`);
     });
     el.querySelector('#par-es-cass').textContent = tr(`Esempio: modulo da 60 → fondo ${f(600 - c.fondoMeno)} × ${f(c.fondoProfondita)} mm · trasera ${tipi.map(([h, n]) => `${tL} × ${f(h)} ${n}`).join(', ')}`);
   };

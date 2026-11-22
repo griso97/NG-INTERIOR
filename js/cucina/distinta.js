@@ -14,9 +14,9 @@
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte,
-} from './modello.js?v=20261123r';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261123r';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261123r';
+} from './modello.js?v=20261123s';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261123s';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261123s';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -130,9 +130,12 @@ function reglettaAngolo(pz, mod, progetto, m, H) {
   if (info.coperto) {
     pz.push({ modulo: mod, nome: 'Pannello cieco (angolo)', larghezza: round(info.coveredW || 0), altezza: hF, spessore: SP, materiale: 'anta', quantita: 1 });
   } else {
-    const ra = progetto.reglettaAngolo || {};
-    const vis = (info.gap != null && info.gap > 0) ? Math.max(ra.spessore || 18, info.gap) : (ra.base || 30);
-    pz.push({ modulo: mod, nome: 'Regletta angolo (braccio)', larghezza: round(vis), altezza: hF, spessore: THK_REG, materiale: 'anta', quantita: 2 });
+    const P = parametri().regletta, ra = progetto.reglettaAngolo || {};
+    const spess = ra.spessore != null ? Number(ra.spessore) : P.spessoreAnta;
+    const vis = (info.gap != null && info.gap > 0) ? Math.max(spess || 18, info.gap) : (ra.base || P.vista);
+    // i due pezzi della L: uno largo quanto si vede, l'altro + lo spessore dell'anta (sormonta il primo)
+    pz.push({ modulo: mod, nome: 'Regletta angolo (pezzo corto)', larghezza: round(vis), altezza: hF, spessore: THK_REG, materiale: 'anta', quantita: 1 });
+    pz.push({ modulo: mod, nome: `Regletta angolo (pezzo lungo, + spessore anta ${round(spess)})`, larghezza: round(vis + spess), altezza: hF, spessore: THK_REG, materiale: 'anta', quantita: 1 });
   }
 }
 

@@ -11,13 +11,13 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado } from './calcoli.js?v=20261123r';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261123r';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261123r';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261123r';
-import { sfondoDi } from './sfondi.js?v=20261123r';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261123r';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261123r';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado } from './calcoli.js?v=20261123s';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261123s';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261123s';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261123s';
+import { sfondoDi } from './sfondi.js?v=20261123s';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261123s';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261123s';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -838,8 +838,8 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
   if (scorrevole) {
     // Il rendering 3D usa dimensioni "visive" (W/N + 20) per far vedere
     // chiaramente la sovrapposizione e lo scorrimento. La DISTINTA invece
-    // usa la formula del falegname (L − 2 fianchi) ÷ n° ante − 35 (vedi calcoli.js).
-    const N = config.scorrevole?.anteModulo ?? 2;
+    // usa la formula del binario scelto (L ÷ n° ante − …, vedi calcoli.js).
+    const N = config.scorrevole?.anteModulo ?? 1;
     const B = config.scorrevole?.binario ?? 75;
     const altAntaSc = H - B;
     const larAntaSc = W / N + 20;
@@ -848,7 +848,20 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
     const matAnteSc = matDi(config, "ante");
     const cy = (B * 0.4) + altAntaSc / 2;
 
-    const manSc = manigliaScelta(config);
+    // SCORREVOLI: niente maniglie; su ENTRAMBI i lati di ogni anta il PROFILO verticale a tutta
+    // altezza (alluminio, colori del binario, di partenza bianco) che abbraccia il bordo dell'anta
+    const idProf = config.scorrevole?.coloreProfilo || 'binario-bianco';
+    const matProf = getMaterialeTHREE(MATERIALI.some((m) => m.id === idProf && m.categoria === 'binario') ? idProf : 'binario-bianco',
+      () => { if (resa) resa.cambiato(); else renderer?.render(scene, camera); });
+    const profili = (pivot, w, h) => {
+      const PW = 22, PD = sA + 8;                       // faccia vista 22 mm, avvolge l'anta (+4 per parte)
+      for (const lato of [-1, 1]) {
+        const pr = new THREE.Mesh(new THREE.BoxGeometry(PW, h + 4, PD), matProf);
+        pr.position.set(lato * (w / 2 - PW / 2 + 2), 0, 0);
+        pr.castShadow = true; pr.userData.tipo = 'profilo-anta';
+        pivot.add(pr);
+      }
+    };
     // lato: dove si prende l'anta per farla scorrere (bordo verso l'esterno del modulo)
     const creaAnta = (xBase, cz, xOffsetAperto, latoManiglia = -1) => {
       const pivot = new THREE.Group();
@@ -862,7 +875,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       mesh.userData.tipo = 'anta';
       pivot.add(mesh);
       fugheAnta(pivot, 0, 0, larAntaSc, altAntaSc, sA);
-      if (manSc) aggiungiManiglia(pivot, manSc, latoManiglia * (larAntaSc / 2 - 40), yManiglia(manSc, altAntaSc, cy - altAntaSc / 2, config), sA / 2, lunghezzaManigliaAnta(manSc, config, altAntaSc));
+      profili(pivot, larAntaSc, altAntaSc);
       gruppoArmadio.add(pivot);
     };
 

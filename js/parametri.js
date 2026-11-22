@@ -26,12 +26,20 @@ export const PARAMETRI_DEFAULT = Object.freeze({
   gola: {
     spazio: 25,           // mm per le dita con la GOLA in alluminio: dal piano all'anta (profilo L) e fra i cassetti (profilo C)
   },
+  // REGLETTA D'ANGOLO (cucina): quanto se ne vede (3 × 3 cm) e lo spessore dell'anta. I due pezzi:
+  // uno largo quanto si vede (30) e l'altro + lo spessore dell'anta (30 + 18 = 48), che sormonta il primo
+  regletta: {
+    vista: 30,
+    spessoreAnta: 18,
+  },
   // BINARI degli armadi scorrevoli: ognuno con i suoi numeri per calcolare le ante.
-  //   larghezza anta = (larghezza esterna − 2 fianchi) ÷ n° ante − larghezzaMeno
+  //   larghezza anta = larghezza esterna ÷ n° ante − larghezzaMeno − profilo
+  //   (di partenza: l'anta è larga come il modulo, es. armadio 1000 a 2 moduli → 500;
+  //    ogni falegname toglie poi quello che serve al suo binario)
   //   altezza anta   = altezza esterna totale − altezzaMeno
-  //   con la maniglia alta come l'anta: larghezza anta − maniglia
+  //   profilo = i profili verticali sui due lati di ogni anta (si toglie alla larghezza)
   binari: [
-    { id: 'syscore', nome: 'Syscore', larghezzaMeno: 35, altezzaMeno: 82, maniglia: 0 },
+    { id: 'syscore', nome: 'Syscore', larghezzaMeno: 0, altezzaMeno: 82, maniglia: 0 },
   ],
   cassetti: {
     marca: 'Syscore',     // sistema di cassetti usato (scritto nella lista accessori)
@@ -59,7 +67,11 @@ function completa(s) {
   }
   const D = PARAMETRI_DEFAULT, a = (s && s.ante) || {}, j = (s && s.manigliaJ) || {}, c = (s && s.cassetti) || {}, go = (s && s.gola) || {};
   const visti = new Set();
+  // v3: la larghezza delle ante scorrevoli parte dal modulo intero (prima si toglievano i fianchi e 35):
+  // il vecchio numero di partenza di Syscore (35) torna a 0; i numeri scritti dal falegname restano
+  const vecchi = s && (s.v || 1) < 3;
   const binari = (Array.isArray(s && s.binari) ? s.binari : []).filter((b) => b && typeof b === 'object').map((b, i) => {
+    if (vecchi && b.id === 'syscore' && Number(b.larghezzaMeno) === 35) b = { ...b, larghezzaMeno: 0 };
     let id = String(b.id || '').trim() || `b${i}`;
     while (visti.has(id)) id += 'x';
     visti.add(id);
@@ -71,7 +83,7 @@ function completa(s) {
     };
   });
   return {
-    v: 2,
+    v: 3,
     ante: {
       ariaAltezza: Math.max(0, num(a.ariaAltezza, D.ante.ariaAltezza)),
       ariaLarghezza: Math.max(0, num(a.ariaLarghezza, D.ante.ariaLarghezza)),
@@ -80,6 +92,10 @@ function completa(s) {
     },
     manigliaJ: { spessore: Math.max(0, num(j.spessore, D.manigliaJ.spessore)) },
     gola: { spazio: Math.max(10, Math.min(60, num(go.spazio, D.gola.spazio))) },
+    regletta: {
+      vista: Math.max(5, num(((s && s.regletta) || {}).vista, D.regletta.vista)),
+      spessoreAnta: Math.max(0, num(((s && s.regletta) || {}).spessoreAnta, D.regletta.spessoreAnta)),
+    },
     binari: binari.length ? binari : D.binari.map((b) => ({ ...b })),
     cassetti: {
       marca: String(c.marca ?? D.cassetti.marca).trim(),
