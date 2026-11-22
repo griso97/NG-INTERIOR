@@ -9,14 +9,18 @@
 // («lo imposto dopo»): restano a 0, la distinta avvisa che mancano e alla fine c'è il promemoria.
 // Alla fine: 'ng-configurato' = 1 e si va al programma.
 // =============================================================================
-import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124g';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124g';
-import { svgGola, svgRegletta } from './disegni-cucina.js?v=20261124g';
+import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124h';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124h';
+import { svgGola, svgRegletta, svgParametro } from './disegni-cucina.js?v=20261124h';
 
 const $ = (id) => document.getElementById(id);
 const t = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const f = (n) => String(Math.round(n * 10) / 10);
+
+/** Lo schema di un gruppo dei Parametri (si ridisegna da solo quando cambiano i numeri: data-fig). */
+const figura = (nome, didascalia) => `<div class="figure"><figure><div data-fig="${nome}">${svgParametro(nome, parametri())}</div>${didascalia ? `<figcaption>${esc(t(didascalia))}</figcaption>` : ''}</figure></div>`;
+function ridisegnaFigure() { document.querySelectorAll('[data-fig]').forEach((el) => { el.innerHTML = svgParametro(el.dataset.fig, parametri()); }); }
 
 /** Un numero dei Parametri (percorso 'gruppo.campo'). */
 function campo(path, et, aiuto = '') {
@@ -50,6 +54,7 @@ const PASSI = [
       <label>${esc(t('Altezza anta: togli (mm)'))}<input type="number" inputmode="decimal" step="0.5" min="0" data-bin="altezzaMeno" value="${esc(b.altezzaMeno)}"><small>${esc(t('altezza esterna totale − questo numero'))}</small></label>
       <label>${esc(t('Profili delle ante: togli (mm)'))}<input type="number" inputmode="decimal" step="0.5" min="0" data-bin="maniglia" value="${esc(b.maniglia)}"><small>${esc(t('in più, alla larghezza di ogni anta, per i profili verticali sui due lati'))}</small></label>
     </div>
+    <div class="box">${figura('binario', 'Schema: armadio scorrevole visto davanti')}</div>
     <div class="box" id="es-bin"></div>`;
   } },
   { id: 'cucina', titolo: 'Cucina', html: () => {
@@ -57,20 +62,20 @@ const PASSI = [
     const sc = (v, tit, sotto) => `<button type="button" class="scelta ${pd === v ? 'sel' : ''}" data-piedini="${v}"><b>${esc(t(tit))}</b>${esc(t(sotto))}</button>`;
     return `<div class="box"><h3 style="margin:0 0 8px;color:var(--gold-2);font-size:16px">${esc(t('Piedini (altezza dello zoccolo)'))}</h3><div class="scelte">
       ${sc(100, 'Piedini da 10 cm', 'Zoccolo alto 10 cm')}${sc(150, 'Piedini da 15 cm', 'Zoccolo alto 15 cm')}${sc(0, 'Automatico', 'Bassi da 70 → 15 cm, bassi da 80 → 10 cm')}
-    </div></div>
+    </div>${figura('piedini', 'Schema: mobile basso visto di lato')}</div>
     <div class="box"><h3 style="margin:0 0 8px;color:var(--gold-2);font-size:16px">${esc(t('Aria delle ante'))}</h3><div class="campi">
       ${campo('ante.ariaAltezza', "Altezza dell'anta: togli", 'sopra + sotto: anta da 700 → 698')}
       ${campo('ante.ariaLarghezza', 'Larghezza: togli', 'sui due lati: modulo 600, 1 anta → 597')}
       ${campo('ante.ariaTraAnte', 'Fra due ante', 'stesso modulo')}
       ${campo('ante.ariaCassetti', 'Fra i cassetti', 'fra un frontale e l\'altro')}
-    </div></div>`;
+    </div>${figura('aria', 'Schema: mobile con 2 ante e mobile con 3 cassetti, visti davanti')}</div>`;
     // la maniglia a J NON si chiede qui: lo spessore va con la maniglia (si imposterà con le maniglie)
   } },
   { id: 'gola', titolo: 'Cucina · gola', gruppo: 'gola', fatto: ['gola'], html: () => {
     const G = parametri().gola.spazio;
     return `<p class="intro">${esc(t('La gola è il profilo in alluminio che nei mobili bassi prende il posto delle maniglie. Fra il piano e l\'anta resta uno spazio per infilare le dita e aprire: lì c\'è il profilo a L, sotto il piano. Nei cassettoni lo stesso spazio c\'è fra un cassetto e l\'altro: lì c\'è il profilo a C. I profili entrano nei fianchi fresati.'))}</p>
     <div class="box"><div class="figure">
-      <figure>${svgGola(G)}<figcaption>${esc(t('Schema: mobile con 3 cassetti, visto di lato'))}</figcaption></figure>
+      <figure><div data-fig="gola">${svgGola(G)}</div><figcaption>${esc(t('Schema: mobile con 3 cassetti, visto di lato'))}</figcaption></figure>
       <figure><img src="img/guida/gola-vicino.jpg" alt="" loading="lazy"><figcaption>${esc(t('Come si vede nel 3D del programma'))}</figcaption></figure>
       <figure><img src="img/guida/gola-profilo.jpg" alt="" loading="lazy"><figcaption>${esc(t('Il profilo a L sotto il piano'))}</figcaption></figure>
     </div></div>
@@ -86,7 +91,7 @@ const PASSI = [
       <ul class="riep" id="calc-reg" data-no-i18n></ul>
       <div class="spiega" id="perche-reg"></div></div>
     <div class="box"><div class="figure">
-      <figure>${svgRegletta(R.vista, R.spessoreAnta)}<figcaption>${esc(t('Schema: l\'angolo visto da sopra'))}</figcaption></figure>
+      <figure><div data-fig="regletta">${svgRegletta(R.vista, R.spessoreAnta)}</div><figcaption>${esc(t('Schema: l\'angolo visto da sopra'))}</figcaption></figure>
       <figure><img src="img/guida/regletta-angolo.jpg" alt="" loading="lazy"><figcaption>${esc(t('Come si vede nel 3D del programma'))}</figcaption></figure>
     </div></div>
     <div class="box campi">
@@ -107,6 +112,7 @@ const PASSI = [
       ${campo('cassetti.piccoloTrasera', 'Trasera del cassetto piccolo')}
       ${campo('cassetti.medioTrasera', 'Trasera del cassetto medio', 'vuoto = una sola misura per tutti i cassetti')}
     </div>
+    <div class="box">${figura('cassetti', 'Schema: cassetto visto da sopra')}</div>
     <div class="box avviso-fine" id="att-cass" hidden></div>
     <p class="nota">${esc(t('Se usi una terza altezza (cassetto grande), la aggiungi in ⚙ Impostazioni → Parametri → Cassetti.'))}</p>` },
   { id: 'fine', titolo: 'Fatto', html: () => {
@@ -221,16 +227,13 @@ function agganciaCampi(root) {
     const n = Number(String(inp.value).replace(',', '.')); if (!Number.isFinite(n)) return;
     salvaCampo(inp.dataset.par, n);
     esempioGola(); calcoloRegletta(); attenzioneCassetti();
-    // lo schema segue i numeri
-    const sv = document.querySelector('.figure figure svg');
-    if (sv && inp.dataset.par.startsWith('gola')) sv.outerHTML = svgGola(parametri().gola.spazio);
-    if (sv && inp.dataset.par.startsWith('regletta')) { const R = parametri().regletta; sv.outerHTML = svgRegletta(R.vista, R.spessoreAnta); }
+    ridisegnaFigure();                                  // gli schemi seguono i numeri
   }));
   root.querySelectorAll('[data-partesto]').forEach((inp) => inp.addEventListener('change', () => salvaCampo(inp.dataset.partesto, inp.value)));
   root.querySelectorAll('[data-bin]').forEach((inp) => inp.addEventListener('change', () => {
     const n = JSON.parse(JSON.stringify(parametri())), k = inp.dataset.bin;
     n.binari[0][k] = k === 'nome' ? inp.value : Math.max(0, Number(String(inp.value).replace(',', '.')) || 0);
-    salvaParametri(n); esempioBinario();
+    salvaParametri(n); esempioBinario(); ridisegnaFigure();
   }));
   root.querySelectorAll('[data-piedini]').forEach((b) => b.addEventListener('click', () => {
     salvaCampo('cucina.piedini', Number(b.dataset.piedini)); mostra();

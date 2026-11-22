@@ -185,3 +185,17 @@
 .par-visore-freccia.sx { left: 10px; } .par-visore-freccia.dx { right: 10px; }
 
 .par-sezione { margin: 26px 0 10px; font-size: 18px; letter-spacing: 1px; color: var(--oro, #c9a94a); border-bottom: 1px solid rgba(201,169,74,.35); padding-bottom: 6px; }
+
+/* SCHEMI dei parametri (aria ante, piedini, maniglia a J, gola, regletta, cassetti, binari) */
+.par-figure { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 12px; padding: 12px; border-radius: 10px; background: #110e0a; border: 1px solid var(--bordo, rgba(201,169,74,.25)); }
+.par-figure figure { margin: 0; flex: 1 1 240px; max-width: 380px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.par-figure figure:only-child { max-width: 420px; }
+.par-figure [data-fig], .par-figure [data-fig-bin] { width: 100%; display: flex; justify-content: center; }
+.par-figure svg, .par-figure img { max-width: 100%; height: auto; border-radius: 8px; }
+.par-figure img { border: 1px solid var(--bordo, rgba(201,169,74,.25)); }
+.par-figure figcaption { font-size: 12px; color: var(--testo-dim, #b8ad97); text-align: center; }
+.par-scelte { display: flex; flex-wrap: wrap; gap: 10px; }
+.par-scelta { all: unset; cursor: pointer; box-sizing: border-box; flex: 1 1 180px; padding: 10px 12px; border: 1px solid #4a4030; border-radius: 10px; background: #14110d; color: #e6dcc6; font-size: 13px; line-height: 1.35; }
+.par-scelta b { display: block; color: #e8c25a; font-weight: 600; }
+.par-scelta small { color: #b8ad97; }
+.par-scelta.sel { border-color: #e8c25a; box-shadow: 0 0 0 2px rgba(232,194,90,.35); background: #1d1812; }

@@ -75,3 +75,114 @@ export function svgRegletta(vista = 30, spessore = 18) {
   p.push(txt(150, 268, t('vista da sopra'), 'text-anchor="middle" fill="#b8ad97"'));
   return `<svg viewBox="0 0 290 276" width="290" height="276" role="img" aria-label="${t("Regletta d'angolo vista da sopra")}">${p.join('')}</svg>`;
 }
+
+// =============================================================================
+// ALTRI SCHEMI DEI ⚙ PARAMETRI (guida iniziale e Impostazioni → Parametri)
+// =============================================================================
+const badge = (x, y, n) => `<circle cx="${x}" cy="${y}" r="8" fill="${C.dim}"/>` + txt(x, y + 3.5, n, 'text-anchor="middle" fill="#14110d" font-size="10" font-weight="700"');
+const riga = (x1, y1, x2, y2) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${C.dim}" stroke-width="1"/>`;
+const leg = (y, n, s) => badge(18, y - 3.5, n) + txt(32, y, s, 'font-size="10.5"');
+
+/** ARIA DELLE ANTE E DEI FRONTALI (vista davanti): ① sopra+sotto ② ai lati ③ fra le ante ④ fra i cassetti. */
+export function svgAriaAnte(A = {}) {
+  const aH = Number(A.ariaAltezza) || 0, aL = Number(A.ariaLarghezza) || 0, aT = Number(A.ariaTraAnte) || 0, aC = Number(A.ariaCassetti) || 0;
+  const p = [];
+  // mobile con 2 ante (aria ingrandita perché si veda)
+  const x1 = 34, y1 = 26, W = 128, H = 168, g = 4, gm = 6;
+  p.push(rect(x1, y1, W, H, '#2a2620', `stroke="${C.fianco}"`));
+  const wa = (W - 2 * g - gm) / 2;
+  p.push(rect(x1 + g, y1 + g, wa, H - 2 * g, C.anta), rect(x1 + g + wa + gm, y1 + g, wa, H - 2 * g, C.anta));
+  p.push(badge(x1 + W / 2, y1 - 8, '1'), riga(x1 + W / 2, y1 - 1, x1 + W / 2, y1 + g));
+  p.push(badge(x1 - 14, y1 + H / 2, '2'), riga(x1 - 6, y1 + H / 2, x1 + g / 2, y1 + H / 2));
+  p.push(badge(x1 + W / 2, y1 + H / 2, '3'));
+  // mobile con 3 cassetti
+  const x2 = 190, fr = (H - 4 * gm) / 3;
+  p.push(rect(x2, y1, W, H, '#2a2620', `stroke="${C.fianco}"`));
+  for (let k = 0; k < 3; k++) p.push(rect(x2 + g, y1 + gm + k * (fr + gm), W - 2 * g, fr, C.anta));
+  p.push(badge(x2 + W + 14, y1 + gm + fr + gm / 2, '4'), riga(x2 + W - g, y1 + gm + fr + gm / 2, x2 + W + 6, y1 + gm + fr + gm / 2));
+  // legenda con i numeri veri
+  const f1 = (n) => f(n).replace('.', ',');
+  p.push(leg(222, '1', `${t('sopra + sotto')}: ${f1(aH)} mm → ${t('anta da 700')} = ${f1(700 - aH)} mm`));
+  p.push(leg(240, '2', `${t('ai lati (insieme)')}: ${f1(aL)} mm → ${t('modulo 600, 1 anta')} = ${f1(600 - aL)} mm`));
+  p.push(leg(258, '3', `${t('fra le due ante')}: ${f1(aT)} mm → ${t('2 ante da')} ${f1((600 - aL - aT) / 2)} mm`));
+  p.push(leg(276, '4', `${t('fra un frontale e l\'altro (e sopra e sotto)')}: ${f1(aC)} mm`));
+  return `<svg viewBox="0 0 352 288" width="352" height="288" role="img" aria-label="${t('Aria delle ante vista davanti')}">${p.join('')}</svg>`;
+}
+
+/** PIEDINI DELLA CUCINA (vista di lato): l'altezza dello zoccolo = l'altezza dei piedini. */
+export function svgPiedini(piedini = 0) {
+  const hz = piedini === 150 ? 44 : 30, yP = 196, yM = yP - hz, p = [];
+  p.push(`<rect x="10" y="${yP}" width="230" height="4" fill="${C.muro}"/>`, txt(40, yP + 15, t('pavimento'), 'text-anchor="middle" fill="#b8ad97" font-size="9"'));
+  p.push(rect(40, 30, 150, 12, C.piano), txt(115, 39, t('piano'), 'text-anchor="middle" fill="#cfc6b3" font-size="9"'));
+  p.push(rect(44, 42, 136, yM - 42, C.fianco), txt(112, (42 + yM) / 2 + 3, t('mobile basso'), 'text-anchor="middle" fill="#14110d" font-size="10"'));
+  p.push(rect(180, 44, 8, yM - 46, C.anta));
+  // piedini e zoccolo (arretrato)
+  for (const x of [56, 150]) p.push(`<rect x="${x}" y="${yM}" width="12" height="${hz}" fill="#3a3632" stroke="#14110d"/>`);
+  p.push(rect(168, yM + 2, 6, hz - 2, '#55504a'), txt(171, yP + 15, t('zoccolo'), 'text-anchor="middle" fill="#cfc6b3" font-size="9"'), riga(171, yP + 5, 171, yP - 4));
+  p.push(riga(205, yM, 205, yP), riga(200, yM, 210, yM), riga(200, yP, 210, yP));
+  p.push(txt(214, (yM + yP) / 2 + 3, piedini ? `${piedini / 10} cm` : t('10 o 15 cm'), `fill="${C.dim}" font-size="10"`));
+  p.push(txt(125, yP + 30, piedini ? t('lo zoccolo è alto quanto i piedini') : t('automatico: bassi da 70 → 15 cm, da 80 → 10 cm'), 'text-anchor="middle" fill="#b8ad97" font-size="9.5"'));
+  return `<svg viewBox="0 0 250 236" width="250" height="236" role="img" aria-label="${t('Piedini e zoccolo vista di lato')}">${p.join('')}</svg>`;
+}
+
+/** MANIGLIA A J (sezione di lato del bordo alto dell'anta): il profilo sta sopra l'anta, che si accorcia del suo spessore. */
+export function svgManigliaJ(sp = 2, aH = 2) {
+  const p = [], xA = 120, wA = 18, yTop = 70, s = 8;          // anta e spessore del profilo (ingranditi)
+  p.push(rect(xA, yTop + s, wA, 150, C.anta), txt(xA + wA + 8, yTop + 110, t('anta'), 'font-size="10"'));
+  // profilo a J: appoggiato SUL bordo alto dell'anta (spessore s), con il labbro che sale dietro (lo spazio per le dita)
+  p.push(`<rect x="${xA}" y="${yTop}" width="${wA}" height="${s}" fill="#c3c5c8" stroke="#14110d" stroke-width=".8"/>`);
+  p.push(`<path d="M${xA + 2} ${yTop + s / 2} H${xA - 24} V${yTop - 30} Q${xA - 24} ${yTop - 38} ${xA - 16} ${yTop - 38}" fill="none" stroke="#c3c5c8" stroke-width="4" stroke-linejoin="round"/>`);
+  p.push(txt(xA - 34, yTop - 44, t('profilo a J'), 'text-anchor="end" font-size="10"'));
+  p.push(txt(xA - 8, yTop - 14, t('dita'), 'text-anchor="middle" fill="#b8ad97" font-size="8.5"'));
+  p.push(riga(xA + wA + 14, yTop, xA + wA + 14, yTop + s), riga(xA + wA + 10, yTop, xA + wA + 18, yTop), riga(xA + wA + 10, yTop + s, xA + wA + 18, yTop + s));
+  p.push(txt(xA + wA + 22, yTop + s / 2 + 4, `${f(sp)} mm`, `fill="${C.dim}" font-size="10"`));
+  p.push(txt(130, 250, `${t('anta da 700')}: 700 − ${f(aH)} − ${f(sp)} = ${f(700 - aH - sp)} mm`, `text-anchor="middle" fill="${C.dim}" font-size="10.5"`));
+  p.push(txt(130, 266, t('vista di lato (sezione)'), 'text-anchor="middle" fill="#b8ad97" font-size="9"'));
+  return `<svg viewBox="0 0 260 276" width="260" height="276" role="img" aria-label="${t('Maniglia a J vista di lato')}">${p.join('')}</svg>`;
+}
+
+/** CASSETTO visto DA SOPRA: frontale, guide, fondo e trasera con le loro misure. */
+export function svgCassetto(c = {}) {
+  const p = [], x0 = 40, y0 = 20, W = 200, D = 150;
+  const fM = Number(c.fondoMeno) || 0, fP = Number(c.fondoProfondita) || 0, tM = Number(c.traseraMeno) || 0;
+  p.push(rect(x0, y0 + D, W, 12, C.anta), txt(x0 + W / 2, y0 + D + 9, t('frontale'), 'text-anchor="middle" fill="#14110d" font-size="9"'));
+  p.push(rect(x0 + 8, y0, 10, D, '#9aa0a6'), rect(x0 + W - 18, y0, 10, D, '#9aa0a6'));          // guide / sponde metalliche
+  p.push(rect(x0 + 18, y0 + 14, W - 36, D - 14, '#d9d4c8'), txt(x0 + W / 2, y0 + D / 2 + 10, t('fondo'), 'text-anchor="middle" fill="#14110d" font-size="11"'));
+  p.push(rect(x0 + 18, y0 + 2, W - 36, 10, '#f2efe8'), txt(x0 + W / 2, y0 + 10, t('trasera'), 'text-anchor="middle" fill="#14110d" font-size="8.5"'));
+  p.push(txt(x0 + 4, y0 + D / 2, t('guida'), 'text-anchor="end" font-size="9" fill="#b8ad97"'));
+  const tr = [[c.piccoloTrasera, 'piccolo'], [c.medioTrasera, 'medio'], [c.grandeTrasera, 'grande']].filter(([h]) => Number(h) > 0);
+  p.push(txt(18, 206, `${t('fondo')}: ${t('modulo')} − ${f(fM)} × ${f(fP)} mm`, 'font-size="10.5"'));
+  p.push(txt(18, 224, `${t('trasera')}: ${t('modulo')} − ${f(tM)} × ${tr.length ? tr.map(([h, n]) => `${f(h)} (${t(n)})`).join(' / ') : '—'} mm`, 'font-size="10.5"'));
+  p.push(txt(18, 242, `${t('es. modulo 600')}: ${t('fondo')} ${f(600 - fM)} × ${f(fP)} · ${t('trasera')} ${f(600 - tM)} mm`, `fill="${C.dim}" font-size="10.5"`));
+  p.push(txt(140, 258, t('vista da sopra'), 'text-anchor="middle" fill="#b8ad97" font-size="9"'));
+  return `<svg viewBox="0 0 290 266" width="290" height="266" role="img" aria-label="${t('Cassetto visto da sopra')}">${p.join('')}</svg>`;
+}
+
+/** BINARIO DEGLI SCORREVOLI (vista davanti): armadio a 2 moduli, ante che scorrono, le misure dell'anta. */
+export function svgBinario(b = {}) {
+  const lM = Number(b.larghezzaMeno) || 0, hM = Number(b.altezzaMeno) || 0, pr = Number(b.maniglia) || 0;
+  const p = [], x0 = 40, y0 = 24, W = 200, H = 150;
+  p.push(rect(x0, y0, W, H, '#2a2620', `stroke="${C.fianco}"`));
+  p.push(`<rect x="${x0}" y="${y0 + 2}" width="${W}" height="5" fill="#6d7075"/>`, `<rect x="${x0}" y="${y0 + H - 7}" width="${W}" height="5" fill="#6d7075"/>`);
+  p.push(txt(x0 + W + 4, y0 + 8, t('binario'), 'font-size="9" fill="#b8ad97"'));
+  // due ante: una davanti e una dietro, si sovrappongono un poco
+  p.push(rect(x0 + 4, y0 + 9, W / 2 + 4, H - 18, '#cfc3a6'), rect(x0 + W / 2 - 8, y0 + 9, W / 2 + 4, H - 18, C.anta));
+  p.push(`<rect x="${x0 + W / 2 - 8}" y="${y0 + 9}" width="4" height="${H - 18}" fill="#bfbfbf"/>`, `<rect x="${x0 + W - 8}" y="${y0 + 9}" width="4" height="${H - 18}" fill="#bfbfbf"/>`);
+  p.push(txt(x0 + W / 2 + 40, y0 + H / 2, t('anta'), 'text-anchor="middle" fill="#14110d" font-size="10"'));
+  p.push(txt(18, 200, `${t('larghezza anta')} = 1000 ÷ 2 − ${f(lM)} − ${f(pr)} = ${f(Math.floor(500 - lM - pr))} mm`, 'font-size="10.5"'));
+  p.push(txt(18, 218, `${t('altezza anta')} = 2500 − ${f(hM)} = ${f(Math.floor(2500 - hM))} mm`, 'font-size="10.5"'));
+  p.push(txt(18, 236, t('esempio: armadio 1000 × 2500, 2 moduli, 1 anta per modulo'), 'fill="#b8ad97" font-size="9.5"'));
+  return `<svg viewBox="0 0 290 246" width="290" height="246" role="img" aria-label="${t('Ante scorrevoli viste davanti')}">${p.join('')}</svg>`;
+}
+
+/** Lo schema giusto per un gruppo dei ⚙ Parametri, con i numeri di adesso (P = parametri()). */
+export function svgParametro(nome, P) {
+  if (nome === 'aria') return svgAriaAnte(P.ante);
+  if (nome === 'piedini') return svgPiedini(P.cucina.piedini);
+  if (nome === 'manigliaJ') return svgManigliaJ(P.manigliaJ.spessore, P.ante.ariaAltezza);
+  if (nome === 'cassetti') return svgCassetto(P.cassetti);
+  if (nome === 'binario') return svgBinario(P.binari[0] || {});
+  if (nome === 'gola') return svgGola(P.gola.spazio);
+  if (nome === 'regletta') return svgRegletta(P.regletta.vista, P.regletta.spessoreAnta);
+  return '';
+}

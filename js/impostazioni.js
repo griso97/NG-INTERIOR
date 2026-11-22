@@ -8,20 +8,21 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261124g';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261124g';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261124g';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261124g';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261124g';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261124g';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261124g';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261124g';
-import { agganciaTema } from './tema.js?v=20261124g';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261124g';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261124g';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261124g';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124g';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261124g';
+} from './catalogo.js?v=20261124h';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261124h';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261124h';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261124h';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261124h';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261124h';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261124h';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261124h';
+import { agganciaTema } from './tema.js?v=20261124h';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261124h';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261124h';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261124h';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124h';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261124h';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261124h';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1011,6 +1012,8 @@ function renderParametri(S) {
   const campoBin = (i, k, et, aiuto) => `<div class="par-campo-box"><label class="par-campo"><span class="par-et">${esc(et)}</span>
       <span class="par-input"><input type="number" inputmode="decimal" step="0.1" min="0" data-bin="${i}.${k}" value="${esc(P.binari[i][k])}"><em>mm</em></span>
       <small>${esc(aiuto)}</small></label>${htmlFotoParametro(`binario:${P.binari[i].id}.${k}`)}</div>`;
+  // SCHEMI dei parametri (gli stessi della configurazione guidata): si ridisegnano con i numeri
+  const fig = (nome, didascalia, foto = []) => `<div class="par-figure"><figure><div data-fig="${nome}">${svgParametro(nome, P)}</div><figcaption>${esc(didascalia)}</figcaption></figure>${foto.map(([src, d]) => `<figure><img src="${src}" alt="" loading="lazy"><figcaption>${esc(d)}</figcaption></figure>`).join('')}</div>`;
   const cardBinario = (b, i, n) => `
       <div class="par-binario">
         <div class="par-bin-testa">
@@ -1024,6 +1027,7 @@ function renderParametri(S) {
           ${campoBin(i, 'maniglia', 'Profili delle ante: togli', 'in più, alla larghezza di ogni anta, per i profili verticali sui due lati')}
         </div>
         <div class="par-esempio" data-bin-es="${i}" data-no-i18n></div>
+        <div class="par-figure"><figure><div data-fig-bin="${i}">${svgBinario(b)}</div><figcaption>${esc('Schema: armadio scorrevole visto davanti')}</figcaption></figure></div>
       </div>`;
   el.innerHTML = `
     <p class="imp-desc">${esc(S.desc)}</p>
@@ -1040,6 +1044,13 @@ function renderParametri(S) {
         ${campo('ante.ariaCassetti', 'Aria tra i frontali dei cassetti', 'tra un frontale e l\'altro, e sopra e sotto')}
       </div>
       <div class="par-esempio" id="par-es-ante" data-no-i18n></div>
+      ${fig('aria', 'Schema: mobile con 2 ante e mobile con 3 cassetti, visti davanti')}
+    </div>
+    <div class="par-gruppo">
+      <h3>Piedini della cucina (altezza dello zoccolo)</h3>
+      <div class="par-scelte" id="par-piedini">${[[100, 'Piedini da 10 cm', 'Zoccolo alto 10 cm'], [150, 'Piedini da 15 cm', 'Zoccolo alto 15 cm'], [0, 'Automatico', 'Bassi da 70 → 15 cm, bassi da 80 → 10 cm']].map(([v, tit, sotto]) => `<button type="button" class="par-scelta ${P.cucina.piedini === v ? 'sel' : ''}" data-piedini="${v}"><b>${esc(tit)}</b><small>${esc(sotto)}</small></button>`).join('')}</div>
+      ${fig('piedini', 'Schema: mobile basso visto di lato')}
+      <p class="imp-desc">Vale per le cucine nuove; in una cucina già fatta lo cambi nella cucina stessa.</p>
     </div>
     <div class="par-gruppo">
       <h3>Maniglia a J (profilo sopra l'anta)</h3>
@@ -1047,6 +1058,7 @@ function renderParametri(S) {
         ${campo('manigliaJ.spessore', 'Spessore del profilo a J', "l'anta si accorcia di questo spessore")}
       </div>
       <div class="par-esempio" id="par-es-j" data-no-i18n></div>
+      ${fig('manigliaJ', 'Schema: il profilo a J sul bordo alto dell\'anta, visto di lato')}
       <p class="imp-desc">Vale per le maniglie con la forma «Profilo (a J)»: le aggiungi in ⚙ Impostazioni → Maniglie e le scegli in cucina.</p>
     </div>
     <div class="par-gruppo">
@@ -1055,6 +1067,7 @@ function renderParametri(S) {
         ${campo('gola.spazio', 'Spazio per le dita', "tolti in alto all'anta, sopra il primo cassetto e fra un cassetto e l'altro")}
       </div>
       <div class="par-esempio" id="par-es-gola" data-no-i18n></div>
+      ${fig('gola', 'Schema: mobile con 3 cassetti, visto di lato', [['img/guida/gola-vicino.jpg', 'Come si vede nel 3D del programma'], ['img/guida/gola-profilo.jpg', 'Il profilo a L sotto il piano']])}
       <p class="imp-desc">Vale quando nei mobili bassi scegli «Gola alluminio» (Porte · mobili bassi).</p>
     </div>
     <div class="par-gruppo">
@@ -1064,6 +1077,7 @@ function renderParametri(S) {
         ${campo('regletta.spessoreAnta', 'Spessore dell\'anta', 'un pezzo è largo quanto si vede, l\'altro + questo spessore: sormonta il primo')}
       </div>
       <div class="par-esempio" id="par-es-reg" data-no-i18n></div>
+      ${fig('regletta', 'Schema: l\'angolo visto da sopra', [['img/guida/regletta-angolo.jpg', 'Come si vede nel 3D del programma']])}
       <p class="imp-desc">Vale per le cucine nuove; in una cucina già fatta la cambi toccando il mobile dell'angolo.</p>
     </div>
     <div class="par-gruppo">
@@ -1086,6 +1100,7 @@ function renderParametri(S) {
       </table>
       <p class="imp-desc">Il cassetto grande: lascialo vuoto finché non ti serve. Quando lo usi, scrivi anche fino a che altezza di frontale arriva il medio: i frontali più alti diventano grandi.</p>
       <div class="par-esempio" id="par-es-cass" data-no-i18n></div>
+      ${fig('cassetti', 'Schema: cassetto visto da sopra')}
     </div>
     <h2 class="par-sezione">🚪 Armadi</h2>
     <div class="par-gruppo">
@@ -1130,10 +1145,19 @@ function renderParametri(S) {
       const w = Math.floor(1000 / 2 - b.larghezzaMeno - b.maniglia), h = Math.floor(2500 - b.altezzaMeno);
       box.textContent = tr(`Esempio: armadio 1000 × 2500 a 2 moduli (1 anta per modulo) → anta ${w} × ${h} mm`);
     });
+    el.querySelectorAll('[data-fig]').forEach((d) => { d.innerHTML = svgParametro(d.dataset.fig, Q); });
+    el.querySelectorAll('[data-fig-bin]').forEach((d) => { const b = Q.binari[Number(d.dataset.figBin)]; if (b) d.innerHTML = svgBinario(b); });
     el.querySelector('#par-es-cass').textContent = tr(`Esempio: modulo da 60 → fondo ${f(600 - c.fondoMeno)} × ${f(c.fondoProfondita)} mm · trasera ${tipi.map(([h, n]) => `${tL} × ${f(h)} ${n}`).join(', ')}`);
   };
   esempi();
   agganciaFotoParametri(el);
+  // piedini della cucina: tre scelte
+  el.querySelectorAll('[data-piedini]').forEach((b) => b.addEventListener('click', () => {
+    const nuovo = JSON.parse(JSON.stringify(parametri())); nuovo.cucina.piedini = Number(b.dataset.piedini);
+    salvaParametri(nuovo);
+    el.querySelectorAll('[data-piedini]').forEach((x) => x.classList.toggle('sel', x === b));
+    esempi();
+  }));
   // COME MONTI GLI ARMADI: schede col disegno (le stesse della configurazione guidata)
   const disegnaMontaggio = () => {
     const box = el.querySelector('#par-montaggio'); if (!box) return;
