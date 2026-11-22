@@ -2381,4 +2381,5 @@ window.NG_I18N_ES = {
  "Apri la foto": "Abrir la foto",
  "Questa foto non si apre.": "Esta foto no se abre.",
  "Foto non salvata.": "Foto no guardada.",
+ "Sotto, il mobile basso continua (o c'è una regletta): i pensili non hanno reglette, quindi allarga il pensile così sopra e sotto sono allineati. Se la misura non è standard, in distinta c'è il modulo da ordinare e a quanto tagliarlo.": "Debajo, el mueble bajo continúa (o hay una regleta): los altos no llevan regletas, así que ensancha el alto para que arriba y abajo queden alineados. Si la medida no es estándar, en el despiece está el módulo a pedir y a cuánto cortarlo.",
 };

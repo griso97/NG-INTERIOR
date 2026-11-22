@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261123p';
+import { parametri } from '../parametri.js?v=20261123q';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -2096,9 +2096,17 @@ export function spaziPensili(progetto, max = 150) {
   const alti = mob.filter((o) => {
     const c = categoriaTipo(o.tipo);
     return c === 'pensile' || c === 'altillo' || c === 'colonna' || c === 'frigo'
-      || (c === 'costado' && ((o.altezza_mm || 0) >= 1500 || (o.profondita_mm || 620) < 500));
+      || (c === 'costado' && ((o.altezza_mm || 0) >= 1500 || (o.profondita_mm || 620) < 500))
+      || (c === 'pannello' && o.tipo === 'regletta-grande' && (o.altezza_mm || 0) >= 1500);   // regletta a tutta altezza
   });
   const basi = mob.filter((o) => ['base', 'lavastoviglie', 'lavatrice'].includes(categoriaTipo(o.tipo)));
+  // REGLETTE SOTTO (7-8 cm fra due basi, contro il muro, prima di una colonna…): i pensili non hanno
+  // reglette, quindi il pensile accanto va fatto PIÙ GRANDE (es. 60 → 67: modulo da 70 da tagliare)
+  // fino al mobile alto accanto o fino alla fine della regletta (il muro). Prima restava un buco.
+  const reglette = mob.filter((o) => {
+    const c = categoriaTipo(o.tipo);
+    return c === 'regletta' || (c === 'pannello' && o.tipo === 'regletta-grande' && (o.altezza_mm || 0) < 1500);
+  });
   const out = [];
   for (const p of mob) {
     if (p.tipo !== 'pensile' || p.sottoPonte) continue;
@@ -2106,14 +2114,32 @@ export function spaziPensili(progetto, max = 150) {
     const lo = oriz ? A.x0 : A.y0, hi = oriz ? A.x1 : A.y1;
     const q0 = oriz ? A.y0 : A.x0, q1 = oriz ? A.y1 : A.x1, qc = (q0 + q1) / 2;
     for (const lato of [1, -1]) {
-      let gap = Infinity;
+      let gap = Infinity, vicino = null;
       for (const o of alti) {
         if (o.id === p.id) continue;
         const B = aabbMondo(o);
         const blo = oriz ? B.x0 : B.y0, bhi = oriz ? B.x1 : B.y1, b0 = oriz ? B.y0 : B.x0, b1 = oriz ? B.y1 : B.x1;
         if (Math.min(q1, b1) - Math.max(q0, b0) < 50) continue;           // non sulla stessa fila
         const g = lato > 0 ? blo - hi : lo - bhi;
-        if (g > -2 && g < gap) gap = g;
+        if (g > -2 && g < gap) { gap = g; vicino = o; }
+      }
+      // sotto, accanto al pensile, una o più REGLETTE di fila (stessa fila, stessa parete)?
+      let finoA = lato > 0 ? hi : lo;
+      for (let k = 0; k < 4; k++) {
+        const r = reglette.find((o) => {
+          const B = aabbMondo(o);
+          const blo = oriz ? B.x0 : B.y0, bhi = oriz ? B.x1 : B.y1, b0 = oriz ? B.y0 : B.x0, b1 = oriz ? B.y1 : B.x1;
+          if (Math.min(q1, b1) - Math.max(q0, b0) < 50) return false;    // la regletta sta sotto il pensile (verso il muro)
+          return lato > 0 ? Math.abs(blo - finoA) <= 5 : Math.abs(bhi - finoA) <= 5;
+        });
+        if (!r) break;
+        const B = aabbMondo(r);
+        finoA = lato > 0 ? (oriz ? B.x1 : B.y1) : (oriz ? B.x0 : B.y0);
+      }
+      const sottoRegletta = Math.abs(finoA - (lato > 0 ? hi : lo));
+      if (sottoRegletta > 5 && sottoRegletta <= max) {
+        const g = Math.min(sottoRegletta, gap);         // fino alla fine della regletta, o al mobile alto prima
+        if (g > 5) { out.push({ id: p.id, lato, gap: Math.round(g), w: Math.round(p.larghezza_mm + g), regletta: true }); continue; }
       }
       if (!(gap > 5 && gap <= max)) continue;
       // sotto lo spazio c'è il mobile basso? (allora sopra va chiuso)
@@ -2123,7 +2149,17 @@ export function spaziPensili(progetto, max = 150) {
         const B = aabbMondo(b), b0 = oriz ? B.x0 : B.y0, b1 = oriz ? B.x1 : B.y1, c0 = oriz ? B.y0 : B.x0, c1 = oriz ? B.y1 : B.x1;
         return mid > b0 && mid < b1 && qc > c0 - 1 && qc < c1 + 1 && Math.min(b1, hi) - Math.max(b0, lo) > 50;
       });
-      if (sotto) out.push({ id: p.id, lato, gap: Math.round(gap), w: Math.round(p.larghezza_mm + gap) });
+      if (sotto) { out.push({ id: p.id, lato, gap: Math.round(gap), w: Math.round(p.larghezza_mm + gap) }); continue; }
+      // ANGOLO: fra il pensile d'angolo (o il pensile dell'altra parete) e questo pensile resta uno spazio
+      // dove sotto non c'è un mobile: è la regletta d'angolo dei bassi (fatta in automatico). Sopra
+      // niente regletta: il pensile va allargato fino al pensile d'angolo.
+      const g0 = lato > 0 ? hi : lo - gap, g1 = lato > 0 ? hi + gap : lo;
+      const qualcosaSotto = [...basi, ...reglette].some((b) => {
+        const B = aabbMondo(b), b0 = oriz ? B.x0 : B.y0, b1 = oriz ? B.x1 : B.y1, c0 = oriz ? B.y0 : B.x0, c1 = oriz ? B.y1 : B.x1;
+        return Math.min(b1, g1) - Math.max(b0, g0) > 2 && Math.min(q1, c1) - Math.max(q0, c0) > 2;
+      });
+      const dAngolo = vicino && (vicino.tipo === 'pensile-angolo' || aabbMondo(vicino).horiz !== oriz);
+      if (!qualcosaSotto && dAngolo) out.push({ id: p.id, lato, gap: Math.round(gap), w: Math.round(p.larghezza_mm + gap), angolo: true });
     }
   }
   return out;
