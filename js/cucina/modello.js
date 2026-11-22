@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261124h';
+import { parametri } from '../parametri.js?v=20261124i';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -41,6 +41,9 @@ export function progettoDefault() {
     sfondo: 'chiaro',            // sfondo vista 3D: chiaro | neutro | scuro
     reglettaAngolo: { base: parametri().regletta.vista, spessore: parametri().regletta.spessoreAnta },  // regletta a L d'angolo (mm) · ⚙ Parametri
     ...(parametri().cucina.piedini ? { piedini: parametri().cucina.piedini } : {}),   // piedini di partenza (⚙ Parametri)
+    // piano di lavoro: sporgenza davanti e sui lati liberi; alzatina sul muro (⚙ Parametri)
+    pianoLavoro: { davanti: parametri().cucina.sporgDavanti, lati: parametri().cucina.sporgLati },
+    ...(parametri().cucina.alzatina ? { schienale: { attivo: true, altezza: parametri().cucina.altezzaAlzatina } } : {}),
     autoRegletta: true,          // regletta d'angolo automatica (3×3 cm) on/off
     // Stile anta pensili: 'standard' (−2 alt / −3 largh come i bassi),
     // 'sporg70' (pensili 70 → anta 72, sporge 2cm sotto),
@@ -846,6 +849,9 @@ export function aggiungiMobileLibero(progetto, tipo, props = {}) {
     larghezza_mm: info?.larghezze[0] ?? 600,
     altezza_mm: altezzeTipo(tipo)[0],
   };
+  // COSTADO nuovo: a filo del bordo davanti del piano (mobili 600 + sporgenza del piano; di serie 620)
+  const sd = sporgenzaPiano(progetto).davanti;
+  if (categoriaTipo(tipo) === 'costado' && props.profondita_mm == null && sd !== 20) base.profondita_mm = PROFONDITA_BASE + sd;
   progetto.mobiliLiberi.push({
     id, tipo, ...base, ...props,
     x: snap(c.x + (n % 4) * 150), y: snap(c.y - (n % 4) * 150), rot: 0,
@@ -3492,3 +3498,17 @@ export function fasceCierreTecho(progetto, spessore = 18) {
   return pezzi;
 }
 
+/**
+ * PIANO DI LAVORO: quanto sporge davanti alle ante e sui lati liberi (mm). Le cucine fatte prima
+ * di questa scelta restano com'erano: 20 e 20.
+ */
+export function sporgenzaPiano(progetto) {
+  const p = (progetto && progetto.pianoLavoro) || {};
+  const n = (v, d) => { const x = Number(v); return Number.isFinite(x) && x >= 0 ? Math.min(200, x) : d; };
+  return { davanti: n(p.davanti, 20), lati: n(p.lati, 20) };
+}
+/** Pannello dietro il piano: null = fino ai pensili; un numero = ALZATINA alta tanto (mm). */
+export function altezzaAlzatina(progetto) {
+  const h = Number(progetto && progetto.schienale && progetto.schienale.altezza);
+  return Number.isFinite(h) && h > 0 ? h : null;
+}

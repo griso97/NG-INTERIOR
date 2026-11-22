@@ -189,7 +189,7 @@
 /* SCHEMI dei parametri (aria ante, piedini, maniglia a J, gola, regletta, cassetti, binari) */
 .par-figure { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 12px; padding: 12px; border-radius: 10px; background: #110e0a; border: 1px solid var(--bordo, rgba(201,169,74,.25)); }
 .par-figure figure { margin: 0; flex: 1 1 240px; max-width: 380px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.par-figure figure:only-child { max-width: 420px; }
+.par-figure figure:only-child { max-width: 440px; }
 .par-figure [data-fig], .par-figure [data-fig-bin] { width: 100%; display: flex; justify-content: center; }
 .par-figure svg, .par-figure img { max-width: 100%; height: auto; border-radius: 8px; }
 .par-figure img { border: 1px solid var(--bordo, rgba(201,169,74,.25)); }

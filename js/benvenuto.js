@@ -9,9 +9,9 @@
 // («lo imposto dopo»): restano a 0, la distinta avvisa che mancano e alla fine c'è il promemoria.
 // Alla fine: 'ng-configurato' = 1 e si va al programma.
 // =============================================================================
-import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124h';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124h';
-import { svgGola, svgRegletta, svgParametro } from './disegni-cucina.js?v=20261124h';
+import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124i';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124i';
+import { svgGola, svgRegletta, svgParametro } from './disegni-cucina.js?v=20261124i';
 
 const $ = (id) => document.getElementById(id);
 const t = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -63,6 +63,16 @@ const PASSI = [
     return `<div class="box"><h3 style="margin:0 0 8px;color:var(--gold-2);font-size:16px">${esc(t('Piedini (altezza dello zoccolo)'))}</h3><div class="scelte">
       ${sc(100, 'Piedini da 10 cm', 'Zoccolo alto 10 cm')}${sc(150, 'Piedini da 15 cm', 'Zoccolo alto 15 cm')}${sc(0, 'Automatico', 'Bassi da 70 → 15 cm, bassi da 80 → 10 cm')}
     </div>${figura('piedini', 'Schema: mobile basso visto di lato')}</div>
+    <div class="box"><h3 style="margin:0 0 8px;color:var(--gold-2);font-size:16px">${esc(t('Piano di lavoro'))}</h3><div class="campi">
+      ${campo('cucina.sporgDavanti', 'Sporgenza davanti alle ante (mm)', 'quanto il piano esce davanti alle ante (di serie 20)')}
+      ${campo('cucina.sporgLati', 'Sporgenza sui lati liberi (mm)', 'alle estremità senza muro e senza costado (di serie 20)')}
+    </div>
+    <div class="scelte" style="margin-top:10px">
+      <button type="button" class="scelta ${parametri().cucina.alzatina ? '' : 'sel'}" data-alz="no"><b>${esc(t('Senza alzatina'))}</b>${esc(t('Il piano finisce al muro'))}</button>
+      <button type="button" class="scelta ${parametri().cucina.alzatina ? 'sel' : ''}" data-alz="si"><b>${esc(t('Con alzatina'))}</b>${esc(t('Una striscia bassa sul muro, dietro il piano'))}</button>
+    </div>
+    ${parametri().cucina.alzatina ? `<div class="campi" style="margin-top:10px">${campo('cucina.altezzaAlzatina', "Altezza dell'alzatina (mm)", 'di serie 100 mm')}</div>` : ''}
+    ${figura('piano', 'Schema: il piano visto di lato e da sopra')}</div>
     <div class="box"><h3 style="margin:0 0 8px;color:var(--gold-2);font-size:16px">${esc(t('Aria delle ante'))}</h3><div class="campi">
       ${campo('ante.ariaAltezza', "Altezza dell'anta: togli", 'sopra + sotto: anta da 700 → 698')}
       ${campo('ante.ariaLarghezza', 'Larghezza: togli', 'sui due lati: modulo 600, 1 anta → 597')}
@@ -161,7 +171,7 @@ function ripristinaSeSaltato(P) {
   if (cambia) salvaParametri(n);
 }
 
-function mostra() {
+function mostra(tieniPosto = false) {
   const V = visibili(), i = indice(), P = V[i];
   idPasso = P.id;
   try { sessionStorage.setItem('ng-benvenuto-id', P.id); } catch (_) { /* va bene */ }
@@ -187,7 +197,7 @@ function mostra() {
   }
   $('indietro').disabled = i === 0;
   $('avanti').textContent = i === V.length - 1 ? t('Inizia a lavorare →') : t('Avanti →');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (!tieniPosto) window.scrollTo({ top: 0, behavior: 'smooth' });
   setTimeout(controllaSotto, 350);
   corpo.querySelectorAll('img').forEach((im) => im.addEventListener('load', controllaSotto, { once: true }));
 }
@@ -235,8 +245,11 @@ function agganciaCampi(root) {
     n.binari[0][k] = k === 'nome' ? inp.value : Math.max(0, Number(String(inp.value).replace(',', '.')) || 0);
     salvaParametri(n); esempioBinario(); ridisegnaFigure();
   }));
+  root.querySelectorAll('[data-alz]').forEach((b) => b.addEventListener('click', () => {
+    salvaCampo('cucina.alzatina', b.dataset.alz === 'si'); mostra(true);
+  }));
   root.querySelectorAll('[data-piedini]').forEach((b) => b.addEventListener('click', () => {
-    salvaCampo('cucina.piedini', Number(b.dataset.piedini)); mostra();
+    salvaCampo('cucina.piedini', Number(b.dataset.piedini)); mostra(true);
   }));
   esempioBinario(); esempioGola(); calcoloRegletta(); attenzioneCassetti();
 }

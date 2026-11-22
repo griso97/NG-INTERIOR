@@ -175,10 +175,43 @@ export function svgBinario(b = {}) {
   return `<svg viewBox="0 0 290 246" width="290" height="246" role="img" aria-label="${t('Ante scorrevoli viste davanti')}">${p.join('')}</svg>`;
 }
 
+/**
+ * PIANO DI LAVORO: di lato (sporgenza davanti alle ante, alzatina sul muro) e da sopra (sporgenza sui
+ * lati liberi). k = { sporgDavanti, sporgLati, alzatina, altezzaAlzatina }.
+ */
+export function svgPianoLavoro(k = {}) {
+  const dav = Number(k.sporgDavanti) || 0, lat = Number(k.sporgLati) || 0, alz = !!k.alzatina, hA = Number(k.altezzaAlzatina) || 0;
+  const p = [];
+  // --- di lato ---
+  const xM = 34, xA = 150, yP = 92, sp = 12, dPx = 6 + dav * 0.3;
+  p.push(`<rect x="${xM - 12}" y="16" width="12" height="190" fill="${C.muro}"/>`, txt(xM - 6, 216, t('muro'), 'text-anchor="middle" fill="#b8ad97" font-size="8.5"'));
+  p.push(rect(xM, yP + sp, xA - xM, 84, C.fianco), txt((xM + xA) / 2, yP + sp + 46, t('mobile'), 'text-anchor="middle" fill="#14110d" font-size="10"'));
+  p.push(rect(xA, yP + sp + 2, 7, 80, C.anta), txt(xA + 3.5, yP + sp + 96, t('anta'), 'text-anchor="middle" fill="#cfc6b3" font-size="8.5"'));
+  p.push(rect(xM, yP, xA + 7 - xM + dPx, sp, C.piano), txt((xM + xA) / 2, yP + 9, t('piano'), 'text-anchor="middle" fill="#cfc6b3" font-size="9"'));
+  if (alz) {
+    const hPx = Math.min(70, 12 + hA * 0.12);
+    p.push(rect(xM, yP - hPx, 6, hPx, '#6a6560'), txt(xM + 10, yP - hPx / 2 + 3, `${t('alzatina')} ${f(hA)} mm`, `fill="${C.dim}" font-size="9.5"`));
+  } else p.push(txt(xM + 10, yP - 10, t('senza alzatina'), 'fill="#b8ad97" font-size="9"'));
+  const xF = xA + 7, xP = xF + dPx;
+  p.push(riga(xF, yP - 8, xP, yP - 8), riga(xF, yP - 12, xF, yP - 4), riga(xP, yP - 12, xP, yP - 4));
+  p.push(txt(xP + 4, yP - 14, `${t('davanti')} ${f(dav)} mm`, `fill="${C.dim}" font-size="9.5"`));
+  p.push(txt(95, 236, t('vista di lato'), 'text-anchor="middle" fill="#b8ad97" font-size="9"'));
+  // --- da sopra: fila contro il muro a sinistra, lato libero a destra ---
+  const x0 = 262, y0 = 70, W = 96, D = 60, lPx = 6 + lat * 0.3;
+  p.push(`<rect x="${x0 - 8}" y="${y0 - 14}" width="8" height="${D + 40}" fill="${C.muro}"/>`, `<rect x="${x0 - 8}" y="${y0 - 14}" width="${W + 40}" height="8" fill="${C.muro}"/>`);
+  p.push(rect(x0, y0 - 6, W + lPx, D + dPx + 6, C.piano, 'opacity=".9"'), rect(x0, y0 - 6, W, D + 6, C.fianco, 'opacity=".55"'));
+  p.push(txt(x0 + W / 2, y0 + D / 2, t('mobili'), 'text-anchor="middle" fill="#14110d" font-size="9.5"'));
+  p.push(riga(x0 + W, y0 + D + dPx + 8, x0 + W + lPx, y0 + D + dPx + 8), riga(x0 + W, y0 + D + dPx + 4, x0 + W, y0 + D + dPx + 12), riga(x0 + W + lPx, y0 + D + dPx + 4, x0 + W + lPx, y0 + D + dPx + 12));
+  p.push(txt(x0 + W + lPx / 2, y0 + D + dPx + 24, `${t('lato libero')} ${f(lat)} mm`, `text-anchor="middle" fill="${C.dim}" font-size="9.5"`));
+  p.push(txt(x0 + W / 2 + 10, 236, t('vista da sopra'), 'text-anchor="middle" fill="#b8ad97" font-size="9"'));
+  return `<svg viewBox="0 0 410 244" width="410" height="244" role="img" aria-label="${t('Piano di lavoro: sporgenze e alzatina')}">${p.join('')}</svg>`;
+}
+
 /** Lo schema giusto per un gruppo dei ⚙ Parametri, con i numeri di adesso (P = parametri()). */
 export function svgParametro(nome, P) {
   if (nome === 'aria') return svgAriaAnte(P.ante);
   if (nome === 'piedini') return svgPiedini(P.cucina.piedini);
+  if (nome === 'piano') return svgPianoLavoro(P.cucina);
   if (nome === 'manigliaJ') return svgManigliaJ(P.manigliaJ.spessore, P.ante.ariaAltezza);
   if (nome === 'cassetti') return svgCassetto(P.cassetti);
   if (nome === 'binario') return svgBinario(P.binari[0] || {});

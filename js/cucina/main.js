@@ -24,21 +24,21 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, latoApertoDi, latiLiberi, migraProfonditaPensili, PARTI_APERTO, coloreParteAperto, ledAperto,
-  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola, piediniCucina, altezzaBassiCucina } from './modello.js?v=20261124h';
-import { renderPianta } from './pianta.js?v=20261124h';
-import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261124h';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261124h';
-import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124h';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261124h';
-import { calcolaDistintaCucina } from './distinta.js?v=20261124h';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261124h';
-import { salvaEsempioModificato, salvaProgettoPredefinito } from '../esempi-dati.js?v=20261124h';
-import { parametri, daImpostare } from '../parametri.js?v=20261124h';
-import { htmlAvvisoMancanti, confermaEsportazione } from '../avviso-parametri.js?v=20261124h';
-import { agganciaTema } from '../tema.js?v=20261124h';
-import { tendinePannello } from '../tendine-pannello.js?v=20261124h';
+  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola, piediniCucina, altezzaBassiCucina, sporgenzaPiano, altezzaAlzatina } from './modello.js?v=20261124i';
+import { renderPianta } from './pianta.js?v=20261124i';
+import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261124i';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261124i';
+import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124i';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261124i';
+import { calcolaDistintaCucina } from './distinta.js?v=20261124i';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261124i';
+import { salvaEsempioModificato, salvaProgettoPredefinito } from '../esempi-dati.js?v=20261124i';
+import { parametri, daImpostare } from '../parametri.js?v=20261124i';
+import { htmlAvvisoMancanti, confermaEsportazione } from '../avviso-parametri.js?v=20261124i';
+import { agganciaTema } from '../tema.js?v=20261124i';
+import { tendinePannello } from '../tendine-pannello.js?v=20261124i';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261124h');
+const _excel = () => import('../modello-export.js?v=20261124i');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -103,7 +103,7 @@ function mostraSceltaTipoCucina() {
     </div>`;
   document.body.appendChild(ov);
   // CUCINE DI ESEMPIO: la scheda c'è solo se ce ne sono (l'elenco è piccolo: solo nomi e foto)
-  fetch('esempi/cucine/indice.json?v=20261124h').then((r) => (r.ok ? r.json() : null)).then((j) => {
+  fetch('esempi/cucine/indice.json?v=20261124i').then((r) => (r.ok ? r.json() : null)).then((j) => {
     const a = ov.querySelector('#scelta-esempi');
     if (a && j && Array.isArray(j.cucine) && j.cucine.length) a.style.display = 'flex';
   }).catch(() => { /* niente esempi */ });
@@ -311,6 +311,13 @@ function htmlSchienale(dentro = false) {
         <button type="button" class="btn-ghost opt-sch ${att ? 'attivo' : ''}" data-sch="si" style="flex:1">${att ? '✓ ' : ''}Sì</button>
       </div>
       ${att ? `
+      <div class="riga-3d" style="margin:10px 0 6px">Altezza</div>
+      <div class="opzioni-anta">
+        <button type="button" class="btn-ghost opt-alz ${altezzaAlzatina(progetto) ? '' : 'attivo'}" data-alz="">${altezzaAlzatina(progetto) ? '' : '✓ '}Fino ai pensili</button>
+        <button type="button" class="btn-ghost opt-alz ${altezzaAlzatina(progetto) ? 'attivo' : ''}" data-alz="si">${altezzaAlzatina(progetto) ? '✓ ' : ''}Alzatina (bassa)</button>
+      </div>
+      ${altezzaAlzatina(progetto) ? `<label class="riga-3d" style="display:block;margin-top:8px">Altezza dell'alzatina (mm)
+        <input type="number" id="alz-num" class="modale-num" min="20" max="600" step="5" value="${altezzaAlzatina(progetto)}" inputmode="numeric" style="width:100%;margin-top:4px" /></label>` : ''}
       <div class="riga-3d" style="margin:10px 0 6px">Materiale: <strong>${def ? def.nome : 'uguale al piano di lavoro'}</strong></div>
       ${htmlTendineColori(tutti, (mt) => `<button type="button" class="swatch ${mt.id === mat ? 'sel' : ''}"
           data-sch-mat="${mt.id}" title="${mt.nome}" style="background-image:url('${mt.thumb}')"></button>`, {
@@ -318,7 +325,42 @@ function htmlSchienale(dentro = false) {
         prima: `<button type="button" class="swatch swatch-none ${!mat ? 'sel' : ''}" data-sch-mat="" title="Uguale al piano di lavoro">=</button>` })}` : ''}
     ${dentro ? '' : '</section>'}`;
 }
+/** Quanto sporge il piano davanti alle ante e sui lati liberi (questa cucina). */
+function htmlSporgenzePiano() {
+  const sp = sporgenzaPiano(progetto);
+  return `
+      <div class="riga-3d" style="margin:14px 0 6px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--oro,#c9a961)">Sporgenza del piano</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <label class="riga-3d" style="flex:1 1 130px">Davanti alle ante (mm)
+          <input type="number" class="modale-num" data-sporg="davanti" min="0" max="200" step="1" value="${sp.davanti}" inputmode="numeric" style="width:100%;margin-top:4px" /></label>
+        <label class="riga-3d" style="flex:1 1 130px">Sui lati liberi (mm)
+          <input type="number" class="modale-num" data-sporg="lati" min="0" max="200" step="1" value="${sp.lati}" inputmode="numeric" style="width:100%;margin-top:4px" /></label>
+      </div>
+      <div class="riga-3d" style="margin-top:4px;opacity:.8">Dove c'è un costado, il piano finisce a filo del costado.</div>`;
+}
 function agganciaSchienale(root) {
+  // sporgenza del piano (davanti / lati liberi)
+  root.querySelectorAll('[data-sporg]').forEach((inp) => inp.addEventListener('change', () => {
+    const v = Math.max(0, Math.min(200, Math.round(Number(String(inp.value).replace(',', '.')))));
+    if (!Number.isFinite(v)) return;
+    registraStoria();
+    progetto.pianoLavoro = { ...sporgenzaPiano(progetto), [inp.dataset.sporg]: v };
+    aggiorna();
+  }));
+  // pannello dietro: fino ai pensili o alzatina bassa
+  root.querySelectorAll('.opt-alz').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    const h = b.dataset.alz ? (altezzaAlzatina(progetto) || parametri().cucina.altezzaAlzatina || 100) : null;
+    progetto.schienale = { ...(progetto.schienale || {}), attivo: true, altezza: h };
+    aggiorna();
+  }));
+  root.querySelector('#alz-num')?.addEventListener('change', (e) => {
+    const v = Math.max(20, Math.min(600, Math.round(Number(String(e.target.value).replace(',', '.')))));
+    if (!Number.isFinite(v)) return;
+    registraStoria();
+    progetto.schienale = { ...(progetto.schienale || {}), attivo: true, altezza: v };
+    aggiorna();
+  });
   root.querySelectorAll('.opt-sch').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     progetto.schienale = { ...(progetto.schienale || {}), attivo: b.dataset.sch === 'si' };
@@ -1606,8 +1648,8 @@ function apriPavimentoDaFoto() {
     if (!(w >= 5) || !(h >= 5)) { alert(tt('Scrivi la misura della zona fotografata (almeno 5 cm).')); return; }
     $('pav-salva').disabled = true;
     try {
-      const C = await import('../catalogo.js?v=20261124h');
-      const M = await import('../materiali.js?v=20261124h');
+      const C = await import('../catalogo.js?v=20261124i');
+      const M = await import('../materiali.js?v=20261124i');
       const stato = await C.leggiCatalogo();
       const id = 'pav-' + Date.now().toString(36);
       const prod = { id, sezione: 'pavimento', nome: ($('pav-nome').value || '').trim() || tt('Pavimento del cliente'), campioneCm: { w, h } };
@@ -1624,7 +1666,7 @@ async function eliminaPavimentoProprio(id) {
   const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
   if (!confirm(tt('Eliminare questo pavimento? Sparisce da tutti i progetti.'))) return;
   try {
-    const C = await import('../catalogo.js?v=20261124h');
+    const C = await import('../catalogo.js?v=20261124i');
     const stato = await C.leggiCatalogo();
     stato.prodotti = (stato.prodotti || []).filter((p) => p.id !== id);
     await C.salvaCatalogo(stato); await C.eliminaFoto(id);
@@ -1848,6 +1890,7 @@ function renderPannelloStep3d() {
         sel: encAttuale, chiave: 'cucina-encimera',
         prima: `<button type="button" class="swatch swatch-none ${!encAttuale ? 'sel' : ''}" data-enc="" title="Nero standard (4 cm)">—</button>` })}
       ${htmlSpessorePiano()}` : ''}
+      ${htmlSporgenzePiano()}
       ${htmlSchienale(true)}
     </section>
     ${htmlFiniture()}
@@ -2000,7 +2043,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261124h');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261124i');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2335,6 +2378,7 @@ function renderPannelloModificaMobile(m) {
         sel: encAttuale, chiave: 'cucina-encimera',
         prima: `<button type="button" class="swatch swatch-none ${!encAttuale ? 'sel' : ''}" data-enc="" title="Nero standard (4 cm)">—</button>` })}
       ${htmlSpessorePiano()}` : ''}
+      ${htmlSporgenzePiano()}
       ${htmlSchienale(true)}
     </section>` : ''}
     ${cat === 'pensile' ? `
@@ -2990,13 +3034,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261124h');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261124i');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261124h'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261124i'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

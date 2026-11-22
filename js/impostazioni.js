@@ -8,21 +8,21 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261124h';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261124h';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261124h';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261124h';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261124h';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261124h';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261124h';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261124h';
-import { agganciaTema } from './tema.js?v=20261124h';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261124h';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261124h';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261124h';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124h';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261124h';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261124h';
+} from './catalogo.js?v=20261124i';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261124i';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261124i';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261124i';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261124i';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261124i';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261124i';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261124i';
+import { agganciaTema } from './tema.js?v=20261124i';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261124i';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261124i';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261124i';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124i';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261124i';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261124i';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1053,6 +1053,19 @@ function renderParametri(S) {
       <p class="imp-desc">Vale per le cucine nuove; in una cucina già fatta lo cambi nella cucina stessa.</p>
     </div>
     <div class="par-gruppo">
+      <h3>Piano di lavoro</h3>
+      <div class="par-griglia">
+        ${campo('cucina.sporgDavanti', 'Sporgenza davanti alle ante', 'quanto il piano esce davanti alle ante (di serie 20)')}
+        ${campo('cucina.sporgLati', 'Sporgenza sui lati liberi', 'alle estremità senza muro e senza costado (di serie 20)')}
+      </div>
+      <div class="par-scelte" style="margin-top:10px">${[[false, 'Senza alzatina', 'Il piano finisce al muro'], [true, 'Con alzatina', 'Una striscia bassa sul muro, dietro il piano']].map(([v, tit, sotto]) => `<button type="button" class="par-scelta ${P.cucina.alzatina === v ? 'sel' : ''}" data-alzpar="${v ? 'si' : 'no'}"><b>${esc(tit)}</b><small>${esc(sotto)}</small></button>`).join('')}</div>
+      <div class="par-griglia" style="margin-top:10px" ${P.cucina.alzatina ? '' : 'hidden'} id="par-alz-h">
+        ${campo('cucina.altezzaAlzatina', 'Altezza dell\'alzatina', 'di serie 100 mm; stesso materiale del piano (o quello che scegli in cucina)')}
+      </div>
+      ${fig('piano', 'Schema: il piano visto di lato e da sopra')}
+      <p class="imp-desc">Vale per le cucine nuove; in una cucina già fatta lo cambi nel Rendering → Piano di lavoro e pannello dietro. Dove c'è un costado il piano finisce a filo del costado.</p>
+    </div>
+    <div class="par-gruppo">
       <h3>Maniglia a J (profilo sopra l'anta)</h3>
       <div class="par-griglia">
         ${campo('manigliaJ.spessore', 'Spessore del profilo a J', "l'anta si accorcia di questo spessore")}
@@ -1151,6 +1164,14 @@ function renderParametri(S) {
   };
   esempi();
   agganciaFotoParametri(el);
+  // alzatina sì / no
+  el.querySelectorAll('[data-alzpar]').forEach((b) => b.addEventListener('click', () => {
+    const nuovo = JSON.parse(JSON.stringify(parametri())); nuovo.cucina.alzatina = b.dataset.alzpar === 'si';
+    salvaParametri(nuovo);
+    el.querySelectorAll('[data-alzpar]').forEach((x) => x.classList.toggle('sel', x === b));
+    const h = el.querySelector('#par-alz-h'); if (h) h.hidden = !nuovo.cucina.alzatina;
+    esempi();
+  }));
   // piedini della cucina: tre scelte
   el.querySelectorAll('[data-piedini]').forEach((b) => b.addEventListener('click', () => {
     const nuovo = JSON.parse(JSON.stringify(parametri())); nuovo.cucina.piedini = Number(b.dataset.piedini);

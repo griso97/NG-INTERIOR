@@ -35,6 +35,11 @@ export const PARAMETRI_DEFAULT = Object.freeze({
   // CUCINA: piedini di partenza di ogni cucina nuova (0 = automatico: bassi da 70 → 15 cm, da 80 → 10 cm)
   cucina: {
     piedini: 0,
+    // PIANO DI LAVORO: quanto sporge davanti alle ante e sui lati liberi (mm); alzatina sul muro sì/no e altezza
+    sporgDavanti: 20,
+    sporgLati: 20,
+    alzatina: false,
+    altezzaAlzatina: 100,
   },
   // BINARI degli armadi scorrevoli: ognuno con i suoi numeri per calcolare le ante.
   //   larghezza anta = larghezza esterna ÷ n° ante − larghezzaMeno − profilo
@@ -129,7 +134,13 @@ function completa(s) {
       spessoreAnta: Math.max(0, num(((s && s.regletta) || {}).spessoreAnta, D.regletta.spessoreAnta)),
     },
     binari: binari.length ? binari : D.binari.map((b) => ({ ...b })),
-    cucina: { piedini: [100, 150].includes(Number(((s && s.cucina) || {}).piedini)) ? Number(s.cucina.piedini) : 0 },
+    cucina: (() => { const k = (s && s.cucina) || {}, d = D.cucina; return {
+      piedini: [100, 150].includes(Number(k.piedini)) ? Number(k.piedini) : 0,
+      sporgDavanti: Math.max(0, Math.min(200, num(k.sporgDavanti, d.sporgDavanti))),
+      sporgLati: Math.max(0, Math.min(200, num(k.sporgLati, d.sporgLati))),
+      alzatina: k.alzatina === true,
+      altezzaAlzatina: Math.max(20, Math.min(600, num(k.altezzaAlzatina, d.altezzaAlzatina))),
+    }; })(),
     armadi: (() => { const a = (s && s.armadi) || {}, d = D.armadi; return {
       setup: Number(a.setup) === 2 ? 2 : 1,
       ante: a.ante === 'interne' ? 'interne' : 'sopra',
