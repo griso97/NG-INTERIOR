@@ -155,10 +155,10 @@ function completa(s) {
       profondita: Math.max(0, num(c.profondita, D.cassetti.profondita)),
       spessore: Math.max(1, num(c.spessore, D.cassetti.spessore)),
       fondoMeno: num(c.fondoMeno, D.cassetti.fondoMeno),
-      fondoProfondita: Math.max(1, num(c.fondoProfondita, D.cassetti.fondoProfondita)),
+      fondoProfondita: Math.max(mancano.includes('cassetti') ? 0 : 1, num(c.fondoProfondita, D.cassetti.fondoProfondita)),
       traseraMeno: num(c.traseraMeno, D.cassetti.traseraMeno),
       piccoloFinoA: Math.max(0, num(c.piccoloFinoA, D.cassetti.piccoloFinoA)),
-      piccoloTrasera: Math.max(1, num(c.piccoloTrasera, D.cassetti.piccoloTrasera)),
+      piccoloTrasera: Math.max(mancano.includes('cassetti') ? 0 : 1, num(c.piccoloTrasera, D.cassetti.piccoloTrasera)),
       medioFinoA: 'medioFinoA' in c ? numVuoto(c.medioFinoA) : D.cassetti.medioFinoA,
       medioTrasera: 'medioTrasera' in c ? numVuoto(c.medioTrasera) : D.cassetti.medioTrasera,
       grandeTrasera: 'grandeTrasera' in c ? numVuoto(c.grandeTrasera) : D.cassetti.grandeTrasera,
@@ -225,6 +225,7 @@ export const GRUPPI_DA_IMPOSTARE = {
   binario: 'Binario degli armadi scorrevoli',
   gola: 'Gola (spazio per le dita)',
   regletta: "Regletta d'angolo",
+  cassetti: 'Cassetti: misure di fondo e trasera',
 };
 /** Le impostazioni ancora da fare (lista di chiavi di GRUPPI_DA_IMPOSTARE). */
 export function daImpostare(P = parametri()) { return P.daImpostare || []; }
@@ -235,6 +236,7 @@ export function saltaImpostazione(gruppo) {
   if (gruppo === 'gola') n.gola.spazio = 0;
   if (gruppo === 'regletta') { n.regletta.vista = 0; n.regletta.spessoreAnta = 0; }
   if (gruppo === 'binario' && n.binari[0]) Object.assign(n.binari[0], { larghezzaMeno: 0, altezzaMeno: 0, maniglia: 0 });
+  if (gruppo === 'cassetti') Object.assign(n.cassetti, { fondoMeno: 0, fondoProfondita: 0, traseraMeno: 0, piccoloTrasera: 0, medioTrasera: null, grandeTrasera: null });
   return salvaParametri(n);
 }
 /** Il gruppo è stato impostato: l'avviso sparisce. */

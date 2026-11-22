@@ -9,9 +9,9 @@
 // («lo imposto dopo»): restano a 0, la distinta avvisa che mancano e alla fine c'è il promemoria.
 // Alla fine: 'ng-configurato' = 1 e si va al programma.
 // =============================================================================
-import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124b';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124b';
-import { svgGola, svgRegletta } from './disegni-cucina.js?v=20261124b';
+import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124c';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124c';
+import { svgGola, svgRegletta } from './disegni-cucina.js?v=20261124c';
 
 const $ = (id) => document.getElementById(id);
 const t = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -90,10 +90,10 @@ const PASSI = [
       <ul class="riep" id="calc-reg" data-no-i18n></ul></div>
     <div class="box campi">
       ${campo('regletta.vista', "Regletta d'angolo: quanto si vede (mm)", 'di partenza 30 = 3 × 3 cm')}
-      ${campo('regletta.spessoreAnta', 'Spessore dell\'anta (mm)', 'il pezzo lungo è più lungo di tanto')}
+      ${campo('regletta.spessoreAnta', 'Spessore dell\'anta (mm)', 'lo spessore del pannello delle ante (di partenza 18): il pezzo lungo è più lungo di tanto')}
     </div>`;
   } },
-  { id: 'cassetti', titolo: 'Cassetti', html: () => `
+  { id: 'cassetti', titolo: 'Cassetti', gruppo: 'cassetti', fatto: ['cassetti'], html: () => `
     <p class="intro">${esc(t('Il sistema di cassetti che usi: fondo e trasera hanno misure diverse da marca a marca.'))}</p>
     <div class="box campi">
       <label>${esc(t('Marca'))}<input type="text" data-partesto="cassetti.marca" value="${esc(parametri().cassetti.marca)}"></label>
@@ -104,16 +104,18 @@ const PASSI = [
       ${campo('cassetti.traseraMeno', 'Trasera: larghezza = modulo −')}
       ${campo('cassetti.piccoloFinoA', 'Cassetto piccolo: frontale fino a')}
       ${campo('cassetti.piccoloTrasera', 'Trasera del cassetto piccolo')}
-      ${campo('cassetti.medioTrasera', 'Trasera del cassetto medio')}
-    </div>` },
+      ${campo('cassetti.medioTrasera', 'Trasera del cassetto medio', 'vuoto = una sola misura per tutti i cassetti')}
+    </div>
+    <div class="box avviso-fine" id="att-cass" hidden></div>
+    <p class="nota">${esc(t('Se usi una terza altezza (cassetto grande), la aggiungi in ⚙ Impostazioni → Parametri → Cassetti.'))}</p>` },
   { id: 'fine', titolo: 'Fatto', html: () => {
     const P = parametri(), a = P.armadi, manca = daImpostare(P);
     const dopo = `<span style="color:#ff9b8c">${esc(t('da impostare'))}</span>`;
     const sc = valoriScorrevoli(P);
-    const promemoria = manca.length ? `<div class="box avviso-fine" role="alert"><h3>⚠ ${esc(t('Mi raccomando'))}</h3>
-      <p>${esc(t('Hai lasciato da impostare:'))}</p><ul>${manca.map((g) => `<li><b>${esc(t(GRUPPI_DA_IMPOSTARE[g]))}</b></li>`).join('')}</ul>
-      <p>${esc(t('Per una distinta corretta, prima di creare un armadio o una cucina e di esportare la distinta, imposta questi valori in ⚙ Impostazioni → Parametri. Finché mancano restano a 0: la distinta te lo ricorda e, se esporti, ti chiede se vuoi esportarla comunque.'))}</p>
-      <a class="btn btn-ghost" href="./impostazioni.html#parametri">⚙ ${esc(t('Vai ai Parametri'))}</a></div>` : '';
+    const promemoria = manca.length ? `<div class="box avviso-fine" role="alert"><h3>⚠ ${esc(t('Impostazioni da completare'))}</h3>
+      <p>${esc(t('Le seguenti impostazioni non sono ancora state configurate:'))}</p><ul>${manca.map((g) => `<li><b>${esc(t(GRUPPI_DA_IMPOSTARE[g]))}</b></li>`).join('')}</ul>
+      <p>${esc(t('Per ottenere distinte di taglio corrette, completale in ⚙ Impostazioni → Parametri prima di progettare ed esportare. Fino ad allora i valori mancanti restano a 0: la distinta segnalerà le impostazioni mancanti e, al momento dell\'esportazione, ti chiederà conferma.'))}</p>
+      <a class="btn btn-ghost" href="./impostazioni.html#parametri">⚙ ${esc(t('Completa le impostazioni'))}</a></div>` : '';
     const schiena = a.schiena === 'dietro' ? t('avvitata dietro') : a.schiena === 'filo' ? t('incassata a filo') : `${t('nel canale')} (${t('canale')} ${f(a.canale)} mm, ${t('dentro')} ${f(a.dentro)} mm)`;
     return `<p class="intro">${esc(t('Ecco come lavori. Da adesso il programma calcola tutto così; lo cambi quando vuoi in ⚙ Impostazioni → Parametri.'))}</p>
     ${promemoria}<div class="box"><ul class="riep">
@@ -125,7 +127,7 @@ const PASSI = [
       <li>${esc(t('Piedini della cucina'))}: <b>${esc(P.cucina.piedini ? `${P.cucina.piedini / 10} cm` : t('automatici'))}</b></li>
       <li>${esc(t('Gola: spazio per le dita'))}: ${manca.includes('gola') ? dopo : `<b>${f(P.gola.spazio)} mm</b>`}</li>
       <li>${esc(t("Regletta d'angolo"))}: ${manca.includes('regletta') ? dopo : `<b>${f(P.regletta.vista)} + ${f(P.regletta.vista + P.regletta.spessoreAnta)} mm</b>`}</li>
-      <li>${esc(t('Cassetti'))}: <b>${esc(P.cassetti.marca || '—')}</b></li>
+      <li>${esc(t('Cassetti'))}: ${manca.includes('cassetti') ? dopo : `<b>${esc(P.cassetti.marca || '—')}</b>`}</li>
     </ul></div>`;
   } },
 ];
@@ -145,6 +147,9 @@ function ripristinaSeSaltato(P) {
   if (P.id === 'regletta' && manca.includes('regletta') && !n.regletta.vista) { n.regletta = { ...D.regletta }; cambia = true; }
   if (P.id === 'binari' && manca.includes('binario') && n.binari[0] && !n.binari[0].altezzaMeno && D.binari[0]) {
     Object.assign(n.binari[0], { larghezzaMeno: D.binari[0].larghezzaMeno, altezzaMeno: D.binari[0].altezzaMeno, maniglia: D.binari[0].maniglia }); cambia = true;
+  }
+  if (P.id === 'cassetti' && manca.includes('cassetti') && !n.cassetti.fondoProfondita) {
+    const C = D.cassetti; Object.assign(n.cassetti, { fondoMeno: C.fondoMeno, fondoProfondita: C.fondoProfondita, traseraMeno: C.traseraMeno, piccoloTrasera: C.piccoloTrasera, medioTrasera: C.medioTrasera, grandeTrasera: C.grandeTrasera }); cambia = true;
   }
   if (cambia) salvaParametri(n);
 }
@@ -203,7 +208,7 @@ function agganciaCampi(root) {
   root.querySelectorAll('[data-par]').forEach((inp) => inp.addEventListener('change', () => {
     const n = Number(String(inp.value).replace(',', '.')); if (!Number.isFinite(n)) return;
     salvaCampo(inp.dataset.par, n);
-    esempioGola(); calcoloRegletta();
+    esempioGola(); calcoloRegletta(); attenzioneCassetti();
     // lo schema segue i numeri
     const sv = document.querySelector('.figure figure svg');
     if (sv && inp.dataset.par.startsWith('gola')) sv.outerHTML = svgGola(parametri().gola.spazio);
@@ -218,7 +223,16 @@ function agganciaCampi(root) {
   root.querySelectorAll('[data-piedini]').forEach((b) => b.addEventListener('click', () => {
     salvaCampo('cucina.piedini', Number(b.dataset.piedini)); mostra();
   }));
-  esempioBinario(); esempioGola(); calcoloRegletta();
+  esempioBinario(); esempioGola(); calcoloRegletta(); attenzioneCassetti();
+}
+/** Una sola misura di trasera: attenzione, le altre altezze si aggiungono in ⚙ Parametri. */
+function attenzioneCassetti() {
+  const el = $('att-cass'); if (!el) return;
+  const c = parametri().cassetti;
+  const una = !c.grandeTrasera && (!c.medioTrasera || c.medioTrasera === c.piccoloTrasera);
+  el.hidden = !una;
+  if (una) el.innerHTML = `<h3>⚠ ${esc(t('Attenzione'))}</h3><p>${esc(t(`Hai inserito una sola misura di trasera: tutti i cassetti avranno la trasera da ${f(c.piccoloTrasera)} mm.`))}</p>
+    <p>${esc(t('Se usi cassetti di altezze diverse, aggiungi le altre misure in ⚙ Impostazioni → Parametri → Cassetti.'))}</p>`;
 }
 function esempioGola() {
   const el = $('es-gola'); if (!el) return;
@@ -231,6 +245,7 @@ function calcoloRegletta() {
   el.innerHTML = [
     t(`Pezzo corto = quanto si vede: ${f(v)} mm. Sta girato, a filo delle ante della fila davanti (fila B).`),
     t(`Pezzo lungo = quanto si vede + spessore dell'anta: ${f(v)} + ${f(s)} = ${f(v + s)} mm. Sta sul fronte del mobile cieco e passa dietro al pezzo corto: i primi ${f(s)} mm restano coperti, se ne vedono ${f(v)}.`),
+    t(`Cos'è il ${f(s)}: è lo spessore del pannello delle ante. La regletta si taglia dallo stesso pannello delle ante, quindi anche il pezzo corto è spesso ${f(s)} mm: il pezzo lungo deve passargli dietro per tutto il suo spessore, se no nell'angolo resta un buco. Di partenza è 18 (ante da 18 mm); se fai le ante da 19 o da 22, scrivi 19 o 22.`),
     t(`Così nell'angolo si vede una L di ${f(v / 10)} × ${f(v / 10)} cm.`),
     t(`Se le maniglie sporgono di più (la maniglia standard sporge 40 mm), la regletta si allarga da sola: 40 → pezzi da 40 e ${f(40 + s)} mm, così ante e cassetti non sbattono.`),
     P.gola.spazio > 0 ? t(`Altezza: come le ante accanto (mobile da 700 → ${f(h)} mm; con la gola ${f(700 - P.gola.spazio)} mm).`) : t(`Altezza: come le ante accanto (mobile da 700 → ${f(h)} mm).`),
