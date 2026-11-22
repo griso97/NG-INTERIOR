@@ -129,11 +129,12 @@ export function svgPiedini(piedini = 0) {
 export function svgManigliaJ(sp = 2, aH = 2) {
   const p = [], xA = 120, wA = 18, yTop = 70, s = 8;          // anta e spessore del profilo (ingranditi)
   p.push(rect(xA, yTop + s, wA, 150, C.anta), txt(xA + wA + 8, yTop + 110, t('anta'), 'font-size="10"'));
-  // profilo a J: appoggiato SUL bordo alto dell'anta (spessore s), con il labbro che sale dietro (lo spazio per le dita)
+  // profilo a J: appoggiato SUL bordo alto dell'anta (spessore s), con il labbro che SCENDE dietro l'anta
+  // e si piega verso di lei: fra il labbro e l'anta c'è lo spazio per le dita
   p.push(`<rect x="${xA}" y="${yTop}" width="${wA}" height="${s}" fill="#c3c5c8" stroke="#14110d" stroke-width=".8"/>`);
-  p.push(`<path d="M${xA + 2} ${yTop + s / 2} H${xA - 24} V${yTop - 30} Q${xA - 24} ${yTop - 38} ${xA - 16} ${yTop - 38}" fill="none" stroke="#c3c5c8" stroke-width="4" stroke-linejoin="round"/>`);
-  p.push(txt(xA - 34, yTop - 44, t('profilo a J'), 'text-anchor="end" font-size="10"'));
-  p.push(txt(xA - 8, yTop - 14, t('dita'), 'text-anchor="middle" fill="#b8ad97" font-size="8.5"'));
+  p.push(`<path d="M${xA + 2} ${yTop + s / 2} H${xA - 24} V${yTop + 34} Q${xA - 24} ${yTop + 42} ${xA - 16} ${yTop + 42}" fill="none" stroke="#c3c5c8" stroke-width="4" stroke-linejoin="round"/>`);
+  p.push(txt(xA - 32, yTop + 2, t('profilo a J'), 'text-anchor="end" font-size="10"'));
+  p.push(txt(xA - 12, yTop + 26, t('dita'), 'text-anchor="middle" fill="#b8ad97" font-size="8.5"'));
   p.push(riga(xA + wA + 14, yTop, xA + wA + 14, yTop + s), riga(xA + wA + 10, yTop, xA + wA + 18, yTop), riga(xA + wA + 10, yTop + s, xA + wA + 18, yTop + s));
   p.push(txt(xA + wA + 22, yTop + s / 2 + 4, `${f(sp)} mm`, `fill="${C.dim}" font-size="10"`));
   p.push(txt(130, 250, `${t('anta da 700')}: 700 − ${f(aH)} − ${f(sp)} = ${f(700 - aH - sp)} mm`, `text-anchor="middle" fill="${C.dim}" font-size="10.5"`));
