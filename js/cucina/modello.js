@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261123t';
+import { parametri } from '../parametri.js?v=20261123u';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -1724,7 +1724,8 @@ export function gruppoPorte(progetto, m) {
   if (m.tipo === 'ponte') return { proprio: 'ponte', segue: 'colonna' };
   if (cat === 'pensile') return { proprio: pontiSopra(progetto, m).length ? 'pensiliPonte' : null, segue: 'pensile' };
   if (cat === 'colonna' || cat === 'altillo') return { proprio: null, segue: 'colonna' };
-  if (cat === 'base') return { proprio: null, segue: 'base' };
+  // lavastoviglie / lavatrice a scomparsa: l'anta è come quelle dei bassi (maniglia, finger-pull, push)
+  if (cat === 'base' || cat === 'lavastoviglie' || cat === 'lavatrice') return { proprio: null, segue: 'base' };
   return { proprio: null, segue: null };
 }
 /** Scelte delle porte per un gruppo ('ponte' / 'pensiliPonte' con il gruppo che seguono). */
@@ -1947,7 +1948,7 @@ export function problemiMobiliLiberi(progetto) {
   for (const m of (progetto.mobiliLiberi || [])) {
     if (m.tipo !== 'base-cassetti') continue;
     const info = infoAngoloCieco(progetto, m);
-    if (info && info.coperto) {
+    if (info && info.coveredW > 0) {
       out.push({ tipo: 'cassettiera-angolo', messaggio:
         `❓ ${nomeTipo(m.tipo)} nell'angolo: impossibile creare cassettiera così piccola. ` +
         `Nell'angolo cieco mettici una base ad ante, oppure sposta la cassettiera fuori dall'angolo.` });
@@ -1963,13 +1964,16 @@ export function problemiMobiliLiberi(progetto) {
     for (const m of (progetto.mobiliLiberi || [])) {
       const info = infoAngoloCieco(progetto, m);
       if (!info || info.coperto) continue;            // solo angoli "che si toccano"
-      if (info.gap == null || info.gap >= spess) continue;
+      const serve = reglettaAngoloMin(progetto, m, info.o);
+      if (info.gap == null || (info.gap >= spess && info.gap >= serve)) continue;
       const key = m.id < info.o.id ? `${m.id}-${info.o.id}` : `${info.o.id}-${m.id}`;
       if (vistiReg.has(key)) continue;
       vistiReg.add(key);
-      out.push({ tipo: 'regletta-stretta', messaggio:
-        `⚠ Manca spazio per la regletta nell'angolo: tra gli armadi ci sono ${Math.max(0, info.gap)} mm ` +
-        `ma la regletta non può essere più sottile dello spessore anta (${spess} mm). Allontana un armadio.` });
+      out.push({ tipo: 'regletta-stretta', messaggio: info.gap < spess
+        ? `⚠ Manca spazio per la regletta nell'angolo: tra gli armadi ci sono ${Math.max(0, info.gap)} mm ` +
+          `ma la regletta non può essere più sottile dello spessore anta (${spess} mm). Allontana un armadio.`
+        : `⚠ Regletta d'angolo troppo stretta per le maniglie: tra gli armadi ci sono ${Math.max(0, info.gap)} mm ` +
+          `ma la maniglia sporge ${serve} mm. La regletta deve essere almeno ${serve} mm, se no ante e cassetti sbattono sulla maniglia. Allontana un armadio.` });
     }
   }
   return out;
@@ -2048,7 +2052,7 @@ export function liberoPareti(progetto) {
     // di questo muro NON è libero: ci va la regletta. Non lo conto come spazio.
     let regletta = 0;
     if (progetto.autoRegletta !== false) {
-      const rb = ((progetto.reglettaAngolo && progetto.reglettaAngolo.base) || 30) + 5;
+      const rb = Math.max((progetto.reglettaAngolo && progetto.reglettaAngolo.base) || 30, 45) + 5;   // anche con le maniglie (fino a 45)
       for (let k = 0; k < blocchi.length - 1; k++) {
         const g = blocchi[k + 1].lo - blocchi[k].hi;
         if (g > 0 && g <= rb && (blocchi[k].perpHi || blocchi[k + 1].perpLo)) regletta += g;
@@ -2259,12 +2263,12 @@ export function infoAngoloCieco(progetto, m) {
     if (!mCieco) continue;
     let coveredW, latoDx, cornerX, cornerY;
     if (A.horiz) {                                      // larghezza lungo X
-      coveredW = coperto ? (ix1 - ix0) : Math.min(B.d, A.w);
+      coveredW = Math.max(0, Math.min(A.w, ix1 - ix0));   // parte del fronte che ha davanti l'altro mobile
       latoDx = o.x > m.x;                               // l'altro mobile sta a destra?
       cornerX = latoDx ? A.x1 : A.x0;                   // spigolo verso l'altro mobile
       cornerY = m.y;
     } else {                                            // larghezza lungo Y
-      coveredW = coperto ? (iy1 - iy0) : Math.min(B.d, A.w);
+      coveredW = Math.max(0, Math.min(A.w, iy1 - iy0));
       latoDx = o.y > m.y;
       cornerY = latoDx ? A.y1 : A.y0;
       cornerX = m.x;
@@ -2278,6 +2282,53 @@ export function infoAngoloCieco(progetto, m) {
     }
   }
   return best;
+}
+
+/**
+ * SPORGENZA DELLA MANIGLIA davanti all'anta (mm), come è fatta nel 3D. Gola, push e finger-pull = 0.
+ * Maniglia standard: barra a 28 mm dall'anta + 12 di barra = 40.
+ */
+const SPORGENZA_MANIGLIE = { 'maniglia-standard': 40, 'maniglia-bordo-l-nera': 13 };   // quelle del programma (anche prima che si carichi il catalogo)
+export function sporgenzaManiglia(progetto, m) {
+  const sc = sceltePorte(progetto, m);
+  if (!sc || sc.gola || sc.push || sc.fp) return 0;
+  if (!sc.maniglia || SPORGENZA_MANIGLIE[sc.maniglia] != null) return SPORGENZA_MANIGLIE[sc.maniglia || 'maniglia-standard'];
+  const def = typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === sc.maniglia);
+  if (!def || !def.texture || !def.lunghezzaMm) return 40;
+  const L = def.lunghezzaMm, forma = def.forma && def.forma !== 'foto' && def.formaV ? def.forma : 'barra';
+  if (forma === 'piatta') return 32;
+  if (forma === 'profilo') return 22;
+  if (forma === 'bordol') return 13;
+  if (forma === 'bordo') return 26;
+  if (forma === 'incasso') return 2;
+  if (forma === 'pomolo') { const D = Math.max(18, Math.min(L, 45)); return Math.ceil(20 + D * 0.25 + D * 0.275); }
+  return Math.ceil(30 + 2 * Math.max(5, Math.min(7, L * 0.04)));          // barra tonda
+}
+/**
+ * REGLETTA D'ANGOLO MINIMA fra due mobili (mm): quella dei ⚙ Parametri (3 cm), ma mai più stretta di
+ * quanto sporgono le maniglie dei due mobili, se no ante e cassetti sbattono sulla maniglia dell'altro.
+ */
+export function reglettaAngoloMin(progetto, a, b) {
+  const base = (progetto.reglettaAngolo && progetto.reglettaAngolo.base) || parametri().regletta.vista || 30;
+  return Math.max(base, a ? sporgenzaManiglia(progetto, a) : 0, b ? sporgenzaManiglia(progetto, b) : 0);
+}
+/**
+ * FRONTE DEL MOBILE CIECO D'ANGOLO: la parte davanti che ha davanti il mobile dell'altra fila (+ la
+ * regletta) è un PANNELLO CIECO fisso; le ANTE che si aprono stanno solo sulla parte libera.
+ * Uguale nel 3D e in distinta. null se il mobile non è il cieco di un angolo.
+ * { info, ciecoW (pannello cieco, mm), liberoW (larghezza per le ante), nAnte, regletta (luce, mm) }
+ */
+export function fronteCieco(progetto, m) {
+  const info = infoAngoloCieco(progetto, m);
+  if (!info || !(info.coveredW > 0)) return null;
+  const P = parametri(), ra = progetto.reglettaAngolo || {};
+  const spess = ra.spessore != null ? Number(ra.spessore) : P.regletta.spessoreAnta;
+  const reg = (!info.coperto && info.gap > 0) ? Math.max(spess || 18, info.gap) : (ra.base || P.regletta.vista);
+  const leg = info.horizMe ? reg + spess : reg;                 // sul fronte orizzontale va il pezzo lungo della L
+  const w = dimMobile(m).w;
+  const ciecoW = Math.max(40, Math.min(w - 80, info.coveredW + leg + P.ante.ariaLarghezza));
+  const liberoW = w - ciecoW;
+  return { info, ciecoW: Math.round(ciecoW), liberoW: Math.round(liberoW), nAnte: liberoW >= 600 ? 2 : 1, regletta: reg };
 }
 
 /**
@@ -2346,7 +2397,6 @@ function spostaFila(progetto, primo, dir, shift, escludi = []) {
 export function inserisciInAngolo(progetto, m, tx, ty) {
   if (progetto.autoRegletta === false || m.isola) return false;
   if (categoriaTipo(m.tipo) !== 'base' || m.tipo === 'base-angolo') return false;
-  const base = (progetto.reglettaAngolo && progetto.reglettaAngolo.base) || 30;
   if (m.rotManuale) return false;                                  // pezzo di penisola girato a mano
   const W = vincolaAiMuri(progetto, m, tx, ty);
   if (!retroAMuro(progetto, { ...m, x: W.x, y: W.y })) return false;
@@ -2363,6 +2413,7 @@ export function inserisciInAngolo(progetto, m, tx, ty) {
   const primo = urti.reduce((a, b) => (Math.abs((asseO === 'y' ? a.y : a.x) - cm) <= Math.abs((asseO === 'y' ? b.y : b.x) - cm) ? a : b));
   if (dimMobile(primo).w >= A.w) return false;                    // il mobile d'angolo (cieco) è il più largo
   const B = aabbMondo(primo);
+  const base = reglettaAngoloMin(progetto, m, primo);              // 3 cm, o quanto sporge la maniglia
   const dir = ((asseO === 'y' ? primo.y : primo.x) - cm) >= 0 ? 1 : -1;   // via dall'angolo
   const shift = asseO === 'y'
     ? (dir > 0 ? A.y1 + base - B.y0 : B.y1 - (A.y0 - base))
@@ -2465,13 +2516,13 @@ function contaInFila(progetto, m) {
  * Idempotente: quando la luce è già = base non muove più nulla.
  */
 export function applicaRegletteAngolo(progetto) {
-  const base = (progetto.reglettaAngolo && progetto.reglettaAngolo.base) || 30;
   const mob = progetto.mobiliLiberi || [];
   for (const c of mob) {
     const info = infoAngoloCieco(progetto, c);
     if (!info || info.coperto) continue;           // solo angoli "che si toccano"
     const o = info.o;
     if (!o) continue;
+    const base = reglettaAngoloMin(progetto, c, o);   // 3 cm, o quanto sporge la maniglia se è di più
     // PENISOLA: uno dei due è un pezzo libero (non ha lo schienale a un muro) e
     // l'altro sta nella fila a muro → si sposta SEMPRE il pezzo libero, con
     // tutta la penisola attaccata, via dall'altro lungo la direzione delle ante

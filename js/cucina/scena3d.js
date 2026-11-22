@@ -15,31 +15,31 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-  costadoCopreAnte, costadoColonnaATerra,
-} from './modello.js?v=20261123t';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261123t';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261123t';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261123t';
+  costadoCopreAnte, costadoColonnaATerra, fronteCieco,
+} from './modello.js?v=20261123u';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261123u';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261123u';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261123u';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261123t').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261123u').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261123t';
-import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261123t';
-export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261123t';
-import { parametri } from '../parametri.js?v=20261123t';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261123t';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261123t';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261123t';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261123u';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261123u';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261123u';
+import { parametri } from '../parametri.js?v=20261123u';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261123u';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261123u';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261123u';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261123t';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261123u';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261123t';
+export { telaPavimento } from '../resa.js?v=20261123u';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -1402,14 +1402,16 @@ let _fpByCat = {};
 // PUSH (si preme e si apre): niente maniglia né gola, per categoria { base, pensile, colonna }
 let _push = false;
 let _pushByCat = {};
+// la lavastoviglie / lavatrice A SCOMPARSA ha l'anta come i mobili bassi: segue le loro scelte (come la maniglia)
+const BASSI_PORTE = ['base', 'lavastoviglie', 'lavatrice'];
 function pushCat(cat) {
-  const key = cat === 'base' ? 'base' : cat === 'pensile' ? 'pensile' : (cat === 'colonna' || cat === 'altillo') ? 'colonna' : null;
+  const key = BASSI_PORTE.includes(cat) ? 'base' : cat === 'pensile' ? 'pensile' : (cat === 'colonna' || cat === 'altillo') ? 'colonna' : null;
   return !!(key && _pushByCat && _pushByCat[key]);
 }
 // Finger-pull per categoria: progetto.fingerPull può essere un oggetto
 // { base, pensile, colonna } oppure (vecchio) un booleano = vale per tutto.
 function fpCat(fp, cat) {
-  const key = cat === 'base' ? 'base' : cat === 'pensile' ? 'pensile' : (cat === 'colonna' || cat === 'altillo') ? 'colonna' : null;
+  const key = BASSI_PORTE.includes(cat) ? 'base' : cat === 'pensile' ? 'pensile' : (cat === 'colonna' || cat === 'altillo') ? 'colonna' : null;
   if (!key) return false;
   if (fp === true) return true;
   return !!(fp && typeof fp === 'object' && fp[key]);
@@ -2202,16 +2204,13 @@ function anteCieche(g, w, h, d, matAnta, cieco) {
   const latoDx = cieco.latoDx;                      // copertura sul lato +x?
   const doorCx = latoDx ? (-w / 2 + freeW / 2) : (w / 2 - freeW / 2);
   const blindCx = latoDx ? (w / 2 - coveredW / 2) : (-w / 2 + coveredW / 2);
-  // Anta/e apribili sulla parte libera
+  // Anta/e apribili sulla parte libera: disegnate come TUTTE le altre ante (maniglia, maniglia a J,
+  // finger-pull, gola, push), con la maniglia verso l'angolo
   const nAnte = freeW >= 600 ? 2 : 1;                // da 60 cm in su: due ante
-  const uw = freeW - FUGA_W;
-  const pw = (uw - (nAnte - 1) * GAP_ANTE) / nAnte;
   const vA = vertAnta(h);                            // con la gola: 25 mm sotto il piano
-  for (let i = 0; i < nAnte; i++) {
-    const px = doorCx - uw / 2 + pw / 2 + i * (pw + GAP_ANTE);
-    pannello(g, px, vA.py, z, pw, vA.ph, matAnta || COL.anta);
-    if (!_golaQui) manigliaOrizzAnta(g, px, 0, pw, h - FUGA_H, z, latoDx ? 1 : -1, true);
-  }
+  const gA = new THREE.Group(); gA.position.x = doorCx;
+  ante(gA, freeW, h, d, nAnte, matAnta, false, latoDx ? 'dx' : 'sx');
+  g.add(gA);
   // Pannello cieco (fisso): stessa finitura, nessuna maniglia; alto come le ante (con la gola sotto il profilo)
   pannello(g, blindCx, vA.py, z, coveredW - FUGA_W, vA.ph, matAnta || COL.anta);
 }
@@ -2500,7 +2499,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261123t')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261123u')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -2801,7 +2800,7 @@ function costruisciMobileCorpo(cat, tipo, m, w, h, d, matAnta, opt = {}) {
     : vetrina ? carcassaVetrina(w, h, d, coloreCorpo, cat === 'pensile' ? (h >= 850 ? 2 : 1) : 1, bande)
     : corpo(w, h, d, coloreCorpo, bande));
   if (cat === 'regletta') return g;
-  if (opt.cieco && opt.cieco.coperto) { anteCieche(g, w, h, d, matAnta, opt.cieco); return g; }
+  if (opt.cieco && (opt.cieco.coperto || (opt.cieco.porte && !aperto && (tipo === 'base-ante' || tipo === 'lavello')))) { anteCieche(g, w, h, d, matAnta, opt.cieco); return g; }
   if (aperto) { mobileAperto(g, w, h, d, m, matAnta, coloreCorpo, latoAp, cat === 'pensile' && !!opt.sporg); return g; }
   if (tipo === 'pensile-angolo-45') { pensileAngoloFronte(g, w, h, d, matAnta); return g; }
   if (cat === 'colonna') { _coloreCorpoCol = coloreCorpo; colonnaFronte(g, w, h, d, m, matAnta); return g; }
@@ -3264,13 +3263,17 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       const zocc = zoccoloPerAltezza(porta);
       const cieco = infoAngoloCieco(progetto, m);
       let ciecoOpt = cieco;
-      if (cieco && cieco.coperto) {
-        const rd = progetto.reglettaAngolo || { base: 30, spessore: SPESSORE_ANTA };
-        const spess = (rd.spessore != null) ? rd.spessore : SPESSORE_ANTA;
-        // Sul mobile a fronte orizzontale va il braccio lungo (base+spessore),
-        // sul mobile a fronte verticale va il braccio corto (base).
-        const legOnMe = cieco.horizMe ? (rd.base + spess) : rd.base;
-        ciecoOpt = { ...cieco, blindExtra: legOnMe + FUGA_W };
+      // MOBILE CIECO D'ANGOLO: pannello cieco dove ha davanti l'altro mobile (+ la regletta), ante solo
+      // sulla parte libera; vale anche quando i due mobili si toccano con la luce della regletta
+      // (prima lì restavano le ante normali, e quella dietro l'altro mobile non si apriva)
+      const fc = cieco && progetto.autoRegletta !== false ? fronteCieco(progetto, m) : null;
+      if (fc) ciecoOpt = { ...cieco, coveredW: fc.ciecoW, blindExtra: 0, porte: true };
+      // il lato coperto è in coordinate della PIANTA; il mobile è girato (es. di 180°): nel suo sistema
+      // la destra può essere la sinistra della pianta (prima l'anta finiva dietro l'altro mobile)
+      if (ciecoOpt) {
+        const th = (m.rot || 0) * Math.PI / 180;
+        const segno = cieco.horizMe ? Math.round(Math.cos(th)) : Math.round(-Math.sin(th));
+        if (segno < 0) ciecoOpt = { ...ciecoOpt, latoDx: !cieco.latoDx };
       }
       if (m.tipo === 'base-angolo') {
         // BASE ANGOLO a L: come il pensile angolo usa +rot (L asimmetrica);

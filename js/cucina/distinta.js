@@ -13,10 +13,10 @@
 
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
-  costadoCopreAnte, costadoColonnaATerra, cimaColonne,
-} from './modello.js?v=20261123t';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261123t';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261123t';
+  costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco,
+} from './modello.js?v=20261123u';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261123u';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261123u';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -120,23 +120,22 @@ function cassettoMelaminico(pz, mod, L, hCassetto, nc) {
   pz.push({ modulo: mod, nome: `Cassetto · trasera ${t.tipo}`, larghezza: round(L - c.traseraMeno), altezza: round(t.trasera), spessore: c.spessore, materiale: 'melaminico', quantita: nc });
 }
 
-// Regletta d'angolo (o pannello cieco) sul modulo "cieco" dell'angolo.
+// Regletta d'angolo e pannello cieco sul modulo "cieco" dell'angolo.
 function reglettaAngolo(pz, mod, progetto, m, H) {
   if (progetto.autoRegletta === false) return;
   const info = infoAngoloCieco(progetto, m);
   if (!info) return;
   // alti come le ANTE e i cassetti accanto (con la gola sotto il profilo: 700 → 675)
   const hF = golaSuMobile(progetto, m) ? altezzaAntaGola(H) : round(H - ariaH());
-  if (info.coperto) {
-    pz.push({ modulo: mod, nome: 'Pannello cieco (angolo)', larghezza: round(info.coveredW || 0), altezza: hF, spessore: SP, materiale: 'anta', quantita: 1 });
-  } else {
-    const P = parametri().regletta, ra = progetto.reglettaAngolo || {};
-    const spess = ra.spessore != null ? Number(ra.spessore) : P.spessoreAnta;
-    const vis = (info.gap != null && info.gap > 0) ? Math.max(spess || 18, info.gap) : (ra.base || P.vista);
-    // i due pezzi della L: uno largo quanto si vede, l'altro + lo spessore dell'anta (sormonta il primo)
-    pz.push({ modulo: mod, nome: 'Regletta angolo (pezzo corto)', larghezza: round(vis), altezza: hF, spessore: THK_REG, materiale: 'anta', quantita: 1 });
-    pz.push({ modulo: mod, nome: `Regletta angolo (pezzo lungo, + spessore anta ${round(spess)})`, larghezza: round(vis + spess), altezza: hF, spessore: THK_REG, materiale: 'anta', quantita: 1 });
-  }
+  // PANNELLO CIECO: la parte del fronte che ha davanti il mobile dell'altra fila (+ la regletta)
+  const fc = fronteCieco(progetto, m);
+  if (fc) pz.push({ modulo: mod, nome: 'Pannello cieco (angolo)', larghezza: fc.ciecoW, altezza: hF, spessore: SP, materiale: 'anta', quantita: 1 });
+  const P = parametri().regletta, ra = progetto.reglettaAngolo || {};
+  const spess = ra.spessore != null ? Number(ra.spessore) : P.spessoreAnta;
+  const vis = fc ? fc.regletta : (info.gap != null && info.gap > 0) ? Math.max(spess || 18, info.gap) : (ra.base || P.vista);
+  // i due pezzi della L: uno largo quanto si vede, l'altro + lo spessore dell'anta (sormonta il primo)
+  pz.push({ modulo: mod, nome: 'Regletta angolo (pezzo corto)', larghezza: round(vis), altezza: hF, spessore: THK_REG, materiale: 'anta', quantita: 1 });
+  pz.push({ modulo: mod, nome: `Regletta angolo (pezzo lungo, + spessore anta ${round(spess)})`, larghezza: round(vis + spess), altezza: hF, spessore: THK_REG, materiale: 'anta', quantita: 1 });
 }
 
 /** Melaminico dell'INTERNO degli armadi (scelto nel 3D): bianco o antracite. */
@@ -205,7 +204,10 @@ function pezziDiModulo(progetto, m) {
     } else {
       // base-ante / lavello
       const N = m.tipo === 'lavello' ? (L >= 600 ? 2 : 1) : anteDiMobile(m);
+      // MOBILE CIECO D'ANGOLO: ante solo sulla parte libera (il resto è il pannello cieco, sotto)
+      const fc = !apertoDi(m) && progetto.autoRegletta !== false ? fronteCieco(progetto, m) : null;
       if (apertoDi(m)) mobileAperto(pz, mod, progetto, m);          // APERTO: niente ante
+      else if (fc) anteModulo(pz, mod, fc.liberoW, H, fc.nAnte, m.antaLato, altG, false, m.tipo === 'base-ante' ? m.vetrina : null, rJ, GN + ' · angolo, parte libera');
       else anteModulo(pz, mod, L, H, N, m.antaLato, altG, false, m.tipo === 'base-ante' ? m.vetrina : null, rJ, GN);
       reglettaAngolo(pz, mod, progetto, m, H);
     }
