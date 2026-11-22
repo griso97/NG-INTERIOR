@@ -321,6 +321,8 @@ window.NG_I18N_ES = {
  "Avanti →": "Siguiente →",
  "Anta interna (×{0})": "Puerta interior (×{0})",
  "Anta interna": "Puerta interior",
+ "Quanto scende l'anta sotto il pensile (mm)": "Cuánto baja la puerta por debajo del alto (mm)",
+ "Vale per tutti i pensili: pensile 70 → anta {0} cm, pensile 90 → anta {1} cm. L'anta si apre da sotto (niente maniglia).": "Vale para todos los altos: alto de 70 → puerta de {0} cm, alto de 90 → puerta de {1} cm. La puerta se abre desde abajo (sin tirador).",
  "Piano di lavoro": "Encimera",
  "Sporgenza del piano": "Vuelo de la encimera",
  "Davanti alle ante (mm)": "Delante de las puertas (mm)",

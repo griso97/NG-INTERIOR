@@ -15,31 +15,31 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-  costadoCopreAnte, costadoColonnaATerra, fronteCieco, piediniCucina, zoccoloColonnaDi, sporgenzaPiano, altezzaAlzatina,
-} from './modello.js?v=20261124i';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261124i';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261124i';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261124i';
+  costadoCopreAnte, costadoColonnaATerra, fronteCieco, piediniCucina, zoccoloColonnaDi, sporgenzaPiano, altezzaAlzatina, scendeAntaPensile,
+} from './modello.js?v=20261124j';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261124j';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261124j';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261124j';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261124i').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261124j').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261124i';
-import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261124i';
-export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124i';
-import { parametri } from '../parametri.js?v=20261124i';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261124i';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261124i';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261124i';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261124j';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261124j';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124j';
+import { parametri } from '../parametri.js?v=20261124j';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261124j';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261124j';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261124j';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261124i';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261124j';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261124i';
+export { telaPavimento } from '../resa.js?v=20261124j';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -1817,11 +1817,12 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
   const z = d / 2;
   const uw = w - FUGA_W;
   const pw = (uw - (n - 1) * GAP_ANTE) / n;
-  // sporgente: anta = h + 20 che avanza 2 cm SOTTO (bordo alto a filo).
+  // sporgente: anta = h + quanto scende (20 = 70 → 72; o personalizzata), bordo alto a filo.
   // con la GOLA: l'anta parte 25 mm sotto il piano
   const vA = vertAnta(h);
-  const ph = sporg ? (h + 20) : vA.ph;
-  const py = sporg ? -10 : vA.py;
+  const scende = sporg === true ? 20 : Math.max(0, Number(sporg) || 0);
+  const ph = scende ? (h + scende) : vA.ph;
+  const py = scende ? -scende / 2 : vA.py;
   // Anta singola: la maniglia (= lato di apertura) va a destra di default,
   // a sinistra se l'utente lo sceglie (antaLato = 'sx').
   const sx = lato === 'sx';
@@ -1891,12 +1892,6 @@ function cassetti(g, w, h, d, n, matAnta, piccolo = null) {
 // Numero di fuochi in base alla larghezza del mobile: piccolo → 2, grande → 4.
 function fuochiPerLarghezza(w) { return w < 600 ? 2 : 4; }
 
-/** L'anta del pensile sporge 2 cm sotto? Dipende dall'opzione e dall'altezza. */
-function antaPensileSporge(opt, h) {
-  if (opt === 'sporg70') return Math.abs(h - 700) < 40;
-  if (opt === 'sporg90') return Math.abs(h - 900) < 40;
-  return false;
-}
 
 function pianoCottura(g, w, h, d, fuochi = 4) {
   const yTop = h / 2;
@@ -2484,7 +2479,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261124i')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261124j')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -2608,7 +2603,8 @@ function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, prof = PROFONDITA_PENS
   const zA = -d / 2 + prof;
   const anta = (gg, cx, z, aw, verso) => {
     if (!basso && sporg) {                           // pensile con anta sporgente sotto (come gli altri pensili)
-      pannello(gg, cx, -10, z, aw, h + 20, matAnta || COL.anta);
+      const sc = sporg === true ? 20 : Number(sporg) || 0;
+      pannello(gg, cx, -sc / 2, z, aw, h + sc, matAnta || COL.anta);
     } else if (gola) {                               // GOLA: 25 mm sotto il piano, niente maniglia
       const v = vertAnta(h);
       pannello(gg, cx, v.py, z, aw, v.ph, matAnta || COL.anta);
@@ -2681,7 +2677,8 @@ function mobileAperto(g, w, h, d, m, matAnta, coloreCorpo, lato = null, sporg = 
   };
   const ripiano = (me) => { me.userData.appoggio = true; me.userData.ripianoAperto = true; return me; };
   const sg = lato === 'dx' ? 1 : lato === 'sx' ? -1 : 0;
-  const hb = h + (sporg ? 20 : 0), yc = sporg ? -10 : 0, yTop = yc + hb / 2, yBot = yc - hb / 2;
+  const scende = sporg === true ? 20 : Math.max(0, Number(sporg) || 0);
+  const hb = h + scende, yc = -scende / 2, yTop = yc + hb / 2, yBot = yc - hb / 2;
   const zB = -d / 2, zF = d / 2 + S;                         // dal muro al filo delle ante
   // FIANCHI: profondi come il mobile più l'anta, alti come il mobile (o come l'anta da 72 / 92)
   for (const sx of [-1, 1]) if (sx !== sg) pezzo(S, hb, d + S, sx * (w / 2 - S / 2), yc, (zB + zF) / 2, mFi);
@@ -2763,7 +2760,7 @@ function costruisciMobileCorpo(cat, tipo, m, w, h, d, matAnta, opt = {}) {
     : cat === 'regletta' ? COL.regletta : cat === 'lavatrice' ? 0x17181d
     : cat === 'lavastoviglie' ? 0xbcbdc2 : (cat === 'base' || cat === 'altillo') ? _coloreInterno : COL.corpo;
   // Pensile angolo a L: corpo a L (due bracci), non il box quadrato.
-  if (tipo === 'pensile-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, PROFONDITA_PENSILE, false, !!opt.sporg); return g; }
+  if (tipo === 'pensile-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, PROFONDITA_PENSILE, false, opt.sporg || 0); return g; }
   if (tipo === 'base-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, Math.min((m && m.profBraccio_mm) || PROFONDITA_BASE, Math.min(w, d) - 10), true); return g; }
   // Colonna con VANO APERTO: carcassa a fronte aperto (si vede dentro);
   // le altre colonne/mobili restano scatola piena.
@@ -2786,7 +2783,7 @@ function costruisciMobileCorpo(cat, tipo, m, w, h, d, matAnta, opt = {}) {
     : corpo(w, h, d, coloreCorpo, bande));
   if (cat === 'regletta') return g;
   if (opt.cieco && (opt.cieco.coperto || (opt.cieco.porte && !aperto && (tipo === 'base-ante' || tipo === 'lavello')))) { anteCieche(g, w, h, d, matAnta, opt.cieco); return g; }
-  if (aperto) { mobileAperto(g, w, h, d, m, matAnta, coloreCorpo, latoAp, cat === 'pensile' && !!opt.sporg); return g; }
+  if (aperto) { mobileAperto(g, w, h, d, m, matAnta, coloreCorpo, latoAp, cat === 'pensile' ? (opt.sporg || 0) : 0); return g; }
   if (tipo === 'pensile-angolo-45') { pensileAngoloFronte(g, w, h, d, matAnta); return g; }
   if (cat === 'colonna') { _coloreCorpoCol = coloreCorpo; colonnaFronte(g, w, h, d, m, matAnta); return g; }
   if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta, m.cassettoPiccolo_mm); return g; }
@@ -3055,7 +3052,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   // costadi alti, che vanno SEMPRE a filo sopra col pensile vicino.
   const cimePensili = (progetto.mobiliLiberi || []).filter((x) => categoriaTipo(x.tipo) === 'pensile')
     .map((x) => { const h = x.altezza_mm || 700; return { x: x.x, y: x.y, cima: (cimaAlta != null ? cimaAlta - h : MONTAGGIO_PENSILE) + h,
-      hAnta: h + (antaPensileSporge(progetto.antaPensile, h) ? 20 : 0) }; });
+      hAnta: h + scendeAntaPensile(progetto, h) }; });
 
   // CIERRE A TECHO: pannello sopra pensili e colonne fino al soffitto (altezza scelta)
   const cierre = progetto.cierreTecho && progetto.cierreTecho.attivo ? Math.max(20, Number(progetto.cierreTecho.altezza) || 300) : 0;
@@ -3114,7 +3111,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       const fondoPonte = fondoPonteSopra(progetto, m, { topLine, cimaAlta, scelta: cimaScelta });
       if (fondoPonte != null) base = fondoPonte - h;
       pensiliPlan.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, yBottom: base });
-      const sporg = antaPensileSporge(progetto.antaPensile, h);
+      const sporg = scendeAntaPensile(progetto, h);      // mm di cui l'anta scende sotto il pensile (0 = normale)
       // PENSILE SOTTO IL PONTE: può avere il suo colore (Colori del ponte → pensili)
       const cp = progetto.coloriPonte || {};
       const matPensPonte = fondoPonte != null && cp.pensili ? getMaterialeTHREE(cp.pensili, reRender) : null;
@@ -3126,7 +3123,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       if (progetto.led && progetto.led.attivo && m.tipo !== 'pensile-angolo-45' && (fondoPonte == null || ledPonte(progetto) !== 'ponte')) {
         const conPannello = progetto.schienale && progetto.schienale.attivo;
         // pensile APERTO con l'anta da 72 / 92: il fondo scende di 2 cm, il LED va sotto di lui
-        const gLed = apertoDi(m) && sporg ? (() => { const x = new THREE.Group(); x.position.y = -20; gPens.add(x); return x; })() : gPens;
+        const gLed = apertoDi(m) && sporg ? (() => { const x = new THREE.Group(); x.position.y = -sporg; gPens.add(x); return x; })() : gPens;
         aggiungiLedPensile(gLed, dim.w, h, dim.d, ledHex(progetto), conPannello ? SP_SCHIENALE : 0);
         if (m.tipo === 'pensile-angolo') {                       // anche sotto il secondo braccio
           const gB = new THREE.Group();

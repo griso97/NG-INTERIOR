@@ -14,9 +14,9 @@
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi,
-} from './modello.js?v=20261124i';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261124i';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261124i';
+  scendeAntaPensile } from './modello.js?v=20261124j';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261124j';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261124j';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -54,7 +54,7 @@ function riduzioneJ(scelte) {
  *  struttura o un altro materiale). */
 function mobileAperto(pz, mod, progetto, m) {
   const H = m.altezza_mm || 700;
-  const hTot = H + (categoriaTipo(m.tipo) === 'pensile' && pensileAntaSporge(progetto.antaPensile, H) ? 20 : 0);
+  const hTot = H + (categoriaTipo(m.tipo) === 'pensile' ? scendeAntaPensile(progetto, H) : 0);
   for (const p of pezziMobileAperto(m, latoApertoDi(progetto, m), hTot)) {
     const { parte, ...x } = p;
     const c = coloreParteAperto(m, parte);
@@ -65,11 +65,6 @@ function mobileAperto(pz, mod, progetto, m) {
 }
 
 // L'anta del pensile sporge 2 cm sotto (70→72, 90→92) con l'opzione attiva.
-function pensileAntaSporge(opt, h) {
-  if (opt === 'sporg70') return Math.abs(h - 700) < 40;
-  if (opt === 'sporg90') return Math.abs(h - 900) < 40;
-  return false;
-}
 
 const NOMI_VETRO = { trasparente: 'trasparente', satinato: 'satinato', fume: 'fumé' };
 function anteModulo(pz, mod, L, H, N, lato, altAnta, sporg, vetrina, rJ = 0, extra = '') {
@@ -160,7 +155,7 @@ function pezziDiModulo(progetto, m) {
   const odM = moduloDaOrdinare(m);
   // MOBILE APERTO: lo facciamo noi a pezzi, alla misura vera (niente modulo da ordinare né da tagliare)
   const latoAp = apertoDi(m) ? latoApertoDi(progetto, m) : null;
-  const hAp = H + (cat === 'pensile' && pensileAntaSporge(progetto.antaPensile, H) ? 20 : 0);   // con le ante da 72 / 92
+  const hAp = H + (cat === 'pensile' ? scendeAntaPensile(progetto, H) : 0);   // con le ante da 72 / 92 (o personalizzate)
   const mod = apertoDi(m)
     ? `Mobile a giorno ${hAp}×${L}${latoAp ? ` · senza fianco ${latoAp === 'dx' ? 'destro' : 'sinistro'}` : ''}`
     : `Modulo da ${m.altezza_mm ? `${m.altezza_mm}×${L}` : L}`
@@ -217,10 +212,10 @@ function pezziDiModulo(progetto, m) {
       const aw = m.tipo === 'pensile-angolo-45' ? round(L * 0.5) : round(L - PROFONDITA_PENSILE);   // 63 − 33 = 30
       pz.push({ modulo: mod, nome: 'Anta', larghezza: Math.max(100, aw), altezza: round(H - aH - rJ), spessore: SP, materiale: 'anta', quantita: m.tipo === 'pensile-angolo-45' ? 1 : 2 });
     } else {
-      // Pensile 70/90: con l'anta sporgente la porta è 72/92 (H + 20), altrimenti H − 2.
-      const sporg = pensileAntaSporge(progetto.antaPensile, H);
+      // Pensile: con l'anta sporgente la porta è H + quanto scende (70 → 72, 90 → 92, o personalizzata), altrimenti H − 2.
+      const sporg = scendeAntaPensile(progetto, H);
       if (apertoDi(m)) mobileAperto(pz, mod, progetto, m);          // APERTO: niente ante
-      else anteModulo(pz, mod, L, H, anteDiMobile(m), m.antaLato, sporg ? H + 20 : null, sporg, m.vetrina, rJ);
+      else anteModulo(pz, mod, L, H, anteDiMobile(m), m.antaLato, sporg ? H + sporg : null, sporg, m.vetrina, rJ);
     }
   } else if (cat === 'colonna') {
     // Zoccolo della colonna: segue la porta bassa (70→150, 80→100), come i mobili bassi.
@@ -297,7 +292,7 @@ function pezziDiModulo(progetto, m) {
         if (categoriaTipo(x.tipo) !== 'pensile') continue;
         const dd = Math.hypot(x.x - m.x, x.y - m.y); if (dd < dMin) { dMin = dd; best = x; }
       }
-      if (best && dMin < 2500) { const hp = best.altezza_mm || 700; hC = hp + (pensileAntaSporge(progetto.antaPensile, hp) ? 20 : 0); }
+      if (best && dMin < 2500) { const hp = best.altezza_mm || 700; hC = hp + scendeAntaPensile(progetto, hp); }
     }
     // COSTADO ESTERNO DELLE COLONNE: fino a terra (colonna + piedini 10 o 15 cm), come nel 3D
     const aTerra = costadoColonnaATerra(progetto, m) && cimaColonne(progetto) != null;

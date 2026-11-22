@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261124i';
+import { parametri } from '../parametri.js?v=20261124j';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -47,7 +47,8 @@ export function progettoDefault() {
     autoRegletta: true,          // regletta d'angolo automatica (3×3 cm) on/off
     // Stile anta pensili: 'standard' (−2 alt / −3 largh come i bassi),
     // 'sporg70' (pensili 70 → anta 72, sporge 2cm sotto),
-    // 'sporg90' (pensili 90 → anta 92, sporge 2cm sotto).
+    // 'sporg90' (pensili 90 → anta 92, sporge 2cm sotto),
+    // 'pers' (PERSONALIZZATA: tutti i pensili, l'anta scende di antaPensileMm sotto il mobile).
     antaPensile: 'standard',
   };
 }
@@ -3511,4 +3512,16 @@ export function sporgenzaPiano(progetto) {
 export function altezzaAlzatina(progetto) {
   const h = Number(progetto && progetto.schienale && progetto.schienale.altezza);
   return Number.isFinite(h) && h > 0 ? h : null;
+}
+
+/**
+ * DI QUANTO SCENDE L'ANTA DEL PENSILE sotto il mobile (mm; 0 = anta normale): 70 → 72 e 90 → 92
+ * (2 cm, solo i pensili di quell'altezza) oppure PERSONALIZZATA (tutti i pensili, i mm scritti).
+ */
+export function scendeAntaPensile(progetto, h) {
+  const opt = progetto && progetto.antaPensile;
+  if (opt === 'sporg70') return Math.abs(h - 700) < 40 ? 20 : 0;
+  if (opt === 'sporg90') return Math.abs(h - 900) < 40 ? 20 : 0;
+  if (opt === 'pers') { const v = Math.round(Number(progetto.antaPensileMm)); return Number.isFinite(v) && v > 0 ? Math.min(300, v) : 0; }
+  return 0;
 }
