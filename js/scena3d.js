@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro } from './calcoli.js?v=20261123z';
-import { parametri } from './parametri.js?v=20261123z';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261123z';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261123z';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261123z';
-import { sfondoDi } from './sfondi.js?v=20261123z';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261123z';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261123z';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro } from './calcoli.js?v=20261124a';
+import { parametri } from './parametri.js?v=20261124a';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261124a';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261124a';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261124a';
+import { sfondoDi } from './sfondi.js?v=20261124a';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261124a';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261124a';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -670,24 +670,28 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
   const zAnteCentro = interne ? zFrontePezzi - sA / 2 : zFrontePezzi + sA / 2;
 
   if (scorrevole) {
-    // SCORREVOLE: setup unico top/fondo passanti, prof = P - sS
-    aggiungiBox(W, sC, prof, xOffset + W / 2, H - sC / 2, zCarcassaCentro,
+    // SCORREVOLE: standard (top/fondo passanti, fianchi dentro) o FIANCHI ESTERNI (setup 2: fianchi
+    // alti quanto l'armadio, top e fondo fra i fianchi). prof = P - sS; fianchi larghi/stretti.
+    const fEst = config.setupCarcassa === 2;
+    const wTF = fEst ? W - 2 * sC : W;
+    aggiungiBox(wTF, sC, prof, xOffset + W / 2, H - sC / 2, zCarcassaCentro,
       matDi(config, "carcassa"), 'top');
-    aggiungiBox(W, sC, prof, xOffset + W / 2, sC / 2, zCarcassaCentro,
+    aggiungiBox(wTF, sC, prof, xOffset + W / 2, sC / 2, zCarcassaCentro,
       matDi(config, "carcassa"), 'fondo');
-    const altFianco = H - 2 * sC;
+    const altFianco = fEst ? H : H - 2 * sC;
+    const yFianco = fEst ? H / 2 : sC + altFianco / 2;
     const profStretto = profonditaFiancoInterno(config);
     const sxLargo = indice === 0;
     const dxLargo = indice === totali - 1;
     // Fianco sx
     const pSx = sxLargo ? prof : profStretto;
     aggiungiBox(sC, altFianco, pSx,
-      xOffset + sC / 2, sC + altFianco / 2, zRetro + pSx / 2,
+      xOffset + sC / 2, yFianco, zRetro + pSx / 2,
       matDi(config, "carcassa"), 'fianco');
     // Fianco dx
     const pDx = dxLargo ? prof : profStretto;
     aggiungiBox(sC, altFianco, pDx,
-      xOffset + W - sC / 2, sC + altFianco / 2, zRetro + pDx / 2,
+      xOffset + W - sC / 2, yFianco, zRetro + pDx / 2,
       matDi(config, "carcassa"), 'fianco');
   } else if (config.setupCarcassa === 1) {
     // BATTENTE setup 1: top/fondo passanti, fianchi in mezzo

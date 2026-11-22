@@ -6,11 +6,24 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261123z';
-import { htmlTendineColori } from './tendine-colori.js?v=20261123z';
-import { misureCostado, binarioArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261123z';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261123z';
-import { binariScorrevoli, parametri } from './parametri.js?v=20261123z';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261124a';
+import { htmlTendineColori } from './tendine-colori.js?v=20261124a';
+import { misureCostado, binarioArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261124a';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261124a';
+import { binariScorrevoli, parametri, montaggioArmadio } from './parametri.js?v=20261124a';
+
+/**
+ * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
+ * struttura e schiena di questo armadio passano a quelle del tipo nuovo.
+ */
+export function applicaMontaggioTipo(config) {
+  if (parametri().scorrevoli.uguale) return config;
+  const m = montaggioArmadio(config.tipoArmadio);
+  config.setupCarcassa = m.setup;
+  config.spessoreSchiena = m.spessoreSchiena;
+  config.schiena = { tipo: m.schiena, canale: m.canale, dentro: m.dentro };
+  return config;
+}
 
 export function configDefault() {
   const PA = parametri().armadi;        // come monti gli armadi (⚙ Parametri → Armadi): valori di partenza
@@ -130,9 +143,9 @@ export function renderPannello(contenitore, config, onChange) {
       </div>
     </section>
 
-    <section id="sez-setup" ${config.tipoArmadio === 'scorrevole' ? 'style="display:none"' : ''}>
+    <section id="sez-setup">
       <h3>Setup carcassa</h3>
-      <p class="hint">(Solo battente. Lo scorrevole ha un unico setup.) I valori di partenza li scegli in ⚙ Parametri → Armadi.</p>
+      <p class="hint">I valori di partenza li scegli in ⚙ Parametri → Armadi.</p>
       <div id="mont-setup"></div>
     </section>
 
@@ -288,7 +301,7 @@ export function renderPannello(contenitore, config, onChange) {
   // I valori di partenza vengono dai ⚙ Parametri → Armadi; qui si cambiano per questo armadio.
   const leggiMont = () => {
     const ms = misureSchiena(config), A = parametri().anteInterne;
-    return { setup: config.setupCarcassa === 2 ? 2 : 1, ante: config.anteInterne ? 'interne' : 'sopra', schiena: ms.tipo,
+    return { tipo: config.tipoArmadio, setup: config.setupCarcassa === 2 ? 2 : 1, ante: config.anteInterne ? 'interne' : 'sopra', schiena: ms.tipo,
       spessoreSchiena: config.spessoreSchiena, canale: ms.canale, dentro: ms.dentro, aria: A.aria, spazioRipiano: A.spazioRipiano };
   };
   const scriviMont = (p) => {
@@ -322,11 +335,12 @@ export function renderPannello(contenitore, config, onChange) {
   contenitore.querySelectorAll('input[name="tipo"]').forEach((r) => {
     r.addEventListener('change', (e) => {
       config.tipoArmadio = e.target.value;
+      applicaMontaggioTipo(config);
       const scorrevole = e.target.value === 'scorrevole';
       const sezSc = document.getElementById('sez-scorrevole');
-      const sezSetup = document.getElementById('sez-setup');
       if (sezSc) sezSc.style.display = scorrevole ? '' : 'none';
-      if (sezSetup) sezSetup.style.display = scorrevole ? 'none' : '';
+      const fs = contenitore.querySelector('#sp-schiena'); if (fs) fs.value = config.spessoreSchiena;
+      disegnaMont();                     // lo scorrevole non ha le schede delle ante a battente
       renderMateriali(config);
       attaccaEventiMateriali(contenitore, config, onChange);
       renderModuli(config);

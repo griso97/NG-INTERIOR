@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, parametri } from './parametri.js?v=20261123z';
+import { binarioScorrevole, parametri } from './parametri.js?v=20261124a';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -93,7 +93,7 @@ export function profonditaFiancoInterno(config) {
  *     in mezzo tra i fianchi.
  *
  * SCORREVOLE:
- *   - Setup unico (top/fondo passanti, fianchi incassati).
+ *   - Setup 1 (top/fondo passanti, fianchi incassati) o setup 2 (fianchi esterni, top/fondo dentro).
  *   - Ogni modulo ha 2 fianchi, uno può essere "largo" (prof = P−sS) oppure
  *     "stretto" (prof = P−sS−B). Regola di posizione:
  *       • 1 solo modulo → entrambi larghi
@@ -107,14 +107,16 @@ export function pezziCarcassaModulo(config, modulo, indiceModulo, totaleModuli =
   const pezzi = [];
 
   if (config.tipoArmadio === 'scorrevole') {
-    // Scorrevole: setup unico (top/fondo passanti).
-    // Top e Fondo sono IDENTICI → un solo pezzo con quantità 2.
+    // Scorrevole: struttura standard (top/fondo passanti, fianchi dentro) oppure FIANCHI ESTERNI
+    // (setup 2: fianchi alti quanto l'armadio, top e fondo fra i fianchi: modulo − 2 × struttura).
+    // Top e Fondo sono IDENTICI → un solo pezzo con quantità 2. Fianchi larghi/stretti come sempre.
+    const fianchiEsterni = config.setupCarcassa === 2;
     pezzi.push({
       modulo: nomeModulo, nome: 'Top / Fondo',
-      larghezza: modulo.larghezza, altezza: prof,
+      larghezza: fianchiEsterni ? modulo.larghezza - 2 * config.spessoreCarcassa : modulo.larghezza, altezza: prof,
       spessore: config.spessoreCarcassa, materiale: 'carcassa', quantita: 2,
     });
-    const altFianco = config.altezzaEsterna - 2 * config.spessoreCarcassa;
+    const altFianco = fianchiEsterni ? config.altezzaEsterna : config.altezzaEsterna - 2 * config.spessoreCarcassa;
     const profStretto = profonditaFiancoInterno(config);
     // Regola larghi/stretti
     const sxLargo = indiceModulo === 0;

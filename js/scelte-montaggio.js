@@ -9,9 +9,10 @@
 //   htmlMontaggio(v, opz)            → HTML (v = valori, vedi valoriDaParametri / valoriDaArmadio)
 //   agganciaMontaggio(root, leggi, scrivi, opz)  → collega tocchi e numeri: scrivi(patch) salva
 // =============================================================================
-import { svgStruttura, svgSchiena } from './disegni-montaggio.js?v=20261123z';
-import { calcolaDistintaCompleta } from './calcoli.js?v=20261123z';
-import { parametri, salvaParametri } from './parametri.js?v=20261123z';
+import { svgStruttura, svgSchiena } from './disegni-montaggio.js?v=20261124a';
+import { calcolaDistintaCompleta } from './calcoli.js?v=20261124a';
+import { parametri, salvaParametri } from './parametri.js?v=20261124a';
+import { binariScorrevoli } from './parametri.js?v=20261124a';
 
 const t = (s) => (typeof window !== 'undefined' && window.NGI18N ? window.NGI18N.t(s) : s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -52,8 +53,48 @@ export function scriviParametri(patch) {
   return salvaParametri(n);
 }
 
+/** ARMADI SCORREVOLI: valori dai ⚙ Parametri (uguale = 'si' | 'no': struttura come il battente?). */
+export function valoriScorrevoli(P = parametri()) {
+  const a = P.scorrevoli.uguale ? P.armadi : P.scorrevoli;
+  return { uguale: P.scorrevoli.uguale ? 'si' : 'no', setup: a.setup, schiena: a.schiena, spessoreSchiena: a.spessoreSchiena, canale: a.canale, dentro: a.dentro, tipo: 'scorrevole' };
+}
+/** Scrive le scelte degli scorrevoli. Passando a «no» si parte dalle scelte del battente. */
+export function scriviScorrevoli(patch) {
+  const n = JSON.parse(JSON.stringify(parametri()));
+  if ('uguale' in patch) {
+    const no = patch.uguale === 'no';
+    if (no && n.scorrevoli.uguale) { const a = n.armadi; Object.assign(n.scorrevoli, { setup: a.setup, schiena: a.schiena, spessoreSchiena: a.spessoreSchiena, canale: a.canale, dentro: a.dentro }); }
+    n.scorrevoli.uguale = !no;
+  }
+  for (const [k, v] of Object.entries(patch)) if (k !== 'uguale' && k !== 'tipo') n.scorrevoli[k] = v;
+  return salvaParametri(n);
+}
+/** La domanda: la struttura dello scorrevole la fai come il battente? */
+export function htmlUguale(v) {
+  stile();
+  const B = parametri().armadi;
+  const sch = B.schiena === 'dietro' ? 'avvitata dietro' : B.schiena === 'filo' ? 'incassata a filo' : 'nel canale';
+  const come = `${t(B.setup === 2 ? 'Fianchi esterni' : 'Standard (come ora)')} · ${t('schiena')} ${t(sch)}`;
+  return `<div class="mont-gruppo"><h4>${esc(t('La struttura degli armadi scorrevoli la fai come quella dei battenti?'))}</h4>
+    <p>${esc(t('Struttura e schiena dei battenti:'))} <b>${esc(come)}</b></p><div class="mont-schede">
+    ${scheda('uguale', 'si', v.uguale !== 'no', svgStruttura(B.setup), 'Sì, uguale', 'Tengo struttura e schiena dei battenti')}
+    ${scheda('uguale', 'no', v.uguale === 'no', '<svg viewBox="0 0 230 190" width="230" height="190" aria-hidden="true"><text x="115" y="112" text-anchor="middle" font-size="64" fill="#e8c25a" font-family="sans-serif">?</text></svg>', 'No, la faccio diversa', 'Rispondo alle domande per gli scorrevoli')}
+  </div></div>`;
+}
+
 /** Configurazione di prova (1000 × 2000 × 600, 2 ante, 3 ripiani) con le scelte v. */
 function armadioDiProva(v) {
+  if (v.tipo === 'scorrevole') {
+    const b = binariScorrevoli()[0];
+    return {
+      tipoArmadio: 'scorrevole', larghezzaTotale: 1000, altezzaEsterna: 2000, profonditaEsterna: 600,
+      spessoreCarcassa: 18, spessoreAnte: 18, spessoreSchiena: Number(v.spessoreSchiena) || 10,
+      setupCarcassa: Number(v.setup) === 2 ? 2 : 1, schiena: { tipo: v.schiena, canale: v.canale, dentro: v.dentro },
+      scorrevole: { anteModulo: 1, binario: 75, tipoBinario: b && b.id },
+      moduli: [{ larghezza: 1000, numeroAnte: 1, antaLato: 'dx', ripiani: 3, riduzioneRipiano: 0, cassettiere: [] }],
+      cassettiere: [], tamponamenti: {}, costadi: { lati: 'nessuno' }, materiali: {},
+    };
+  }
   return {
     tipoArmadio: 'battente', larghezzaTotale: 1000, altezzaEsterna: 2000, profonditaEsterna: 600,
     spessoreCarcassa: 18, spessoreAnte: 18, spessoreSchiena: Number(v.spessoreSchiena) || 10,
@@ -70,7 +111,8 @@ export function htmlEsempio(v) {
   const riga = (re) => pezzi.filter((p) => re.test(p.nome) && p.larghezza != null).map((p) => `${esc(t(p.nome))} <b>${p.larghezza} × ${p.altezza}</b>${p.quantita > 1 ? ` ×${p.quantita}` : ''}`);
   const cern = pezzi.find((p) => /Cerniere/.test(p.nome));
   const righe = [...riga(/^Top|^Fondo|^Top \/ Fondo/), ...riga(/^Fianco/), ...riga(/^Schiena/), ...riga(/^Ripiano/), ...riga(/^Anta/)];
-  return `<div class="mont-esempio">${esc(t('Esempio: armadio 1000 × 2000 × 600, struttura 18, ante 18, 2 ante, 3 ripiani'))}<br>${righe.join(' · ')}${cern ? ` · ${esc(t(cern.nome))} <b>${cern.quantita}</b>` : ''}</div>`;
+  const tit = v.tipo === 'scorrevole' ? 'Esempio: armadio scorrevole 1000 × 2000 × 600, struttura 18, 1 modulo, 3 ripiani' : 'Esempio: armadio 1000 × 2000 × 600, struttura 18, ante 18, 2 ante, 3 ripiani';
+  return `<div class="mont-esempio">${esc(t(tit))}<br>${righe.join(' · ')}${cern ? ` · ${esc(t(cern.nome))} <b>${cern.quantita}</b>` : ''}</div>`;
 }
 
 const scheda = (gruppo, val, sel, svg, titolo, sotto) => `<button type="button" class="mont-scheda ${sel ? 'sel' : ''}" data-mont="${gruppo}" data-val="${val}" aria-pressed="${sel}">
@@ -83,6 +125,7 @@ const numero = (k, et, v, min = 0) => `<label>${esc(t(et))}<input type="number" 
 export function htmlMontaggio(v, opz = {}) {
   stile();
   const o = { struttura: true, schiena: true, ante: true, numeriAnte: true, esempio: true, ...opz };
+  if (v.tipo === 'scorrevole') o.ante = false;
   const sv = { spessore: v.spessoreSchiena, canale: v.canale, dentro: v.dentro, interne: v.ante === 'interne' };
   let h = '';
   if (o.struttura) h += `<div class="mont-gruppo"><h4>${esc(t('Struttura'))}</h4><p>${esc(t('Come stanno top, fondo e fianchi.'))}</p><div class="mont-schede">
@@ -114,8 +157,9 @@ export function htmlMontaggio(v, opz = {}) {
 export function agganciaMontaggio(root, leggi, scrivi, ridisegna) {
   root.querySelectorAll('[data-mont]').forEach((b) => b.addEventListener('click', () => {
     const k = b.dataset.mont, val = k === 'setup' ? Number(b.dataset.val) : b.dataset.val;
-    if (leggi()[k] === val) return;
-    scrivi({ [k]: val }); ridisegna();
+    const uguale = leggi()[k] === val;
+    scrivi({ [k]: val });                 // anche se è già quella: vale come risposta
+    if (!uguale) ridisegna();
   }));
   root.querySelectorAll('[data-montnum]').forEach((inp) => inp.addEventListener('change', () => {
     const n = Number(String(inp.value).replace(',', '.'));

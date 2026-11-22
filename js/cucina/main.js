@@ -24,20 +24,21 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, latoApertoDi, latiLiberi, migraProfonditaPensili, PARTI_APERTO, coloreParteAperto, ledAperto,
-  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola, piediniCucina, altezzaBassiCucina } from './modello.js?v=20261123z';
-import { renderPianta } from './pianta.js?v=20261123z';
-import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261123z';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261123z';
-import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261123z';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261123z';
-import { calcolaDistintaCucina } from './distinta.js?v=20261123z';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261123z';
-import { salvaEsempioModificato } from '../esempi-dati.js?v=20261123z';
-import { parametri } from '../parametri.js?v=20261123z';
-import { agganciaTema } from '../tema.js?v=20261123z';
-import { tendinePannello } from '../tendine-pannello.js?v=20261123z';
+  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola, piediniCucina, altezzaBassiCucina } from './modello.js?v=20261124a';
+import { renderPianta } from './pianta.js?v=20261124a';
+import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261124a';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261124a';
+import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124a';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261124a';
+import { calcolaDistintaCucina } from './distinta.js?v=20261124a';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261124a';
+import { salvaEsempioModificato } from '../esempi-dati.js?v=20261124a';
+import { parametri, daImpostare } from '../parametri.js?v=20261124a';
+import { htmlAvvisoMancanti, confermaEsportazione } from '../avviso-parametri.js?v=20261124a';
+import { agganciaTema } from '../tema.js?v=20261124a';
+import { tendinePannello } from '../tendine-pannello.js?v=20261124a';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261123z');
+const _excel = () => import('../modello-export.js?v=20261124a');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -102,7 +103,7 @@ function mostraSceltaTipoCucina() {
     </div>`;
   document.body.appendChild(ov);
   // CUCINE DI ESEMPIO: la scheda c'è solo se ce ne sono (l'elenco è piccolo: solo nomi e foto)
-  fetch('esempi/cucine/indice.json?v=20261123z').then((r) => (r.ok ? r.json() : null)).then((j) => {
+  fetch('esempi/cucine/indice.json?v=20261124a').then((r) => (r.ok ? r.json() : null)).then((j) => {
     const a = ov.querySelector('#scelta-esempi');
     if (a && j && Array.isArray(j.cucine) && j.cucine.length) a.style.display = 'flex';
   }).catch(() => { /* niente esempi */ });
@@ -1605,8 +1606,8 @@ function apriPavimentoDaFoto() {
     if (!(w >= 5) || !(h >= 5)) { alert(tt('Scrivi la misura della zona fotografata (almeno 5 cm).')); return; }
     $('pav-salva').disabled = true;
     try {
-      const C = await import('../catalogo.js?v=20261123z');
-      const M = await import('../materiali.js?v=20261123z');
+      const C = await import('../catalogo.js?v=20261124a');
+      const M = await import('../materiali.js?v=20261124a');
       const stato = await C.leggiCatalogo();
       const id = 'pav-' + Date.now().toString(36);
       const prod = { id, sezione: 'pavimento', nome: ($('pav-nome').value || '').trim() || tt('Pavimento del cliente'), campioneCm: { w, h } };
@@ -1623,7 +1624,7 @@ async function eliminaPavimentoProprio(id) {
   const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
   if (!confirm(tt('Eliminare questo pavimento? Sparisce da tutti i progetti.'))) return;
   try {
-    const C = await import('../catalogo.js?v=20261123z');
+    const C = await import('../catalogo.js?v=20261124a');
     const stato = await C.leggiCatalogo();
     stato.prodotti = (stato.prodotti || []).filter((p) => p.id !== id);
     await C.salvaCatalogo(stato); await C.eliminaFoto(id);
@@ -1999,7 +2000,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261123z');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261124a');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2551,6 +2552,18 @@ function renderRiepilogoStep3d() {
   tendinePannello(riepilogo, 'cucina-riepilogo', { aperte: [] });       // la lista dei mobili: tendina chiusa
 }
 
+// --------- IMPOSTAZIONI SALTATE che servono a questa cucina (gola usata, regletta d'angolo presente) ---------
+function mancantiCucina() {
+  const manca = daImpostare(); if (!manca.length) return [];
+  const mob = progetto.mobiliLiberi || [];
+  const out = [];
+  if (manca.includes('gola') && golaProgetto(progetto).base && mob.some((m) => golaSuMobile(progetto, m))) out.push('gola');
+  if (manca.includes('regletta') && progetto.autoRegletta !== false && mob.some((m) => { try { return !!infoAngoloCieco(progetto, m); } catch (_) { return false; } })) out.push('regletta');
+  return out;
+}
+/** Esporta solo dopo il «sì» se mancano delle impostazioni. */
+const seCompletaCucina = (fn) => async () => { if (await confermaEsportazione(mancantiCucina())) fn(); };
+
 // --------- DISTINTA DI TAGLIO (lista moduli + lista pezzi per tipo) ---------
 const NOME_MATERIALE = { carcassa: 'Carcassa', anta: 'Anta/Fronte', schiena: 'Schiena', zoccolo: 'Zoccolo', melaminico: 'Melaminico bianco' };
 function mostraDistinta() {
@@ -2611,7 +2624,7 @@ function mostraDistinta() {
       <div class="riga-3d" style="margin-top:6px">Cerniere: 2 per porta (110°, anche la porta bassa delle colonne), 165° sulle porte del pensile angolo 63×63 e del Ciaflan, porta del frigo 4 se più alta di 1,10 m (se no 3). Maniglie: una per porta e frontale dove non c'è il finger-pull né il push. Push: un push pull e una base per ogni porta. Piedini: 4 per modulo a terra (6 oltre 90 cm), una grappa zoccolo per modulo, un angolo per ogni giro a 90° dello zoccolo. Un kit per appendere ogni pensile.</div>
     </div>` : '';
 
-  corpo.innerHTML = sezModuli + sezPezzi + sezAcc + `
+  corpo.innerHTML = htmlAvvisoMancanti(mancantiCucina()) + sezModuli + sezPezzi + sezAcc + `
     <div class="distinta-riepilogo">
       <div><span>Moduli</span><strong>${riepilogo.moduli}</strong></div>
       <div><span>Pezzi da fare</span><strong>${riepilogo.totalePezzi}</strong></div>
@@ -2912,13 +2925,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261123z');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261124a');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261123z'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261124a'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -3744,10 +3757,10 @@ function riblocca(id) {
 function chiudiModale() { modale.hidden = true; }
 document.getElementById('modale-annulla').addEventListener('click', chiudiModale);
 modale.addEventListener('click', (e) => { if (e.target === modale) chiudiModale(); });
-document.getElementById('distinta-csv')?.addEventListener('click', esportaDistintaCSV);
-document.getElementById('distinta-xlsx')?.addEventListener('click', esportaDistintaExcel);
-document.getElementById('distinta-modello')?.addEventListener('click', () =>
-  apriModelloExcel({ pezzi: pezziPerModello(), progetto: progetto.nome || 'Cucina' }));
+document.getElementById('distinta-csv')?.addEventListener('click', seCompletaCucina(esportaDistintaCSV));
+document.getElementById('distinta-xlsx')?.addEventListener('click', seCompletaCucina(esportaDistintaExcel));
+document.getElementById('distinta-modello')?.addEventListener('click', seCompletaCucina(() =>
+  apriModelloExcel({ pezzi: pezziPerModello(), progetto: progetto.nome || 'Cucina' })));
 document.getElementById('distinta-chiudi')?.addEventListener('click', chiudiDistinta);
 document.getElementById('distinta-overlay')?.addEventListener('click', (e) => { if (e.target.id === 'distinta-overlay') chiudiDistinta(); });
 

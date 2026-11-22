@@ -8,20 +8,20 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261123z';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261123z';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261123z';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261123z';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261123z';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261123z';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261123z';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261123z';
-import { agganciaTema } from './tema.js?v=20261123z';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261123z';
-import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261123z';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261123z';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri } from './scelte-montaggio.js?v=20261123z';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261123z';
+} from './catalogo.js?v=20261124a';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261124a';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261124a';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261124a';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261124a';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261124a';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261124a';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261124a';
+import { agganciaTema } from './tema.js?v=20261124a';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261124a';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261124a';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261124a';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124a';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261124a';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1027,6 +1027,7 @@ function renderParametri(S) {
       </div>`;
   el.innerHTML = `
     <p class="imp-desc">${esc(S.desc)}</p>
+    <div id="par-mancanti"></div>
     <p class="imp-desc">Valgono su questo dispositivo; con la «copia completa» li porti anche sugli altri. Si salvano da soli mentre scrivi.</p>
     <p class="imp-desc">📷 Ogni parametro può avere una o più foto (es. dove si misura): tocca «+ Foto» sotto il numero; tocca una foto per vederla grande o toglierla.</p>
     <h2 class="par-sezione">🍳 Cucina</h2>
@@ -1091,6 +1092,8 @@ function renderParametri(S) {
       <h3>Come monti gli armadi</h3>
       <p class="imp-desc">I valori di partenza di ogni armadio nuovo: tocca il modo in cui lavori. Nel singolo armadio li puoi sempre cambiare (Setup carcassa e Schiena).</p>
       <div id="par-montaggio"></div>
+      <h3 style="margin-top:22px">Armadi scorrevoli</h3>
+      <div id="par-montaggio-sc"></div>
       <p style="margin:12px 0 0"><a class="btn-ghost" href="./benvenuto.html" style="display:inline-block;text-decoration:none;padding:9px 14px">▶ Rifai la configurazione guidata</a></p>
     </div>
     <div class="par-gruppo">
@@ -1136,15 +1139,36 @@ function renderParametri(S) {
     const box = el.querySelector('#par-montaggio'); if (!box) return;
     box.innerHTML = htmlMontaggio(valoriDaParametri(), { numeriAnte: false });
     agganciaMontaggio(box, valoriDaParametri, scriviParametri, disegnaMontaggio);
+    disegnaMontaggioSc();
+  };
+  // ARMADI SCORREVOLI: struttura come i battenti? Se no, le stesse domande (struttura e schiena)
+  const disegnaMontaggioSc = () => {
+    const box = el.querySelector('#par-montaggio-sc'); if (!box) return;
+    const v = valoriScorrevoli();
+    box.innerHTML = htmlUguale(v) + (v.uguale === 'no' ? htmlMontaggio(v, { ante: false }) : '');
+    agganciaMontaggio(box, valoriScorrevoli, (p) => { scriviScorrevoli(p); segnaImpostato('scorrevoli'); mostraMancanti(); }, disegnaMontaggioSc);
   };
   disegnaMontaggio();
   let timer = null;
   const msg = el.querySelector('#par-msg');
+  // IMPOSTAZIONI SALTATE nella configurazione guidata: restano a 0 finché non le scrivi qui
+  const mostraMancanti = () => {
+    const box = el.querySelector('#par-mancanti'); if (!box) return;
+    const manca = daImpostare();
+    box.innerHTML = manca.length ? `<div class="par-mancanti" role="alert" style="margin:10px 0 14px;padding:12px 14px;border-radius:10px;border:1px solid #c0392b;background:rgba(192,57,43,.12);color:#f3d9d4;line-height:1.5">
+      ⚠ <b style="color:#ff9b8c">${esc(tr('Da impostare (saltati nella configurazione guidata):'))}</b>
+      <ul style="margin:6px 0 6px 18px;padding:0">${manca.map((g) => `<li>${esc(tr(GRUPPI_DA_IMPOSTARE[g]))}</li>`).join('')}</ul>
+      ${esc(tr('Finché mancano sono a 0 e la distinta non è completa. Scrivi i valori qui sotto: l\'avviso sparisce da solo.'))}</div>` : '';
+  };
+  mostraMancanti();
+  const impostato = (g) => { if (daImpostare().includes(g)) { segnaImpostato(g); mostraMancanti(); } };
   el.querySelectorAll('[data-par]').forEach((inp) => inp.addEventListener('input', () => {
     const nuovo = JSON.parse(JSON.stringify(parametri()));
     const [a, b] = inp.dataset.par.split('.');
     nuovo[a][b] = inp.type === 'number' ? (inp.value === '' ? '' : Number(String(inp.value).replace(',', '.'))) : inp.value;
-    salvaParametri(nuovo); esempi();
+    salvaParametri(nuovo);
+    if ((a === 'gola' || a === 'regletta') && Number(nuovo[a][b]) > 0) impostato(a);
+    esempi();
     msg.hidden = false; clearTimeout(timer); timer = setTimeout(() => { msg.hidden = true; }, 1400);
   }));
   // binari degli scorrevoli: nome e numeri di ognuno, aggiungi / togli
@@ -1154,6 +1178,7 @@ function renderParametri(S) {
     if (!nuovo.binari[i]) return;
     nuovo.binari[i][k] = inp.type === 'number' ? (inp.value === '' ? 0 : Number(String(inp.value).replace(',', '.'))) : inp.value;
     salvaParametri(nuovo); esempi();
+    if (Number(i) === 0) impostato('binario');
     msg.hidden = false; clearTimeout(timer); timer = setTimeout(() => { msg.hidden = true; }, 1400);
   }));
   el.querySelector('#par-bin-agg').addEventListener('click', () => {

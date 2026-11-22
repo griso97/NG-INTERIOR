@@ -62,6 +62,14 @@ export const PARAMETRI_DEFAULT = Object.freeze({
     canale: 8,            // mm: profondità del canale (la schiena entra tanto per lato)
     dentro: 10,           // mm: quanto dentro sta la schiena (dal retro dei fianchi al canale)
   },
+  // IMPOSTAZIONI SALTATE nella configurazione guidata («lo imposto dopo»): restano a 0 e la distinta
+  // avvisa che mancano. Si tolgono da qui appena il falegname le imposta in ⚙ Parametri.
+  daImpostare: [],
+  // ARMADI SCORREVOLI: la struttura si fa come il battente (uguale) o in un altro modo (stesse domande)
+  scorrevoli: {
+    uguale: true,         // true = struttura e schiena come gli armadi a battente
+    setup: 1, schiena: 'dietro', spessoreSchiena: 10, canale: 8, dentro: 10,
+  },
   cassetti: {
     marca: 'Syscore',     // sistema di cassetti usato (scritto nella lista accessori)
     profondita: 500,      // mm: cassetto / guide
@@ -87,6 +95,7 @@ function completa(s) {
     s = { ...s, cassetti: { ...s.cassetti, medioTrasera: s.cassetti.grandeTrasera, grandeTrasera: null } };
   }
   const D = PARAMETRI_DEFAULT, a = (s && s.ante) || {}, j = (s && s.manigliaJ) || {}, c = (s && s.cassetti) || {}, go = (s && s.gola) || {};
+  const mancano = [...new Set((Array.isArray(s && s.daImpostare) ? s.daImpostare : []).filter((g) => g in GRUPPI_DA_IMPOSTARE))];
   const visti = new Set();
   // v3: la larghezza delle ante scorrevoli parte dal modulo intero (prima si toglievano i fianchi e 35):
   // il vecchio numero di partenza di Syscore (35) torna a 0; i numeri scritti dal falegname restano
@@ -112,9 +121,11 @@ function completa(s) {
       ariaCassetti: Math.max(0, num(a.ariaCassetti, D.ante.ariaCassetti)),
     },
     manigliaJ: { spessore: Math.max(0, num(j.spessore, D.manigliaJ.spessore)) },
-    gola: { spazio: Math.max(10, Math.min(60, num(go.spazio, D.gola.spazio))) },
+    daImpostare: mancano,
+    // saltate («lo imposto dopo»): restano a 0 finché non si impostano
+    gola: { spazio: Math.max(mancano.includes('gola') ? 0 : 10, Math.min(60, num(go.spazio, D.gola.spazio))) },
     regletta: {
-      vista: Math.max(5, num(((s && s.regletta) || {}).vista, D.regletta.vista)),
+      vista: Math.max(mancano.includes('regletta') ? 0 : 5, num(((s && s.regletta) || {}).vista, D.regletta.vista)),
       spessoreAnta: Math.max(0, num(((s && s.regletta) || {}).spessoreAnta, D.regletta.spessoreAnta)),
     },
     binari: binari.length ? binari : D.binari.map((b) => ({ ...b })),
@@ -122,6 +133,14 @@ function completa(s) {
     armadi: (() => { const a = (s && s.armadi) || {}, d = D.armadi; return {
       setup: Number(a.setup) === 2 ? 2 : 1,
       ante: a.ante === 'interne' ? 'interne' : 'sopra',
+      schiena: ['filo', 'canale'].includes(a.schiena) ? a.schiena : 'dietro',
+      spessoreSchiena: Math.max(1, num(a.spessoreSchiena, d.spessoreSchiena)),
+      canale: Math.max(0, num(a.canale, d.canale)),
+      dentro: Math.max(0, num(a.dentro, d.dentro)),
+    }; })(),
+    scorrevoli: (() => { const a = (s && s.scorrevoli) || {}, d = D.scorrevoli; return {
+      uguale: a.uguale !== false,
+      setup: Number(a.setup) === 2 ? 2 : 1,
       schiena: ['filo', 'canale'].includes(a.schiena) ? a.schiena : 'dietro',
       spessoreSchiena: Math.max(1, num(a.spessoreSchiena, d.spessoreSchiena)),
       canale: Math.max(0, num(a.canale, d.canale)),
@@ -187,4 +206,42 @@ export function tipoCassetto(hFrontale, p = parametri()) {
   if (hFrontale <= c.piccoloFinoA) return piccolo;
   if (grande && (!medio || (c.medioFinoA && hFrontale > c.medioFinoA))) return grande;
   return medio || grande || piccolo;
+}
+
+/**
+ * Come si monta un armadio di quel tipo ('battente' | 'scorrevole'): struttura e schiena.
+ * Lo scorrevole usa le scelte del battente se in ⚙ Parametri hai detto che la struttura è uguale.
+ */
+export function montaggioArmadio(tipo, P = parametri()) {
+  const a = tipo === 'scorrevole' && !P.scorrevoli.uguale ? P.scorrevoli : P.armadi;
+  return { setup: a.setup, schiena: a.schiena, spessoreSchiena: a.spessoreSchiena, canale: a.canale, dentro: a.dentro };
+}
+
+// =============================================================================
+// IMPOSTAZIONI DA FARE (saltate nella configurazione guidata con «Salta, lo imposto dopo»)
+// =============================================================================
+export const GRUPPI_DA_IMPOSTARE = {
+  scorrevoli: 'Armadi scorrevoli: struttura e schiena',
+  binario: 'Binario degli armadi scorrevoli',
+  gola: 'Gola (spazio per le dita)',
+  regletta: "Regletta d'angolo",
+};
+/** Le impostazioni ancora da fare (lista di chiavi di GRUPPI_DA_IMPOSTARE). */
+export function daImpostare(P = parametri()) { return P.daImpostare || []; }
+/** Salta un gruppo: resta a 0 e diventa «da impostare». */
+export function saltaImpostazione(gruppo) {
+  const n = JSON.parse(JSON.stringify(parametri()));
+  if (!n.daImpostare.includes(gruppo)) n.daImpostare.push(gruppo);
+  if (gruppo === 'gola') n.gola.spazio = 0;
+  if (gruppo === 'regletta') { n.regletta.vista = 0; n.regletta.spessoreAnta = 0; }
+  if (gruppo === 'binario' && n.binari[0]) Object.assign(n.binari[0], { larghezzaMeno: 0, altezzaMeno: 0, maniglia: 0 });
+  return salvaParametri(n);
+}
+/** Il gruppo è stato impostato: l'avviso sparisce. */
+export function segnaImpostato(...gruppi) {
+  const P = parametri();
+  if (!gruppi.some((g) => P.daImpostare.includes(g))) return P;
+  const n = JSON.parse(JSON.stringify(P));
+  n.daImpostare = n.daImpostare.filter((g) => !gruppi.includes(g));
+  return salvaParametri(n);
 }

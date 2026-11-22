@@ -5,27 +5,29 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261123z';
+import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261124a';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo, fotoRealisticaArmadio,
   iniziaSpostamentoRipiano, muoviSpostamentoRipiano, fineSpostamentoRipiano,
   toccoArmadio, ripianiCorrenti, posizioneNuovoRipiano, evidenziaRipiano,
-} from './scena3d.js?v=20261123z';
-import { SFONDI_LISTA } from './sfondi.js?v=20261123z';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261123z';
-import { agganciaTema } from './tema.js?v=20261123z';
-import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli } from './interfaccia.js?v=20261123z';
-import { tendinePannello } from './tendine-pannello.js?v=20261123z';
-import { renderDistinta } from './distinta.js?v=20261123z';
-import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261123z';
+} from './scena3d.js?v=20261124a';
+import { SFONDI_LISTA } from './sfondi.js?v=20261124a';
+import { htmlAvvisoMancanti, confermaEsportazione } from './avviso-parametri.js?v=20261124a';
+import { daImpostare } from './parametri.js?v=20261124a';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261124a';
+import { agganciaTema } from './tema.js?v=20261124a';
+import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli, applicaMontaggioTipo } from './interfaccia.js?v=20261124a';
+import { tendinePannello } from './tendine-pannello.js?v=20261124a';
+import { renderDistinta } from './distinta.js?v=20261124a';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261124a';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('./modello-export.js?v=20261123z');
+const _excel = () => import('./modello-export.js?v=20261124a');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js?v=20261123z';
+} from './storage.js?v=20261124a';
 
 // PANNELLO ORDINATO: ogni sezione è una tendina (chiusa, si apre toccando il titolo);
 // la prima volta aperte solo Tipo armadio e Dimensioni. Poi resta come la lasci.
@@ -41,8 +43,9 @@ let config = adattaModuli(caricaLocale() || configDefault());   // moduli sempre
 // Serve per entrare dal menu "scegli.html" già sul tipo giusto.
 try {
   const tipo = new URLSearchParams(location.search).get('tipo');
-  if (tipo === 'battente' || tipo === 'scorrevole') {
+  if ((tipo === 'battente' || tipo === 'scorrevole') && config.tipoArmadio !== tipo) {
     config.tipoArmadio = tipo;
+    applicaMontaggioTipo(config);      // struttura e schiena di quel tipo (⚙ Parametri → Armadi)
   }
 } catch (_) { /* no-op */ }
 
@@ -143,6 +146,9 @@ function aggiorna() {
   const distinta = calcolaDistintaCompleta(config);
   aggiornaScena(config);
   renderDistinta(distintaEl, distinta, config);
+  // impostazioni saltate che servono a questo armadio: avviso sopra la distinta
+  const av = htmlAvvisoMancanti(mancantiArmadio());
+  if (av) distintaEl.querySelector('.distinta-head')?.insertAdjacentHTML('afterend', av);
   agganciaExport(distinta);
   mostraAvvisi();
   aggiornaHeader();
@@ -165,26 +171,32 @@ function mostraAvvisi() {
     : '';
 }
 
+/** Impostazioni saltate («lo imposto dopo») che servono a QUESTO armadio: lo scorrevole usa struttura e binario. */
+function mancantiArmadio() {
+  return config.tipoArmadio === 'scorrevole' ? daImpostare().filter((g) => g === 'scorrevoli' || g === 'binario') : [];
+}
+/** Esporta solo dopo il «sì» se mancano delle impostazioni. */
+const seCompleta = (fn) => async () => { if (await confermaEsportazione(mancantiArmadio())) fn(); };
 function agganciaExport(distinta) {
   const btnCsv = document.getElementById('btn-csv');
   const btnPdf = document.getElementById('btn-pdf');
-  if (btnCsv) btnCsv.onclick = () => esportaCSV(distinta, config.meta, config);
-  if (btnPdf) btnPdf.onclick = () => esportaPDF(distinta, config, config.meta);
+  if (btnCsv) btnCsv.onclick = seCompleta(() => esportaCSV(distinta, config.meta, config));
+  if (btnPdf) btnPdf.onclick = seCompleta(() => esportaPDF(distinta, config, config.meta));
   // Excel con il modello del programma di taglio (vedi modello-export.js)
   const pezziModello = () => distinta.pezzi.map((p) => ({
     nome: p.nome, larghezza: p.larghezza, altezza: p.altezza, spessore: p.spessore, quantita: p.quantita,
     materiale: nomeMaterialeCsv(p, config), modulo: p.modulo || '', gruppo: '' }));
   const progettoNome = (config.meta && config.meta.cliente) || 'Armadio';
   const btnXlsx = document.getElementById('btn-xlsx');
-  if (btnXlsx) btnXlsx.onclick = () => {
+  if (btnXlsx) btnXlsx.onclick = seCompleta(() => {
     const d = new Date(); const p2 = (n) => String(n).padStart(2, '0');
     esportaExcel(pezziModello(), { nomeFile: `NG_${progettoNome}_${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}`, progetto: progettoNome });
-  };
+  });
   const btnMod = document.getElementById('btn-modello');
-  if (btnMod) btnMod.onclick = () => apriModelloExcel({ pezzi: pezziModello(), progetto: progettoNome });
+  if (btnMod) btnMod.onclick = seCompleta(() => apriModelloExcel({ pezzi: pezziModello(), progetto: progettoNome }));
   const btnFoto = document.getElementById('btn-foto-reale');
   if (btnFoto) btnFoto.onclick = async () => {
-    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261123z');
+    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261124a');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaArmadio(p), tela3d: document.getElementById('canvas3d'), nome: 'armadio' });
   };
   const btnImg = document.getElementById('btn-img');
