@@ -9,9 +9,9 @@
 // («lo imposto dopo»): restano a 0, la distinta avvisa che mancano e alla fine c'è il promemoria.
 // Alla fine: 'ng-configurato' = 1 e si va al programma.
 // =============================================================================
-import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124d';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124d';
-import { svgGola, svgRegletta } from './disegni-cucina.js?v=20261124d';
+import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124e';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124e';
+import { svgGola, svgRegletta } from './disegni-cucina.js?v=20261124e';
 
 const $ = (id) => document.getElementById(id);
 const t = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -82,13 +82,13 @@ const PASSI = [
   { id: 'regletta', titolo: "Cucina · regletta d'angolo", gruppo: 'regletta', fatto: ['regletta'], html: () => {
     const R = parametri().regletta;
     return `<p class="intro">${esc(t('Nelle cucine ad angolo (a L o a U) una fila di mobili passa nell\'angolo (il mobile cieco) e l\'altra fila ci sta davanti. Fra le due file serve uno spazio, se no ante e cassetti sbattono contro le maniglie dell\'altra fila. La regletta chiude quello spazio: due listelli a L, dello stesso materiale delle ante. Il programma la mette da solo in ogni angolo.'))}</p>
+    <div class="box"><h3 style="margin:0 0 8px;color:var(--gold-2);font-size:16px">${esc(t('Come calcoliamo le due misure'))}</h3>
+      <ul class="riep" id="calc-reg" data-no-i18n></ul>
+      <div class="spiega" id="perche-reg"></div></div>
     <div class="box"><div class="figure">
       <figure>${svgRegletta(R.vista, R.spessoreAnta)}<figcaption>${esc(t('Schema: l\'angolo visto da sopra'))}</figcaption></figure>
       <figure><img src="img/guida/regletta-angolo.jpg" alt="" loading="lazy"><figcaption>${esc(t('Come si vede nel 3D del programma'))}</figcaption></figure>
     </div></div>
-    <div class="box"><h3 style="margin:0 0 8px;color:var(--gold-2);font-size:16px">${esc(t('Come calcoliamo le due misure'))}</h3>
-      <ul class="riep" id="calc-reg" data-no-i18n></ul>
-      <div class="spiega" id="perche-reg"></div></div>
     <div class="box campi">
       ${campo('regletta.vista', "Regletta d'angolo: quanto si vede (mm)", 'di partenza 30 = 3 × 3 cm')}
       ${campo('regletta.spessoreAnta', 'Spessore dell\'anta (mm)', 'Spessore del pannello delle ante (di serie 18 mm). Il pezzo lungo è più lungo esattamente di questa misura.')}

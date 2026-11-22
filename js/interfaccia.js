@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261124d';
-import { htmlTendineColori } from './tendine-colori.js?v=20261124d';
-import { misureCostado, binarioArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261124d';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261124d';
-import { binariScorrevoli, parametri, montaggioArmadio } from './parametri.js?v=20261124d';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261124e';
+import { htmlTendineColori } from './tendine-colori.js?v=20261124e';
+import { misureCostado, binarioArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261124e';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261124e';
+import { binariScorrevoli, parametri, montaggioArmadio } from './parametri.js?v=20261124e';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
