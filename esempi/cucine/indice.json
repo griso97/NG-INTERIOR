@@ -106,12 +106,12 @@
     "es": "Grafito y mármol Versilia"
    },
    "breve": {
-    "it": "Vetrine, isola in marmo e bancone in noce",
-    "es": "Vitrinas, isla de mármol y barra de nogal"
+    "it": "Vetrine, isola in marmo e tavolo in noce",
+    "es": "Vitrinas, isla de mármol y mesa de nogal"
    },
    "desc": {
-    "it": "Bassi e pensili grafite con maniglie inox, due vetrine, isola rivestita in Mármol Versilia con bancone in noce e sgabelli, cappa in acciaio e vetro.",
-    "es": "Bajos y altos grafito con tiradores inox, dos vitrinas, isla revestida en Mármol Versilia con barra de nogal y taburetes, campana de acero y cristal."
+    "it": "Bassi e pensili grafite con maniglie inox, due vetrine, isola rivestita in Mármol Versilia con il tavolo in noce appoggiato alla testa e sedie, cappa in acciaio e vetro.",
+    "es": "Bajos y altos grafito con tiradores inox, dos vitrinas, isla revestida en Mármol Versilia con la mesa de nogal apoyada en la cabecera y sillas, campana de acero y cristal."
    }
   },
   {
@@ -129,8 +129,8 @@
     "es": "Península con mesa de nogal y comedor"
    },
    "desc": {
-    "it": "Cucina blu indaco con penisola e tavolo in noce incassato, pensile a giorno in noce, piano bianco; tavolo da pranzo con sedie nere.",
-    "es": "Cocina azul índigo con península y mesa de nogal encastrada, alto abierto en nogal, encimera blanca; mesa de comedor con sillas negras."
+    "it": "Cucina blu indaco con penisola (piano cottura) e tavolo in noce appoggiato alla testa della penisola, pensile a giorno in noce, piano bianco; tavolo da pranzo con sedie nere.",
+    "es": "Cocina azul índigo con península (placa) y mesa de nogal apoyada en la cabecera de la península, alto abierto en nogal, encimera blanca; mesa de comedor con sillas negras."
    }
   },
   {
