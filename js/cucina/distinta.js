@@ -14,9 +14,9 @@
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi,
-  scendeAntaPensile } from './modello.js?v=20261124m';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261124m';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261124m';
+  scendeAntaPensile } from './modello.js?v=20261124n';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261124n';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261124n';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -210,7 +210,9 @@ function pezziDiModulo(progetto, m) {
   } else if (cat === 'pensile') {
     if (m.tipo === 'pensile-angolo' || m.tipo === 'pensile-angolo-45') {
       const aw = m.tipo === 'pensile-angolo-45' ? round(L * 0.5) : round(L - PROFONDITA_PENSILE);   // 63 − 33 = 30
-      pz.push({ modulo: mod, nome: 'Anta', larghezza: Math.max(100, aw), altezza: round(H - aH - rJ), spessore: SP, materiale: 'anta', quantita: m.tipo === 'pensile-angolo-45' ? 1 : 2 });
+      // con l'anta sporgente (70 → 72, 90 → 92 o personalizzata) anche qui l'anta scende, come nel 3D
+      const scA = scendeAntaPensile(progetto, H);
+      pz.push({ modulo: mod, nome: scA ? 'Anta sporgente' : 'Anta', larghezza: Math.max(100, aw), altezza: scA ? round(H + scA) : round(H - aH - rJ), spessore: SP, materiale: 'anta', quantita: m.tipo === 'pensile-angolo-45' ? 1 : 2 });
     } else {
       // Pensile: con l'anta sporgente la porta è H + quanto scende (70 → 72, 90 → 92, o personalizzata), altrimenti H − 2.
       const sporg = scendeAntaPensile(progetto, H);
