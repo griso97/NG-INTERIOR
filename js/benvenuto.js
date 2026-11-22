@@ -9,9 +9,9 @@
 // («lo imposto dopo»): restano a 0, la distinta avvisa che mancano e alla fine c'è il promemoria.
 // Alla fine: 'ng-configurato' = 1 e si va al programma.
 // =============================================================================
-import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124c';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124c';
-import { svgGola, svgRegletta } from './disegni-cucina.js?v=20261124c';
+import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124d';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124d';
+import { svgGola, svgRegletta } from './disegni-cucina.js?v=20261124d';
 
 const $ = (id) => document.getElementById(id);
 const t = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -87,10 +87,11 @@ const PASSI = [
       <figure><img src="img/guida/regletta-angolo.jpg" alt="" loading="lazy"><figcaption>${esc(t('Come si vede nel 3D del programma'))}</figcaption></figure>
     </div></div>
     <div class="box"><h3 style="margin:0 0 8px;color:var(--gold-2);font-size:16px">${esc(t('Come calcoliamo le due misure'))}</h3>
-      <ul class="riep" id="calc-reg" data-no-i18n></ul></div>
+      <ul class="riep" id="calc-reg" data-no-i18n></ul>
+      <div class="spiega" id="perche-reg"></div></div>
     <div class="box campi">
       ${campo('regletta.vista', "Regletta d'angolo: quanto si vede (mm)", 'di partenza 30 = 3 × 3 cm')}
-      ${campo('regletta.spessoreAnta', 'Spessore dell\'anta (mm)', 'lo spessore del pannello delle ante (di partenza 18): il pezzo lungo è più lungo di tanto')}
+      ${campo('regletta.spessoreAnta', 'Spessore dell\'anta (mm)', 'Spessore del pannello delle ante (di serie 18 mm). Il pezzo lungo è più lungo esattamente di questa misura.')}
     </div>`;
   } },
   { id: 'cassetti', titolo: 'Cassetti', gruppo: 'cassetti', fatto: ['cassetti'], html: () => `
@@ -245,12 +246,17 @@ function calcoloRegletta() {
   el.innerHTML = [
     t(`Pezzo corto = quanto si vede: ${f(v)} mm. Sta girato, a filo delle ante della fila davanti (fila B).`),
     t(`Pezzo lungo = quanto si vede + spessore dell'anta: ${f(v)} + ${f(s)} = ${f(v + s)} mm. Sta sul fronte del mobile cieco e passa dietro al pezzo corto: i primi ${f(s)} mm restano coperti, se ne vedono ${f(v)}.`),
-    t(`Cos'è il ${f(s)}: è lo spessore del pannello delle ante. La regletta si taglia dallo stesso pannello delle ante, quindi anche il pezzo corto è spesso ${f(s)} mm: il pezzo lungo deve passargli dietro per tutto il suo spessore, se no nell'angolo resta un buco. Di partenza è 18 (ante da 18 mm); se fai le ante da 19 o da 22, scrivi 19 o 22.`),
     t(`Così nell'angolo si vede una L di ${f(v / 10)} × ${f(v / 10)} cm.`),
     t(`Se le maniglie sporgono di più (la maniglia standard sporge 40 mm), la regletta si allarga da sola: 40 → pezzi da 40 e ${f(40 + s)} mm, così ante e cassetti non sbattono.`),
     P.gola.spazio > 0 ? t(`Altezza: come le ante accanto (mobile da 700 → ${f(h)} mm; con la gola ${f(700 - P.gola.spazio)} mm).`) : t(`Altezza: come le ante accanto (mobile da 700 → ${f(h)} mm).`),
     t('Il resto del fronte del mobile cieco, quello coperto dalla fila davanti, è un pannello cieco fisso.'),
   ].map((x) => `<li>${esc(x)}</li>`).join('');
+  // perché il pezzo lungo ha + lo spessore dell'anta
+  const pr = $('perche-reg');
+  if (pr) pr.innerHTML = `<h4>${esc(t(`Perché il pezzo lungo ha ${f(s)} mm in più`))}</h4>
+    <p>${esc(t(`${f(s)} mm è lo spessore delle ante. La regletta viene ricavata dallo stesso pannello delle ante, quindi ha il loro stesso spessore.`))}</p>
+    <p>${esc(t(`Nella giunzione ad angolo il pezzo lungo passa dietro al pezzo corto. Per chiudere l'angolo senza lasciare fessure deve essere più lungo esattamente dello spessore del pezzo corto, cioè di ${f(s)} mm.`))}</p>
+    <p>${esc(t('Il valore di serie è 18 mm. Se utilizzi ante da 19 o 22 mm, imposta 19 o 22: la misura del pezzo lungo si aggiorna automaticamente.'))}</p>`;
 }
 
 $('indietro').addEventListener('click', () => { const V = visibili(), i = indice(); if (i > 0) { idPasso = V[i - 1].id; mostra(); } });
