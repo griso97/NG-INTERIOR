@@ -13,15 +13,16 @@
 
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
-  costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco,
-} from './modello.js?v=20261123v';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261123v';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261123v';
+  costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi,
+} from './modello.js?v=20261123w';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261123w';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261123w';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
 const round = (n) => Math.round(n);
-const zoccoloH = (h) => (h >= 800 ? 100 : 150);
+let _progDist = null;                    // la cucina della distinta in calcolo (piedini scelti)
+const zoccoloH = (h) => piediniCucina(_progDist, h);
 const GRIGLIA_FORNO = 45, H_FORNO_INCASSO = 595;   // come nel 3D (scena3d.js)
 // Piedini: 4 per modulo a terra, 6 se è più largo di 90 cm
 const piediniDi = (L) => (L > 900 ? 6 : 4);
@@ -409,6 +410,7 @@ function angoliZoccolo(mobili) {
 }
 
 export function calcolaDistintaCucina(progetto) {
+  _progDist = progetto;
   // Gli "oggetti" (sgabelli, decor) sono arredo, non moduli di cucina:
   // non entrano né nei moduli né nei pezzi della distinta.
   const mobili = (progetto.mobiliLiberi || []).filter((m) => categoriaTipo(m.tipo) !== 'oggetto');
@@ -532,7 +534,9 @@ export function calcolaDistintaCucina(progetto) {
   for (const m of mobili) {
     const cat = categoriaTipo(m.tipo), L = dimMobile(m).w;
     if (cat === 'base' || cat === 'colonna') {
-      aggiungi('Piedini regolabili', m.tipo === 'base-angolo' ? 6 : piediniDi(L));
+      // da 10 o da 15 cm, come lo zoccolo (le colonne come i bassi)
+      const hp = cat === 'colonna' ? zoccoloColonnaDi(progetto, m) : piediniCucina(progetto, m.altezza_mm || 700);
+      aggiungi(`Piedini regolabili da ${hp / 10} cm`, m.tipo === 'base-angolo' ? 6 : piediniDi(L));
       aggiungi('Grappe zoccolo (fissaggio ai piedini)', 1);
     }
     if (cat === 'pensile') aggiungi('Kit per appendere i pensili', 1);
@@ -571,7 +575,7 @@ export function calcolaDistintaCucina(progetto) {
     else if (['tavolo', 'vetro', 'gambe'].includes(p.materiale)) continue;   // non sono ante (piano / tavolo)
     else mqAnte += mq;
   }
-  const piedini = acc.get('Piedini regolabili') || 0;
+  const piedini = [...acc.entries()].filter(([k]) => k.startsWith('Piedini regolabili')).reduce((t, [, v]) => t + v, 0);
   const cerniere = [...acc.entries()].filter(([k]) => k.startsWith('Cerniere')).reduce((t, [, v]) => t + v, 0);
 
   return {

@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261123v';
+import { parametri } from '../parametri.js?v=20261123w';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -356,7 +356,7 @@ export function infoTavolo(progetto, m, spTop = 40) {
     const dx = p.x - b.x, dy = p.y - b.y;
     return Math.abs(dx * cb + dy * sb) <= db.w / 2 + 1 && Math.abs(-dx * sb + dy * cb) <= db.d / 2 + 1;
   };
-  const cima = (b) => { const h = b.altezza_mm || 700; return (h >= 800 ? 100 : 150) + h; };
+  const cima = (b) => { const h = b.altezza_mm || 700; return piediniCucina(progetto, h) + h; };
   let quota = Math.max(sp + 50, m.altezza_mm || 750);
   if (m.quota === 'filo') {
     let sopra = -Infinity;
@@ -2931,10 +2931,19 @@ export function altezzaBassiCucina(progetto) {
 export function portaBassaColonna(progetto, m) {
   return altezzaBassiCucina(progetto) ?? m.altezzaBassa_mm ?? 700;
 }
-/** Piedini delle COLONNE (mm): come i mobili bassi (bassi da 70 → 150, da 80 → 100); senza bassi, dalla porta bassa della colonna. Uguale al 3D. */
+/**
+ * PIEDINI = ALTEZZA DELLO ZOCCOLO (mm), per tutta la cucina: 100 o 150, scelti nel 3D (Colore zoccolo →
+ * Piedini). Senza scelta, come sempre: bassi da 70 → piedini da 15, bassi da 80 → piedini da 10.
+ */
+export function piediniCucina(progetto, h = null) {
+  const p = progetto && Number(progetto.piedini);
+  if (p === 100 || p === 150) return p;
+  const hb = h != null ? h : ((progetto && altezzaBassiCucina(progetto)) ?? 700);
+  return hb >= 800 ? 100 : 150;
+}
+/** Piedini delle COLONNE (mm): come i mobili bassi; senza bassi, dalla porta bassa della colonna. Uguale al 3D. */
 export function zoccoloColonnaDi(progetto, m) {
-  const h = altezzaBassiCucina(progetto) ?? (m && m.altezzaBassa_mm) ?? 700;
-  return h >= 800 ? 100 : 150;
+  return piediniCucina(progetto, altezzaBassiCucina(progetto) ?? (m && m.altezzaBassa_mm) ?? 700);
 }
 /** Cima delle colonne (mm da terra: colonna + piedini), null se non ci sono colonne. */
 export function cimaColonne(progetto) {
@@ -3067,7 +3076,7 @@ export function profiliGola(progetto) {
   const tratti = [];      // { tipo, quota, n, dir, off, t0, t1, id }
   let fianchi = 0;
   for (const m of conGola) {
-    const zocc = (m.altezza_mm || 700) >= 800 ? 100 : 150;
+    const zocc = piediniCucina(progetto, m.altezza_mm || 700);
     for (const f of facceGola(m)) {
       const L = Math.hypot(f.b.x - f.a.x, f.b.y - f.a.y);
       if (L < 20) continue;

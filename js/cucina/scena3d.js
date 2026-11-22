@@ -15,37 +15,38 @@ import {
   calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-  costadoCopreAnte, costadoColonnaATerra, fronteCieco,
-} from './modello.js?v=20261123v';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261123v';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261123v';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261123v';
+  costadoCopreAnte, costadoColonnaATerra, fronteCieco, piediniCucina, zoccoloColonnaDi,
+} from './modello.js?v=20261123w';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261123w';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261123w';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261123w';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261123v').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261123w').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261123v';
-import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261123v';
-export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261123v';
-import { parametri } from '../parametri.js?v=20261123v';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261123v';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261123v';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261123v';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261123w';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261123w';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261123w';
+import { parametri } from '../parametri.js?v=20261123w';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261123w';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261123w';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261123w';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261123v';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261123w';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261123v';
+export { telaPavimento } from '../resa.js?v=20261123w';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
 // Zoccolo (piedini) in base all'altezza della porta:
 //  porta 70 → zoccolo 150 mm · porta 80 → zoccolo 100 mm
-function zoccoloPerAltezza(h) { return h >= 800 ? 100 : 150; }
+// i PIEDINI si possono scegliere per la cucina (10 o 15 cm): vedi piediniCucina nel modello
+function zoccoloPerAltezza(h, progetto) { return piediniCucina(progetto, h); }
 /** Spessore del piano di lavoro: scelto a mano per questa cucina, se no quello del materiale (nero standard 40). */
 function spessorePianoDi(progetto, encDef) {
   const enc = (progetto && progetto.encimera) || {};
@@ -54,28 +55,10 @@ function spessorePianoDi(progetto, encDef) {
   return uno * Math.max(1, Math.min(3, Number(enc.strati) || 1));          // pannelli uno sopra l'altro
 }
 
-// Altezza dominante dei mobili BASSI della cucina (quelli che poggiano a terra
-// con piedini + piano: base, lavello, forno, cassettiera...). Serve per far
-// adattare i piedini della colonna ai mobili bassi: se i bassi sono da 80
-// (piedini 100), anche la colonna deve stare su piedini da 100, non 150.
-const CAT_NON_BASSE = new Set(['pensile', 'colonna', 'regletta', 'pannello', 'costado', 'oggetto', 'frigo', 'altillo', 'tavolo']);
-function altezzaBaseDominante(progetto) {
-  const conteggio = new Map();
-  for (const m of (progetto.mobiliLiberi || [])) {
-    if (CAT_NON_BASSE.has(categoriaTipo(m.tipo))) continue;
-    const h = m.altezza_mm || 700;
-    conteggio.set(h, (conteggio.get(h) || 0) + 1);
-  }
-  if (!conteggio.size) return null;
-  let best = null, bestN = -1;
-  for (const [h, n] of conteggio) if (n > bestN) { bestN = n; best = h; }
-  return best;
-}
 // Piedini della colonna: adattati ai mobili bassi della cucina; se non ce ne
 // sono, si usa la porta bassa della colonna stessa come riferimento.
 function zoccoloColonna(progetto, m) {
-  const baseH = altezzaBaseDominante(progetto);
-  return zoccoloPerAltezza(baseH != null ? baseH : (m.altezzaBassa_mm || 700));
+  return zoccoloColonnaDi(progetto, m);
 }
 
 /**
@@ -186,9 +169,9 @@ export function calcoloPonte(progetto, spazio, hPens) {
   for (const b of (progetto.mobiliLiberi || [])) {
     if (!['base', 'lavastoviglie', 'lavatrice'].includes(categoriaTipo(b.tipo))) continue;
     const h = b.altezza_mm || 700;
-    piano = Math.max(piano, zoccoloPerAltezza(h) + h + spTop);
+    piano = Math.max(piano, zoccoloPerAltezza(h, progetto) + h + spTop);
   }
-  if (!piano) piano = 150 + 700 + spTop;
+  if (!piano) piano = zoccoloPerAltezza(700, progetto) + 700 + spTop;
   const pann = spessorePannelloPonte(progetto);
   const hPonte = Math.round(cima - pann - (piano + spazio + (hPens || 0)));
   return { cima: Math.round(cima), piano: Math.round(piano), pannello: pann, hPonte };
@@ -203,7 +186,7 @@ export function spazioSottoPonte(progetto) {
     const base = (progetto.mobiliLiberi || []).find((o) => ['base', 'lavastoviglie', 'lavatrice'].includes(categoriaTipo(o.tipo)) && siSovrappongono(o, p));
     if (!base) continue;
     const hb = base.altezza_mm || 700;
-    const spazio = Math.round(fondo - (p.altezza_mm || 700) - (zoccoloPerAltezza(hb) + hb + _spTop));
+    const spazio = Math.round(fondo - (p.altezza_mm || 700) - (zoccoloPerAltezza(hb, progetto) + hb + _spTop));
     min = min == null ? spazio : Math.min(min, spazio);
   }
   return min;
@@ -2499,7 +2482,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261123v')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261123w')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -2845,7 +2828,7 @@ function quotaAppoggio(progetto, o, spTop) {
     const hx = (r === 0 ? d.w : d.d) / 2, hy = (r === 0 ? d.d : d.w) / 2;
     if (Math.abs(o.x - b.x) <= hx && Math.abs(o.y - b.y) <= hy) {
       const h = b.altezza_mm || 700;
-      return zoccoloPerAltezza(h) + h + spTop;
+      return zoccoloPerAltezza(h, progetto) + h + spTop;
     }
   }
   return 0;
@@ -3038,7 +3021,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       const px = a.x + ux * centro + nx * (PROFONDITA_BASE / 2);
       const py = a.y + uy * centro + ny * (PROFONDITA_BASE / 2);
       const porta = 700;               // porta/anta
-      const zocc = zoccoloPerAltezza(porta);
+      const zocc = zoccoloPerAltezza(porta, progetto);
       basiTop.push({ x: px, y: py, rot: p.angolo_gradi, w: mm.larghezza_mm, d: PROFONDITA_BASE, zocc, topY: zocc + porta });
       zoccoli.push({ x: px, y: py, rot: p.angolo_gradi, w: mm.larghezza_mm, d: PROFONDITA_BASE, zocc });
       if (mm.categoria === 'fascia') {
@@ -3193,7 +3176,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       g3d = collocaMobile(gA, cx, base, cz, h, m.rot);
     } else if (cat === 'regletta') {
       const h = m.altezza_mm || 700;
-      const zocc = zoccoloPerAltezza(h);
+      const zocc = zoccoloPerAltezza(h, progetto);
       zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
       g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, zocc, cz, h, m.rot);
     } else if (cat === 'pannello') {
@@ -3260,7 +3243,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       // base / lavello / forno: porta = altezza scelta, zoccolo 150/100.
       // Il piano di lavoro NON si disegna qui: è un pezzo unico continuo (dopo).
       const porta = m.altezza_mm || 700;
-      const zocc = zoccoloPerAltezza(porta);
+      const zocc = zoccoloPerAltezza(porta, progetto);
       const cieco = infoAngoloCieco(progetto, m);
       let ciecoOpt = cieco;
       // MOBILE CIECO D'ANGOLO: pannello cieco dove ha davanti l'altro mobile (+ la regletta), ante solo
