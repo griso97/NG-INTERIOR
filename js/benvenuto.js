@@ -3,14 +3,15 @@
 // =============================================================================
 // A passi: armadi (struttura, schiena, ante a battente), armadi scorrevoli (struttura come i battenti?
 // se no le stesse domande; binario), cucina (piedini, aria delle ante), gola, regletta, cassetti.
+// (La maniglia a J non è qui: il suo spessore si imposta con le maniglie.)
 // Ogni scelta si salva subito nei ⚙ Parametri, gli stessi che usano distinta e 3D; dopo si cambiano
 // quando si vuole in ⚙ Impostazioni → Parametri. Scorrevoli, gola e regletta si possono SALTARE
 // («lo imposto dopo»): restano a 0, la distinta avvisa che mancano e alla fine c'è il promemoria.
 // Alla fine: 'ng-configurato' = 1 e si va al programma.
 // =============================================================================
-import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124a';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124a';
-import { svgGola, svgRegletta } from './disegni-cucina.js?v=20261124a';
+import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124b';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124b';
+import { svgGola, svgRegletta } from './disegni-cucina.js?v=20261124b';
 
 const $ = (id) => document.getElementById(id);
 const t = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -62,10 +63,8 @@ const PASSI = [
       ${campo('ante.ariaLarghezza', 'Larghezza: togli', 'sui due lati: modulo 600, 1 anta → 597')}
       ${campo('ante.ariaTraAnte', 'Fra due ante', 'stesso modulo')}
       ${campo('ante.ariaCassetti', 'Fra i cassetti', 'fra un frontale e l\'altro')}
-    </div></div>
-    <div class="box"><h3 style="margin:0 0 8px;color:var(--gold-2);font-size:16px">${esc(t('Maniglia a J'))}</h3><div class="campi">
-      ${campo('manigliaJ.spessore', 'Maniglia a J: spessore', "l'anta si accorcia di tanto")}
     </div></div>`;
+    // la maniglia a J NON si chiede qui: lo spessore va con la maniglia (si imposterà con le maniglie)
   } },
   { id: 'gola', titolo: 'Cucina · gola', gruppo: 'gola', fatto: ['gola'], html: () => {
     const G = parametri().gola.spazio;

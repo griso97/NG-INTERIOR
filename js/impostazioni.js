@@ -8,20 +8,20 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261124a';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261124a';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261124a';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261124a';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261124a';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261124a';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261124a';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261124a';
-import { agganciaTema } from './tema.js?v=20261124a';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261124a';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261124a';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261124a';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124a';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261124a';
+} from './catalogo.js?v=20261124b';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261124b';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261124b';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261124b';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261124b';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261124b';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261124b';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261124b';
+import { agganciaTema } from './tema.js?v=20261124b';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261124b';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261124b';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261124b';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124b';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261124b';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
