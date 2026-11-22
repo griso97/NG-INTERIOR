@@ -8,20 +8,20 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261123y';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261123y';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261123y';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261123y';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261123y';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261123y';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261123y';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261123y';
-import { agganciaTema } from './tema.js?v=20261123y';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261123y';
-import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261123y';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261123y';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri } from './scelte-montaggio.js?v=20261123y';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261123y';
+} from './catalogo.js?v=20261123z';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261123z';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261123z';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261123z';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261123z';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261123z';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261123z';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261123z';
+import { agganciaTema } from './tema.js?v=20261123z';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261123z';
+import { parametri, salvaParametri, ripristinaParametri } from './parametri.js?v=20261123z';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261123z';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri } from './scelte-montaggio.js?v=20261123z';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261123z';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);

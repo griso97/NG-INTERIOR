@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261123y';
-import { htmlTendineColori } from './tendine-colori.js?v=20261123y';
-import { misureCostado, binarioArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261123y';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261123y';
-import { binariScorrevoli, parametri } from './parametri.js?v=20261123y';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261123z';
+import { htmlTendineColori } from './tendine-colori.js?v=20261123z';
+import { misureCostado, binarioArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261123z';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261123z';
+import { binariScorrevoli, parametri } from './parametri.js?v=20261123z';
 
 export function configDefault() {
   const PA = parametri().armadi;        // come monti gli armadi (⚙ Parametri → Armadi): valori di partenza

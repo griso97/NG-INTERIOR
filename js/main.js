@@ -5,27 +5,27 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261123y';
+import { calcolaDistintaCompleta, validaConfig } from './calcoli.js?v=20261123z';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo, fotoRealisticaArmadio,
   iniziaSpostamentoRipiano, muoviSpostamentoRipiano, fineSpostamentoRipiano,
   toccoArmadio, ripianiCorrenti, posizioneNuovoRipiano, evidenziaRipiano,
-} from './scena3d.js?v=20261123y';
-import { SFONDI_LISTA } from './sfondi.js?v=20261123y';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261123y';
-import { agganciaTema } from './tema.js?v=20261123y';
-import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli } from './interfaccia.js?v=20261123y';
-import { tendinePannello } from './tendine-pannello.js?v=20261123y';
-import { renderDistinta } from './distinta.js?v=20261123y';
-import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261123y';
+} from './scena3d.js?v=20261123z';
+import { SFONDI_LISTA } from './sfondi.js?v=20261123z';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261123z';
+import { agganciaTema } from './tema.js?v=20261123z';
+import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli } from './interfaccia.js?v=20261123z';
+import { tendinePannello } from './tendine-pannello.js?v=20261123z';
+import { renderDistinta } from './distinta.js?v=20261123z';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261123z';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('./modello-export.js?v=20261123y');
+const _excel = () => import('./modello-export.js?v=20261123z');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js?v=20261123y';
+} from './storage.js?v=20261123z';
 
 // PANNELLO ORDINATO: ogni sezione è una tendina (chiusa, si apre toccando il titolo);
 // la prima volta aperte solo Tipo armadio e Dimensioni. Poi resta come la lasci.
@@ -80,30 +80,53 @@ function agganciaTendinaDistinta() {
 }
 agganciaTema();
 
-// Selettore sfondo 3D (chiaro / neutro / scuro)
+// Selettore sfondo 3D (chiaro / neutro / scuro) e, sotto, il PAVIMENTO: un tasto «Pavimento» che apre
+// la tendina con tutti i pavimenti (miniature: legni, marmi e pietre, gres, quelli del cliente).
+function escP(x) { return String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
 function agganciaSfondo() {
   const cont = document.getElementById('sfondo-3d');
   if (!cont) return;
   const attuale = config.sfondo || 'chiaro';
-  // pavimento: legni, marmi e pietre, gres (come nella cucina); vuoto = automatico dallo sfondo
-  const pav = config.pavimento || '';
   cont.innerHTML = SFONDI_LISTA.map((s) => `<button type="button" class="sfondo-btn ${s.id === attuale ? 'on' : ''}"
-    data-sfondo="${s.id}" title="Sfondo ${s.nome}" style="background:${s.css}"></button>`).join('')
-    + `<select class="sfondo-pav" title="Pavimento" aria-label="Pavimento"><option value="">Pavimento automatico</option>${GRUPPI_PAVIMENTI.map((g) => `<optgroup label="${g}">${
-      PAVIMENTI.filter((p) => p.gruppo === g).map((p) => `<option value="${p.id}" ${p.id === pav ? 'selected' : ''}>${p.nome.split(' · ')[0]}</option>`).join('')}</optgroup>`).join('')}</select>`;
+    data-sfondo="${s.id}" title="Sfondo ${s.nome}" style="background:${s.css}"></button>`).join('');
   cont.querySelectorAll('.sfondo-btn').forEach((b) => b.addEventListener('click', () => {
     config.sfondo = b.dataset.sfondo;
     impostaSfondo(config.sfondo, config.pavimento || null);
     cont.querySelectorAll('.sfondo-btn').forEach((x) => x.classList.toggle('on', x === b));
     try { salvaLocale(config); } catch (_) { /* no-op */ }
   }));
-  cont.querySelector('.sfondo-pav')?.addEventListener('change', (e) => {
-    config.pavimento = e.target.value || null;
+  disegnaPavimento(false);
+  impostaSfondo(attuale, config.pavimento || null);
+}
+function miniPav(p) { return p.thumb || `materials/pavimenti/miniature/${p.id}.jpg`; }
+function disegnaPavimento(aperta) {
+  const box = document.getElementById('pav-3d');
+  if (!box) return;
+  const sel = config.pavimento || '', voce = PAVIMENTI.find((p) => p.id === sel);
+  box.innerHTML = `<button type="button" class="pav-btn" aria-expanded="${aperta}">
+      <span class="pav-mini" ${voce ? `style="background-image:url('${miniPav(voce)}')"` : ''}></span>
+      <span class="pav-testi"><b>Pavimento</b><small ${voce && voce.proprio ? 'data-no-i18n' : ''}>${escP(voce ? voce.nome.split(' · ')[0] : 'Automatico')}</small></span>
+      <span class="pav-freccia">${aperta ? '▴' : '▾'}</span></button>
+    ${aperta ? `<div class="pav-lista" role="listbox">
+      <button type="button" class="pav-voce ${sel ? '' : 'on'}" data-pav=""><span class="pav-mini pav-auto">A</span><span>Pavimento automatico</span></button>
+      ${GRUPPI_PAVIMENTI.map((g) => `<div class="pav-gruppo">${escP(g)}</div><div class="pav-griglia">${PAVIMENTI.filter((p) => p.gruppo === g).map((p) => `
+        <button type="button" class="pav-voce ${p.id === sel ? 'on' : ''}" data-pav="${p.id}" title="${escP(p.nome)}">
+          <span class="pav-mini" style="background-image:url('${miniPav(p)}')"></span><span ${p.proprio ? 'data-no-i18n' : ''}>${escP(p.nome.split(' · ')[0])}</span></button>`).join('')}</div>`).join('')}
+    </div>` : ''}`;
+  box.querySelector('.pav-btn').addEventListener('click', (e) => { e.stopPropagation(); disegnaPavimento(!aperta); });
+  box.querySelectorAll('[data-pav]').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    config.pavimento = b.dataset.pav || null;
     impostaSfondo(config.sfondo || 'chiaro', config.pavimento);
     try { salvaLocale(config); } catch (_) { /* no-op */ }
-  });
-  impostaSfondo(attuale, pav || null);
+    disegnaPavimento(false);
+  }));
 }
+// tocco fuori dalla tendina: si chiude
+document.addEventListener('click', (e) => {
+  const box = document.getElementById('pav-3d');
+  if (box && box.querySelector('.pav-lista') && !box.contains(e.target)) disegnaPavimento(false);
+});
 
 function onChange(nuovaConfig, opzioni = {}) {
   config = nuovaConfig;
@@ -161,7 +184,7 @@ function agganciaExport(distinta) {
   if (btnMod) btnMod.onclick = () => apriModelloExcel({ pezzi: pezziModello(), progetto: progettoNome });
   const btnFoto = document.getElementById('btn-foto-reale');
   if (btnFoto) btnFoto.onclick = async () => {
-    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261123y');
+    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261123z');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaArmadio(p), tela3d: document.getElementById('canvas3d'), nome: 'armadio' });
   };
   const btnImg = document.getElementById('btn-img');
@@ -200,8 +223,8 @@ function flash(msg, errore = false) {
   setTimeout(() => mostraAvvisi(), 2500);
 }
 
-// Toggle apri porte — switch in header + bottone fisso in basso (mobile).
-// I due controlli sono sincronizzati tra loro.
+// Apri / chiudi porte: il tasto nella vista 3D (sotto sfondo e pavimento); lo stato resta nella
+// casella nascosta #toggle-ante che usano anche i ripiani spostabili.
 const btnFabApri = document.getElementById('toggle-ante-mobile');
 function aggiornaFab(aperte) {
   if (!btnFabApri) return;

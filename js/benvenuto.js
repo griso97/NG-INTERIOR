@@ -6,8 +6,8 @@
 // che usano distinta e 3D; dopo si cambiano quando si vuole in ⚙ Impostazioni → Parametri.
 // Alla fine: 'ng-configurato' = 1 e si va al programma.
 // =============================================================================
-import { parametri, salvaParametri } from './parametri.js?v=20261123y';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri } from './scelte-montaggio.js?v=20261123y';
+import { parametri, salvaParametri } from './parametri.js?v=20261123z';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri } from './scelte-montaggio.js?v=20261123z';
 
 const $ = (id) => document.getElementById(id);
 const t = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
