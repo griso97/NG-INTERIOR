@@ -1,3 +1,289 @@
 {
- "cucine": []
+ "cucine": [
+  {
+   "id": "01-petrolio-rovere",
+   "file": "01-petrolio-rovere.json",
+   "grande": "01-petrolio-rovere.jpg",
+   "mini": "01-petrolio-rovere-mini.jpg",
+   "tipo": "cucina",
+   "nome": {
+    "it": "Blu indaco e rovere",
+    "es": "Azul índigo y roble"
+   },
+   "breve": {
+    "it": "Colonne con nicchia in rovere e isola lunga",
+    "es": "Columnas con hueco en roble e isla larga"
+   },
+   "desc": {
+    "it": "Parete di colonne blu indaco con forno, microonde e una nicchia in rovere; isola di 3 m con lavello e piano cottura, gola antracite, piano in cemento scuro.",
+    "es": "Pared de columnas azul índigo con horno, microondas y un hueco en roble; isla de 3 m con fregadero y placa, gola antracita, encimera cemento oscuro."
+   }
+  },
+  {
+   "id": "02-nero-bronzo",
+   "file": "02-nero-bronzo.json",
+   "grande": "02-nero-bronzo.jpg",
+   "mini": "02-nero-bronzo-mini.jpg",
+   "tipo": "cucina",
+   "nome": {
+    "it": "Total black e vetrine fumé",
+    "es": "Total black y vitrinas ahumadas"
+   },
+   "breve": {
+    "it": "Colonne nere con due vetrine e isola con bancone",
+    "es": "Columnas negras con dos vitrinas e isla con barra"
+   },
+   "desc": {
+    "it": "Colonne nero opaco senza maniglie con due vetrine in vetro fumé, isola nera con bancone a cascata e quattro sgabelli in pelle, pavimento in marmo scuro.",
+    "es": "Columnas negro mate sin tiradores con dos vitrinas de cristal ahumado, isla negra con barra en cascada y cuatro taburetes de piel, suelo de mármol oscuro."
+   }
+  },
+  {
+   "id": "03-basalto-rovere",
+   "file": "03-basalto-rovere.json",
+   "grande": "03-basalto-rovere.jpg",
+   "mini": "03-basalto-rovere-mini.jpg",
+   "tipo": "cucina",
+   "nome": {
+    "it": "Basalto e rovere",
+    "es": "Basalto y roble"
+   },
+   "breve": {
+    "it": "Lineare tortora con pensili in rovere",
+    "es": "Lineal topo con altos en roble"
+   },
+   "desc": {
+    "it": "Colonne e bassi tortora (Basalto) con gola, pensili in rovere con un vano a giorno illuminato, piano e schienale in cemento scuro.",
+    "es": "Columnas y bajos topo (Basalto) con gola, altos en roble con un hueco abierto iluminado, encimera y frontal en cemento oscuro."
+   }
+  },
+  {
+   "id": "04-nero-rovere-vetrina",
+   "file": "04-nero-rovere-vetrina.json",
+   "grande": "04-nero-rovere-vetrina.jpg",
+   "mini": "04-nero-rovere-vetrina-mini.jpg",
+   "tipo": "cucina",
+   "nome": {
+    "it": "Nero, rovere e vetrina",
+    "es": "Negro, roble y vitrina"
+   },
+   "breve": {
+    "it": "Nero opaco, pensili in rovere, isola con sgabelli",
+    "es": "Negro mate, altos en roble, isla con taburetes"
+   },
+   "desc": {
+    "it": "Bassi e colonne nero opaco, pensili in rovere caldo con due vani a giorno, vetrina nera, isola con piano in rovere a cascata e tre sgabelli.",
+    "es": "Bajos y columnas negro mate, altos en roble cálido con dos huecos abiertos, vitrina negra, isla con encimera de roble en cascada y tres taburetes."
+   }
+  },
+  {
+   "id": "05-cashmere-markina",
+   "file": "05-cashmere-markina.json",
+   "grande": "05-cashmere-markina.jpg",
+   "mini": "05-cashmere-markina-mini.jpg",
+   "tipo": "cucina",
+   "nome": {
+    "it": "Cashmere e marmo nero",
+    "es": "Cashmere y mármol negro"
+   },
+   "breve": {
+    "it": "A U con penisola in marmo Markina",
+    "es": "En U con península en mármol Markina"
+   },
+   "desc": {
+    "it": "Cucina a U color cashmere con gola nera, penisola rivestita in marmo nero Markina, piano e schienale Markina, colonne con vetrina.",
+    "es": "Cocina en U color cashmere con gola negra, península revestida en mármol negro Markina, encimera y frontal Markina, columnas con vitrina."
+   }
+  },
+  {
+   "id": "06-grafite-versilia",
+   "file": "06-grafite-versilia.json",
+   "grande": "06-grafite-versilia.jpg",
+   "mini": "06-grafite-versilia-mini.jpg",
+   "tipo": "cucina",
+   "nome": {
+    "it": "Grafite e marmo Versilia",
+    "es": "Grafito y mármol Versilia"
+   },
+   "breve": {
+    "it": "Vetrine, isola in marmo e bancone in noce",
+    "es": "Vitrinas, isla de mármol y barra de nogal"
+   },
+   "desc": {
+    "it": "Bassi e pensili grafite con maniglie inox, due vetrine, isola rivestita in Mármol Versilia con bancone in noce e sgabelli, cappa in acciaio e vetro.",
+    "es": "Bajos y altos grafito con tiradores inox, dos vitrinas, isla revestida en Mármol Versilia con barra de nogal y taburetes, campana de acero y cristal."
+   }
+  },
+  {
+   "id": "07-indaco-noce-tavolo",
+   "file": "07-indaco-noce-tavolo.json",
+   "grande": "07-indaco-noce-tavolo.jpg",
+   "mini": "07-indaco-noce-tavolo-mini.jpg",
+   "tipo": "cucina",
+   "nome": {
+    "it": "Blu indaco e noce con tavolo",
+    "es": "Azul índigo y nogal con mesa"
+   },
+   "breve": {
+    "it": "Penisola con tavolo in noce e zona pranzo",
+    "es": "Península con mesa de nogal y comedor"
+   },
+   "desc": {
+    "it": "Cucina blu indaco con penisola e tavolo in noce incassato, pensile a giorno in noce, piano bianco; tavolo da pranzo con sedie nere.",
+    "es": "Cocina azul índigo con península y mesa de nogal encastrada, alto abierto en nogal, encimera blanca; mesa de comedor con sillas negras."
+   }
+  },
+  {
+   "id": "08-arena-isola",
+   "file": "08-arena-isola.json",
+   "grande": "08-arena-isola.jpg",
+   "mini": "08-arena-isola-mini.jpg",
+   "tipo": "cucina",
+   "nome": {
+    "it": "Sabbia e marmo",
+    "es": "Arena y mármol"
+   },
+   "breve": {
+    "it": "Tutto sabbia senza maniglie, isola con sgabelli",
+    "es": "Todo arena sin tiradores, isla con taburetes"
+   },
+   "desc": {
+    "it": "Colonne e bassi color sabbia (Arena) con gola bianca, cappa bianca, schienale e isola in Mármol Versilia con lavello e tre sgabelli.",
+    "es": "Columnas y bajos color arena con gola blanca, campana blanca, frontal e isla en Mármol Versilia con fregadero y tres taburetes."
+   }
+  },
+  {
+   "id": "09-rovere-nero-U",
+   "file": "09-rovere-nero-U.json",
+   "grande": "09-rovere-nero-U.jpg",
+   "mini": "09-rovere-nero-U-mini.jpg",
+   "tipo": "cucina",
+   "nome": {
+    "it": "Rovere e nero a U",
+    "es": "Roble y negro en U"
+   },
+   "breve": {
+    "it": "Rovere naturale, colonne nere, maniglie nere",
+    "es": "Roble natural, columnas negras, tiradores negros"
+   },
+   "desc": {
+    "it": "Cucina a U in rovere naturale con colonne nere, penisola rivestita in Ice Cream scuro, maniglie nere, piano e schienale Compacto negro, cappa nera.",
+    "es": "Cocina en U en roble natural con columnas negras, península revestida en Ice Cream oscuro, tiradores negros, encimera y frontal Compacto negro, campana negra."
+   }
+  },
+  {
+   "id": "10-tortora-noce-isola",
+   "file": "10-tortora-noce-isola.json",
+   "grande": "10-tortora-noce-isola.jpg",
+   "mini": "10-tortora-noce-isola-mini.jpg",
+   "tipo": "cucina",
+   "nome": {
+    "it": "Tortora, cashmere e noce",
+    "es": "Topo, cashmere y nogal"
+   },
+   "breve": {
+    "it": "Nicchia e pensili in noce, isola con tavolo",
+    "es": "Hueco y altos en nogal, isla con mesa"
+   },
+   "desc": {
+    "it": "Colonne tortora con nicchia in noce, pensili a giorno in noce con LED, isola cashmere con tavolo in noce e quattro sedie.",
+    "es": "Columnas topo con hueco en nogal, altos abiertos en nogal con LED, isla cashmere con mesa de nogal y cuatro sillas."
+   }
+  },
+  {
+   "id": "11-salvia-rovere-bianco",
+   "file": "11-salvia-rovere-bianco.json",
+   "grande": "11-salvia-rovere-bianco.jpg",
+   "mini": "11-salvia-rovere-bianco-mini.jpg",
+   "tipo": "cucina",
+   "nome": {
+    "it": "Salvia e rovere sbiancato",
+    "es": "Salvia y roble blanqueado"
+   },
+   "breve": {
+    "it": "A L finger-pull",
+    "es": "En L con tirador integrado"
+   },
+   "desc": {
+    "it": "Bassi verde salvia finger-pull, colonne e pensili in rovere sbiancato (Muratti 04), piano e schienale in marmo chiaro, pavimento in travertino.",
+    "es": "Bajos verde salvia con tirador integrado, columnas y altos en roble blanqueado (Muratti 04), encimera y frontal en mármol claro, suelo de travertino."
+   }
+  },
+  {
+   "id": "12-blu-lucido-rovere",
+   "file": "12-blu-lucido-rovere.json",
+   "grande": "12-blu-lucido-rovere.jpg",
+   "mini": "12-blu-lucido-rovere-mini.jpg",
+   "tipo": "cucina",
+   "nome": {
+    "it": "Blu lucido e rovere",
+    "es": "Azul brillo y roble"
+   },
+   "breve": {
+    "it": "Luxe blu ultramar con isola",
+    "es": "Luxe azul ultramar con isla"
+   },
+   "desc": {
+    "it": "Bassi e isola in laccato lucido blu ultramar con gola argento, colonne e pensili in rovere, piano bianco, lampade a sospensione.",
+    "es": "Bajos e isla en lacado brillo azul ultramar con gola plata, columnas y altos en roble, encimera blanca, lámparas colgantes."
+   }
+  },
+  {
+   "id": "13-porcelain-oro-nero",
+   "file": "13-porcelain-oro-nero.json",
+   "grande": "13-porcelain-oro-nero.jpg",
+   "mini": "13-porcelain-oro-nero-mini.jpg",
+   "tipo": "cucina",
+   "nome": {
+    "it": "Porcelain oro e nero",
+    "es": "Porcelain oro y negro"
+   },
+   "breve": {
+    "it": "Colonne Porcelain Gold, maniglie oro",
+    "es": "Columnas Porcelain Gold, tiradores oro"
+   },
+   "desc": {
+    "it": "Colonne in Porcelain 01 Gold, bassi nero opaco con maniglie oro, isola nera con bancone in marmo nero Markina e sgabelli bianchi e oro.",
+    "es": "Columnas en Porcelain 01 Gold, bajos negro mate con tiradores oro, isla negra con barra de mármol negro Markina y taburetes blancos y oro."
+   }
+  },
+  {
+   "id": "14-terracotta-noce",
+   "file": "14-terracotta-noce.json",
+   "grande": "14-terracotta-noce.jpg",
+   "mini": "14-terracotta-noce-mini.jpg",
+   "tipo": "cucina",
+   "nome": {
+    "it": "Terracotta e noce scuro",
+    "es": "Terracota y nogal oscuro"
+   },
+   "breve": {
+    "it": "A L con maniglie rame",
+    "es": "En L con tiradores cobre"
+   },
+   "desc": {
+    "it": "Bassi terracotta (Cotto) con maniglie rame, colonne e pensili in noce scuro con un vano a giorno, piano e schienale in marmo Siena, pavimento in terrazzo.",
+    "es": "Bajos terracota (Cotto) con tiradores cobre, columnas y altos en nogal oscuro con un hueco abierto, encimera y frontal en mármol Siena, suelo de terrazo."
+   }
+  },
+  {
+   "id": "15-bianco-lucido-rovere-grigio",
+   "file": "15-bianco-lucido-rovere-grigio.json",
+   "grande": "15-bianco-lucido-rovere-grigio.jpg",
+   "mini": "15-bianco-lucido-rovere-grigio-mini.jpg",
+   "tipo": "cucina",
+   "nome": {
+    "it": "Bianco lucido e rovere grigio",
+    "es": "Blanco brillo y roble gris"
+   },
+   "breve": {
+    "it": "Isola in Porcelain Silver",
+    "es": "Isla en Porcelain Silver"
+   },
+   "desc": {
+    "it": "Bassi bianco lucido con gola argento, colonne e pensili in rovere grigio, isola rivestita in Porcelain 03 Silver, cappa a soffitto e lampade a sospensione.",
+    "es": "Bajos blanco brillo con gola plata, columnas y altos en roble gris, isla revestida en Porcelain 03 Silver, campana de techo y lámparas colgantes."
+   }
+  }
+ ]
 }

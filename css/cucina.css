@@ -784,3 +784,10 @@
   #pianta-svg { flex: 1 0 auto; height: 52vh; min-height: 300px; }
   #cucina-3d { flex: 1 0 auto; height: 58vh; min-height: 320px; }
 }
+
+/* CUCINA DI ESEMPIO IN MODIFICA: barra in alto con «Salva come predefinito» */
+.barra-esempio { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 16px; background: linear-gradient(90deg, rgba(201,169,74,.22), rgba(201,169,74,.08)); border-bottom: 1px solid rgba(201,169,74,.5); font-size: 14px; line-height: 1.35; }
+.barra-esempio-testo { flex: 1 1 320px; }
+.barra-esempio-bottoni { display: flex; gap: 8px; flex-wrap: wrap; }
+.barra-esempio-msg { flex-basis: 100%; color: #9fd49f; font-size: 13px; }
+.barra-esempio-msg[hidden] { display: none; }

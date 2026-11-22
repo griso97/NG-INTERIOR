@@ -8,9 +8,10 @@
 // è un file del sito, resta sempre com'è).
 // =============================================================================
 
-import { nuovoDaEsempio } from './preventivi.js?v=20261123q';
+import { nuovoDaEsempio, modificaEsempio } from './preventivi.js?v=20261123r';
+import { esempioModificato, fotoEsempioModificato, ripristinaEsempio } from './esempi-dati.js?v=20261123r';
 
-const VER = '20261123q';
+const VER = '20261123r';
 const CARTELLA = 'esempi/cucine/';
 const t = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
 const lingua = () => (window.NGI18N && window.NGI18N.lingua === 'es' ? 'es' : 'it');
@@ -19,6 +20,9 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const $ = (id) => document.getElementById(id);
 
 let cucine = [], indice = 0;
+const idDi = (c) => c.id || String(c.file || '').replace(/\.json$/, '');
+const miniDi = (c) => c._mini || `${CARTELLA}${c.mini}?v=${VER}`;
+const grandeDi = (c) => c._grande || `${CARTELLA}${c.grande}?v=${VER}`;
 
 async function carica() {
   try {
@@ -26,10 +30,19 @@ async function carica() {
     const j = await r.json();
     cucine = Array.isArray(j.cucine) ? j.cucine : [];
   } catch (_) { cucine = []; }
+  // le cucine che il falegname ha modificato e salvato come predefinite: la SUA versione e le sue foto
+  await Promise.all(cucine.map(async (c) => {
+    const mod = await esempioModificato(idDi(c));
+    if (!mod) return;
+    c._mod = mod;
+    const [mini, grande] = await Promise.all([fotoEsempioModificato(idDi(c), 'mini'), fotoEsempioModificato(idDi(c), 'grande')]);
+    if (mini) c._mini = URL.createObjectURL(mini);
+    if (grande) c._grande = URL.createObjectURL(grande);
+  }));
   const g = $('griglia');
   g.innerHTML = cucine.map((c, i) => `
     <button type="button" class="voce" data-i="${i}">
-      <div class="foto"><img src="${CARTELLA}${esc(c.mini)}?v=${VER}" alt="${esc(testo(c.nome))}" loading="lazy" decoding="async"></div>
+      <div class="foto"><img src="${miniDi(c)}" alt="${esc(testo(c.nome))}" loading="lazy" decoding="async">${c._mod ? `<span class="tua">${esc(t('✎ La tua versione'))}</span>` : ''}</div>
       <div class="testo"><div class="nome">${esc(testo(c.nome))}</div><div class="desc">${esc(testo(c.breve || c.desc))}</div></div>
     </button>`).join('');
   $('vuoto').hidden = cucine.length > 0;
@@ -45,13 +58,14 @@ function mostra(i) {
   const c = cucine[indice];
   img.style.opacity = '0.35';
   img.onload = () => { img.style.opacity = '1'; };
-  img.src = `${CARTELLA}${c.grande}?v=${VER}`;
+  img.src = grandeDi(c);
+  $('lb-ripristina').hidden = !c._mod;
   img.alt = testo(c.nome);
   $('lb-conta').textContent = `${indice + 1} / ${cucine.length}`;
   $('lb-nome').textContent = testo(c.nome);
   $('lb-desc').textContent = testo(c.desc);
   // le vicine si preparano già (scorrere è subito pronto)
-  for (const d of [-1, 1]) { const v = cucine[(indice + d + cucine.length) % cucine.length]; if (v) new Image().src = `${CARTELLA}${v.grande}?v=${VER}`; }
+  for (const d of [-1, 1]) { const v = cucine[(indice + d + cucine.length) % cucine.length]; if (v) new Image().src = grandeDi(v); }
 }
 function apri(i) {
   ultimoFuoco = document.activeElement;
@@ -67,6 +81,8 @@ $('lb-chiudi').addEventListener('click', chiudiLb);
 $('lb-prec').addEventListener('click', () => mostra(indice - 1));
 $('lb-succ').addEventListener('click', () => mostra(indice + 1));
 $('lb-usa').addEventListener('click', () => chiediNome());
+$('lb-modifica').addEventListener('click', () => modifica());
+$('lb-ripristina').addEventListener('click', () => ripristina());
 document.addEventListener('keydown', (e) => {
   if (!$('dlg').hidden) { if (e.key === 'Escape') chiudiDlg(); return; }
   if (lb.hidden) return;
@@ -109,9 +125,7 @@ async function crea() {
   if (!nome) { msg.hidden = false; msg.textContent = t('Scrivi il nome del cliente.'); inp.focus(); return; }
   inCorso = true; $('dlg-ok').disabled = true;
   try {
-    const r = await fetch(`${CARTELLA}${c.file}?v=${VER}`);
-    if (!r.ok) throw new Error(t('Non riesco a scaricare questa cucina. Controlla la connessione e riprova.'));
-    const dati = await r.json();
+    const dati = await datiDi(c);
     const esito = await nuovoDaEsempio(c.tipo === 'cucinaPonte' ? 'cucinaPonte' : 'cucina', nome, dati);
     if (!esito.sicurezza) { location.href = esito.pagina; return; }
     // il progetto aperto prima non era salvato: è nei Preventivi (lo dico, poi si apre la cucina)
@@ -124,6 +138,34 @@ async function crea() {
     msg.hidden = false; msg.textContent = e.message || t('Non sono riuscito a creare il progetto.');
     inCorso = false; $('dlg-ok').disabled = false;
   }
+}
+
+/** Il progetto dell'esempio: la versione salvata dal falegname, se c'è, se no il file del sito. */
+async function datiDi(c) {
+  if (c._mod && c._mod.progetto) return c._mod.progetto;
+  const r = await fetch(`${CARTELLA}${c.file}?v=${VER}`);
+  if (!r.ok) throw new Error(t('Non riesco a scaricare questa cucina. Controlla la connessione e riprova.'));
+  return r.json();
+}
+
+// ---------------------------------------------------------------- modificare l'esempio stesso
+// Si apre nella cucina con la barra «Salva come predefinito»: le modifiche restano l'esempio
+// (per tutti i clienti dopo), non un progetto di un cliente.
+async function modifica() {
+  const c = cucine[indice]; if (!c) return;
+  const b = $('lb-modifica'); b.disabled = true;
+  try {
+    const esito = await modificaEsempio(c.tipo === 'cucinaPonte' ? 'cucinaPonte' : 'cucina', { id: idDi(c), nome: testo(c.nome) }, await datiDi(c));
+    if (esito.sicurezza) alert(`${t('Il progetto che avevi aperto non era salvato: l\'ho messo nei Preventivi come')} «${esito.sicurezza}».`);
+    location.href = esito.pagina;
+  } catch (e) { alert(e.message || t('Non sono riuscito ad aprire la cucina.')); b.disabled = false; }
+}
+async function ripristina() {
+  const c = cucine[indice]; if (!c || !c._mod) return;
+  if (!confirm(t('Tornare alla cucina di esempio originale? Le tue modifiche a questo esempio si perdono.'))) return;
+  await ripristinaEsempio(idDi(c));
+  delete c._mod; delete c._mini; delete c._grande;
+  await carica(); mostra(indice);
 }
 
 carica();

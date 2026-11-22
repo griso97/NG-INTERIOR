@@ -16,30 +16,30 @@ import {
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
   costadoCopreAnte,
-} from './modello.js?v=20261123q';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261123q';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261123q';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261123q';
+} from './modello.js?v=20261123r';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, impostaTintaLed } from '../materiali.js?v=20261123r';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261123r';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261123r';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261123q').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261123r').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261123q';
-import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261123q';
-export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261123q';
-import { parametri } from '../parametri.js?v=20261123q';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261123q';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261123q';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261123q';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261123r';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261123r';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261123r';
+import { parametri } from '../parametri.js?v=20261123r';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261123r';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261123r';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261123r';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261123q';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261123r';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261123q';
+export { telaPavimento } from '../resa.js?v=20261123r';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -946,6 +946,12 @@ export function info3d(conta = false) {
 export function memoria3d() { return renderer ? { geo: renderer.info.memory.geometries, tex: renderer.info.memory.textures, prog: (renderer.info.programs || []).length } : null; }
 /** Dove sta la vista (per le prove): distanza dal punto guardato e angolo attorno. */
 export function vista3d() { return camera && controls ? { dist: Math.round(camera.position.distanceTo(controls.target)), az: +controls.getAzimuthalAngle().toFixed(3), on: controls.enabled } : null; }
+/** La vista di adesso, negli stessi numeri di guardaDa (per ritrovarla: es. la foto di un esempio). */
+export function vistaAttuale() {
+  if (!camera || !controls) return null;
+  const r = (n) => Math.round(n);
+  return [r(camera.position.x), r(camera.position.y), r(-camera.position.z), r(controls.target.x), r(controls.target.y), r(-controls.target.z)];
+}
 export function guardaDa(px, py, pz, tx, ty, tz) {
   if (!camera || !controls) return;
   camera.position.set(px, py, -pz); controls.target.set(tx, ty, -tz); controls.update();
@@ -2494,7 +2500,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261123q')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261123r')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }

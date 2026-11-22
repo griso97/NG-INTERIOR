@@ -111,6 +111,12 @@ export async function caricaCopiaCompleta(file) {
     for (const [sez, l] of Object.entries(statoArr.nascosti || {})) nascosti[sez] = [...new Set([...(nascosti[sez] || []), ...l])];
     const nuovoStato = { ...statoQui, prodotti: [...perId.values()], nascosti, modifiche: { ...(statoQui.modifiche || {}), ...(statoArr.modifiche || {}) } };
     const coppie = [['stato', nuovoStato]];
+    // CUCINE DI ESEMPIO modificate (esempio:<id> + le sue foto): vince la versione salvata più di recente
+    for (const [k, v] of arrivo) {
+      if (!String(k).startsWith('esempio:')) continue;
+      const id = String(k).slice(8), c = qui.get(k);
+      if (!c || ((v && v.aggiornato) || 0) > ((c && c.aggiornato) || 0)) daCopiare.push(id);
+    }
     for (const [k, v] of arrivo) {
       if (k === 'stato') continue;
       const id = String(k).slice(String(k).indexOf(':') + 1);

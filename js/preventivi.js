@@ -67,6 +67,7 @@ function impostaCorrente(tipo, id) {
 async function salva(tipo, nome, comeNuovo) {
   const dati = datiCorrenti(tipo);
   if (!dati) throw new Error(t('Non c\'è niente da salvare: il progetto è vuoto.'));
+  delete dati.esempioInModifica;                       // un preventivo è un progetto normale, non l'esempio
   const ora = Date.now(), idC = correnteId(tipo);
   const vecchio = !comeNuovo && idC ? await leggiPreventivo(idC) : null;
   const p = vecchio ? { ...vecchio, nome, dati, aggiornato: ora }
@@ -84,6 +85,30 @@ async function salva(tipo, nome, comeNuovo) {
  * il salvataggio) lo metto nei preventivi come «Copia di sicurezza».
  * Ritorna { pagina, sicurezza } (sicurezza = nome della copia fatta, o null).
  */
+/**
+ * MODIFICARE UNA CUCINA DI ESEMPIO (non per un cliente): l'esempio si apre nella sua pagina con
+ * la barra «Salva come predefinito». Il progetto aperto prima, se non era salvato, va nei
+ * preventivi come «Copia di sicurezza» (come per «Usala per un cliente»).
+ */
+export async function modificaEsempio(tipo, esempio, dati) {
+  if (!TIPI[tipo]) throw new Error('Tipo sconosciuto');
+  const ora = Date.now();
+  let sicurezza = null;
+  const prima = datiCorrenti(tipo), idC = correnteId(tipo);
+  if (prima && !prima.esempioInModifica && Array.isArray(prima.mobiliLiberi) && prima.mobiliLiberi.length) {
+    const salvato = idC ? await leggiPreventivo(idC) : null;
+    if (!salvato || JSON.stringify(salvato.dati) !== JSON.stringify(prima)) {
+      sicurezza = `${t('Copia di sicurezza')} – ${salvato ? salvato.nome : t(TIPI[tipo].nome)} (${data(ora)})`;
+      await scriviPreventivo({ id: nuovoId(), tipo, nome: sicurezza, dati: prima, creato: ora, aggiornato: ora });
+    }
+  }
+  const d = JSON.parse(JSON.stringify(dati));
+  d.esempioInModifica = { id: esempio.id, nome: esempio.nome || '' };
+  localStorage.setItem(TIPI[tipo].chiave, JSON.stringify(d));
+  impostaCorrente(tipo, null);
+  return { pagina: TIPI[tipo].pagina, sicurezza };
+}
+
 export async function nuovoDaEsempio(tipo, nome, dati) {
   if (!TIPI[tipo]) throw new Error('Tipo sconosciuto');
   const ora = Date.now();
@@ -97,6 +122,7 @@ export async function nuovoDaEsempio(tipo, nome, dati) {
     }
   }
   const p = { id: nuovoId(), tipo, nome, dati: JSON.parse(JSON.stringify(dati)), creato: ora + 1, aggiornato: ora + 1 };
+  delete p.dati.esempioInModifica;
   await scriviPreventivo(p);
   localStorage.setItem(TIPI[tipo].chiave, JSON.stringify(p.dati));
   impostaCorrente(tipo, p.id);

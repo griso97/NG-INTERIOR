@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script>/* iPhone e iPad: quando tocchi un campo la pagina NON si ingrandisce da sola (con due dita si può ancora) */
   (function(){var u=navigator.userAgent;if(/iPhone|iPad|iPod/.test(u)||(navigator.maxTouchPoints>1&&/Macintosh/.test(u))){var m=document.querySelector('meta[name=viewport]');if(m&&!/maximum-scale/.test(m.content))m.content+=', maximum-scale=1';}})();</script>
-  <script src="js/i18n.js?v=20261123q"></script>
+  <script src="js/i18n.js?v=20261123r"></script>
 <title>NG Interior · Cucine di esempio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -59,6 +59,12 @@
   .lb-desc{flex:1 1 320px;font-size:14px;line-height:1.45;color:#cfc6b2;}
   .lb-usa{all:unset;cursor:pointer;padding:12px 18px;border-radius:999px;background:linear-gradient(180deg,#e8c25a,#a77c16);color:#14110d;font-weight:600;font-size:14px;letter-spacing:.5px;white-space:nowrap;}
   .lb-usa:hover{filter:brightness(1.08);}
+  .lb-bottoni{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;}
+  .lb-sec{all:unset;cursor:pointer;padding:11px 16px;border-radius:999px;border:1px solid rgba(232,194,90,.55);color:var(--gold-1);font-size:14px;white-space:nowrap;}
+  .lb-sec:hover{border-color:var(--gold-2);background:rgba(232,194,90,.08);}
+  .lb-sec[hidden]{display:none;}
+  .voce .foto{position:relative;}
+  .voce .tua{position:absolute;left:8px;top:8px;padding:3px 9px;border-radius:999px;background:rgba(20,17,13,.82);color:var(--gold-1);font-size:12px;letter-spacing:.3px;}
   .lb-aiuto{width:100%;font-size:12px;color:var(--muted);}
   /* ---- nome del cliente ---- */
   .dlg{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:12vh 12px 12px;}
@@ -103,8 +109,12 @@
     </div>
     <div class="lb-giu">
       <div class="lb-desc" id="lb-desc" data-no-i18n></div>
-      <button type="button" class="lb-usa" id="lb-usa">Usala per un cliente →</button>
-      <div class="lb-aiuto">Scorri o usa le frecce per vedere le altre. Tocca la foto per partire da questa cucina.</div>
+      <div class="lb-bottoni">
+        <button type="button" class="lb-sec" id="lb-ripristina" hidden>↺ Torna all'originale</button>
+        <button type="button" class="lb-sec" id="lb-modifica">✏️ Modifica l'esempio</button>
+        <button type="button" class="lb-usa" id="lb-usa">Usala per un cliente →</button>
+      </div>
+      <div class="lb-aiuto">Scorri o usa le frecce per vedere le altre. Tocca la foto per partire da questa cucina. «Modifica l'esempio» cambia l'esempio stesso (lo salvi come predefinito); «Usala per un cliente» fa una copia con il nome del cliente.</div>
     </div>
   </div>
 
@@ -121,6 +131,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/esempi.js?v=20261123q"></script>
+  <script type="module" src="js/esempi.js?v=20261123r"></script>
 </body>
 </html>
