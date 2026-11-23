@@ -9,10 +9,10 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261124t';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261124t';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261124t';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261124t';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261124u';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261124u';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261124u';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261124u';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -36,7 +36,6 @@ const matSel = new THREE.MeshBasicMaterial({ color: 0xd9ad3c });
 
 const matMuro = new THREE.MeshStandardMaterial({ color: 0xe9e5dc, roughness: 0.95 });
 const matMuroFondo = new THREE.MeshStandardMaterial({ color: 0xdedad1, roughness: 0.95 });
-const matGradino = new THREE.MeshStandardMaterial({ color: 0xcbb89a, roughness: 0.8 });
 const matMetallo = new THREE.MeshStandardMaterial({ color: 0xc9cbcf, roughness: 0.3, metalness: 0.85, envMapIntensity: 0.8 });
 
 function creaAmbiente(rnd) {
@@ -240,36 +239,132 @@ function chiusura(ch, P, sp, matS, matA) {
 }
 
 // ---------------------------------------------------------------------------
-// Vano: muro di fondo, muri/soffitto intorno, gradini sopra la scala
+// Vano: muro di fondo + muri/soffitto intorno in UN PEZZO SOLO (angoli chiusi),
+// e sopra l'inclinata (sottoscala) una SCALA VERA
 // ---------------------------------------------------------------------------
-function vano(forma, P, conGradini) {
-  const pts = forma.punti, n = pts.length;
-  prisma(pts.map((p) => [p.x, p.y]), -SP_MURO, SP_MURO, matMuroFondo, false);
-  forma.pareti.forEach((par, i) => {
-    if (par.tipo === 'pavimento') return;
-    const a = pts[i], b = pts[(i + 1) % n];
-    const L = Math.hypot(b.x - a.x, b.y - a.y) || 1;
-    const nx = (b.y - a.y) / L, ny = -(b.x - a.x) / L;     // normale esterna
-    const T = SP_MURO;
-    prisma([[a.x, a.y], [b.x, b.y], [b.x + nx * T, b.y + ny * T], [a.x + nx * T, a.y + ny * T]], -SP_MURO, P + SP_MURO + 60, matMuro);
-    // Scala sopra l'inclinata (solo sottoscala): la soletta inclinata è il
-    // muro qui sopra; i gradini sono TRIANGOLI appoggiati sopra la soletta
-    // (alzata verticale + pedata orizzontale), quindi non entrano nel vano.
-    if (conGradini && par.tipo === 'inclinata') {
-      const lo = a.y < b.y ? a : b, hi = a.y < b.y ? b : a;
-      const run = Math.abs(hi.x - lo.x), rise = hi.y - lo.y;
-      const passi = Math.max(3, Math.round(run / 280));
-      const D = T / Math.cos(Math.atan2(rise, run));          // spessore verticale soletta
-      const dir = Math.sign(hi.x - lo.x) || 1;
-      const sopra = (x) => lo.y + (rise * Math.abs(x - lo.x)) / run + D;   // sopra della soletta
-      for (let k = 0; k < passi; k++) {
-        const xa = lo.x + (dir * run * k) / passi, xb = lo.x + (dir * run * (k + 1)) / passi;
-        const yp = sopra(xb);                                      // quota della pedata
-        // stessa profondità della soletta: niente gradini che sporgono davanti alle ante
-        prisma([[xa, sopra(xa)], [xb, yp], [xa, yp]], -SP_MURO, P + SP_MURO + 60, matGradino);
-      }
+const LEGNO_SCALA = 'noce-panarea-yoku';   // pedate in noce (catalogo): staccano dal pavimento e dai mobili chiari
+const ALZATA = 175;                   // mm: alzata comoda di una scala vera (si adatta alla salita)
+const SP_PEDATA = 40;                 // spessore della pedata in legno
+const NASO = 25;                      // la pedata sporge davanti all'alzata
+const SBALZO = 20;                    // e sul lato aperto della scala
+
+/** Retta della parete i spostata verso fuori di t: { A, d } (punto e direzione). */
+function rettaFuori(a, b, t) {
+  const L = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+  const d = { x: (b.x - a.x) / L, y: (b.y - a.y) / L };
+  const nx = d.y, ny = -d.x;                                  // normale esterna (punti antiorari)
+  return { A: { x: a.x + nx * t, y: a.y + ny * t }, d, n: { x: nx, y: ny } };
+}
+function incrocio(r1, r2) {
+  const cr = r1.d.x * r2.d.y - r1.d.y * r2.d.x;
+  if (Math.abs(cr) < 1e-9) return null;
+  const s = ((r2.A.x - r1.A.x) * r2.d.y - (r2.A.y - r1.A.y) * r2.d.x) / cr;
+  return { x: r1.A.x + r1.d.x * s, y: r1.A.y + r1.d.y * s };
+}
+
+/**
+ * Geometria della scala sopra la parete inclinata iS: parte dal PAVIMENTO (anche oltre il
+ * muretto basso), alzate tutte uguali di circa 17-18 cm, arriva in cima a filo del piano di
+ * sopra (soletta spessa T sotto i gradini, misurata in perpendicolare all'inclinata).
+ */
+function geometriaScala(pts, iS, T) {
+  const n = pts.length, a = pts[iS], b = pts[(iS + 1) % n];
+  const loIsA = a.y < b.y;
+  const lo = loIsA ? a : b, hi = loIsA ? b : a;
+  const run = Math.abs(hi.x - lo.x), rise = hi.y - lo.y;
+  if (run < 50 || rise < 50) return null;
+  const m = rise / run, D = T * Math.hypot(1, m);            // spessore verticale della soletta
+  const dir = Math.sign(hi.x - lo.x) || 1;
+  const R = hi.y + D;                                         // quota del piano di sopra
+  const uF = -(lo.y + D) / m;                                 // primo gradino (a terra)
+  const nG = Math.max(3, Math.round(R / ALZATA));
+  const r = R / nG, g = (run - uF) / nG;
+  const X = (u) => lo.x + dir * u;
+  const iLo = loIsA ? iS : (iS + 1) % n, iHi = loIsA ? (iS + 1) % n : iS;
+  return { lo, hi, loIsA, run, m, D, dir, R, uF, nG, r, g, X, iLo, iHi, tt: SP_PEDATA };
+}
+
+function vano(forma, P, conGradini, matLegno) {
+  const pts = forma.punti, n = pts.length, par = forma.pareti, T = SP_MURO;
+  const prof = P + T + 60;                                    // profondità di muri e scala
+  prisma(pts.map((p) => [p.x, p.y]), -T, T, matMuroFondo, false);
+  const iF = par.findIndex((p) => p.tipo === 'pavimento');
+  const iS = conGradini ? par.findIndex((p) => p.tipo === 'inclinata') : -1;
+  const S = iS >= 0 ? geometriaScala(pts, iS, T) : null;
+  const ext = { xMin: 0, xMax: forma.larghezza };
+  const allarga = (x) => { ext.xMin = Math.min(ext.xMin, x); ext.xMax = Math.max(ext.xMax, x); };
+  // parete accanto alla scala in alto / in basso
+  const iNbHi = S ? (S.loIsA ? (iS + 1) % n : (iS - 1 + n) % n) : -1;
+  const iNbLo = S ? (S.loIsA ? (iS - 1 + n) % n : (iS + 1) % n) : -1;
+  const soffittoInCima = S && par[iNbHi].tipo === 'soffitto';
+  // spessore di ogni parete (il pavimento è la retta y = 0); il soffitto piano accanto alla scala
+  // è il piano di sopra: alto quanto il pianerottolo
+  const spes = par.map((p, i) => (p.tipo === 'pavimento' ? 0 : (soffittoInCima && i === iNbHi ? S.R - S.tt - S.hi.y : T)));
+  const rette = par.map((p, i) => rettaFuori(pts[i], pts[(i + 1) % n], spes[i]));
+  // Spigolo esterno nel vertice j (fra la parete j-1 e la parete j): punto d'incontro delle due
+  // facce esterne (angolo chiuso); se l'angolo è molto acuto lo smusso
+  const giunto = (j) => {
+    const i0 = (j - 1 + n) % n, i1 = j, v = pts[j];
+    const M = incrocio(rette[i0], rette[i1]);
+    const conPav = par[i0].tipo === 'pavimento' || par[i1].tipo === 'pavimento';
+    if (M && (conPav || Math.hypot(M.x - v.x, M.y - v.y) <= 4 * T)) return [M];
+    const e0 = { x: v.x + rette[i0].n.x * spes[i0], y: v.y + rette[i0].n.y * spes[i0] };
+    const s1 = { x: v.x + rette[i1].n.x * spes[i1], y: v.y + rette[i1].n.y * spes[i1] };
+    return [e0, s1];
+  };
+  const giunti = pts.map((_, j) => giunto(j));
+  let profiloScala = [];
+  if (S) {
+    const { X, uF, nG, r, g, tt, R, dir, hi, lo } = S;
+    // piede: comincia a terra (oltre il muretto basso, se c'è)
+    const piede = { x: X(uF), y: 0 };
+    // scalini: alzata, poi letto della pedata (la pedata in legno ci va sopra)
+    const scalini = [piede];
+    for (let k = 0; k < nG; k++) {
+      scalini.push({ x: X(uF + k * g), y: (k + 1) * r - tt });
+      scalini.push({ x: X(uF + (k + 1) * g), y: (k + 1) * r - tt });
     }
-  });
+    // in alto: pianerottolo sopra il muro alto, o il soffitto piano che diventa il piano di sopra
+    const cima = soffittoInCima ? [] : [{ x: hi.x + dir * T, y: R - tt }];
+    // in basso: muretto → il piede è a terra dopo il muretto; pavimento → il piede È lo spigolo
+    const xMur = lo.x - dir * T;
+    const baseLo = par[iNbLo].tipo === 'pavimento' ? [] : [{ x: xMur, y: 0 }];
+    // giunti dei due vertici della scala (in ordine lo → hi), poi girati se la parete va hi → lo
+    const gLo = [...baseLo, piede], gHi = [{ x: hi.x, y: R - tt }, ...cima];
+    giunti[S.iLo] = S.loIsA ? gLo : [...gLo].reverse();
+    giunti[S.iHi] = S.loIsA ? gHi : [...gHi].reverse();
+    profiloScala = S.loIsA ? scalini.slice(1) : scalini.slice(1).reverse();
+  }
+  // ANELLO unico: faccia interna (pareti) + faccia esterna al contrario → nessuna fessura
+  const interno = [], esterno = [];
+  for (let s = 1; s <= n; s++) interno.push(pts[(iF + s) % n]);
+  esterno.push(...giunti[(iF + 1) % n]);
+  for (let s = 1; s < n; s++) {
+    const w = (iF + s) % n;
+    if (w === iS && S) esterno.push(...profiloScala);
+    esterno.push(...giunti[(w + 1) % n]);
+  }
+  const anello = [...interno, ...esterno.reverse()]
+    .filter((p, i, A) => i === 0 || Math.hypot(p.x - A[i - 1].x, p.y - A[i - 1].y) > 0.5);
+  anello.forEach((p) => allarga(p.x));
+  prisma(anello.map((p) => [p.x, p.y]), -T, prof, matMuro);
+  // PEDATE in legno: spessore 4 cm, naso davanti e sbalzo sul lato aperto; l'ultima continua
+  // sul pianerottolo (o su tutto il piano di sopra)
+  if (S && matLegno) {
+    const { X, uF, nG, r, g, tt, dir, hi } = S;
+    for (let k = 0; k < nG; k++) {
+      const ua = uF + k * g - NASO;
+      let xb = X(uF + (k + 1) * g);
+      if (k === nG - 1) {
+        if (soffittoInCima) { const vf = pts[S.loIsA ? (S.iHi + 1) % n : (S.iHi - 1 + n) % n]; xb = vf.x + dir * T; }
+        else xb = hi.x + dir * T;
+      }
+      const xa = X(ua);
+      prisma(rett(Math.min(xa, xb), (k + 1) * r - tt, Math.max(xa, xb), (k + 1) * r), -T, prof + SBALZO, matLegno);
+      allarga(xa); allarga(xb);
+    }
+  }
+  return ext;
 }
 
 // ---------------------------------------------------------------------------
@@ -304,7 +399,7 @@ export function aggiorna(forma, elementi, opz) {
     return usati.get(id);
   };
   const fin = (e) => e.mat || opz.materiali;
-  vano(forma, opz.P, opz.conGradini);
+  const estVano = vano(forma, opz.P, opz.conGradini, opz.conGradini ? mat(LEGNO_SCALA) : null);
   contorni.clear(); ultimaP = opz.P;
   // ogni modulo nel suo gruppo (chiave): si sceglie toccandolo nel 3D
   const nelGruppo = (chiave, profilo, fai) => {
@@ -333,7 +428,7 @@ export function aggiorna(forma, elementi, opz) {
   // luce dentro un armadio è diffusa); gli angoli e i ripiani restano scuriti dalle ombre di contatto
   gruppo.traverse((o) => { if (o.isMesh) o.receiveShadow = false; });
   if (renderer) renderer.shadowMap.needsUpdate = true;
-  const nuova = { W: forma.larghezza, H: forma.altezzaMax, P: opz.P };
+  const nuova = { W: forma.larghezza, H: forma.altezzaMax, P: opz.P, x0: estVano.xMin, x1: estVano.xMax };   // x0..x1: anche la scala
   const cambiata = !ultimaVista || ['W', 'H', 'P'].some((k) => Math.abs(ultimaVista[k] - nuova[k]) > 1);
   ultimaVista = nuova;
   disegnaSelezione();
@@ -415,15 +510,18 @@ function disegnaSelezione() {
 /** Inquadrature: 'frontale' (dritta davanti) o 'tre4' (di tre quarti, dall'alto). */
 export function inquadra(tipo = 'tre4') {
   if (!camera || !ultimaVista) return;
-  const { W, H, P } = ultimaVista;
+  const { H, P } = ultimaVista;
+  // la scala può uscire dal vano (piede oltre il muretto, pianerottolo): inquadro anche lei
+  const x0 = Math.min(0, ultimaVista.x0 ?? 0), x1 = Math.max(ultimaVista.W, ultimaVista.x1 ?? ultimaVista.W);
+  const W = x1 - x0, cx = (x0 + x1) / 2;
   const S = Math.max(W, H);
-  const target = new THREE.Vector3(W / 2, H * 0.45, P / 2);
+  const target = new THREE.Vector3(cx, H * 0.45, P / 2);
   // Distanza per far stare tutto il vano (+ margine) nello schermo, sia in
   // altezza sia in larghezza: su telefono (schermo stretto) si allontana.
   const vf = (camera.fov * Math.PI) / 180;
   const hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect);
   const dist = Math.max((H * 0.62) / Math.tan(vf / 2), (W * 0.62 + 300) / Math.tan(hf / 2)) + P;
-  if (tipo === 'frontale') camera.position.set(W / 2, H * 0.5, P / 2 + dist);
+  if (tipo === 'frontale') camera.position.set(cx, H * 0.5, P / 2 + dist);
   else {
     const dir = new THREE.Vector3(0.38, 0.22, 1).normalize();
     camera.position.copy(target).addScaledVector(dir, dist * 1.08);
@@ -432,7 +530,7 @@ export function inquadra(tipo = 'tre4') {
   camera.lookAt(target);
   controls.update();
   const key = scene.children.find((o) => o.isDirectionalLight && o.castShadow);
-  if (key) { key.target.position.copy(target); key.position.set(W / 2 + S, H + S * 1.2, P + S * 1.6); }
+  if (key) { key.target.position.copy(target); key.position.set(cx + S, H + S * 1.2, P + S * 1.6); }
 }
 
 /**
