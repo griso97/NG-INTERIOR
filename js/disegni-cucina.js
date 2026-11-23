@@ -92,7 +92,8 @@ export function svgAriaAnte(A = {}) {
   p.push(rect(x1, y1, W, H, '#2a2620', `stroke="${C.fianco}"`));
   const wa = (W - 2 * g - gm) / 2;
   p.push(rect(x1 + g, y1 + g, wa, H - 2 * g, C.anta), rect(x1 + g + wa + gm, y1 + g, wa, H - 2 * g, C.anta));
-  p.push(badge(x1 + W / 2, y1 - 8, '1'), riga(x1 + W / 2, y1 - 1, x1 + W / 2, y1 + g));
+  // ① sopra ogni anta (a sinistra e a destra), non in mezzo: lì c'è l'aria fra le due ante (③)
+  for (const cx of [x1 + g + wa / 2, x1 + g + wa + gm + wa / 2]) p.push(badge(cx, y1 - 9, '1'), riga(cx, y1 - 1, cx, y1 + g));
   p.push(badge(x1 - 14, y1 + H / 2, '2'), riga(x1 - 6, y1 + H / 2, x1 + g / 2, y1 + H / 2));
   p.push(badge(x1 + W / 2, y1 + H / 2, '3'));
   // mobile con 3 cassetti

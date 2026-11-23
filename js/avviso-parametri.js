@@ -5,7 +5,7 @@
 // completa. Sopra la distinta compare l'avviso con cosa manca; esportando si chiede
 // «Vuoi esportarla comunque?». Quando il falegname le imposta in ⚙ Parametri l'avviso sparisce.
 // =============================================================================
-import { GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261124o';
+import { GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261124p';
 
 const t = (s) => (typeof window !== 'undefined' && window.NGI18N ? window.NGI18N.t(s) : s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
