@@ -14,9 +14,9 @@
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi,
-  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, GOLA_V_ACCORCIA, BARRA_GOLA_V } from './modello.js?v=20261124v';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261124v';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261124v';
+  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, GOLA_V_ACCORCIA, BARRA_GOLA_V } from './modello.js?v=20261124w';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261124w';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261124w';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -257,7 +257,7 @@ function pezziDiModulo(progetto, m) {
     // COLONNA SU MISURA: la struttura la facciamo noi → tutti i pezzi (montaggio 2)
     if (m.tipo === 'colonna-misura') {
       // con la gola verticale il fianco accanto alla gola si accorcia di 12 mm (in profondità)
-      const nG = golaC ? new Set(goleDiColonna(progetto, m).map((x) => x.lato)).size : 0;
+      const nG = golaC ? new Set(goleDiColonna(progetto, m).filter((x) => x.accorcia).map((x) => x.lato)).size : 0;
       for (const p0 of pezziColonnaMisura(m)) {
         const fianco = /^Fianco/.test(p0.nome) && nG > 0;
         const lista = !fianco ? [p0] : [
@@ -435,7 +435,7 @@ export function calcolaDistintaCucina(progetto) {
     const od = moduloDaOrdinare(m), Lo = od ? od.ordina : L;
     const misura = m.altezza_mm ? `${m.altezza_mm}×${Lo}` : `${Lo}`;
     // CUCINA CON GOLA: la colonna accanto alla gola verticale va modificata (fianco accorciato di 12 mm)
-    const latiG = golaColonna(progetto, m) ? [...new Set(goleDiColonna(progetto, m, goleV).map((x) => x.lato))].sort() : [];
+    const latiG = golaColonna(progetto, m) ? [...new Set(goleDiColonna(progetto, m, goleV).filter((x) => x.accorcia).map((x) => x.lato))].sort() : [];
     const avviso = latiG.length ? `Attenzione: la colonna va modificata per poter inserire la gola (${latiG.length === 2 ? 'tutti e due i fianchi accorciati' : latiG[0] > 0 ? 'fianco destro accorciato' : 'fianco sinistro accorciato'} di ${GOLA_V_ACCORCIA} mm)` : null;
     const key = `${gruppo}|${m.tipo}|${misura}|${od ? od.taglio : m.fuoriMisura ? 1 : 0}|${avviso || ''}`;
     if (!modMap.has(key)) modMap.set(key, { gruppo, nome: `${nomeTipo(m.tipo)} · interno ${progetto.coloreInterno === 'antracite' ? 'antracite' : 'bianco'}`, misura, tipo: nomeTipo(m.tipo), fuoriMisura: !!(od || m.fuoriMisura), taglio: od ? od.taglio : null, avviso, quantita: 0 });

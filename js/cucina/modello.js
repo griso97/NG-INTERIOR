@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261124v';
+import { parametri } from '../parametri.js?v=20261124w';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -3651,44 +3651,68 @@ function accantoA(progetto, m, s) {
   return best;
 }
 const latoManiglia = (m) => (m.antaLato === 'sx' ? -1 : 1);
+/** Da che lato (±1) della colonna a sta il pezzo b. */
+const latoVerso = (a, b) => { const { dx } = assiPianta(a); return ((b.x - a.x) * dx.x + (b.y - a.y) * dx.y) >= 0 ? 1 : -1; };
 /**
- * Tutte le GOLE VERTICALI della cucina: [{ tipo:'centrale'|'laterale', col (id colonna), altro (id),
- * lato (±1: lato della colonna dov'è la gola), gap (mm attuali), ok (c'è lo spazio giusto),
- * lung (mm: lunghezza del profilo), sp (fianco 16/18), larghezza (mm del profilo) }].
+ * Le COPPIE «colonna accanto a colonna / costado / regletta» (fino a 60 mm) e se lì serve la gola:
+ * - due colonne con TUTTE E DUE le maniglie verso lo spazio → profilo CENTRALE (si accorciano i due fianchi);
+ * - una sola delle due maniglie verso lo spazio → profilo LATERALE, appoggiato alla colonna con le
+ *   cerniere da quel lato (si accorcia solo il fianco della colonna con la maniglia);
+ * - nessuna maniglia verso lo spazio → niente profilo: le colonne stanno attaccate;
+ * - colonna e costado / regletta → profilo LATERALE solo se la maniglia è da quel lato.
+ * [{ m, o, s (lato di m verso o), gap, tipo:'centrale'|'laterale'|null, col (id della colonna con la
+ *   maniglia, per il laterale), lato (suo lato), corte: [{ id, lato }] (fianchi da accorciare) }]
  */
-export function goleVerticali(progetto) {
-  if (!cucinaConGola(progetto)) return [];
+function coppieColonne(progetto) {
   const out = [], visti = new Set();
   for (const m of progetto.mobiliLiberi || []) {
-    if (!golaColonna(progetto, m)) continue;
+    if (categoriaTipo(m.tipo) !== 'colonna') continue;
     for (const s of [1, -1]) {
       const v = accantoA(progetto, m, s);
       if (!v) continue;
-      let tipo = null;
-      if (golaColonna(progetto, v.o)) {
+      const base = { m, o: v.o, s, gap: v.gap, tipo: null, col: null, lato: null, corte: [] };
+      if (categoriaTipo(v.o.tipo) === 'colonna') {
         const k = [m.id, v.o.id].sort((a, b) => a - b).join('|');
         if (visti.has(k)) continue;
-        visti.add(k); tipo = 'centrale';
-      } else if (CAT_LATERALE.includes(v.cat) && s === latoManiglia(m)) tipo = 'laterale';
-      if (!tipo) continue;
-      const sp = Math.max(spFiancoColonna(m), tipo === 'centrale' ? spFiancoColonna(v.o) : 0);
-      const lung = Math.round(tipo === 'centrale' ? Math.min(m.altezza_mm || 2200, v.o.altezza_mm || 2200) : (m.altezza_mm || 2200));
-      out.push({ tipo, col: m.id, altro: v.o.id, lato: s, gap: Math.round(v.gap * 10) / 10,
-        ok: Math.abs(v.gap - GOLA_V_SPAZIO) <= 2, lung, sp, larghezza: larghezzaProfiloV(tipo, sp) });
+        visti.add(k);
+        const sO = latoVerso(v.o, m), gm = latoManiglia(m) === s, go = latoManiglia(v.o) === sO;
+        if (gm && go) Object.assign(base, { tipo: 'centrale', col: m.id, lato: s, corte: [{ id: m.id, lato: s }, { id: v.o.id, lato: sO }] });
+        else if (gm) Object.assign(base, { tipo: 'laterale', col: m.id, lato: s, corte: [{ id: m.id, lato: s }] });
+        else if (go) Object.assign(base, { tipo: 'laterale', col: v.o.id, lato: sO, corte: [{ id: v.o.id, lato: sO }] });
+        out.push(base);
+      } else if (CAT_LATERALE.includes(v.cat)) {
+        if (s === latoManiglia(m)) Object.assign(base, { tipo: 'laterale', col: m.id, lato: s, corte: [{ id: m.id, lato: s }] });
+        out.push(base);
+      }
     }
   }
   return out;
 }
-/** Lati della colonna m con la gola: [{ lato, tipo, gap, disegna (true = la disegna lei nel 3D), larghezza }]. */
+/**
+ * Tutte le GOLE VERTICALI della cucina: [{ tipo:'centrale'|'laterale', col (id della colonna che la
+ * disegna: per il laterale quella con la maniglia), altro (id), lato (±1: lato di col dov'è la gola),
+ * gap (mm attuali), ok (c'è lo spazio giusto), lung (mm del profilo), sp (fianco 16/18), larghezza (mm),
+ * corte: [{ id, lato }] fianchi da accorciare di 12 mm }].
+ */
+export function goleVerticali(progetto) {
+  if (!cucinaConGola(progetto)) return [];
+  return coppieColonne(progetto).filter((c) => c.tipo).map((c) => {
+    const col = c.col === c.m.id ? c.m : c.o, altro = col === c.m ? c.o : c.m;
+    const sp = Math.max(...c.corte.map((x) => spFiancoColonna(trovaMobileLibero(progetto, x.id))));
+    const due = categoriaTipo(altro.tipo) === 'colonna';
+    const lung = Math.round(due ? Math.min(col.altezza_mm || 2200, altro.altezza_mm || 2200) : (col.altezza_mm || 2200));
+    return { tipo: c.tipo, col: col.id, altro: altro.id, lato: c.lato, gap: Math.round(c.gap * 10) / 10,
+      ok: Math.abs(c.gap - GOLA_V_SPAZIO) <= 2, lung, sp, larghezza: larghezzaProfiloV(c.tipo, sp), corte: c.corte };
+  });
+}
+/** Lati della colonna m con la gola: [{ lato, tipo, gap, disegna (la disegna lei nel 3D), accorcia (fianco −12 mm), larghezza }]. */
 export function goleDiColonna(progetto, m, gole = goleVerticali(progetto)) {
   const out = [];
   for (const g of gole) {
-    if (g.col === m.id) out.push({ lato: g.lato, tipo: g.tipo, gap: g.gap, disegna: true, larghezza: g.larghezza, ok: g.ok });
-    else if (g.altro === m.id && g.tipo === 'centrale') {
-      // per la colonna vicina la gola è dal lato che guarda l'altra (girata di 180°: il suo lato è invertito)
-      const c = trovaMobileLibero(progetto, g.col), a = assiPianta(c).dx, b = assiPianta(m).dx;
-      out.push({ lato: (a.x * b.x + a.y * b.y > 0 ? -1 : 1) * g.lato, tipo: g.tipo, gap: g.gap, disegna: false, larghezza: g.larghezza, ok: g.ok });
-    }
+    if (g.col !== m.id && g.altro !== m.id) continue;
+    const corta = g.corte.find((x) => x.id === m.id);
+    const lato = g.col === m.id ? g.lato : latoVerso(m, trovaMobileLibero(progetto, g.col));
+    out.push({ lato, tipo: g.tipo, gap: g.gap, disegna: g.col === m.id, accorcia: !!corta, larghezza: g.larghezza, ok: g.ok });
   }
   return out;
 }
@@ -3824,17 +3848,22 @@ export function sistemaGoleColonne(progetto, { modo = 'apri', preferisci = null 
   const prima = new Map(tutti.map((o) => [o.id, { x: o.x, y: o.y }]));
   const ripristina = () => tutti.forEach((o) => { const p = prima.get(o.id); if (p) { o.x = p.x; o.y = p.y; } });
   const fatti = new Set();
+  // quanto deve esserci fra i due pezzi: 30 mm dove c'è la gola; 0 dove non serve più (era uno spazio da gola)
+  const obiettivo = (c) => {
+    if (modo === 'apri' && c.tipo) return Math.abs(c.gap - GOLA_V_SPAZIO) <= 2 ? null : GOLA_V_SPAZIO;
+    return c.gap >= 20 && c.gap <= 40 ? 0 : null;
+  };
   for (let giro = 0; giro < 60; giro++) {
-    const gole = goleVerticali(progetto).filter((g) => (modo === 'apri' ? !g.ok : g.gap > 2) && !fatti.has(`${g.col}|${g.altro}`));
-    if (!gole.length) break;
-    const g = gole[0];
-    const m = trovaMobileLibero(progetto, g.col);
-    const { dx, F } = assiPianta(m), dm = dimMobile(m);
-    const s = g.lato, delta = modo === 'apri' ? GOLA_V_SPAZIO - g.gap : -g.gap;
+    const da = coppieColonne(progetto).map((c) => ({ c, t: obiettivo(c) }))
+      .filter((x) => x.t != null && !fatti.has(`${x.c.m.id}|${x.c.o.id}`));
+    if (!da.length) break;
+    const { c, t: target } = da[0];
+    const m = c.m, { dx, F } = assiPianta(m), dm = dimMobile(m);
+    const s = c.s, delta = target - c.gap;
     // punto in mezzo allo spazio fra i due pezzi
-    const meta = s * (dm.w / 2 + g.gap / 2);
+    const meta = s * (dm.w / 2 + c.gap / 2);
     const J = { x: m.x + dx.x * meta, y: m.y + dx.y * meta };
-    const lati = [s, -s].map((sig) => ({ sig, set: insiemeDaSpostare(progetto, m, J, dx, F, sig, g.gap / 2) }));
+    const lati = [s, -s].map((sig) => ({ sig, set: insiemeDaSpostare(progetto, m, J, dx, F, sig, c.gap / 2) }));
     if (preferisci != null) lati.sort((a, b) => (b.set.some((o) => o.id === preferisci) ? 1 : 0) - (a.set.some((o) => o.id === preferisci) ? 1 : 0));
     let fatto = false;
     for (const { sig, set } of lati) {
@@ -3843,8 +3872,8 @@ export function sistemaGoleColonne(progetto, { modo = 'apri', preferisci = null 
       if (spostaSeCi(progetto, set, d)) { fatto = true; break; }
     }
     if (!fatto) {
-      if (modo === 'apri') { ripristina(); return { ok: false, spostati: 0 }; }
-      fatti.add(`${g.col}|${g.altro}`);
+      if (modo === 'apri' && target > 0) { ripristina(); return { ok: false, spostati: 0 }; }
+      fatti.add(`${c.m.id}|${c.o.id}`);
     }
   }
   const spostati = tutti.filter((o) => { const p = prima.get(o.id); return p && (Math.abs(p.x - o.x) > 0.5 || Math.abs(p.y - o.y) > 0.5); }).length;
