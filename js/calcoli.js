@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, pezziCassettoNostro } from './parametri.js?v=20261125g';
+import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, sistemiCassetti, pezziCassettoNostro } from './parametri.js?v=20261125h';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -311,8 +311,13 @@ const SP_MEL_ARM = 16;
  * Fondo + trasera del cassetto in MELAMINICO BIANCO (guide metalliche: niente
  * scatola di legno). Come in cucina, ma il FONDO cambia profondità in base
  * alla guida scorrevole: fondo = guida − 20 (guida 500→480, 400→380, 350→330).
- * Fisse: trasera 59 (cassetto basso, fronte ≤155) o 155 (alto). La lunghezza
- * varia col modulo: fondo = Lm−53, trasera = Lm−72. `altF` = altezza fronte.
+ * Fisse: trasera 59 (cassetto basso, fronte ≤155) o 155 (alto). `altF` = altezza fronte.
+ * LARGHEZZA: modulo esterno − i valori segnati nei Parametri (fondo 53, trasera 72,
+ * gli stessi della cucina) − quello che la cassettiera occupa in più rispetto ai
+ * fianchi di un mobile da cucina (fascette + fianchi della cassettiera).
+ * Si calcola dallo spazio fra i fianchi della cassettiera (`interno`):
+ * fondo = interno − (53 − 2 × 18), trasera = interno − (72 − 2 × 18).
+ * Es. battente, modulo 500: interno 348 → fondo 331 (= 500 − 169), trasera 312 (= 500 − 188).
  */
 function _cassettoMelArmadio(pezzi, nomeModulo, Lm, altF, guida, N, cassettiera = null, interno = null) {
   // CASSETTO FATTO DA NOI (scelto nella cassettiera): scatola tagliata da noi nello spazio della cassettiera
@@ -323,11 +328,16 @@ function _cassettoMelArmadio(pezzi, nomeModulo, Lm, altF, guida, N, cassettiera 
     return;
   }
   const grande = altF > 155;
+  // sistema a guide comprate: quello della cassettiera, se è a sistema, altrimenti il primo a sistema dei Parametri
+  const sisC = sis && sis.tipo !== 'nostro' ? sis : (sistemiCassetti().find((x) => x.tipo !== 'nostro') || parametri().cassetti);
+  const fm2 = 2 * (sisC.fianchiMobile ?? 18);                      // i 2 fianchi del mobile da cucina, già dentro 53 e 72
+  const larFondo = interno != null ? interno - (sisC.fondoMeno - fm2) : Lm - sisC.fondoMeno;
+  const larTrasera = interno != null ? interno - (sisC.traseraMeno - fm2) : Lm - sisC.traseraMeno;
   pezzi.push({ modulo: nomeModulo, nome: 'Cassetto · fondo',
-    larghezza: Math.round(Lm - 53), altezza: Math.round(guida - 20),
+    larghezza: Math.round(larFondo), altezza: Math.round(guida - 20),
     spessore: SP_MEL_ARM, materiale: 'melaminico', quantita: N });
   pezzi.push({ modulo: nomeModulo, nome: `Cassetto · trasera ${grande ? 'grande' : 'ridotta'}`,
-    larghezza: Math.round(Lm - 72), altezza: grande ? 155 : 59,
+    larghezza: Math.round(larTrasera), altezza: grande ? 155 : 59,
     spessore: SP_MEL_ARM, materiale: 'melaminico', quantita: N });
 }
 
