@@ -10,8 +10,8 @@ import {
   calcolaVertici, bboxPerimetro,
   moduliDiParete, nomeTipo, PROFONDITA_BASE, PROFONDITA_PENSILE, angoloInterno,
   profonditaTipo, categoriaTipo, descrizioneMobile,
-  dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili, spaziDiChiusura, angoloInternoVertice, rettangoloSoffitto,
-} from './modello.js?v=20261124s';
+  dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili, angoloInternoVertice, rettangoloSoffitto,
+} from './modello.js?v=20261124r';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -268,7 +268,7 @@ export function renderPianta(svg, progetto, opts = {}) {
 
     // Etichette sugli SPAZI VUOTI tra i mobili (es. 3 cm all'angolo)
     const gGap = el('g', { class: 'sv-gap-badges' });
-    [...spaziTraMobili(progetto), ...spaziDiChiusura(progetto)].forEach((sp) => {
+    spaziTraMobili(progetto).forEach((sp) => {
       const rad = (sp.rot || 0) * Math.PI / 180;
       const fx = Math.sin(rad), fy = -Math.cos(rad);   // direzione fronte (verso stanza)
       const off = 400;
