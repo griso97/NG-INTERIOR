@@ -9,10 +9,10 @@
 //   htmlMontaggio(v, opz)            → HTML (v = valori, vedi valoriDaParametri / valoriDaArmadio)
 //   agganciaMontaggio(root, leggi, scrivi, opz)  → collega tocchi e numeri: scrivi(patch) salva
 // =============================================================================
-import { svgStruttura, svgSchiena } from './disegni-montaggio.js?v=20261124q';
-import { calcolaDistintaCompleta } from './calcoli.js?v=20261124q';
-import { parametri, salvaParametri } from './parametri.js?v=20261124q';
-import { binariScorrevoli } from './parametri.js?v=20261124q';
+import { svgStruttura, svgSchiena, svgAnteInterne } from './disegni-montaggio.js?v=20261124r';
+import { calcolaDistintaCompleta } from './calcoli.js?v=20261124r';
+import { parametri, salvaParametri } from './parametri.js?v=20261124r';
+import { binariScorrevoli } from './parametri.js?v=20261124r';
 
 const t = (s) => (typeof window !== 'undefined' && window.NGI18N ? window.NGI18N.t(s) : s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -34,6 +34,8 @@ function stile() {
   .mont-numeri{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 0}
   .mont-numeri label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:#b8ad97;min-width:150px}
   .mont-numeri input{width:110px;padding:8px 10px;border-radius:8px;border:1px solid #4a4030;background:#0d0a06;color:#fff;font:16px var(--font-ui,sans-serif)}
+  .mont-fig{display:flex;justify-content:center;margin-top:12px;padding:10px;border-radius:10px;background:#110e0a;border:1px solid #2a2416}
+  .mont-fig svg{max-width:100%;height:auto}
   .mont-esempio{margin-top:10px;padding:10px 12px;border:1px dashed #6a5a36;border-radius:8px;color:#e6dcc6;font-size:13px;line-height:1.45;background:rgba(232,194,90,.05)}
   .mont-esempio b{color:#e8c25a}`;
   document.head.appendChild(st);
@@ -146,7 +148,7 @@ export function htmlMontaggio(v, opz = {}) {
   </div>${o.numeriAnte && v.ante === 'interne' ? `<div class="mont-numeri">
     ${numero('aria', "Aria attorno all'anta (mm)", v.aria)}
     ${numero('spazioRipiano', 'Spazio fra anta e ripiano (mm)', v.spazioRipiano)}
-  </div>` : ''}</div>`;
+  </div><div class="mont-fig">${svgAnteInterne({ aria: v.aria, spazioRipiano: v.spazioRipiano })}</div>` : ''}</div>`;
   if (o.esempio) h += `<div data-mont-esempio>${htmlEsempio(v)}</div>`;
   return h;
 }

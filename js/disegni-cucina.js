@@ -4,6 +4,7 @@
 //   svgGola(spazio)                → visto DI LATO: piano, profilo L, cassetti, profilo C, spazio per le dita
 //   svgRegletta(vista, spessore)   → visto DA SOPRA: l'angolo di una cucina a L con i due pezzi della regletta
 // =============================================================================
+import { svgAnteInterne } from './disegni-montaggio.js?v=20261124r';
 const t = (s) => (typeof window !== 'undefined' && window.NGI18N ? window.NGI18N.t(s) : s);
 const C = { piano: '#2a2a2c', fianco: '#8d939b', anta: '#e8dcc0', profilo: '#4b4f55', testo: '#e6dcc6', dim: '#e8c25a', muro: '#5a5246', reg: '#e8c25a', cieco: '#cdbf9f' };
 const txt = (x, y, s, opz = '') => `<text x="${x}" y="${y}" ${/fill=/.test(opz) ? '' : `fill="${C.testo}"`} ${/font-size=/.test(opz) ? '' : 'font-size="10"'} font-family="sans-serif" ${opz}>${s}</text>`;
@@ -219,5 +220,6 @@ export function svgParametro(nome, P) {
   if (nome === 'binario') return svgBinario(P.binari[0] || {});
   if (nome === 'gola') return svgGola(P.gola.spazio);
   if (nome === 'regletta') return svgRegletta(P.regletta.vista, P.regletta.spessoreAnta);
+  if (nome === 'anteInterne') return svgAnteInterne(P.anteInterne);
   return '';
 }
