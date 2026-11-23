@@ -14,9 +14,9 @@
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi,
-  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125c';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261125c';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125c';
+  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125d';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261125d';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125d';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -230,16 +230,16 @@ function pezziDiModulo(progetto, m) {
     if (m.tipo === 'pensile-angolo' || m.tipo === 'pensile-angolo-45') {
       const aw = m.tipo === 'pensile-angolo-45' ? round(L * 0.5) : round(L - PROFONDITA_PENSILE);   // 63 − 33 = 30
       // con l'anta sporgente (70 → 72, 90 → 92 o personalizzata) anche qui l'anta scende, come nel 3D
-      const scA = scendeAntaPensile(progetto, H), cb = parametri().cucina.cerniera;
+      const scA = scendeAntaPensile(progetto, H), K = parametri().cucina;
       pz.push({ modulo: mod, nome: scA ? 'Anta sporgente' : 'Anta', larghezza: Math.max(100, aw), altezza: scA ? round(H + scA) : round(H - aH - rJ), spessore: SP, materiale: 'anta', quantita: m.tipo === 'pensile-angolo-45' ? 1 : 2,
-        cerniere: notaCerniere(cb, cb + (scA || 0), null) });
+        cerniere: notaCerniere(K.cernieraSopra, K.cernieraSotto + (scA || 0), null) });
     } else {
       // Pensile: con l'anta sporgente la porta è H + quanto scende (70 → 72, 90 → 92, o personalizzata), altrimenti H − 2.
       const sporg = scendeAntaPensile(progetto, H);
       if (apertoDi(m)) mobileAperto(pz, mod, progetto, m);          // APERTO: niente ante
       else {
-        const cb = parametri().cucina.cerniera;
-        anteModulo(pz, mod, L, H, anteDiMobile(m), m.antaLato, sporg ? H + sporg : null, sporg, m.vetrina, rJ, '', { sopra: cb, sotto: cb + (sporg || 0) });
+        const K = parametri().cucina;
+        anteModulo(pz, mod, L, H, anteDiMobile(m), m.antaLato, sporg ? H + sporg : null, sporg, m.vetrina, rJ, '', { sopra: K.cernieraSopra, sotto: K.cernieraSotto + (sporg || 0) });
       }
     }
   } else if (cat === 'colonna') {
