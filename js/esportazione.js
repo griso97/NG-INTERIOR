@@ -37,7 +37,7 @@ function csvEscape(v) {
   return s;
 }
 
-import { trovaMateriale } from './materiali.js?v=20261124w';
+import { trovaMateriale } from './materiali.js?v=20261124x';
 const T = (s) => (typeof s === 'string' && window.NGI18N ? window.NGI18N.t(s) : s);   // lingua (i18n.js)
 
 export function nomeMaterialeCsv(pezzo, config) {

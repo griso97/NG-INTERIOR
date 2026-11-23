@@ -4,7 +4,7 @@
 //   svgGola(spazio)                → visto DI LATO: piano, profilo L, cassetti, profilo C, spazio per le dita
 //   svgRegletta(vista, spessore)   → visto DA SOPRA: l'angolo di una cucina a L con i due pezzi della regletta
 // =============================================================================
-import { svgAnteInterne } from './disegni-montaggio.js?v=20261124w';
+import { svgAnteInterne } from './disegni-montaggio.js?v=20261124x';
 const t = (s) => (typeof window !== 'undefined' && window.NGI18N ? window.NGI18N.t(s) : s);
 const C = { piano: '#2a2a2c', fianco: '#8d939b', anta: '#e8dcc0', profilo: '#4b4f55', testo: '#e6dcc6', dim: '#e8c25a', muro: '#5a5246', reg: '#e8c25a', cieco: '#cdbf9f' };
 const txt = (x, y, s, opz = '') => `<text x="${x}" y="${y}" ${/fill=/.test(opz) ? '' : `fill="${C.testo}"`} ${/font-size=/.test(opz) ? '' : 'font-size="10"'} font-family="sans-serif" ${opz}>${s}</text>`;
@@ -250,8 +250,10 @@ export function svgModificaColonnaGola({ chiaro = false } = {}) {
     out.push(T(ox + 175, 20, t('Gola centrale fra due colonne'), 'text-anchor="middle" font-size="13" font-weight="bold"'));
     out.push(fiancoCorto(xL), fiancoCorto(xR));
     // profilo: inserto fra i fianchi (16 mm), piatto davanti ai fianchi accorciati, labbri di 5 mm
+    // il profilo riempie i 12 mm tolti: davanti arriva dove finiva il fianco, lì si appoggia l'anta
     out.push(R(xG, yC - 16 * k, 30 * k, 16 * k, P.profilo), R(xL - 0.3 * k, yC, (18.3 * 2 + 30) * k, 3, P.profilo),
-      R(xL - 0.3 * k, yC, 3, 5 * k, P.profilo), R(xR2 + 0.3 * k - 3, yC, 3, 5 * k, P.profilo));
+      R(xL - 0.3 * k, yC, 3, 12 * k, P.profilo), R(xR2 + 0.3 * k - 3, yC, 3, 12 * k, P.profilo),
+      R(xL - 0.3 * k, yF - 3, 5 * k, 3, P.profilo), R(xR2 + 0.3 * k - 5 * k, yF - 3, 5 * k, 3, P.profilo));
     out.push(vite(xL - 14, xG + 10, yC - 8 * k), vite(xR2 + 14, xR - 10, yC - 8 * k));
     // ante (larghe come la colonna: finiscono sul fianco esterno)
     out.push(R(ox, yF, xG - ox, 18 * k, P.anta), R(xR, yF, 340 + ox - xR, 18 * k, P.anta));
@@ -260,9 +262,9 @@ export function svgModificaColonnaGola({ chiaro = false } = {}) {
     out.push(T(xL + 18, yR + 62, t('fianco'), `text-anchor="middle" fill="#14110d" font-size="9" transform="rotate(-90 ${xL + 18} ${yR + 62})"`),
       T(xR + 18, yR + 62, t('fianco'), `text-anchor="middle" fill="#14110d" font-size="9" transform="rotate(-90 ${xR + 18} ${yR + 62})"`));
     out.push(quota(xG, xR, yR + 14, '30 mm'));
-    out.push(quotaV(xL - 10, yC, yF, '12 mm', -6), quotaV(xR2 + 10, yC, yF, '12 mm'));
+    out.push(quotaV(xL - 10, yC, yF, '−12 mm', -6), quotaV(xR2 + 10, yC, yF, '−12 mm'));
     out.push(quota(xL, xR2, yA + 22, t('66,6 mm (fianchi 18) · 62,6 mm (fianchi 16)')));
-    out.push(T(ox + 175, yA + 44, t('Accorciare di 12 mm tutti e due i fianchi'), `text-anchor="middle" fill="${P.tolto}" font-size="11"`));
+    out.push(T(ox + 175, yA + 44, t('Accorciare di 12 mm tutti e due i fianchi (es. 580 → 568 mm)'), `text-anchor="middle" fill="${P.tolto}" font-size="11"`));
     out.push(T(ox + 175, yA + 60, t('Il profilo si avvita ai due fianchi'), `text-anchor="middle" fill="${P.tenue}" font-size="10"`));
   }
   // ---------------- 2) LATERALE: costado | 30 | colonna ----------------
@@ -275,17 +277,18 @@ export function svgModificaColonnaGola({ chiaro = false } = {}) {
     out.push(fiancoCorto(xR));
     // profilo: appoggiato al costado, copre il fianco accorciato della colonna
     out.push(R(xG, yC - 16 * k, 30 * k, 16 * k, P.profilo), R(xG, yC, (30 + 18.3) * k, 3, P.profilo),
-      R(xG, yC - 16 * k, 3, (16 + 5) * k, P.profilo), R(xR2 + 0.3 * k - 3, yC, 3, 5 * k, P.profilo));
+      R(xG, yC - 16 * k, 3, (16 + 12) * k, P.profilo), R(xR2 + 0.3 * k - 3, yC, 3, 12 * k, P.profilo),
+      R(xR2 + 0.3 * k - 5 * k, yF - 3, 5 * k, 3, P.profilo));
     out.push(vite(xC + 4, xG + 12, yC - 8 * k), vite(xR2 + 14, xR - 10, yC - 8 * k));
     out.push(R(xR, yF, 340 + ox - xR, 18 * k, P.anta), T(340 + ox - 60, yF + 22, t('anta'), `fill="#14110d" font-size="10"`));
     out.push(T(xR2 + 6, yR + 50, t('colonna')));
     out.push(T(xR + 18, yR + 62, t('fianco'), `text-anchor="middle" fill="#14110d" font-size="9" transform="rotate(-90 ${xR + 18} ${yR + 62})"`));
     out.push(quota(xG, xR, yR + 14, '30 mm'));
-    out.push(quotaV(xR2 + 10, yC, yF, '12 mm'));
+    out.push(quotaV(xR2 + 10, yC, yF, '−12 mm'));
     out.push(quota(xG, xR2, yA + 22, t('48,3 mm (fianchi 18) · 46,3 mm (fianchi 16)')));
-    out.push(T(ox + 175, yA + 44, t('Accorciare di 12 mm il fianco della colonna'), `text-anchor="middle" fill="${P.tolto}" font-size="11"`));
+    out.push(T(ox + 175, yA + 44, t('Accorciare di 12 mm il fianco della colonna (es. 580 → 568 mm)'), `text-anchor="middle" fill="${P.tolto}" font-size="11"`));
     out.push(T(ox + 175, yA + 60, t('Uguale fra due colonne aperte dallo stesso lato: la colonna con le cerniere resta intera'), `text-anchor="middle" fill="${P.tenue}" font-size="10"`));
   }
-  out.push(T(390, 320, t('vista da sopra · ingrandita · la parte tratteggiata in rosso va tolta'), `text-anchor="middle" fill="${P.tenue}" font-size="10"`));
+  out.push(T(390, 320, t("vista da sopra · ingrandita · la parte tratteggiata in rosso va tolta · l'anta resta dove è sempre e si appoggia al profilo"), `text-anchor="middle" fill="${P.tenue}" font-size="10"`));
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 330" width="780" height="330" role="img" aria-label="${t('Modifica della colonna per la gola')}">${out.join('')}</svg>`;
 }
