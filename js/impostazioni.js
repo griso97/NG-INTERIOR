@@ -8,21 +8,21 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261125f';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261125f';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261125f';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261125f';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261125f';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261125f';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261125f';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261125f';
-import { agganciaTema } from './tema.js?v=20261125f';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261125f';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro } from './parametri.js?v=20261125f';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261125f';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261125f';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261125f';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261125f';
+} from './catalogo.js?v=20261125g';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261125g';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261125g';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261125g';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261125g';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261125g';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261125g';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261125g';
+import { agganciaTema } from './tema.js?v=20261125g';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261125g';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro } from './parametri.js?v=20261125g';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261125g';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261125g';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261125g';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261125g';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1074,34 +1074,34 @@ function renderParametri(S) {
     return `
     <div class="par-gruppo">
       <h3>Sistemi di cassetti</h3>
-      <p class="imp-desc">Una voce per ogni sistema di cassetti che usi: comprati (Syskor, Blum, Novatec…) o fatti da noi, ognuno con le sue misure. In cucina scegli il sistema della cucina e, se vuoi, uno diverso per ogni cassettiera; negli armadi lo scegli in ogni cassettiera.</p>
+      <p class="imp-desc">Una voce per ogni sistema di cassetti: a sistema (Syskor, Blum, Novatec…) oppure su misura, costruiti in laboratorio, ciascuno con le proprie misure. In cucina si sceglie per tutta la cucina o per la singola cassettiera; negli armadi in ogni cassettiera. Di partenza si usa il cassetto a sistema.</p>
       ${barraSistemi('cass', listaCass.map((c) => c.marca), _selCass)}
       <div class="par-scelte" style="margin-bottom:12px">
-        ${scelta2('cass-tipo', 'comprato', !nostro, 'Guide comprate', 'la scatola del cassetto arriva già fatta: in distinta fondo e trasera')}
-        ${scelta2('cass-tipo', 'nostro', nostro, 'Cassetto fatto da noi', 'la scatola la tagliamo noi: fianchi, dietro, fondo')}
+        ${scelta2('cass-tipo', 'comprato', !nostro, 'Cassetto a sistema', 'guide e fianchi del produttore; in distinta fondo e trasera')}
+        ${scelta2('cass-tipo', 'nostro', nostro, 'Cassetto su misura', 'scatola costruita in laboratorio; in distinta fianchi, trasera, davanti interno e fondo')}
       </div>
       <div class="par-griglia">
-        ${campo(`${pc}.marca`, nostro ? 'Nome' : 'Marca', '', { testo: true, ph: nostro ? 'es. Su misura legno' : 'es. Syscore' })}
-        ${campo(`${pc}.profondita`, nostro ? 'Guide: lunghezza (cucina)' : 'Profondità del cassetto (guide)', nostro ? 'negli armadi la guida si sceglie in ogni cassettiera (500, 400, 350)' : '')}
+        ${campo(`${pc}.marca`, nostro ? 'Nome' : 'Marca', '', { testo: true, ph: nostro ? 'es. Cassetto legno 16' : 'es. Syscore' })}
+        ${campo(`${pc}.profondita`, nostro ? 'Lunghezza guide (cucina)' : 'Profondità del cassetto (guide)', nostro ? 'negli armadi si sceglie in ogni cassettiera (500, 400, 350)' : '')}
       </div>
       ${nostro ? `
       <h4 style="margin:14px 0 6px">Montaggio</h4>
       <div class="par-scelte">
-        ${scelta2('cass-mont', '4lati', C.montaggio !== '3lati', '4 lati + frontale', '2 fianchi, davanti e dietro; il frontale si avvita sopra')}
-        ${scelta2('cass-mont', '3lati', C.montaggio === '3lati', '3 lati, il frontale fa da davanti', '2 fianchi e dietro; i fianchi si avvitano al frontale')}
+        ${scelta2('cass-mont', '4lati', C.montaggio !== '3lati', 'Scatola a 4 lati + frontale', 'fianchi, davanti interno e trasera; il frontale si fissa sul davanti')}
+        ${scelta2('cass-mont', '3lati', C.montaggio === '3lati', 'Scatola a 3 lati', 'fianchi e trasera; il frontale fa da davanti')}
       </div>
       <div class="par-griglia" style="margin-top:10px">
-        ${campo(`${pc}.spazioGuide`, 'Spazio per le guide (per lato)', 'tolto alla larghezza, a destra e a sinistra')}
-        ${campo(`${pc}.spessoreScatola`, 'Fianchi, dietro e davanti: spessore')}
-        ${campo(`${pc}.dietroMeno`, 'Dietro più basso dei fianchi di', '0 = alto come i fianchi')}
-        ${campo(`${pc}.fondoSpessore`, 'Fondo: spessore')}
-        ${campo(`${pc}.fondoCanale`, 'Fondo: in canale (per lato)', '0 = fondo avvitato sotto')}
-        ${campo(`${pc}.fianchiMobile`, 'Cucina: fianchi del mobile', 'lo spazio dentro il mobile = modulo − 2 × questo numero (negli armadi lo calcola la cassettiera)')}
+        ${campo(`${pc}.spazioGuide`, 'Gioco per le guide (per lato)', 'da togliere alla larghezza su ciascun lato')}
+        ${campo(`${pc}.spessoreScatola`, 'Spessore fianchi, trasera e davanti')}
+        ${campo(`${pc}.dietroMeno`, 'Trasera più bassa dei fianchi', '0 = stessa altezza dei fianchi')}
+        ${campo(`${pc}.fondoSpessore`, 'Spessore del fondo')}
+        ${campo(`${pc}.fondoCanale`, 'Fondo in canale: profondità per lato', '0 = fondo avvitato sotto')}
+        ${campo(`${pc}.fianchiMobile`, 'Cucina: spessore fianchi del mobile', 'spazio interno = larghezza modulo − 2 × spessore (negli armadi lo calcola la cassettiera)')}
       </div>
       <h4 style="margin:14px 0 6px">Altezza dei fianchi</h4>
       <div class="par-scelte">
-        ${scelta2('cass-alt', 'frontale', C.altezzaModo !== 'tipo', 'Segue il frontale', 'fianco = frontale meno un numero fisso')}
-        ${scelta2('cass-alt', 'tipo', C.altezzaModo === 'tipo', 'Fissa per tipo di cassetto', 'piccolo, medio e grande, qualunque sia il frontale')}
+        ${scelta2('cass-alt', 'frontale', C.altezzaModo !== 'tipo', 'In base al frontale', 'fianchi = altezza del frontale − valore indicato')}
+        ${scelta2('cass-alt', 'tipo', C.altezzaModo === 'tipo', 'Fissa per tipo di cassetto', 'piccolo, medio e grande, indipendente dal frontale')}
       </div>
       ${C.altezzaModo === 'tipo' ? `
       <table class="par-tab" style="margin-top:10px">
@@ -1112,10 +1112,10 @@ function renderParametri(S) {
           <tr><th>Cassetto grande</th><td class="par-piu">più alti del medio</td><td>${campo(`${pc}.altezzaGrande`, '')}</td></tr>
         </tbody>
       </table>` : `
-      <div class="par-griglia" style="margin-top:10px">${campo(`${pc}.altezzaMeno`, 'Fianchi più bassi del frontale di', 'es. frontale 230 − 40 = fianchi alti 190')}</div>`}
+      <div class="par-griglia" style="margin-top:10px">${campo(`${pc}.altezzaMeno`, 'Differenza tra frontale e fianchi', 'es. frontale 230 − 40 = fianchi 190')}</div>`}
       <div class="par-griglia" style="margin-top:10px">
-        ${campo(`${pc}.materialeScatola`, 'Materiale della scatola', 'scritto in distinta', { testo: true })}
-        ${campo(`${pc}.materialeFondo`, 'Materiale del fondo', 'scritto in distinta', { testo: true })}
+        ${campo(`${pc}.materialeScatola`, 'Materiale scatola', 'riportato in distinta', { testo: true })}
+        ${campo(`${pc}.materialeFondo`, 'Materiale fondo', 'riportato in distinta', { testo: true })}
       </div>` : `
       <div class="par-griglia">
         ${campo(`${pc}.spessore`, 'Spessore di fondo e trasera')}
@@ -1133,7 +1133,7 @@ function renderParametri(S) {
       </table>
       <p class="imp-desc">Il cassetto grande: lascialo vuoto finché non ti serve. Quando lo usi, scrivi anche fino a che altezza di frontale arriva il medio: i frontali più alti diventano grandi.</p>`}
       ${azioniSistema('cass', _selCass)}
-      <div class="par-esempio" data-es-cass data-no-i18n></div>
+      <div class="par-esempio" data-es-cass data-no-i18n style="white-space:pre-line"></div>
       ${nostro ? '' : fig('cassetti', 'Schema: cassetto visto da sopra')}
     </div>`;
   };
@@ -1314,7 +1314,7 @@ function renderParametri(S) {
     el.querySelectorAll('[data-fig]').forEach((d) => { d.innerHTML = svgParametro(d.dataset.fig, Q); });
     el.querySelectorAll('[data-fig-bin]').forEach((d) => { const b = Q.binari[Number(d.dataset.figBin)]; if (b) d.innerHTML = svgBinario(b, Q.tiradori[0]); });
     const esCass = c.tipo === 'nostro'
-      ? (() => { const P2 = pezziCassettoNostro(c, 600 - 2 * c.fianchiMobile, 230, c.profondita, 3); return tr(`Esempio: cucina, cassettiera da 60 con 3 frontali da 230 → `) + P2.map((x) => `${tr(x.nome)} ${f(x.larghezza)} × ${f(x.altezza)} ×${x.quantita}`).join(' · '); })()
+      ? (() => { const P2 = pezziCassettoNostro(c, 600 - 2 * c.fianchiMobile, 230, c.profondita, 3); return tr('Esempio (cucina, cassettiera da 60 con 3 frontali da 230):') + '\n' + P2.map((x) => { const n = tr(x.nome).split(' · ').pop(); return `${n.charAt(0).toUpperCase()}${n.slice(1)}: ${f(x.larghezza)} × ${f(x.altezza)} × ${f(x.spessore)} mm, ${x.quantita} ${tr('pz')}`; }).join('\n'); })()
       : tr(`Esempio: modulo da 60 → fondo ${f(600 - c.fondoMeno)} × ${f(c.fondoProfondita)} mm · trasera ${tipi.map(([h, n]) => `${tL} × ${f(h)} ${n}`).join(', ')}`);
     el.querySelectorAll('[data-es-cass]').forEach((d) => { d.textContent = esCass; });
   };

@@ -14,9 +14,9 @@
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi,
-  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125f';
-import { parametri, tipoCassetto, pezziCassettoNostro } from '../parametri.js?v=20261125f';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125f';
+  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125g';
+import { parametri, tipoCassetto, pezziCassettoNostro } from '../parametri.js?v=20261125g';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125g';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -562,7 +562,7 @@ export function calcolaDistintaCucina(progetto) {
   for (const p of raw) {
     if (!p.nome.startsWith('Fronte cassetto')) continue;
     const c = cassettiDelMobile(progetto, perId.get(p.moduloId));       // il sistema di QUESTA cassettiera
-    if (c.tipo === 'nostro') { aggiungi(`Guide cassetto ${c.profondita} mm (coppia)${c.marca ? ' · ' + c.marca : ''}`, p.quantita); continue; }
+    if (c.tipo === 'nostro') { aggiungi(`Guide per cassetto ${c.profondita} mm (coppia)${c.marca ? ' · ' + c.marca : ''}`, p.quantita); continue; }
     aggiungi(`Cassetti${c.marca ? ' ' + c.marca : ''} profondità ${c.profondita / 10} cm · ${tipoCassetto(p.altezza, parametri(), c).tipo}`, p.quantita);
   }
   // MANIGLIE: una per porta e per frontale, dove non c'è il finger-pull

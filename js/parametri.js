@@ -289,6 +289,8 @@ export function binarioScorrevole(id, p = parametri()) {
 /** Tutti i sistemi di cassetti (il primo è quello di partenza). */
 export function sistemiCassetti(p = parametri()) { return [p.cassetti, ...p.cassettiAltri]; }
 /** Il sistema di cassetti scelto (per id); se non c'è più, quello di partenza. */
+/** Nome nelle tendine: «Syskor (a sistema)», «Cassetto legno 16 (su misura)». */
+export function nomeSistemaCassetti(c) { return `${(c && c.marca) || '—'} (${c && c.tipo === 'nostro' ? 'su misura' : 'a sistema'})`; }
 export function cassettiDi(id, p = parametri()) { return sistemiCassetti(p).find((c) => c.id === id) || p.cassetti; }
 /** Tutte le gole (la prima è quella di partenza). */
 export function sistemiGola(p = parametri()) { return [p.gola, ...p.goleAltre]; }
@@ -317,13 +319,13 @@ export function pezziCassettoNostro(sis, interno, hF, guida, N) {
   const hFi = Math.max(20, sis.altezzaModo === 'tipo' ? (t === 'piccolo' ? sis.altezzaPiccolo : t === 'grande' ? sis.altezzaGrande : sis.altezzaMedio) : hF - sis.altezzaMeno);
   const c = sis.fondoCanale, quattro = sis.montaggio !== '3lati', R = (x) => Math.round(x);
   const out = [
-    { nome: 'Cassetto · fianco', larghezza: R(guida), altezza: R(hFi), spessore: sp, quantita: 2 * N, materialeNome: sis.materialeScatola },
-    { nome: 'Cassetto · dietro', larghezza: R(Wi), altezza: R(hFi - sis.dietroMeno), spessore: sp, quantita: N, materialeNome: sis.materialeScatola },
+    { nome: 'Cassetto su misura · fianco', larghezza: R(guida), altezza: R(hFi), spessore: sp, quantita: 2 * N, materialeNome: sis.materialeScatola },
+    { nome: 'Cassetto su misura · trasera', larghezza: R(Wi), altezza: R(hFi - sis.dietroMeno), spessore: sp, quantita: N, materialeNome: sis.materialeScatola },
   ];
-  if (quattro) out.push({ nome: 'Cassetto · davanti', larghezza: R(Wi), altezza: R(hFi), spessore: sp, quantita: N, materialeNome: sis.materialeScatola });
+  if (quattro) out.push({ nome: 'Cassetto su misura · davanti interno', larghezza: R(Wi), altezza: R(hFi), spessore: sp, quantita: N, materialeNome: sis.materialeScatola });
   out.push(c > 0
-    ? { nome: 'Cassetto · fondo (in canale)', larghezza: R(Wi + 2 * c), altezza: R(quattro ? guida - 2 * sp + 2 * c : guida - sp + c), spessore: sis.fondoSpessore, quantita: N, materialeNome: sis.materialeFondo }
-    : { nome: 'Cassetto · fondo (avvitato sotto)', larghezza: R(W), altezza: R(guida), spessore: sis.fondoSpessore, quantita: N, materialeNome: sis.materialeFondo });
+    ? { nome: 'Cassetto su misura · fondo (in canale)', larghezza: R(Wi + 2 * c), altezza: R(quattro ? guida - 2 * sp + 2 * c : guida - sp + c), spessore: sis.fondoSpessore, quantita: N, materialeNome: sis.materialeFondo }
+    : { nome: 'Cassetto su misura · fondo (avvitato sotto)', larghezza: R(W), altezza: R(guida), spessore: sis.fondoSpessore, quantita: N, materialeNome: sis.materialeFondo });
   return out;
 }
 

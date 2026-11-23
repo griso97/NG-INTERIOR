@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261125f';
-import { htmlTendineColori } from './tendine-colori.js?v=20261125f';
-import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261125f';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261125f';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti } from './parametri.js?v=20261125f';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261125g';
+import { htmlTendineColori } from './tendine-colori.js?v=20261125g';
+import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261125g';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261125g';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti } from './parametri.js?v=20261125g';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -743,11 +743,11 @@ function renderCassettiere(config) {
         </label>
         <label>Cassetti
           <select class="c-sistema">
-            <option value="" ${!c.sistemaCassetti ? 'selected' : ''}>Comprati (come adesso)</option>
-            ${sistemiCassetti().filter((x) => x.tipo === 'nostro').map((x) => `<option value="${escAttr(x.id)}" ${c.sistemaCassetti === x.id ? 'selected' : ''}>${escAttr(x.marca || '—')} · fatti da noi</option>`).join('')}
+            <option value="" ${!c.sistemaCassetti ? 'selected' : ''}>Cassetti a sistema (predefinito)</option>
+            ${sistemiCassetti().filter((x) => x.tipo === 'nostro').map((x) => `<option value="${escAttr(x.id)}" ${c.sistemaCassetti === x.id ? 'selected' : ''}>${escAttr(nomeSistemaCassetti(x))}</option>`).join('')}
           </select>
         </label>
-        ${sistemiCassetti().some((x) => x.tipo === 'nostro') ? '' : '<p class="hint">I cassetti fatti da noi si creano in <a href="impostazioni.html#parametri">⚙ Impostazioni → Parametri</a> → Sistemi di cassetti.</p>'}
+        ${sistemiCassetti().some((x) => x.tipo === 'nostro') ? '' : '<p class="hint">I cassetti su misura si configurano in <a href="impostazioni.html#parametri">Impostazioni → Parametri</a> → Sistemi di cassetti.</p>'}
         ${scorrevole ? `
         <label class="chk">
           <input type="checkbox" class="c-man-on" ${man.attiva ? 'checked' : ''} />
