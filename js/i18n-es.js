@@ -321,6 +321,8 @@ window.NG_I18N_ES = {
  "Avanti →": "Siguiente →",
  "Anta interna (×{0})": "Puerta interior (×{0})",
  "Anta interna": "Puerta interior",
+ "Schema: il piano visto di lato": "Esquema: la encimera vista de lado",
+ "Sui lati il piano finisce a filo dell'ultimo mobile.": "En los lados la encimera termina enrasada con el último mueble.",
  "Profondità del piano": "Fondo de la encimera",
  "Profondità dal muro (mm)": "Fondo desde la pared (mm)",
  "Il piano si appoggia al muro come i mobili: con {0} mm esce {1} mm davanti alle ante (mobili da 600). Sui lati finisce a filo; dove c'è un costado, a filo del costado.": "La encimera se apoya en la pared como los muebles: con {0} mm sale {1} mm delante de las puertas (muebles de 600). En los lados termina enrasada; donde hay un costado, enrasada con el costado.",

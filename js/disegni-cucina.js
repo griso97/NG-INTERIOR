@@ -177,8 +177,8 @@ export function svgBinario(b = {}) {
 }
 
 /**
- * PIANO DI LAVORO: di lato (profondità dal muro, quanto esce davanti alle ante, alzatina) e da sopra
- * (sui lati a filo dei mobili). k = { profonditaPiano, alzatina, altezzaAlzatina }.
+ * PIANO DI LAVORO visto di lato: profondità dal muro, quanto esce davanti alle ante, alzatina; sui lati a
+ * filo dell'ultimo mobile (scritto sotto). k = { profonditaPiano, alzatina, altezzaAlzatina }.
  */
 export function svgPianoLavoro(k = {}) {
   const prof = Number(k.profonditaPiano) || 625, dav = prof - 600, alz = !!k.alzatina, hA = Number(k.altezzaAlzatina) || 0;
@@ -203,15 +203,9 @@ export function svgPianoLavoro(k = {}) {
   const xF = xA + wA;
   p.push(riga(xF, yP + sp + 6, xP, yP + sp + 6));
   p.push(txt(xP + 4, yP + sp + 9, `${f(dav)} mm ${t('davanti alle ante')}`, `fill="${C.dim}" font-size="9"`));
-  p.push(txt(95, 236, t('vista di lato'), 'text-anchor="middle" fill="#b8ad97" font-size="9"'));
-  // --- da sopra: fila contro il muro, lato libero a destra: il piano finisce a filo ---
-  const x0 = 262, y0 = 70, W = 96, D = 60, dPx = 4;
-  p.push(`<rect x="${x0 - 8}" y="${y0 - 8}" width="8" height="${D + 34}" fill="${C.muro}"/>`, `<rect x="${x0 - 8}" y="${y0 - 8}" width="${W + 40}" height="8" fill="${C.muro}"/>`);
-  p.push(rect(x0, y0, W, D + dPx, C.piano, 'opacity=".9"'), rect(x0, y0, W, D, C.fianco, 'opacity=".55"'));
-  p.push(txt(x0 + W / 2, y0 + D / 2, t('mobili'), 'text-anchor="middle" fill="#14110d" font-size="9.5"'));
-  p.push(txt(x0 + W + 6, y0 + D / 2 + 3, t('lato: a filo'), `fill="${C.dim}" font-size="9.5"`));
-  p.push(txt(x0 + W / 2 + 10, 236, t('vista da sopra'), 'text-anchor="middle" fill="#b8ad97" font-size="9"'));
-  return `<svg viewBox="0 0 410 244" width="410" height="244" role="img" aria-label="${t('Piano di lavoro: profondità e alzatina')}">${p.join('')}</svg>`;
+  p.push(txt(130, 232, t('vista di lato'), 'text-anchor="middle" fill="#b8ad97" font-size="9"'));
+  p.push(txt(130, 250, t("Sui lati il piano finisce a filo dell'ultimo mobile."), `text-anchor="middle" fill="${C.dim}" font-size="9.5"`));
+  return `<svg viewBox="0 0 290 258" width="290" height="258" role="img" aria-label="${t('Piano di lavoro: profondità e alzatina')}">${p.join('')}</svg>`;
 }
 
 /** Lo schema giusto per un gruppo dei ⚙ Parametri, con i numeri di adesso (P = parametri()). */

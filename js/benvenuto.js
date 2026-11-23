@@ -9,9 +9,9 @@
 // («lo imposto dopo»): restano a 0, la distinta avvisa che mancano e alla fine c'è il promemoria.
 // Alla fine: 'ng-configurato' = 1 e si va al programma.
 // =============================================================================
-import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124n';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124n';
-import { svgGola, svgRegletta, svgParametro } from './disegni-cucina.js?v=20261124n';
+import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261124o';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124o';
+import { svgGola, svgRegletta, svgParametro } from './disegni-cucina.js?v=20261124o';
 
 const $ = (id) => document.getElementById(id);
 const t = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -71,7 +71,7 @@ const PASSI = [
       <button type="button" class="scelta ${parametri().cucina.alzatina ? 'sel' : ''}" data-alz="si"><b>${esc(t('Con alzatina'))}</b>${esc(t('Una striscia bassa sul muro, dietro il piano'))}</button>
     </div>
     ${parametri().cucina.alzatina ? `<div class="campi" style="margin-top:10px">${campo('cucina.altezzaAlzatina', "Altezza dell'alzatina (mm)", 'di serie 100 mm')}</div>` : ''}
-    ${figura('piano', 'Schema: il piano visto di lato e da sopra')}</div>
+    ${figura('piano', 'Schema: il piano visto di lato')}</div>
     <div class="box"><h3 style="margin:0 0 8px;color:var(--gold-2);font-size:16px">${esc(t('Aria delle ante'))}</h3><div class="campi">
       ${campo('ante.ariaAltezza', "Altezza dell'anta: togli", 'sopra + sotto: anta da 700 → 698')}
       ${campo('ante.ariaLarghezza', 'Larghezza: togli', 'sui due lati: modulo 600, 1 anta → 597')}
