@@ -14,9 +14,9 @@
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi,
-  scendeAntaPensile } from './modello.js?v=20261124u';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261124u';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261124u';
+  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, GOLA_V_ACCORCIA, BARRA_GOLA_V } from './modello.js?v=20261124v';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261124v';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261124v';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -231,12 +231,14 @@ function pezziDiModulo(progetto, m) {
     // ogni porta con le SUE scelte (porta normale / finger-pull, maniglia / push, verso)
     const g = progetto.fingerPull, pu = progetto.push || {};
     const fpGr = g === true || !!(g && typeof g === 'object' && g.colonna), pushGr = !!pu.colonna;
+    // CUCINA CON GOLA: la colonna non ha maniglie (si apre dalla gola verticale), anta larga come la colonna
+    const golaC = golaColonna(progetto, m);
     const porta = (chiave, nome, alt) => {
       const o = (m.porte && m.porte[chiave]) || {};
-      const fpP = o.fp != null ? !!o.fp : fpGr, pushP = o.push != null ? !!o.push : pushGr;
+      const fpP = golaC ? false : o.fp != null ? !!o.fp : fpGr, pushP = golaC ? false : o.push != null ? !!o.push : pushGr;
       const lato = o.lato || (m.antaLato === 'sx' ? 'sx' : 'dx');
-      const rJp = riduzioneJ({ ...scP, fp: fpP, push: pushP });
-      const desc = ` (apertura ${lato === 'alto' ? "verso l'alto" : lato}${fpP ? ' · finger-pull' : ''}${pushP ? ' · push' : ''}${rJp ? ` · ${_nomeRid} (−${rJp} mm)` : ''})`;
+      const rJp = golaC ? 0 : riduzioneJ({ ...scP, fp: fpP, push: pushP });
+      const desc = ` (apertura ${lato === 'alto' ? "verso l'alto" : lato}${golaC ? ' · gola verticale' : ''}${fpP ? ' · finger-pull' : ''}${pushP ? ' · push' : ''}${rJp ? ` · ${_nomeRid} (−${rJp} mm)` : ''})`;
       if (o.vetro) {
         // PORTA IN VETRO: come le ante vetrina dei pensili (telaio in legno con il vano per il vetro, o telaio da ordinare)
         const ah = round(alt - rJp), vt = NOMI_VETRO[o.vetro.vetro] || 'trasparente';
@@ -254,9 +256,18 @@ function pezziDiModulo(progetto, m) {
     }
     // COLONNA SU MISURA: la struttura la facciamo noi → tutti i pezzi (montaggio 2)
     if (m.tipo === 'colonna-misura') {
-      for (const p of pezziColonnaMisura(m)) {
+      // con la gola verticale il fianco accanto alla gola si accorcia di 12 mm (in profondità)
+      const nG = golaC ? new Set(goleDiColonna(progetto, m).map((x) => x.lato)).size : 0;
+      for (const p0 of pezziColonnaMisura(m)) {
+        const fianco = /^Fianco/.test(p0.nome) && nG > 0;
+        const lista = !fianco ? [p0] : [
+          ...(p0.quantita - nG > 0 ? [{ ...p0, quantita: p0.quantita - nG }] : []),
+          { ...p0, nome: `${p0.nome} · ⚠ accorciato di ${GOLA_V_ACCORCIA} mm per la gola`, larghezza: p0.larghezza - GOLA_V_ACCORCIA, quantita: nG },
+        ];
+        for (const p of lista) {
         pz.push({ modulo: mod, ...p, materiale: 'carcassa', struttura: true,
           ...(m.struttura === 'bianco' ? { materialeNome: nomeInterno(progetto) } : {}) });
+        }
       }
     }
     // VANO APERTO: cornice nel colore delle ante (ripiani, listelli, fianchetti): la struttura non si vede
@@ -414,6 +425,7 @@ export function calcolaDistintaCucina(progetto) {
   const mobili = (progetto.mobiliLiberi || []).filter((m) => categoriaTipo(m.tipo) !== 'oggetto');
 
   // 1) LISTA MODULI DA ORDINARE, per gruppo (colonne, alti, bassi, elettrodomestici).
+  const goleV = goleVerticali(progetto);
   const modMap = new Map();
   for (const m of mobili) {
     const gruppo = m.tipo === 'colonna-misura' ? null : gruppoModulo(categoriaTipo(m.tipo));   // su misura: la facciamo noi
@@ -422,8 +434,11 @@ export function calcolaDistintaCucina(progetto) {
     // FUORI MISURA: si ordina il modulo standard più vicino (più grande) e si taglia (es. 700 → 630)
     const od = moduloDaOrdinare(m), Lo = od ? od.ordina : L;
     const misura = m.altezza_mm ? `${m.altezza_mm}×${Lo}` : `${Lo}`;
-    const key = `${gruppo}|${m.tipo}|${misura}|${od ? od.taglio : m.fuoriMisura ? 1 : 0}`;
-    if (!modMap.has(key)) modMap.set(key, { gruppo, nome: `${nomeTipo(m.tipo)} · interno ${progetto.coloreInterno === 'antracite' ? 'antracite' : 'bianco'}`, misura, tipo: nomeTipo(m.tipo), fuoriMisura: !!(od || m.fuoriMisura), taglio: od ? od.taglio : null, quantita: 0 });
+    // CUCINA CON GOLA: la colonna accanto alla gola verticale va modificata (fianco accorciato di 12 mm)
+    const latiG = golaColonna(progetto, m) ? [...new Set(goleDiColonna(progetto, m, goleV).map((x) => x.lato))].sort() : [];
+    const avviso = latiG.length ? `Attenzione: la colonna va modificata per poter inserire la gola (${latiG.length === 2 ? 'tutti e due i fianchi accorciati' : latiG[0] > 0 ? 'fianco destro accorciato' : 'fianco sinistro accorciato'} di ${GOLA_V_ACCORCIA} mm)` : null;
+    const key = `${gruppo}|${m.tipo}|${misura}|${od ? od.taglio : m.fuoriMisura ? 1 : 0}|${avviso || ''}`;
+    if (!modMap.has(key)) modMap.set(key, { gruppo, nome: `${nomeTipo(m.tipo)} · interno ${progetto.coloreInterno === 'antracite' ? 'antracite' : 'bianco'}`, misura, tipo: nomeTipo(m.tipo), fuoriMisura: !!(od || m.fuoriMisura), taglio: od ? od.taglio : null, avviso, quantita: 0 });
     modMap.get(key).quantita++;
   }
   const moduli = [...modMap.values()].sort((a, b) => ORDINE_MODULI.indexOf(a.gruppo) - ORDINE_MODULI.indexOf(b.gruppo));
@@ -555,6 +570,17 @@ export function calcolaDistintaCucina(progetto) {
       aggiungi(`Angoli interni gola L · ${col}`, pg.angoliInterni);
       aggiungi(`Angoli esterni gola L · ${col}`, pg.angoliEsterni);
       aggiungi('Supporti fissaggio gola (uno per fianco)', pg.fianchi);
+      // COLONNE: profilo verticale centrale (fra due colonne) o laterale (verso il costado), 2 tappi ciascuno
+      const gv = goleVerticali(progetto);
+      for (const tipo of ['centrale', 'laterale']) {
+        for (const sp of [16, 18]) {
+          const lst = gv.filter((x) => x.tipo === tipo && (x.sp >= 17 ? 18 : 16) === sp);
+          if (!lst.length) continue;
+          const b = barreGola(lst.map((x) => x.lung), BARRA_GOLA_V);
+          aggiungi(`Profilo gola verticale ${tipo} ${String(lst[0].larghezza).replace('.', ',')} mm (fianchi da ${sp}) · ${col} · barre da 2,60 m (tagli ${b.tagli.join(' + ')} mm)`, b.barre);
+          aggiungi(`Tappi gola verticale ${tipo} (sopra e sotto) · ${col}`, 2 * lst.length);
+        }
+      }
     } }
   // la base angolo ha il suo angolo di zoccolo (interno) e non fa da fila a parte
   aggiungi('Angoli zoccolo 90°', angoliZoccolo(mobili.filter((m) => m.tipo !== 'base-angolo'))

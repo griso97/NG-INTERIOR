@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261124u';
+import { parametri } from '../parametri.js?v=20261124v';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -1753,7 +1753,8 @@ export function sceltePorteGruppo(progetto, proprio, segue) {
 }
 /** Scelte delle porte di UN mobile: { fp, push, maniglia (id o null) }. */
 export function sceltePorte(progetto, m) {
-  if (golaSuMobile(progetto, m)) return { fp: false, push: false, maniglia: null, gola: true, proprie: false };
+  // gola sui bassi (L e C) o gola verticale delle colonne: niente maniglia, push né finger-pull
+  if (golaSuMobile(progetto, m) || golaColonna(progetto, m)) return { fp: false, push: false, maniglia: null, gola: true, proprie: false };
   const { proprio, segue } = gruppoPorte(progetto, m);
   return sceltePorteGruppo(progetto, proprio, segue);
 }
@@ -1982,6 +1983,11 @@ export function problemiMobiliLiberi(progetto) {
         : `⚠ Regletta d'angolo troppo stretta per le maniglie: tra gli armadi ci sono ${Math.max(0, info.gap)} mm ` +
           `ma la maniglia sporge ${serve} mm. La regletta deve essere almeno ${serve} mm, se no ante e cassetti sbattono sulla maniglia. Allontana un armadio.` });
     }
+  }
+  // CUCINA CON GOLA: fra colonna e colonna (o costado, dal lato della maniglia) servono 30 mm per il profilo
+  for (const g of goleVerticali(progetto)) {
+    if (g.ok) continue;
+    out.push({ tipo: 'gola-verticale', messaggio: `⚠ Gola verticale ${g.tipo}: fra ${g.tipo === 'centrale' ? 'le due colonne' : 'la colonna e il costado'} servono ${GOLA_V_SPAZIO} mm, ora ci sono ${Math.max(0, Math.round(g.gap))} mm. Sposta i mobili.` });
   }
   return out;
 }
@@ -3596,4 +3602,277 @@ export function scendeAntaPensile(progetto, h) {
   if (opt === 'sporg90') return Math.abs(h - 900) < 40 ? 20 : 0;
   if (opt === 'pers') { const v = Math.round(Number(progetto.antaPensileMm)); return Number.isFinite(v) && v > 0 ? Math.min(300, v) : 0; }
   return 0;
+}
+
+// =============================================================================
+// GOLA VERTICALE DELLE COLONNE («Cucina con gola»)
+// =============================================================================
+// Fra due colonne: profilo VERTICALE CENTRALE (62,6 mm con fianchi da 16, 66,6 con fianchi da 18).
+// Fra colonna e costado (o regletta), SOLO dal lato della maniglia: profilo VERTICALE LATERALE
+// (46,3 / 48,3 mm). Fra i due pezzi restano 30 mm; il fianco della colonna accanto alla gola si
+// accorcia di 12 mm; le ante restano larghe come la colonna; una porta per colonna, senza maniglia.
+// I mobili bassi restano come prima (profili L e C: profiliGola).
+export const GOLA_V_SPAZIO = 30, GOLA_V_ACCORCIA = 12, BARRA_GOLA_V = 2600;
+const GOLA_V_VICINO = 60;                 // mm: oltre questa distanza due pezzi non sono «accanto»
+export function cucinaConGola(progetto) { return golaProgetto(progetto).base; }
+/** Questa colonna ha la gola verticale (cucina con gola)? */
+export function golaColonna(progetto, m) { return !!m && cucinaConGola(progetto) && categoriaTipo(m.tipo) === 'colonna'; }
+/** Larghezza del profilo (mm) per fianchi da 16 o 18. */
+export function larghezzaProfiloV(tipo, spFianco) {
+  const s = spFianco >= 17 ? 18 : 16;
+  return Math.round((tipo === 'centrale' ? GOLA_V_SPAZIO + 2 * (s + 0.3) : GOLA_V_SPAZIO + s + 0.3) * 10) / 10;
+}
+/** Assi in pianta: dx = verso la destra del mobile (lato 'dx' delle ante, come nel 3D), F = verso il fronte. */
+function assiPianta(m) {
+  const r = ((m.rot || 0) * Math.PI) / 180;
+  return { dx: { x: Math.cos(r), y: -Math.sin(r) }, F: { x: -Math.sin(r), y: -Math.cos(r) } };
+}
+const paralleli = (a, b) => { const d = ((((b.rot || 0) - (a.rot || 0)) % 180) + 180) % 180; return Math.min(d, 180 - d) < 2; };
+const CAT_FILA = ['colonna', 'costado', 'regletta', 'pannello', 'base', 'frigo', 'lavastoviglie', 'lavatrice'];
+const CAT_LATERALE = ['costado', 'regletta', 'pannello'];
+/** Il pezzo accanto alla colonna m dal lato s (+1 destra, −1 sinistra), sulla stessa fila. */
+function accantoA(progetto, m, s) {
+  const { dx, F } = assiPianta(m), dm = dimMobile(m);
+  let best = null;
+  for (const o of progetto.mobiliLiberi || []) {
+    if (o.id === m.id || !paralleli(m, o)) continue;
+    const cat = categoriaTipo(o.tipo);
+    if (!CAT_FILA.includes(cat)) continue;
+    if (cat === 'costado' && (o.profondita_mm || 620) < 500) continue;          // costado dei pensili
+    const dO = dimMobile(o), vx = o.x - m.x, vy = o.y - m.y;
+    const lungo = vx * dx.x + vy * dx.y, perp = vx * F.x + vy * F.y;
+    const sovr = Math.min(dm.d / 2, perp + dO.d / 2) - Math.max(-dm.d / 2, perp - dO.d / 2);
+    if (sovr < Math.min(150, dO.d * 0.5)) continue;                              // non sulla stessa fila
+    if (s * lungo <= 0) continue;
+    const gap = s * lungo - (dm.w / 2 + dO.w / 2);
+    if (gap < -5 || gap > GOLA_V_VICINO) continue;
+    if (!best || gap < best.gap) best = { o, gap, cat };
+  }
+  return best;
+}
+const latoManiglia = (m) => (m.antaLato === 'sx' ? -1 : 1);
+/**
+ * Tutte le GOLE VERTICALI della cucina: [{ tipo:'centrale'|'laterale', col (id colonna), altro (id),
+ * lato (±1: lato della colonna dov'è la gola), gap (mm attuali), ok (c'è lo spazio giusto),
+ * lung (mm: lunghezza del profilo), sp (fianco 16/18), larghezza (mm del profilo) }].
+ */
+export function goleVerticali(progetto) {
+  if (!cucinaConGola(progetto)) return [];
+  const out = [], visti = new Set();
+  for (const m of progetto.mobiliLiberi || []) {
+    if (!golaColonna(progetto, m)) continue;
+    for (const s of [1, -1]) {
+      const v = accantoA(progetto, m, s);
+      if (!v) continue;
+      let tipo = null;
+      if (golaColonna(progetto, v.o)) {
+        const k = [m.id, v.o.id].sort((a, b) => a - b).join('|');
+        if (visti.has(k)) continue;
+        visti.add(k); tipo = 'centrale';
+      } else if (CAT_LATERALE.includes(v.cat) && s === latoManiglia(m)) tipo = 'laterale';
+      if (!tipo) continue;
+      const sp = Math.max(spFiancoColonna(m), tipo === 'centrale' ? spFiancoColonna(v.o) : 0);
+      const lung = Math.round(tipo === 'centrale' ? Math.min(m.altezza_mm || 2200, v.o.altezza_mm || 2200) : (m.altezza_mm || 2200));
+      out.push({ tipo, col: m.id, altro: v.o.id, lato: s, gap: Math.round(v.gap * 10) / 10,
+        ok: Math.abs(v.gap - GOLA_V_SPAZIO) <= 2, lung, sp, larghezza: larghezzaProfiloV(tipo, sp) });
+    }
+  }
+  return out;
+}
+/** Lati della colonna m con la gola: [{ lato, tipo, gap, disegna (true = la disegna lei nel 3D), larghezza }]. */
+export function goleDiColonna(progetto, m, gole = goleVerticali(progetto)) {
+  const out = [];
+  for (const g of gole) {
+    if (g.col === m.id) out.push({ lato: g.lato, tipo: g.tipo, gap: g.gap, disegna: true, larghezza: g.larghezza, ok: g.ok });
+    else if (g.altro === m.id && g.tipo === 'centrale') {
+      // per la colonna vicina la gola è dal lato che guarda l'altra (girata di 180°: il suo lato è invertito)
+      const c = trovaMobileLibero(progetto, g.col), a = assiPianta(c).dx, b = assiPianta(m).dx;
+      out.push({ lato: (a.x * b.x + a.y * b.y > 0 ? -1 : 1) * g.lato, tipo: g.tipo, gap: g.gap, disegna: false, larghezza: g.larghezza, ok: g.ok });
+    }
+  }
+  return out;
+}
+
+// ---- spostamenti di 3 cm ----------------------------------------------------
+/** Livelli occupati (0 = a terra fino al piano, 1 = all'altezza dei pensili). */
+function livelliMobile(m) {
+  const c = categoriaTipo(m.tipo), h = m.altezza_mm || 0;
+  if (c === 'oggetto' || c === 'tavolo') return [];
+  if (c === 'pensile' || c === 'altillo' || c === 'fascia') return [1];
+  if (c === 'costado') return (m.profondita_mm || 620) < 500 ? [1] : h >= 1500 ? [0, 1] : [0];
+  if (c === 'colonna' || c === 'frigo') return [0, 1];
+  if ((c === 'pannello' || c === 'regletta') && h >= 1500) return [0, 1];
+  return [0];
+}
+/** I pezzi della stessa fila dal lato σ del punto J (lungo dx), attaccati uno all'altro (fino a 60 mm). */
+function insiemeDaSpostare(progetto, rif, J, dx, F, sigma, partenza) {
+  const dr = dimMobile(rif);
+  const cand = [];
+  for (const o of progetto.mobiliLiberi || []) {
+    if (!paralleli(rif, o) || !livelliMobile(o).length) continue;
+    const dO = dimMobile(o), vx = o.x - J.x, vy = o.y - J.y;
+    const lungo = vx * dx.x + vy * dx.y, perp = (o.x - rif.x) * F.x + (o.y - rif.y) * F.y;
+    const sovr = Math.min(dr.d / 2, perp + dO.d / 2) - Math.max(-dr.d / 2, perp - dO.d / 2);
+    if (sovr < Math.min(120, dO.d * 0.5)) continue;
+    if (sigma * lungo <= 0) continue;
+    cand.push({ o, vicino: sigma * lungo - dO.w / 2, lontano: sigma * lungo + dO.w / 2 });
+  }
+  cand.sort((a, b) => a.vicino - b.vicino);
+  const set = []; let fino = partenza;
+  for (const c of cand) {
+    if (c.vicino > fino + GOLA_V_VICINO) break;
+    set.push(c.o); fino = Math.max(fino, c.lontano);
+  }
+  return set;
+}
+/** Sposta i pezzi di d (vettore); ritorna false (e non sposta) se un pezzo entra nel muro o in un altro mobile. */
+function spostaSeCi(progetto, set, d) {
+  const ids = new Set(set.map((o) => o.id));
+  const prima = set.map((o) => ({ o, x: o.x, y: o.y }));
+  set.forEach((o) => { o.x += d.x; o.y += d.y; });
+  const L = Math.hypot(d.x, d.y) || 1, u = { x: d.x / L, y: d.y / L };
+  let ok = true;
+  for (const o of set) {
+    // muro: dove lo rimetterebbe il vincolo dei muri, lungo lo spostamento
+    const v = vincolaAiMuri(progetto, o, o.x, o.y);
+    const v0 = vincolaAiMuri(progetto, o, o.x - d.x, o.y - d.y);
+    const sp = ((v.x - o.x) - (v0.x - (o.x - d.x))) * u.x + ((v.y - o.y) - (v0.y - (o.y - d.y))) * u.y;
+    if (Math.abs(sp) > 1) { ok = false; break; }
+    // altri mobili (non spostati) allo stesso livello
+    const A = aabbMondo(o), lv = livelliMobile(o);
+    for (const q of progetto.mobiliLiberi || []) {
+      if (ids.has(q.id) || !livelliMobile(q).some((k) => lv.includes(k))) continue;
+      const B = aabbMondo(q);
+      if (Math.min(A.x1, B.x1) - Math.max(A.x0, B.x0) > 2 && Math.min(A.y1, B.y1) - Math.max(A.y0, B.y0) > 2) {
+        // c'era già prima dello spostamento? (mobili già sovrapposti di loro: non è colpa della gola)
+        const A0 = { x0: A.x0 - d.x, x1: A.x1 - d.x, y0: A.y0 - d.y, y1: A.y1 - d.y };
+        if (Math.min(A0.x1, B.x1) - Math.max(A0.x0, B.x0) > 2 && Math.min(A0.y1, B.y1) - Math.max(A0.y0, B.y0) > 2) continue;
+        ok = false; break;
+      }
+    }
+    if (!ok) break;
+  }
+  if (!ok) { prima.forEach((p) => { p.o.x = p.x; p.o.y = p.y; }); return false; }
+  // gli OGGETTI appoggiati sopra (sul piano, nel vano della colonna) vanno con il mobile
+  const sotto = set.map((o) => { const A = aabbMondo(o); return { x0: A.x0 - d.x, x1: A.x1 - d.x, y0: A.y0 - d.y, y1: A.y1 - d.y }; });
+  for (const q of progetto.mobiliLiberi || []) {
+    if (ids.has(q.id) || categoriaTipo(q.tipo) !== 'oggetto') continue;
+    if (sotto.some((B) => q.x >= B.x0 && q.x <= B.x1 && q.y >= B.y0 && q.y <= B.y1)) { q.x += d.x; q.y += d.y; }
+  }
+  return true;
+}
+/** Distanza (mm) dal fianco della colonna al muro, lungo la fila dal lato s (Infinity se non c'è muro). */
+function distanzaMuro(progetto, m, s) {
+  const full = (progetto.piano && progetto.piano.pareti) || [];
+  if (!full.length) return Infinity;
+  const vert = calcolaVertici(full), { dx } = assiPianta(m), dm = dimMobile(m);
+  const u = { x: dx.x * s, y: dx.y * s };
+  let best = Infinity;
+  full.forEach((p, i) => {
+    if (p.assente) return;
+    const a = vert[i], b = vert[i + 1]; if (!a || !b) return;
+    const ex = b.x - a.x, ey = b.y - a.y, den = u.x * ey - u.y * ex;
+    if (Math.abs(den) < 1e-9) return;
+    const t = ((a.x - m.x) * ey - (a.y - m.y) * ex) / den, q = ((a.x - m.x) * u.y - (a.y - m.y) * u.x) / den;
+    if (t > 0 && q >= -0.01 && q <= 1.01) best = Math.min(best, t - dm.w / 2);
+  });
+  return best;
+}
+/**
+ * Lato della maniglia automatico con la gola: due o più colonne vicine → le maniglie verso la gola
+ * centrale (le colonne in mezzo restano come sono); colonna da sola → mai verso il muro.
+ * solo = id: sistema solo le colonne della fila di quel mobile.
+ */
+export function aperturaColonneGola(progetto, solo = null) {
+  const cols = (progetto.mobiliLiberi || []).filter((m) => categoriaTipo(m.tipo) === 'colonna');
+  const fatti = new Set();
+  for (const c of cols) {
+    if (fatti.has(c.id)) continue;
+    // la fila di colonne attaccate (fino a 60 mm)
+    const fila = [c];
+    for (const s of [1, -1]) {
+      let cur = c;
+      for (let k = 0; k < 30; k++) {
+        const v = accantoA(progetto, cur, s);
+        if (!v || categoriaTipo(v.o.tipo) !== 'colonna' || fila.includes(v.o)) break;
+        if (s > 0) fila.push(v.o); else fila.unshift(v.o);
+        cur = v.o;
+      }
+    }
+    fila.forEach((x) => fatti.add(x.id));
+    if (solo != null && !fila.some((x) => x.id === solo)) continue;
+    if (fila.length >= 2) {
+      // ordino lungo la destra della prima colonna
+      const { dx } = assiPianta(fila[0]);
+      fila.sort((a, b) => (a.x * dx.x + a.y * dx.y) - (b.x * dx.x + b.y * dx.y));
+      fila[0].antaLato = 'dx'; fila[fila.length - 1].antaLato = 'sx';
+    } else {
+      const dD = distanzaMuro(progetto, c, 1), dS = distanzaMuro(progetto, c, -1);
+      if (Number.isFinite(dD) || Number.isFinite(dS)) c.antaLato = dD < dS ? 'sx' : 'dx';   // cerniere dal lato del muro
+    }
+  }
+}
+/**
+ * Mette (apri) o toglie (chiudi) i 30 mm delle gole verticali spostando i mobili della fila.
+ * apri: per ogni gola senza lo spazio giusto sposta un lato della fila (prima quello di `preferisci`),
+ * se c'è posto; se non c'è posto da nessuna parte rimette tutto com'era e ritorna { ok:false }.
+ * chiudi: richiude le gole (le colonne tornano attaccate).
+ * Ritorna { ok, spostati (n. di mobili mossi) }.
+ */
+export function sistemaGoleColonne(progetto, { modo = 'apri', preferisci = null } = {}) {
+  const tutti = progetto.mobiliLiberi || [];
+  const prima = new Map(tutti.map((o) => [o.id, { x: o.x, y: o.y }]));
+  const ripristina = () => tutti.forEach((o) => { const p = prima.get(o.id); if (p) { o.x = p.x; o.y = p.y; } });
+  const fatti = new Set();
+  for (let giro = 0; giro < 60; giro++) {
+    const gole = goleVerticali(progetto).filter((g) => (modo === 'apri' ? !g.ok : g.gap > 2) && !fatti.has(`${g.col}|${g.altro}`));
+    if (!gole.length) break;
+    const g = gole[0];
+    const m = trovaMobileLibero(progetto, g.col);
+    const { dx, F } = assiPianta(m), dm = dimMobile(m);
+    const s = g.lato, delta = modo === 'apri' ? GOLA_V_SPAZIO - g.gap : -g.gap;
+    // punto in mezzo allo spazio fra i due pezzi
+    const meta = s * (dm.w / 2 + g.gap / 2);
+    const J = { x: m.x + dx.x * meta, y: m.y + dx.y * meta };
+    const lati = [s, -s].map((sig) => ({ sig, set: insiemeDaSpostare(progetto, m, J, dx, F, sig, g.gap / 2) }));
+    if (preferisci != null) lati.sort((a, b) => (b.set.some((o) => o.id === preferisci) ? 1 : 0) - (a.set.some((o) => o.id === preferisci) ? 1 : 0));
+    let fatto = false;
+    for (const { sig, set } of lati) {
+      if (!set.length) continue;
+      const d = { x: dx.x * sig * delta, y: dx.y * sig * delta };
+      if (spostaSeCi(progetto, set, d)) { fatto = true; break; }
+    }
+    if (!fatto) {
+      if (modo === 'apri') { ripristina(); return { ok: false, spostati: 0 }; }
+      fatti.add(`${g.col}|${g.altro}`);
+    }
+  }
+  const spostati = tutti.filter((o) => { const p = prima.get(o.id); return p && (Math.abs(p.x - o.x) > 0.5 || Math.abs(p.y - o.y) > 0.5); }).length;
+  return { ok: true, spostati };
+}
+/**
+ * Accende o spegne la «Cucina con gola» spostando le colonne:
+ * accendi → maniglie al posto giusto, poi 30 mm per ogni gola verticale (se non c'è posto: { ok:false }, niente cambia);
+ * spegni → le colonne tornano attaccate.
+ */
+export function cambiaCucinaConGola(progetto, si) {
+  const ora = cucinaConGola(progetto);
+  if (!!si === ora) return { ok: true, spostati: 0 };
+  if (si) {
+    const prima = { gola: progetto.gola ? { ...progetto.gola } : progetto.gola,
+      lati: (progetto.mobiliLiberi || []).map((o) => [o, o.antaLato]) };
+    progetto.gola = { ...golaProgetto(progetto), base: true };
+    aperturaColonneGola(progetto);
+    const r = sistemaGoleColonne(progetto, { modo: 'apri' });
+    if (!r.ok) {
+      progetto.gola = prima.gola;
+      prima.lati.forEach(([o, l]) => { if (l === undefined) delete o.antaLato; else o.antaLato = l; });
+      return r;
+    }
+    progetto.golaVerticale = true;
+    return r;
+  }
+  const r = sistemaGoleColonne(progetto, { modo: 'chiudi' });
+  progetto.gola = { ...golaProgetto(progetto), base: false };
+  return r;
 }

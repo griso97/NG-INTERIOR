@@ -24,21 +24,21 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, latoApertoDi, latiLiberi, migraProfonditaPensili, PARTI_APERTO, coloreParteAperto, ledAperto,
-  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola, piediniCucina, altezzaBassiCucina, sporgenzaPiano, altezzaAlzatina } from './modello.js?v=20261124u';
-import { renderPianta } from './pianta.js?v=20261124u';
-import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261124u';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261124u';
-import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124u';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261124u';
-import { calcolaDistintaCucina } from './distinta.js?v=20261124u';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261124u';
-import { salvaEsempioModificato, salvaProgettoPredefinito } from '../esempi-dati.js?v=20261124u';
-import { parametri, daImpostare } from '../parametri.js?v=20261124u';
-import { htmlAvvisoMancanti, confermaEsportazione } from '../avviso-parametri.js?v=20261124u';
-import { agganciaTema } from '../tema.js?v=20261124u';
-import { tendinePannello } from '../tendine-pannello.js?v=20261124u';
+  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola, cucinaConGola, cambiaCucinaConGola, sistemaGoleColonne, aperturaColonneGola, piediniCucina, altezzaBassiCucina, sporgenzaPiano, altezzaAlzatina } from './modello.js?v=20261124v';
+import { renderPianta } from './pianta.js?v=20261124v';
+import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261124v';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261124v';
+import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124v';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261124v';
+import { calcolaDistintaCucina } from './distinta.js?v=20261124v';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261124v';
+import { salvaEsempioModificato, salvaProgettoPredefinito } from '../esempi-dati.js?v=20261124v';
+import { parametri, daImpostare } from '../parametri.js?v=20261124v';
+import { htmlAvvisoMancanti, confermaEsportazione } from '../avviso-parametri.js?v=20261124v';
+import { agganciaTema } from '../tema.js?v=20261124v';
+import { tendinePannello } from '../tendine-pannello.js?v=20261124v';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261124u');
+const _excel = () => import('../modello-export.js?v=20261124v');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -60,6 +60,12 @@ if (progettoSalvato && progettoSalvato.piano) migraRotazioni(progettoSalvato);
 if (progettoSalvato && progettoSalvato.piano) migraProfonditaPensili(progettoSalvato);
 // Progetti salvati con versioni precedenti: completo i campi mancanti
 progetto = { ...progettoDefault(), ...progetto };
+// CUCINA CON GOLA fatta prima della gola verticale delle colonne (anche le cucine di esempio): una volta
+// sola metto le maniglie al posto giusto e sposto le colonne di 3 cm, se c'è posto (se no: «Da sistemare»)
+if (progettoSalvato && cucinaConGola(progetto) && !progetto.golaVerticale) {
+  try { aperturaColonneGola(progetto); sistemaGoleColonne(progetto, { modo: 'apri' }); } catch (e) { console.warn('Gola verticale', e); }
+  progetto.golaVerticale = true;
+}
 // Due cucine separate: il tipo lo dice la pagina (cucina.html?tipo=normale / ?tipo=ponte)
 progetto.tipoCucina = MODO_CUCINA || 'normale';
 const cucinaPonte = () => progetto.tipoCucina === 'ponte';
@@ -103,7 +109,7 @@ function mostraSceltaTipoCucina() {
     </div>`;
   document.body.appendChild(ov);
   // CUCINE DI ESEMPIO: la scheda c'è solo se ce ne sono (l'elenco è piccolo: solo nomi e foto)
-  fetch('esempi/cucine/indice.json?v=20261124u').then((r) => (r.ok ? r.json() : null)).then((j) => {
+  fetch('esempi/cucine/indice.json?v=20261124v').then((r) => (r.ok ? r.json() : null)).then((j) => {
     const a = ov.querySelector('#scelta-esempi');
     if (a && j && Array.isArray(j.cucine) && j.cucine.length) a.style.display = 'flex';
   }).catch(() => { /* niente esempi */ });
@@ -478,6 +484,15 @@ function renderPannelloStep1() {
       </div>
     </section>
 
+    <section data-tendina="gola" data-aperta>
+      <h3>Gola · ${cucinaConGola(progetto) ? 'cucina con gola' : 'cucina senza gola'}</h3>
+      <div class="opzioni-anta">
+        <button type="button" class="btn-ghost opt-cucgola ${!cucinaConGola(progetto) ? 'attivo' : ''}" data-cucgola="0">${!cucinaConGola(progetto) ? '✓ ' : ''}Cucina senza gola</button>
+        <button type="button" class="btn-ghost opt-cucgola ${cucinaConGola(progetto) ? 'attivo' : ''}" data-cucgola="1">${cucinaConGola(progetto) ? '✓ ' : ''}Cucina con gola</button>
+      </div>
+      <div class="riga-3d" style="margin-top:6px">Con la gola: profili in alluminio nei mobili bassi e gola verticale nelle colonne. Fra due colonne, e fra colonna e costado dal lato della maniglia, restano 3 cm per il profilo: sceglilo prima di mettere i mobili. Se lo cambi dopo, i mobili si spostano da soli se c'è spazio.</div>
+    </section>
+
     <section>
       <h3>Mano libera</h3>
       <button type="button" id="ml-toggle" class="btn-ghost ${manoLibera ? 'attivo' : ''}" style="width:100%">${manoLibera ? '✓ ' : ''}✏ Disegna a mano libera</button>
@@ -609,6 +624,9 @@ function attaccaEventiPannello() {
   // Preset tipologia
   document.getElementById('ponte-carica-salvato')?.addEventListener('click', () => window.NGPreventivi?.elenco('', { soloCucine: true }));
   document.getElementById('ponte-carica-normale')?.addEventListener('click', () => window.NGPreventivi?.prendiCucinaNormale());
+  pannello.querySelectorAll('.opt-cucgola[data-cucgola]').forEach((b) => b.addEventListener('click', () => {
+    applicaCucinaGola(b.dataset.cucgola === '1');
+  }));
   pannello.querySelectorAll('.tipo-card').forEach((btn) => {
     btn.addEventListener('click', () => {
       registraStoria();
@@ -1648,8 +1666,8 @@ function apriPavimentoDaFoto() {
     if (!(w >= 5) || !(h >= 5)) { alert(tt('Scrivi la misura della zona fotografata (almeno 5 cm).')); return; }
     $('pav-salva').disabled = true;
     try {
-      const C = await import('../catalogo.js?v=20261124u');
-      const M = await import('../materiali.js?v=20261124u');
+      const C = await import('../catalogo.js?v=20261124v');
+      const M = await import('../materiali.js?v=20261124v');
       const stato = await C.leggiCatalogo();
       const id = 'pav-' + Date.now().toString(36);
       const prod = { id, sezione: 'pavimento', nome: ($('pav-nome').value || '').trim() || tt('Pavimento del cliente'), campioneCm: { w, h } };
@@ -1666,7 +1684,7 @@ async function eliminaPavimentoProprio(id) {
   const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
   if (!confirm(tt('Eliminare questo pavimento? Sparisce da tutti i progetti.'))) return;
   try {
-    const C = await import('../catalogo.js?v=20261124u');
+    const C = await import('../catalogo.js?v=20261124v');
     const stato = await C.leggiCatalogo();
     stato.prodotti = (stato.prodotti || []).filter((p) => p.id !== id);
     await C.salvaCatalogo(stato); await C.eliminaFoto(id);
@@ -2043,7 +2061,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261124u');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261124v');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2322,6 +2340,11 @@ function renderPannelloModificaMobile(m) {
       const push = !!(progetto.push && progetto.push[gruppoColore]);
       // GOLA in alluminio: solo per i mobili bassi (le colonne dopo)
       const gc = golaProgetto(progetto), golaOn = gruppoColore === 'base' && gc.base;
+      if (gruppoColore === 'colonna' && gc.base) return `
+    <section class="step3-pannello">
+      <h3>Porte · ${nomeGruppo}</h3>
+      <div class="riga-3d">Cucina con gola: le colonne non hanno maniglie. Fra due colonne c'è il profilo verticale centrale; fra colonna e costado, dal lato della maniglia, il profilo verticale laterale. Il profilo è nel colore della gola: ${(COLORI_GOLA.find((c) => c.id === gc.colore) || COLORI_GOLA[0]).nome.toLowerCase()}. Una porta per colonna, larga come la colonna.</div>
+    </section>`;
       const on = !golaOn && (fp === true || !!(fp && typeof fp === 'object' && fp[gruppoColore]));
       const man = !on && !push;
       if (golaOn) return `
@@ -2524,7 +2547,7 @@ function renderPannelloModificaMobile(m) {
       progetto.fingerPull = { base: old, pensile: old, colonna: old };
     }
     progetto.fingerPull[gruppoColore] = b.dataset.fp === '1';
-    if (gruppoColore === 'base' && progetto.gola) progetto.gola = { ...golaProgetto(progetto), base: false };   // via la gola
+    if (gruppoColore === 'base' && cucinaConGola(progetto)) cambiaCucinaConGola(progetto, false);   // via la gola (le colonne si riavvicinano)
     aggiorna();
   }));
   pannello.querySelectorAll('.opt-push[data-push]').forEach((b) => b.addEventListener('click', () => {
@@ -2535,15 +2558,7 @@ function renderPannelloModificaMobile(m) {
   // GOLA in alluminio (mobili bassi): niente finger-pull né push; colore del profilo
   pannello.querySelectorAll('.opt-gola[data-gola]').forEach((b) => b.addEventListener('click', () => {
     if (golaProgetto(progetto).base) return;
-    registraStoria();
-    if (typeof progetto.fingerPull !== 'object' || progetto.fingerPull === null) {
-      const old = progetto.fingerPull === true;
-      progetto.fingerPull = { base: old, pensile: old, colonna: old };
-    }
-    progetto.fingerPull.base = false;
-    progetto.push = { ...(progetto.push || {}), base: false };
-    progetto.gola = { ...golaProgetto(progetto), base: true };
-    aggiorna();
+    applicaCucinaGola(true);                         // anche le colonne: gola verticale (3 cm)
   }));
   pannello.querySelectorAll('.opt-golacol[data-golacol]').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
@@ -2644,7 +2659,7 @@ function mostraDistinta() {
       <table class="distinta-tab">
         <thead><tr><th>Modulo</th><th class="n">Misura</th><th class="n">Qtà</th></tr></thead>
         <tbody>${righe.map((m) => `<tr>
-          <td>${escHtml(m.nome)}${m.taglio ? ` <span class="dist-warn">⚠ va tagliato a ${m.taglio} mm</span>` : m.fuoriMisura ? ' <span class="dist-warn">⚠ da tagliare</span>' : ''}</td>
+          <td>${escHtml(m.nome)}${m.taglio ? ` <span class="dist-warn">⚠ va tagliato a ${m.taglio} mm</span>` : m.fuoriMisura ? ' <span class="dist-warn">⚠ da tagliare</span>' : ''}${m.avviso ? ` <span class="dist-warn">⚠ ${escHtml(m.avviso)}</span>` : ''}</td>
           <td class="n">${escHtml(m.misura)}</td>
           <td class="n">${m.quantita}</td></tr>`).join('')}</tbody>
       </table>
@@ -2702,7 +2717,7 @@ function esportaDistintaCSV() {
   const qc = (s) => `"${String(tr(s)).replace(/"/g, '""')}"`;
   const righe = [['MODULI DA ORDINARE']];
   righe.push(['Gruppo', 'Modulo', 'Misura', 'Quantita']);
-  for (const m of moduli) righe.push([m.gruppo, m.nome + (m.taglio ? ` (va tagliato a ${m.taglio} mm)` : m.fuoriMisura ? ' (da tagliare)' : ''), m.misura, m.quantita]);
+  for (const m of moduli) righe.push([m.gruppo, m.nome + (m.taglio ? ` (va tagliato a ${m.taglio} mm)` : m.fuoriMisura ? ' (da tagliare)' : '') + (m.avviso ? ` · ⚠ ${m.avviso}` : ''), m.misura, m.quantita]);
   righe.push([]);
   righe.push(['PEZZI DA FARE']);
   righe.push(['Gruppo', 'Pezzo', 'Larghezza_mm', 'Altezza_mm', 'Spessore_mm', 'Materiale', 'Quantita']);
@@ -3047,13 +3062,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261124u');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261124v');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261124u'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261124v'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;
@@ -3343,7 +3358,15 @@ function htmlAperturaColonna(m) {
 function agganciaAperturaColonna(root, m) {
   root.querySelectorAll('.opt-latocol[data-latocol]').forEach((b) => b.addEventListener('click', () => {
     if ((m.antaLato === 'sx' ? 'sx' : 'dx') === b.dataset.latocol) return;
-    registraStoria(); m.antaLato = b.dataset.latocol; aggiorna();
+    registraStoria();
+    const prima = m.antaLato; m.antaLato = b.dataset.latocol;
+    // cucina con gola: dal nuovo lato della maniglia il costado si sposta di 3 cm (se c'è posto)
+    if (cucinaConGola(progetto) && !sistemaGoleColonne(progetto, { modo: 'apri', preferisci: m.id }).ok) {
+      if (prima === undefined) delete m.antaLato; else m.antaLato = prima;
+      if (storiaPast.length) storiaPast.pop();
+      alert(MSG_GOLA_NO_SPAZIO);
+    }
+    aggiorna();
   }));
   // VETRINA: scelte rapide (porta intera / sopra / sotto / tutte e due) e telaio + vetro per tutte
   const conVetro = (porte, k, v) => { const o = { ...(porte[k] || {}) }; if (v) o.vetro = { ...v }; else delete o.vetro; if (Object.keys(o).length) porte[k] = o; else delete porte[k]; };
@@ -4420,6 +4443,7 @@ const fineTrascinamento = () => {
   if (m && ult && !ult.libera) inserisciInAngolo(progetto, m, ult.x, ult.y);
   if (m) mettiNelVano(progetto, m);           // oggetto sopra una colonna con vano: dentro il vano
   if (m) { m.posManuale = true; if (categoriaTipo(m.tipo) !== 'oggetto') step2.movePending = { id, prima }; }
+  if (m && categoriaTipo(m.tipo) !== 'oggetto') sistemaGoleDopo(m);      // cucina con gola: 3 cm fra le colonne
   // NON ENTRA: lasciato contro il muro ma non c'è posto → lo dico, con i cm che mancano.
   // Conta se il mobile ha trovato posto, non dove si è alzato il dito: lasciato un filo dentro
   // l'angolo, un costado o il mobile vicino, si mette da solo accanto e va benissimo (niente avviso).
@@ -4433,6 +4457,44 @@ const fineTrascinamento = () => {
   }
   aggiorna();
 };
+/**
+ * CUCINA CON / SENZA GOLA (Passo 1 e porte dei mobili bassi): con la gola le colonne si spostano di 3 cm
+ * per ogni gola verticale, se c'è spazio; se non c'è, niente cambia e lo dico.
+ */
+const MSG_GOLA_NO_SPAZIO = "Attenzione: impossibile posizionare la gola. Non c'è lo spazio fisico per inserirla: riposiziona gli armadi in modo corretto.";
+function applicaCucinaGola(si) {
+  if (cucinaConGola(progetto) === !!si) return true;
+  registraStoria();
+  if (si) {
+    if (typeof progetto.fingerPull !== 'object' || progetto.fingerPull === null) {
+      const old = progetto.fingerPull === true;
+      progetto.fingerPull = { base: old, pensile: old, colonna: old };
+    }
+  }
+  const prFp = progetto.fingerPull && typeof progetto.fingerPull === 'object' ? { ...progetto.fingerPull } : progetto.fingerPull;
+  const prPush = progetto.push ? { ...progetto.push } : progetto.push;
+  if (si) { progetto.fingerPull.base = false; progetto.push = { ...(progetto.push || {}), base: false }; }
+  const r = cambiaCucinaConGola(progetto, !!si);
+  if (!r.ok) {
+    progetto.fingerPull = prFp; progetto.push = prPush;
+    if (storiaPast.length) storiaPast.pop();
+    aggiorna();
+    alert(MSG_GOLA_NO_SPAZIO);
+    return false;
+  }
+  aggiorna();
+  if (si && r.spostati) alert('Attenzione: la cucina occuperà più spazio per via delle gole.');
+  return true;
+}
+/** Dopo aver spostato un mobile (o cambiato il lato di una colonna) con la gola: 3 cm dove serve. */
+function sistemaGoleDopo(m) {
+  if (!m || !cucinaConGola(progetto)) return true;
+  if (categoriaTipo(m.tipo) === 'colonna') aperturaColonneGola(progetto, m.id);
+  const r = sistemaGoleColonne(progetto, { modo: 'apri', preferisci: m.id });
+  if (!r.ok) alert(MSG_GOLA_NO_SPAZIO);
+  return r.ok;
+}
+
 /** Il mobile supera la misura della parete: avviso con i cm che mancano. */
 function avvisoNonEntra(manca) {
   const es = window.NGI18N && window.NGI18N.lingua === 'es';

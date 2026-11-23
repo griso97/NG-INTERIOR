@@ -16,30 +16,31 @@ import {
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
   costadoCopreAnte, costadoColonnaATerra, fronteCieco, piediniCucina, zoccoloColonnaDi, sporgenzaPiano, altezzaAlzatina, scendeAntaPensile,
-} from './modello.js?v=20261124u';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261124u';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261124u';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261124u';
+  golaColonna, goleDiColonna, GOLA_V_SPAZIO,
+} from './modello.js?v=20261124v';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261124v';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261124v';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261124v';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261124u').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261124v').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261124u';
-import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261124u';
-export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124u';
-import { parametri } from '../parametri.js?v=20261124u';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261124u';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261124u';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261124u';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261124v';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261124v';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124v';
+import { parametri } from '../parametri.js?v=20261124v';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261124v';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261124v';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261124v';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261124u';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261124v';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261124u';
+export { telaPavimento } from '../resa.js?v=20261124v';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -1936,12 +1937,17 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
     return { fp: o.fp != null ? !!o.fp : _fingerPull, push: o.push != null ? !!o.push : _push,
       lato: o.lato || (m && m.antaLato === 'sx' ? 'sx' : 'dx'), vetro: o.vetro || null };
   };
+  // CUCINA CON GOLA: niente maniglie sulle colonne (si aprono dalla gola verticale)
+  const golaC = !!(_progColonne && golaColonna(_progColonne, m));
   const porta = (yB, segH, chiave = 'alta') => {
     const cyc = yB + segH / 2;
     const ph = segH - FUGA_H;
     const c = scelte(chiave), s = c.lato === 'sx' ? -1 : 1, alto = c.lato === 'alto';
     const pushPrima = _push; _push = c.push;
-    if (c.vetro) {
+    if (golaC) {
+      if (c.vetro) antaVetro(g, 0, cyc, z, pw, ph, matAnta, c.vetro);
+      else pannello(g, 0, cyc, z, pw, ph, matAnta || COL.anta);
+    } else if (c.vetro) {
       // PORTA IN VETRO (vetrina): telaio + vetro, e dietro i RIPIANI della colonna (la cassa è aperta)
       antaVetro(g, 0, cyc, z, pw, ph, matAnta, c.vetro);
       if (alto) manigliaOrizzAnta(g, 0, cyc, pw, ph, z, 0, false);
@@ -1968,6 +1974,23 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
     }
     _push = pushPrima;
   };
+  // GOLA VERTICALE: nel vano di 30 mm accanto alla colonna si vede il fondo del profilo, 12 mm dietro
+  // le ante (centrale: lo disegna una sola delle due colonne; laterale: verso il costado)
+  if (golaC) {
+    const mat = matProfiloGola(_golaCfg.colore);
+    for (const gv of goleDiColonna(_progColonne, m)) {
+      if (!gv.disegna || gv.gap < 20) continue;          // senza i 3 cm il profilo non c'è (avviso «Da sistemare»)
+      const gap = Math.max(10, gv.gap), lar = gv.larghezza, sl = gv.lato;
+      // il profilo copre il bordo del fianco della colonna (e dell'altra colonna se è centrale)
+      const x0 = gv.tipo === 'centrale' ? sl * (w / 2 + gap / 2) : sl * (w / 2 + gap - lar / 2);
+      const fondo = new THREE.Mesh(new THREE.BoxGeometry(lar, h, 2), mat);
+      fondo.position.set(x0, 0, z - 12 - 1); fondo.castShadow = true; fondo.receiveShadow = true; g.add(fondo);
+      for (const k of [-1, 1]) {                       // pareti del canale fra le ante
+        const lab = new THREE.Mesh(new THREE.BoxGeometry(1.5, h, 12), mat);
+        lab.position.set(sl * (w / 2 + gap / 2) + k * (gap / 2 - 0.75), 0, z - 6); g.add(lab);
+      }
+    }
+  }
   if (m.variante === 'intera') { porta(bottom, h, 'intera'); return; }   // PORTA INTERA: una sola, da terra in cima
   porta(bottom, ab, 'bassa');        // porta bassa
   let y0 = bottom + ab;
@@ -2479,7 +2502,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261124u')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261124v')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
