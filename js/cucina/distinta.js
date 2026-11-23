@@ -14,9 +14,9 @@
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi,
-  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, GOLA_V_ACCORCIA, BARRA_GOLA_V } from './modello.js?v=20261124x';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261124x';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261124x';
+  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, GOLA_V_ACCORCIA, BARRA_GOLA_V } from './modello.js?v=20261124y';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261124y';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261124y';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)

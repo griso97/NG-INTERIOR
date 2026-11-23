@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261124x';
+import { parametri } from '../parametri.js?v=20261124y';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -3864,7 +3864,16 @@ export function sistemaGoleColonne(progetto, { modo = 'apri', preferisci = null 
     const meta = s * (dm.w / 2 + c.gap / 2);
     const J = { x: m.x + dx.x * meta, y: m.y + dx.y * meta };
     const lati = [s, -s].map((sig) => ({ sig, set: insiemeDaSpostare(progetto, m, J, dx, F, sig, c.gap / 2) }));
-    if (preferisci != null) lati.sort((a, b) => (b.set.some((o) => o.id === preferisci) ? 1 : 0) - (a.set.some((o) => o.id === preferisci) ? 1 : 0));
+    // prima il lato che NON è appoggiato al muro in fondo (se no si staccherebbe dal muro),
+    // poi quello del mobile appena spostato
+    const alMuro = (sig, set) => {
+      if (!set.length) return false;
+      const ult = set.reduce((a, o) => (((o.x - J.x) * dx.x + (o.y - J.y) * dx.y) * sig > ((a.x - J.x) * dx.x + (a.y - J.y) * dx.y) * sig ? o : a));
+      const dxU = assiPianta(ult).dx, sU = (dxU.x * dx.x + dxU.y * dx.y) >= 0 ? sig : -sig;
+      return distanzaMuro(progetto, ult, sU) < 5;
+    };
+    lati.forEach((l) => { l.muro = alMuro(l.sig, l.set); l.pref = preferisci != null && l.set.some((o) => o.id === preferisci); });
+    lati.sort((a, b) => (a.muro - b.muro) || (b.pref - a.pref));
     let fatto = false;
     for (const { sig, set } of lati) {
       if (!set.length) continue;

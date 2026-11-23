@@ -6,7 +6,7 @@
 // parametro in localStorage 'ng-parametri-foto' → la «copia completa» le porta anche sugli altri.
 // Il pulsante «Rimetti i valori di partenza» cambia solo i numeri: le foto restano.
 // =============================================================================
-import { leggiFoto, salvaFoto, eliminaFotoTipo } from './catalogo.js?v=20261124x';
+import { leggiFoto, salvaFoto, eliminaFotoTipo } from './catalogo.js?v=20261124y';
 
 const CHIAVE = 'ng-parametri-foto';
 const TIPO = 'parfoto';
