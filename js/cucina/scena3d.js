@@ -16,30 +16,30 @@ import {
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
   costadoCopreAnte, costadoColonnaATerra, fronteCieco, piediniCucina, zoccoloColonnaDi, sporgenzaPiano, altezzaAlzatina, scendeAntaPensile,
-} from './modello.js?v=20261124p';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261124p';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261124p';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261124p';
+} from './modello.js?v=20261124q';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261124q';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261124q';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261124q';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261124p').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261124q').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261124p';
-import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261124p';
-export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124p';
-import { parametri } from '../parametri.js?v=20261124p';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261124p';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261124p';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261124p';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261124q';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261124q';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124q';
+import { parametri } from '../parametri.js?v=20261124q';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261124q';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261124q';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261124q';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261124p';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261124q';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261124p';
+export { telaPavimento } from '../resa.js?v=20261124q';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -2479,7 +2479,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261124p')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261124q')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -2761,6 +2761,12 @@ function costruisciMobileCorpo(cat, tipo, m, w, h, d, matAnta, opt = {}) {
     : cat === 'colonna' ? (m && m.struttura === 'bianco' ? _coloreInterno : (matAnta && matAnta.isMaterial) ? matAnta : COL.colonna)
     : cat === 'regletta' ? COL.regletta : cat === 'lavatrice' ? 0x17181d
     : cat === 'lavastoviglie' ? 0xbcbdc2 : (cat === 'base' || cat === 'altillo') ? _coloreInterno : COL.corpo;
+  // REGLETTA fra i mobili: con la gola è alta come le ante (700 → 675) e il profilo L le passa sopra
+  if (cat === 'regletta') {
+    const v = _golaQui ? vertAnta(h) : { ph: h, py: 0 };
+    const b = corpo(w, v.ph, d, coloreCorpo); b.position.y = v.py; g.add(b);
+    return g;
+  }
   // Pensile angolo a L: corpo a L (due bracci), non il box quadrato.
   if (tipo === 'pensile-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, PROFONDITA_PENSILE, false, opt.sporg || 0); return g; }
   if (tipo === 'base-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, Math.min((m && m.profBraccio_mm) || PROFONDITA_BASE, Math.min(w, d) - 10), true); return g; }

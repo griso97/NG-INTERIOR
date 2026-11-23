@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261124p';
+import { parametri } from '../parametri.js?v=20261124q';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -3028,6 +3028,8 @@ export function golaSuMobile(progetto, m) {
   const cat = categoriaTipo(m.tipo);
   if (cat === 'base') return true;
   if (cat === 'lavastoviglie') return m.colore === 'integrata';
+  // REGLETTA fra i mobili bassi: alta come le ante (700 → 675), il profilo L le passa sopra
+  if (cat === 'regletta') return (m.altezza_mm || 700) < 1000;
   return false;
 }
 /** Altezza dell'anta con la gola: il modulo meno lo spazio della gola (700 → 675; 800 → 775). */
@@ -3099,7 +3101,7 @@ export function profiliGola(progetto) {
       }
       if (inizio != null) liberi.push([inizio, L]);
       for (const r of f.righe) {
-        if (liberi.some(([a, b]) => b - a >= 20)) fianchi += 2;      // supporti: solo dove c'è il profilo
+        if (categoriaTipo(m.tipo) !== 'regletta' && liberi.some(([a, b]) => b - a >= 20)) fianchi += 2;      // supporti: solo dove c'è il profilo (la regletta non ha fianchi)
         for (const [t0, t1] of liberi) {
           if (t1 - t0 < 20) continue;
           // coordinate della linea: direzione unica (verso) per unire i tratti
@@ -3116,15 +3118,14 @@ export function profiliGola(progetto) {
   const profili = [];
   for (const t of tratti.sort((a, b) => a.t0 - b.t0)) {
     const p = profili.find((q) => q.tipo === t.tipo && Math.abs(q.quota - t.quota) <= 5
+      && (t.tipo !== 'C' || q.moduli[0] === t.id)                         // C: ogni mobile il suo
       && q.n.x * t.n.x + q.n.y * t.n.y > 0.99 && Math.abs(q.off - t.off) < 30 && t.t0 - q.t1 < 15 && q.t0 - t.t1 < 15);
     if (p) { p.t0 = Math.min(p.t0, t.t0); p.t1 = Math.max(p.t1, t.t1); if (!p.moduli.includes(t.id)) p.moduli.push(t.id); }
     else profili.push({ ...t, moduli: [t.id] });
   }
-  // ANGOLI fra due profili L (stessa quota, perpendicolari) che arrivano allo stesso punto.
-  // Angolo con la REGLETTA (angolo cieco, come sempre): l'angolo non cambia, i profili finiscono
-  // contro la regletta (niente pezzo d'angolo, il capo resta nascosto). Senza regletta (base ad
-  // angolo) i due profili si uniscono con l'angolo interno.
-  const cieche = progetto.autoRegletta === false ? [] : mobili.filter((m) => infoAngoloCieco(progetto, m));
+  // ANGOLI fra due profili L (stessa quota, perpendicolari) che arrivano allo stesso punto: UN ANGOLO
+  // PER OGNI ANGOLO, anche dove c'è la regletta del mobile cieco (la regletta è alta come le ante,
+  // il profilo le passa sopra e arriva fino all'angolo).
   let angoliInterni = 0, angoliEsterni = 0;
   const Ls = profili.filter((p) => p.tipo === 'L');
   for (const p of Ls) { p.e0 = 0; p.e1 = 0; }
@@ -3141,10 +3142,6 @@ export function profiliGola(progetto) {
     const sA = X.x * A.dir.x + X.y * A.dir.y, sB = X.x * B.dir.x + X.y * B.dir.y;
     const vicinoA = Math.min(Math.abs(sA - A.t0), Math.abs(sA - A.t1)), vicinoB = Math.min(Math.abs(sB - B.t0), Math.abs(sB - B.t1));
     if (vicinoA > 200 || vicinoB > 200) continue;
-    if (cieche.some((m) => Math.hypot(m.x - X.x, m.y - X.y) < 900)) {
-      for (const [P, s] of [[A, sA], [B, sB]]) { if (Math.abs(s - P.t0) <= Math.abs(s - P.t1)) P.e0 = 1; else P.e1 = 1; }
-      continue;
-    }
     // interno: ognuno dei due sta DAVANTI al fronte dell'altro
     const cA = (A.t0 + A.t1) / 2, cB = (B.t0 + B.t1) / 2;
     const PA = { x: A.dir.x * cA + A.n.x * A.off, y: A.dir.y * cA + A.n.y * A.off };
@@ -3156,7 +3153,24 @@ export function profiliGola(progetto) {
       if (Math.abs(s - P.t0) <= Math.abs(s - P.t1)) { P.t0 = Math.min(P.t0, s); P.e0 = 1; } else { P.t1 = Math.max(P.t1, s); P.e1 = 1; }
     }
   }
-  const fuori = (tipo) => profili.filter((p) => p.tipo === tipo).map((p) => ({ lung: Math.round(p.t1 - p.t0), moduli: p.moduli, capiLiberi: 2 - (p.e0 || 0) - (p.e1 || 0) }));
+  const full = (progetto.piano && progetto.piano.pareti) || [];
+  const vert = full.length ? calcolaVertici(full) : [];
+  const muri = full.map((pw, i) => (pw.assente ? null : [vert[i], vert[i + 1]])).filter((w) => w && w[0] && w[1]);
+  const distSeg = (q, a, b) => { const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy || 1;
+    const u = Math.max(0, Math.min(1, ((q.x - a.x) * dx + (q.y - a.y) * dy) / l2)); return Math.hypot(q.x - a.x - u * dx, q.y - a.y - u * dy); };
+  const dentro = (o, q) => { const d = dimMobile(o), { ux, uz } = assiMobile(o), v = { x: q.x - o.x, y: q.y - o.y };
+    return Math.abs(v.x * ux.x + v.y * ux.y) <= d.w / 2 + 5 && Math.abs(v.x * uz.x + v.y * uz.y) <= d.d / 2 + 5; };
+  const alti = mobili.filter((o) => { const c = categoriaTipo(o.tipo); return c === 'colonna' || c === 'frigo' || (c === 'costado' && (o.altezza_mm || 0) >= 1500); });
+  /** Il capo del profilo L a «t» (verso: −1 inizio, +1 fine) ha il tappo? Contro il muro / una colonna: no. */
+  const tappoAlCapo = (P, t, verso) => {
+    const q = { x: P.dir.x * (t + verso * 15) - P.n.x * 100 + P.n.x * P.off, y: P.dir.y * (t + verso * 15) - P.n.y * 100 + P.n.y * P.off };
+    if (muri.some(([a, b]) => distSeg(q, a, b) < 40)) return 0;
+    if (alti.some((o) => dentro(o, q))) return 0;
+    return 1;                                                  // costado basso o capo libero: tappo
+  };
+  for (const P of Ls) { P.tappi = (P.e0 ? 0 : tappoAlCapo(P, P.t0, -1)) + (P.e1 ? 0 : tappoAlCapo(P, P.t1, 1)); }
+  const fuori = (tipo) => profili.filter((p) => p.tipo === tipo).map((p) => ({ lung: Math.round(p.t1 - p.t0), moduli: p.moduli,
+    capiLiberi: tipo === 'L' ? p.tappi : 2 }));                 // C: ogni gola di ogni cassetto ha 2 tappi
   return { L: fuori('L'), C: fuori('C'), angoliInterni, angoliEsterni, fianchi };
 }
 /**

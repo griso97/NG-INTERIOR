@@ -1,11 +1,11 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
-import { materialiPer } from '../materiali.js?v=20261124p';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261124p';
-import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261124p';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261124p';
-import { apriDistinta } from './passo2.js?v=20261124p';
+import { materialiPer } from '../materiali.js?v=20261124q';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261124q';
+import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261124q';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261124q';
+import { apriDistinta } from './passo2.js?v=20261124q';
 
 let FINITURE = materialiPer('legno');          // dal catalogo (si rilegge a ogni pannello)
 export { MATERIALI_DEFAULT };
@@ -174,7 +174,7 @@ function renderPannello() {
     ev.currentTarget.classList.toggle('attivo', anteSonoAperte());
   });
   P.querySelector('#p3-foto-reale').addEventListener('click', async () => {
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261124p');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261124q');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaModulari(p), tela3d: ctx.canvas, nome: 'mobile' });
   });
   P.querySelector('#p3-foto').addEventListener('click', () => {

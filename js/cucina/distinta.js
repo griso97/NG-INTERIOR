@@ -14,9 +14,9 @@
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi,
-  scendeAntaPensile } from './modello.js?v=20261124p';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261124p';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261124p';
+  scendeAntaPensile } from './modello.js?v=20261124q';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261124q';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261124q';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -304,7 +304,8 @@ function pezziDiModulo(progetto, m) {
   } else if (cat === 'pannello') {
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(m.larghezza_mm || L), altezza: H, spessore: SP, materiale: 'anta', quantita: 1 });
   } else if (cat === 'regletta') {
-    pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(m.latoA_mm || 30), altezza: H, spessore: SP, materiale: 'anta', quantita: 1 });
+    // con la GOLA è alta come le ante (700 → 675): il profilo L le passa sopra
+    pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(m.latoA_mm || 30), altezza: golaSuMobile(progetto, m) ? altezzaAntaGola(H) : H, spessore: SP, materiale: 'anta', quantita: 1 });
   } else if (cat === 'altillo') {
     // MOBILE SOPRA FRIGO: la carcassa si ordina come i pensili; qui le ante (H − aria)
     anteModulo(pz, mod, L, H, anteDiMobile(m), m.antaLato, null, false, null, rJ);
