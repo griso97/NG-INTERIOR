@@ -47,6 +47,9 @@ export const PARAMETRI_DEFAULT = Object.freeze({
     // PIANO DI LAVORO: profondità (mm, dal muro: si appoggia al muro come i mobili; di serie 625 = 25 davanti
     // alle ante dei mobili da 600); sui lati niente sporgenza. Alzatina sul muro sì/no e altezza
     profonditaPiano: 625,
+    // CERNIERE DEI PENSILI: a questa distanza dal bordo sopra e da quello sotto (di serie 95 mm). Con l'anta
+    // che scende di più (72, 92 o personalizzata) sotto si aggiungono i mm in più (92 → 115)
+    cerniera: 95,
     alzatina: false,
     altezzaAlzatina: 100,
   },
@@ -204,6 +207,7 @@ function completa(s) {
       profonditaPiano: Math.max(500, Math.min(1200, num(k.profonditaPiano, d.profonditaPiano))),
       alzatina: k.alzatina === true,
       altezzaAlzatina: Math.max(20, Math.min(600, num(k.altezzaAlzatina, d.altezzaAlzatina))),
+      cerniera: Math.max(20, Math.min(300, num(k.cerniera, d.cerniera))),
     }; })(),
     armadi: (() => { const a = (s && s.armadi) || {}, d = D.armadi; return {
       setup: Number(a.setup) === 2 ? 2 : 1,

@@ -8,21 +8,21 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261125b';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261125b';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261125b';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261125b';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261125b';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261125b';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261125b';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261125b';
-import { agganciaTema } from './tema.js?v=20261125b';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261125b';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261125b';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261125b';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261125b';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261125b';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261125b';
+} from './catalogo.js?v=20261125c';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261125c';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261125c';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261125c';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261125c';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261125c';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261125c';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261125c';
+import { agganciaTema } from './tema.js?v=20261125c';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261125c';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261125c';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261125c';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261125c';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261125c';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261125c';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1105,6 +1105,13 @@ function renderParametri(S) {
       </div>
       ${fig('piano', 'Schema: il piano visto di lato')}
       <p class="imp-desc">Vale per le cucine nuove; in una cucina già fatta la cambi nel Rendering → Piano di lavoro e pannello dietro. Dove c'è un costado il piano finisce a filo del costado.</p>
+    </div>
+    <div class="par-gruppo">
+      <h3>Cerniere dei pensili</h3>
+      <div class="par-griglia">
+        ${campo('cucina.cerniera', 'Distanza dal bordo', "dal bordo sopra e da quello sotto dell'anta (di serie 95). Con l'anta che scende di più (72, 92…) sotto si aggiungono i mm in più: 92 → 115")}
+      </div>
+      <p class="imp-desc">Nella distinta e nell'esportazione ogni anta dei pensili ha scritto: 2 cerniere standard, a quanti mm da sopra e da sotto, e se le cerniere sono a destra o a sinistra.</p>
     </div>
     <div class="par-gruppo">
       <h3>Maniglia a J (profilo sopra l'anta)</h3>
