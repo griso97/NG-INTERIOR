@@ -8,21 +8,21 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261125d';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261125d';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261125d';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261125d';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261125d';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261125d';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261125d';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261125d';
-import { agganciaTema } from './tema.js?v=20261125d';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261125d';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261125d';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261125d';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261125d';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261125d';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261125d';
+} from './catalogo.js?v=20261125e';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261125e';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261125e';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261125e';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261125e';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261125e';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261125e';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261125e';
+import { agganciaTema } from './tema.js?v=20261125e';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261125e';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261125e';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261125e';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261125e';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261125e';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261125e';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1114,7 +1114,7 @@ function renderParametri(S) {
         ${campo('cucina.cernieraSotto', 'Cerniera sotto', "distanza dal bordo sotto dell'anta (standard 95)")}
       </div>
       <div class="par-esempio" id="par-es-cern" data-no-i18n></div>
-      <p class="imp-desc">Nella distinta e nell'esportazione ogni anta dei pensili ha scritto: 2 cerniere standard, a quanti mm da sopra e da sotto, e se le cerniere sono a destra o a sinistra.</p>
+      <p class="imp-desc">Nella distinta e nell'esportazione ogni anta dei pensili ha scritto: 2 cerniere standard e a quanti mm da sopra e da sotto. Quando le due misure sono diverse (anta che scende di più: 72, 92…) c'è scritto anche se le cerniere sono a destra o a sinistra.</p>
     </div>
     <div class="par-gruppo">
       <h3>Maniglia a J (profilo sopra l'anta)</h3>

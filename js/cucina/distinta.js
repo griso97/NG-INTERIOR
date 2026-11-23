@@ -14,9 +14,9 @@
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi,
-  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125d';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261125d';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125d';
+  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125e';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261125e';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125e';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -78,7 +78,15 @@ function notaCerniere(sopra, sotto, latoCerniere) {
 function anteModulo(pz, mod, L, H, N, lato, altAnta, sporg, vetrina, rJ = 0, extra = '', cerniere = null) {
   if (sporg) rJ = 0;                                  // anta sporgente: si apre da sotto, niente maniglia
   const a = dimAnta(L, H, N, rJ);
-  // ante dei pensili: ogni anta con le sue cerniere (2 ante → una con le cerniere a sinistra e una a destra)
+  // ante dei pensili: ogni anta con le sue cerniere. Misure uguali sopra e sotto (anta normale): il lato non
+  // conta. Misure diverse (anta che scende: 72, 92…): conta da che lato sono le cerniere, se no la misura più
+  // grande finisce in alto → 2 ante = una con le cerniere a sinistra e una a destra
+  if (cerniere && lato !== 'alto' && cerniere.sopra === cerniere.sotto) {
+    const prima = pz.length;
+    anteModulo(pz, mod, L, H, N, lato, altAnta, sporg, vetrina, rJ, extra, null);
+    for (let i = prima; i < pz.length; i++) pz[i].cerniere = notaCerniere(cerniere.sopra, cerniere.sotto, null);
+    return;
+  }
   if (cerniere && lato !== 'alto') {
     const lati = N === 1 ? [lato === 'sx' ? 'dx' : 'sx'] : N === 2 ? ['sx', 'dx'] : null;
     if (lati) {

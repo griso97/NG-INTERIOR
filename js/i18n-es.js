@@ -2703,7 +2703,7 @@ window.NG_I18N_ES = {
  "distanza dal bordo sopra dell'anta (standard 95)": "distancia desde el canto de arriba de la puerta (estándar 95)",
  "distanza dal bordo sotto dell'anta (standard 95)": "distancia desde el canto de abajo de la puerta (estándar 95)",
  "Esempio: anta da 70 → cerniere a {0} mm da sopra e {1} mm da sotto · anta da 72 (scende 20 mm in più) → {2} da sopra e {3} da sotto": "Ejemplo: puerta de 70 → bisagras a {0} mm desde arriba y {1} mm desde abajo · puerta de 72 (baja 20 mm más) → {2} desde arriba y {3} desde abajo",
- "Nella distinta e nell'esportazione ogni anta dei pensili ha scritto: 2 cerniere standard, a quanti mm da sopra e da sotto, e se le cerniere sono a destra o a sinistra.": "En el despiece y en la exportación cada puerta de los muebles altos lleva escrito: 2 bisagras estándar, a cuántos mm desde arriba y desde abajo, y si las bisagras van a la derecha o a la izquierda.",
+ "Nella distinta e nell'esportazione ogni anta dei pensili ha scritto: 2 cerniere standard e a quanti mm da sopra e da sotto. Quando le due misure sono diverse (anta che scende di più: 72, 92…) c'è scritto anche se le cerniere sono a destra o a sinistra.": "En el despiece y en la exportación cada puerta de los muebles altos lleva escrito: 2 bisagras estándar y a cuántos mm desde arriba y desde abajo. Cuando las dos medidas son distintas (puerta que baja más: 72, 92…) se indica también si las bisagras van a la derecha o a la izquierda.",
  "Struttura e schiena": "Estructura y trasera",
  "Ante interne": "Puertas interiores",
  "Tiradores": "Tiradores",
