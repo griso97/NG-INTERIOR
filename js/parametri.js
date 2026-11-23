@@ -83,6 +83,9 @@ export const PARAMETRI_DEFAULT = Object.freeze({
     canale: 8,            // mm: profondità del canale (la schiena entra tanto per lato)
     dentro: 10,           // mm: quanto dentro sta la schiena (dal retro dei fianchi al canale)
   },
+  // MOBILI MODULARI (sottoscala, nicchie, mansarde): valori di partenza di ogni progetto nuovo
+  //   spessori di struttura, schiena e ante · abbondanza sul lato inclinato (si rifila in opera)
+  modulari: { carcassa: 18, schiena: 10, ante: 18, abbFianchi: 20, abbTop: 40, abbAnte: 20 },
   // IMPOSTAZIONI SALTATE nella configurazione guidata («lo imposto dopo»): restano a 0 e la distinta
   // avvisa che mancano. Si tolgono da qui appena il falegname le imposta in ⚙ Parametri.
   daImpostare: [],
@@ -217,6 +220,10 @@ function completa(s) {
       spessoreSchiena: Math.max(1, num(a.spessoreSchiena, d.spessoreSchiena)),
       canale: Math.max(0, num(a.canale, d.canale)),
       dentro: Math.max(0, num(a.dentro, d.dentro)),
+    }; })(),
+    modulari: (() => { const m = (s && s.modulari) || {}, d = D.modulari; return {
+      carcassa: Math.max(1, num(m.carcassa, d.carcassa)), schiena: Math.max(1, num(m.schiena, d.schiena)), ante: Math.max(1, num(m.ante, d.ante)),
+      abbFianchi: Math.max(0, num(m.abbFianchi, d.abbFianchi)), abbTop: Math.max(0, num(m.abbTop, d.abbTop)), abbAnte: Math.max(0, num(m.abbAnte, d.abbAnte)),
     }; })(),
     anteInterne: {
       aria: Math.max(0, num(((s && s.anteInterne) || {}).aria, D.anteInterne.aria)),

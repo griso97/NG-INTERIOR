@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio } from './calcoli.js?v=20261124z';
-import { parametri } from './parametri.js?v=20261124z';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261124z';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261124z';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261124z';
-import { sfondoDi } from './sfondi.js?v=20261124z';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261124z';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261124z';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio } from './calcoli.js?v=20261125a';
+import { parametri } from './parametri.js?v=20261125a';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261125a';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261125a';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261125a';
+import { sfondoDi } from './sfondi.js?v=20261125a';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261125a';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261125a';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta

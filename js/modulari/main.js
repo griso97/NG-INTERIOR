@@ -1,10 +1,11 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 1 (forma del vano) + navigazione tra i passi
 // =============================================================================
-import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261124z';
-import { renderPasso2, apriDistinta, stiliTema, tastoCubi } from './passo2.js?v=20261124z';
-import { agganciaTema } from '../tema.js?v=20261124z';
-import { tendineAutomatiche } from '../tendine-pannello.js?v=20261124z';
+import { FORME, VALORI_ESEMPIO, infoForma, calcolaForma } from './forma.js?v=20261125a';
+import { renderPasso2, apriDistinta, stiliTema, tastoCubi } from './passo2.js?v=20261125a';
+import { agganciaTema } from '../tema.js?v=20261125a';
+import { tendineAutomatiche } from '../tendine-pannello.js?v=20261125a';
+import { parametri } from '../parametri.js?v=20261125a';
 
 const KEY = 'ng-modulari-v1';
 const pannello = document.getElementById('mod-pannello');
@@ -21,7 +22,9 @@ function statoIniziale() {
     step: 1,
     formaId: 'triangolo', valori: JSON.parse(JSON.stringify(VALORI_ESEMPIO)), specchia: false, profondita: 600,
     modalita: 'moduli',                       // 'moduli' (come armadi) | 'cubi' (liberi)
-    spessori: { carcassa: 18, schiena: 10, ante: 18 },
+    // di partenza come in ⚙ Impostazioni → Parametri → Mobili modulari
+    spessori: (() => { const m = parametri().modulari; return { carcassa: m.carcassa, schiena: m.schiena, ante: m.ante }; })(),
+    abbondanza: (() => { const m = parametri().modulari; return { fianchi: m.abbFianchi, top: m.abbTop, ante: m.abbAnte }; })(),
     moduli: { uguali: true, numero: 3, larghezzaUsata: null, comune: { ante: 1, lato: 'dx', ripiani: 1 }, lista: [], chiusura: 'fisso', chiusuraV: 2 },
     cubi: [], cuboSel: null,
     nuovoCubo: { w: 400, h: 400, fronte: 'anta', ripiani: 0 },
@@ -401,7 +404,7 @@ function aggiorna() {
     mostra3d(true);
     // prima i materiali, poi il 3D (su Safari due caricamenti paralleli dello
     // stesso file possono far partire il 3D prima dei materiali)
-    import('../materiali.js?v=20261124z').then(() => import('./passo3.js?v=20261124z')).then((m) => { passo3 = m; if (stato.step === 3) m.renderPasso3(c); })
+    import('../materiali.js?v=20261125a').then(() => import('./passo3.js?v=20261125a')).then((m) => { passo3 = m; if (stato.step === 3) m.renderPasso3(c); })
       .catch(() => { riepilogo.innerHTML = '<div class="mod-msg err">Non riesco a caricare il 3D. Ricarica la pagina.</div>'; });
     return;
   }

@@ -199,3 +199,7 @@
 .par-scelta b { display: block; color: #e8c25a; font-weight: 600; }
 .par-scelta small { color: #b8ad97; }
 .par-scelta.sel { border-color: #e8c25a; box-shadow: 0 0 0 2px rgba(232,194,90,.35); background: #1d1812; }
+
+/* Parametri: la scheda aperta (Cucina / Armadio a battente / Armadio scorrevole / Mobili modulari) in oro */
+.par-schede .btn-ghost.attivo { border-color: #c9a94a; color: #e8c25a; background: rgba(201, 169, 74, .16); }
+.par-scheda-desc { margin-top: 6px; }

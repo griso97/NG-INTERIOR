@@ -8,21 +8,21 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261124z';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261124z';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261124z';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261124z';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261124z';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261124z';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261124z';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261124z';
-import { agganciaTema } from './tema.js?v=20261124z';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261124z';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261124z';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261124z';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124z';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261124z';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261124z';
+} from './catalogo.js?v=20261125a';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261125a';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261125a';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261125a';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261125a';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261125a';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261125a';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261125a';
+import { agganciaTema } from './tema.js?v=20261125a';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261125a';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261125a';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261125a';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261125a';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261125a';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261125a';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1001,6 +1001,14 @@ function apriSchedaPronto(p, o = null, statoRicerca = null) {
 // ---------------------------------------------------------------------------
 // FERRAMENTA PER MARCA: quale voce della lista si sta modificando (0 = quella di partenza)
 let _selGola = 0, _selCass = 0;
+// SCHEDE dei Parametri: ogni tipo di lavoro con le sue impostazioni
+const SCHEDE_PAR = [
+  ['cucina', '🍳 Cucina', 'Tutto quello che usa la cucina: ante, piedini, piano di lavoro, maniglia a J, gola, regletta d\'angolo e cassetti.'],
+  ['battente', '🚪 Armadio a battente', 'Armadi a battente: come monti struttura e schiena, ante interne.'],
+  ['scorrevole', '↔ Armadio scorrevole', 'Armadi scorrevoli: struttura e schiena (uguali al battente o no), binari e tiradores.'],
+  ['modulari', '🧩 Mobili modulari', 'Mobili modulari (sottoscala, nicchie, mansarde): spessori e abbondanza di partenza.'],
+];
+let _schedaPar = (() => { try { const v = localStorage.getItem('ng-par-scheda'); return SCHEDE_PAR.some((x) => x[0] === v) ? v : 'cucina'; } catch (_) { return 'cucina'; } })();
 function renderParametri(S) {
   const el = document.getElementById('imp-sezione'), P = parametri();
   const leggi = (path) => path.split('.').reduce((o, k) => (o ? o[k] : undefined), P);
@@ -1064,7 +1072,11 @@ function renderParametri(S) {
     <div id="par-mancanti"></div>
     <p class="imp-desc">Valgono su questo dispositivo; con la «copia completa» li porti anche sugli altri. Si salvano da soli mentre scrivi.</p>
     <p class="imp-desc">📷 Ogni parametro può avere una o più foto (es. dove si misura): tocca «+ Foto» sotto il numero; tocca una foto per vederla grande o toglierla.</p>
-    <h2 class="par-sezione">🍳 Cucina</h2>
+    <div class="par-schede" role="tablist" style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 4px">
+      ${SCHEDE_PAR.map(([id, nome]) => `<button type="button" role="tab" class="btn-ghost ${_schedaPar === id ? 'attivo' : ''}" data-scheda-btn="${id}" aria-selected="${_schedaPar === id}">${esc(nome)}</button>`).join('')}
+    </div>
+    <div class="par-scheda" data-scheda="cucina" ${_schedaPar === 'cucina' ? '' : 'hidden'}>
+      <p class="imp-desc par-scheda-desc">${esc((SCHEDE_PAR.find((x) => x[0] === 'cucina') || [])[2] || '')}</p>
     <div class="par-gruppo">
       <h3>Aria delle ante e dei frontali</h3>
       <div class="par-griglia">
@@ -1159,17 +1171,16 @@ function renderParametri(S) {
       <div class="par-esempio" id="par-es-cass" data-no-i18n></div>
       ${fig('cassetti', 'Schema: cassetto visto da sopra')}
     </div>
-    <h2 class="par-sezione">🚪 Armadi</h2>
+    </div>
+    <div class="par-scheda" data-scheda="battente" ${_schedaPar === 'battente' ? '' : 'hidden'}>
+      <p class="imp-desc par-scheda-desc">${esc((SCHEDE_PAR.find((x) => x[0] === 'battente') || [])[2] || '')}</p>
     <div class="par-gruppo">
-      <h3>Come monti gli armadi</h3>
+      <h3>Struttura e schiena</h3>
       <p class="imp-desc">I valori di partenza di ogni armadio nuovo: tocca il modo in cui lavori. Nel singolo armadio li puoi sempre cambiare (Setup carcassa e Schiena).</p>
       <div id="par-montaggio"></div>
-      <h3 style="margin-top:22px">Armadi scorrevoli</h3>
-      <div id="par-montaggio-sc"></div>
-      <p style="margin:12px 0 0"><a class="btn-ghost" href="./benvenuto.html" style="display:inline-block;text-decoration:none;padding:9px 14px">▶ Rifai la configurazione guidata</a></p>
     </div>
     <div class="par-gruppo">
-      <h3>Ante interne (armadi a battente)</h3>
+      <h3>Ante interne</h3>
       <div class="par-griglia">
         ${campo('anteInterne.aria', 'Aria attorno all\'anta', 'attorno a ogni anta e fra un\'anta e l\'altra, dentro il vano')}
         ${campo('anteInterne.spazioRipiano', 'Spazio fra anta e ripiano', 'i ripiani stanno indietro di tanto rispetto all\'anta chiusa')}
@@ -1178,19 +1189,48 @@ function renderParametri(S) {
       ${fig('anteInterne', 'Schema: ante interne viste davanti e da sopra')}
       <p class="imp-desc">Vale quando nell'armadio a battente scegli «Ante interne»: l'anta sta dentro il vano, a filo della struttura.</p>
     </div>
+    </div>
+    <div class="par-scheda" data-scheda="scorrevole" ${_schedaPar === 'scorrevole' ? '' : 'hidden'}>
+      <p class="imp-desc par-scheda-desc">${esc((SCHEDE_PAR.find((x) => x[0] === 'scorrevole') || [])[2] || '')}</p>
     <div class="par-gruppo">
-      <h3>Binari degli armadi scorrevoli</h3>
+      <h3>Struttura e schiena</h3>
+      <div id="par-montaggio-sc"></div>
+    </div>
+    <div class="par-gruppo">
+      <h3>Binari</h3>
       <p class="imp-desc">Ogni binario ha i suoi numeri per calcolare le ante. Nell'armadio scorrevole scegli quale binario usi.</p>
       <div id="par-binari">${P.binari.map((b, i) => cardBinario(b, i, P.binari.length)).join('')}</div>
       <button type="button" class="btn-ghost" id="par-bin-agg">+ Aggiungi binario</button>
     </div>
     <div class="par-gruppo">
-      <h3>Tiradores degli armadi scorrevoli</h3>
+      <h3>Tiradores</h3>
       <p class="imp-desc">Il profilo a tutta altezza sui due lati di ogni anta scorrevole (le maniglie che sporgono non si possono mettere: le ante scorrono una dietro l'altra). Uno per ogni modello che usi; nell'armadio scorrevole scegli quale.</p>
       <div id="par-tiradori">${P.tiradori.map((x, i) => cardTirador(x, i, P.tiradori.length)).join('')}</div>
       <button type="button" class="btn-ghost" id="par-tir-agg">+ Aggiungi tirador</button>
     </div>
+    </div>
+    <div class="par-scheda" data-scheda="modulari" ${_schedaPar === 'modulari' ? '' : 'hidden'}>
+      <p class="imp-desc par-scheda-desc">${esc((SCHEDE_PAR.find((x) => x[0] === 'modulari') || [])[2] || '')}</p>
+    <div class="par-gruppo">
+      <h3>Spessori di partenza</h3>
+      <div class="par-griglia">
+        ${campo('modulari.carcassa', 'Struttura (fianchi, top, fondo)', 'vale per i mobili modulari nuovi; nel progetto si cambiano')}
+        ${campo('modulari.schiena', 'Schiena')}
+        ${campo('modulari.ante', 'Ante e pannelli fissi')}
+      </div>
+    </div>
+    <div class="par-gruppo">
+      <h3>Abbondanza sul lato inclinato</h3>
+      <p class="imp-desc">Muri e scale non sono mai dritti: i pezzi con il lato inclinato si tagliano più lunghi e si rifilano a filo in opera.</p>
+      <div class="par-griglia">
+        ${campo('modulari.abbFianchi', 'Fianchi')}
+        ${campo('modulari.abbTop', 'Top')}
+        ${campo('modulari.abbAnte', 'Ante e pannelli fissi')}
+      </div>
+    </div>
+    </div>
     <div class="par-azioni">
+      <a class="btn-ghost" href="./benvenuto.html" style="display:inline-block;text-decoration:none;padding:9px 14px">▶ Rifai la configurazione guidata</a>
       <button type="button" class="btn-ghost" id="par-ripristina">↺ Rimetti i valori di partenza</button>
       <span class="imp-auto-msg" id="par-msg" hidden>✓ Salvato</span>
     </div>`;
@@ -1298,6 +1338,13 @@ function renderParametri(S) {
     if (!b || nuovo.binari.length < 2) return;
     if (!confirm(tr(`Togliere il binario «${b.nome || '—'}»?`))) return;
     nuovo.binari.splice(i, 1); salvaParametri(nuovo); renderParametri(S);
+  }));
+  // SCHEDE: Cucina / Armadio a battente / Armadio scorrevole / Mobili modulari
+  el.querySelectorAll('[data-scheda-btn]').forEach((b) => b.addEventListener('click', () => {
+    _schedaPar = b.dataset.schedaBtn;
+    try { localStorage.setItem('ng-par-scheda', _schedaPar); } catch (_) { /* niente */ }
+    el.querySelectorAll('[data-scheda]').forEach((d) => { d.hidden = d.dataset.scheda !== _schedaPar; });
+    el.querySelectorAll('[data-scheda-btn]').forEach((x) => { const on = x.dataset.schedaBtn === _schedaPar; x.classList.toggle('attivo', on); x.setAttribute('aria-selected', String(on)); });
   }));
   // GOLA / CASSETTI: scegli la voce, aggiungi (copia di quella scelta), metti come predefinita, togli
   const LISTE = { gola: ['gola', 'goleAltre', 'g', 'nome'], cass: ['cassetti', 'cassettiAltri', 'c', 'marca'] };
