@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro } from './calcoli.js?v=20261124y';
-import { parametri } from './parametri.js?v=20261124y';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261124y';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261124y';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261124y';
-import { sfondoDi } from './sfondi.js?v=20261124y';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261124y';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261124y';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio } from './calcoli.js?v=20261124z';
+import { parametri } from './parametri.js?v=20261124z';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261124z';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261124z';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261124z';
+import { sfondoDi } from './sfondi.js?v=20261124z';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261124z';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261124z';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -871,13 +871,30 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
     const idProf = config.scorrevole?.coloreProfilo || 'binario-bianco';
     const matProf = getMaterialeTHREE(MATERIALI.some((m) => m.id === idProf && m.categoria === 'binario') ? idProf : 'binario-bianco',
       () => { if (resa) resa.cambiato(); else renderer?.render(scene, camera); });
+    // TIRADOR scelto (⚙ Parametri): faccia vista, sporgenza e forma
+    const tir = tiradorArmadio(config);
     const profili = (pivot, w, h) => {
-      const PW = 22, PD = sA + 8;                       // faccia vista 22 mm, avvolge l'anta (+4 per parte)
+      const PW = tir.larghezza, SP = tir.sporgenza;
       for (const lato of [-1, 1]) {
-        const pr = new THREE.Mesh(new THREE.BoxGeometry(PW, h + 4, PD), matProf);
-        pr.position.set(lato * (w / 2 - PW / 2 + 2), 0, 0);
-        pr.castShadow = true; pr.userData.tipo = 'profilo-anta';
-        pivot.add(pr);
+        const x = lato * (w / 2 - PW / 2 + 2);
+        const metti = (geo, px, pz, rotY = 0) => {
+          const pr = new THREE.Mesh(geo, matProf);
+          pr.position.set(px, 0, pz); pr.rotation.y = rotY;
+          pr.castShadow = true; pr.userData.tipo = 'profilo-anta';
+          pivot.add(pr);
+        };
+        if (tir.forma === 'piatto') {
+          // piatto: una lama sul fronte dell'anta, sul bordo
+          metti(new THREE.BoxGeometry(PW, h + 4, Math.max(2, SP)), x, sA / 2 + Math.max(2, SP) / 2);
+        } else if (tir.forma === 'tondo') {
+          // tondo: mezzo tubo a tutta altezza sul fronte, sul bordo dell'anta
+          const r = PW / 2, g = new THREE.CylinderGeometry(r, r, h + 4, 20, 1, false, 0, Math.PI);
+          metti(g, x, sA / 2, -Math.PI / 2);
+          metti(new THREE.BoxGeometry(3, h + 4, sA + 2), lato * (w / 2 - 1.5 + 2), 0);   // risvolto sul fianco dell'anta
+        } else {
+          // avvolgente: abbraccia il bordo dell'anta (davanti e dietro)
+          metti(new THREE.BoxGeometry(PW, h + 4, sA + 2 * SP), x, 0);
+        }
       }
     };
     // lato: dove si prende l'anta per farla scorrere (bordo verso l'esterno del modulo)

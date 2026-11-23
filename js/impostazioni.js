@@ -8,21 +8,21 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261124y';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261124y';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261124y';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261124y';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261124y';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261124y';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261124y';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261124y';
-import { agganciaTema } from './tema.js?v=20261124y';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261124y';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261124y';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261124y';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124y';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261124y';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261124y';
+} from './catalogo.js?v=20261124z';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261124z';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261124z';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261124z';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261124z';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261124z';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261124z';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261124z';
+import { agganciaTema } from './tema.js?v=20261124z';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261124z';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261124z';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261124z';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261124z';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261124z';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261124z';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -999,6 +999,8 @@ function apriSchedaPronto(p, o = null, statoRicerca = null) {
 // ---------------------------------------------------------------------------
 // PARAMETRI della falegnameria (aria delle ante, maniglia a J, sistema di cassetti)
 // ---------------------------------------------------------------------------
+// FERRAMENTA PER MARCA: quale voce della lista si sta modificando (0 = quella di partenza)
+let _selGola = 0, _selCass = 0;
 function renderParametri(S) {
   const el = document.getElementById('imp-sezione'), P = parametri();
   const leggi = (path) => path.split('.').reduce((o, k) => (o ? o[k] : undefined), P);
@@ -1024,10 +1026,38 @@ function renderParametri(S) {
         <div class="par-griglia">
           ${campoBin(i, 'larghezzaMeno', 'Larghezza anta: togli', 'larghezza esterna ÷ n° ante − questo numero (0 = anta larga come il modulo)')}
           ${campoBin(i, 'altezzaMeno', 'Altezza anta: togli', 'altezza esterna totale (fianchi + top + fondo) − questo numero')}
-          ${campoBin(i, 'maniglia', 'Profili delle ante: togli', 'in più, alla larghezza di ogni anta, per i profili verticali sui due lati')}
         </div>
         <div class="par-esempio" data-bin-es="${i}" data-no-i18n></div>
-        <div class="par-figure"><figure><div data-fig-bin="${i}">${svgBinario(b)}</div><figcaption>${esc('Schema: armadio scorrevole visto davanti')}</figcaption></figure></div>
+        <div class="par-figure"><figure><div data-fig-bin="${i}">${svgBinario(b, P.tiradori[0])}</div><figcaption>${esc('Schema: armadio scorrevole visto davanti')}</figcaption></figure></div>
+      </div>`;
+  // barra delle voci di una ferramenta (gola / cassetti): si tocca quella da modificare
+  const barraSistemi = (tipo, nomi, sel) => `<div class="par-sistemi" style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px">
+      ${nomi.map((n, i) => `<button type="button" class="btn-ghost ${i === sel ? 'attivo' : ''}" data-sis="${tipo}" data-i="${i}">${i === sel ? '✓ ' : ''}${i === 0 ? '⭐ ' : ''}${esc(n || '—')}</button>`).join('')}
+      <button type="button" class="btn-ghost" data-sis-agg="${tipo}">+ Aggiungi</button></div>`;
+  const azioniSistema = (tipo, sel) => sel > 0 ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+      <button type="button" class="btn-ghost" data-sis-pref="${tipo}">⭐ Usa come predefinito</button>
+      <button type="button" class="btn-ghost" data-sis-togli="${tipo}">✕ Togli</button></div>` : '';
+  const listaGole = [P.gola, ...P.goleAltre], listaCass = [P.cassetti, ...P.cassettiAltri];
+  if (_selGola >= listaGole.length) _selGola = 0;
+  if (_selCass >= listaCass.length) _selCass = 0;
+  const pg = _selGola === 0 ? 'gola' : `goleAltre.${_selGola - 1}`, pc = _selCass === 0 ? 'cassetti' : `cassettiAltri.${_selCass - 1}`;
+  const FORME_TIR = [['avvolgente', "Avvolgente (abbraccia il bordo dell'anta)"], ['piatto', 'Piatto (lama sul fronte)'], ['tondo', 'Tondo (mezzo tubo sul fronte)']];
+  const cardTirador = (x, i, n) => `
+      <div class="par-binario">
+        <div class="par-bin-testa">
+          <label class="par-campo"><span class="par-et">Nome del tirador</span>
+            <span class="par-input"><input type="text" data-tir="${i}.nome" value="${esc(x.nome)}" placeholder="es. Syskor"></span></label>
+          ${n > 1 ? `<button type="button" class="btn-ghost btn-mini" data-tir-togli="${i}">✕ Togli</button>` : ''}
+        </div>
+        <div class="par-griglia">
+          ${[['togli', 'Larghezza anta: togli', 'in più, alla larghezza di ogni anta, per i profili sui due lati'],
+             ['larghezza', 'Faccia che si vede', 'larghezza del profilo vista davanti (nel 3D)'],
+             ['sporgenza', 'Sporgenza', "quanto esce davanti all'anta (nel 3D)"]].map(([k, et, aiuto]) => `<div class="par-campo-box"><label class="par-campo"><span class="par-et">${esc(et)}</span>
+            <span class="par-input"><input type="number" inputmode="decimal" step="0.1" min="0" data-tir="${i}.${k}" value="${esc(x[k])}"><em>mm</em></span>
+            <small>${esc(aiuto)}</small></label></div>`).join('')}
+          <div class="par-campo-box"><label class="par-campo"><span class="par-et">Forma</span>
+            <span class="par-input"><select data-tir="${i}.forma">${FORME_TIR.map(([v, t2]) => `<option value="${v}" ${x.forma === v ? 'selected' : ''}>${esc(t2)}</option>`).join('')}</select></span></label></div>
+        </div>
       </div>`;
   el.innerHTML = `
     <p class="imp-desc">${esc(S.desc)}</p>
@@ -1074,10 +1104,22 @@ function renderParametri(S) {
       <p class="imp-desc">Vale per le maniglie con la forma «Profilo (a J)»: le aggiungi in ⚙ Impostazioni → Maniglie e le scegli in cucina.</p>
     </div>
     <div class="par-gruppo">
-      <h3>Gola in alluminio (mobili bassi)</h3>
+      <h3>Gola in alluminio</h3>
+      <p class="imp-desc">Una voce per ogni marca o modello di gola che usi, con le sue misure. In cucina scegli quale usare (di partenza quella con la ⭐).</p>
+      ${barraSistemi('gola', listaGole.map((g) => g.nome), _selGola)}
       <div class="par-griglia">
-        ${campo('gola.spazio', 'Spazio per le dita', "tolti in alto all'anta, sopra il primo cassetto e fra un cassetto e l'altro")}
+        ${campo(`${pg}.nome`, 'Nome (marca / modello)', '', { testo: true, ph: 'es. Syskor' })}
+        ${campo(`${pg}.spazio`, 'Spazio per le dita', "tolti in alto all'anta, sopra il primo cassetto e fra un cassetto e l'altro")}
+        ${campo(`${pg}.spazioV`, 'Colonne: spazio per la gola verticale', 'fra colonna e colonna, e fra colonna e costado dal lato della maniglia')}
+        ${campo(`${pg}.accorcia`, 'Colonne: il fianco si accorcia di', 'il fianco della colonna dal lato della gola (es. 580 → 568)')}
+        ${campo(`${pg}.centrale16`, 'Profilo verticale centrale (fianchi da 16)', 'larghezza del profilo')}
+        ${campo(`${pg}.centrale18`, 'Profilo verticale centrale (fianchi da 18)', 'larghezza del profilo')}
+        ${campo(`${pg}.laterale16`, 'Profilo verticale laterale (fianchi da 16)', 'larghezza del profilo')}
+        ${campo(`${pg}.laterale18`, 'Profilo verticale laterale (fianchi da 18)', 'larghezza del profilo')}
+        ${campo(`${pg}.barra`, 'Barre dei profili L e C', 'lunghezza delle barre da ordinare (di serie 4000)')}
+        ${campo(`${pg}.barraV`, 'Barre dei profili verticali', 'lunghezza delle barre da ordinare (di serie 2600)')}
       </div>
+      ${azioniSistema('gola', _selGola)}
       <div class="par-esempio" id="par-es-gola" data-no-i18n></div>
       ${fig('gola', 'Schema: mobile con 3 cassetti, visto di lato', [['img/guida/gola-vicino.jpg', 'Come si vede nel 3D del programma'], ['img/guida/gola-profilo.jpg', 'Il profilo a L sotto il piano']])}
       <p class="imp-desc">Vale quando nei mobili bassi scegli «Gola alluminio» (Porte · mobili bassi).</p>
@@ -1093,23 +1135,26 @@ function renderParametri(S) {
       <p class="imp-desc">Vale per le cucine nuove; in una cucina già fatta la cambi toccando il mobile dell'angolo.</p>
     </div>
     <div class="par-gruppo">
-      <h3>Sistema di cassetti</h3>
+      <h3>Sistemi di cassetti</h3>
+      <p class="imp-desc">Una voce per ogni marca di cassetti che usi (Syskor, Blum, Novatec…), con le sue misure. In cucina scegli il sistema della cucina e, se vuoi, uno diverso per ogni cassettiera.</p>
+      ${barraSistemi('cass', listaCass.map((c) => c.marca), _selCass)}
       <div class="par-griglia">
-        ${campo('cassetti.marca', 'Marca', '', { testo: true, ph: 'es. Syscore' })}
-        ${campo('cassetti.profondita', 'Profondità del cassetto (guide)')}
-        ${campo('cassetti.spessore', 'Spessore di fondo e trasera')}
-        ${campo('cassetti.fondoMeno', 'Fondo: larghezza = modulo meno')}
-        ${campo('cassetti.fondoProfondita', 'Fondo: profondità', 'uguale per tutti i cassetti')}
-        ${campo('cassetti.traseraMeno', 'Trasera: larghezza = modulo meno')}
+        ${campo(`${pc}.marca`, 'Marca', '', { testo: true, ph: 'es. Syscore' })}
+        ${campo(`${pc}.profondita`, 'Profondità del cassetto (guide)')}
+        ${campo(`${pc}.spessore`, 'Spessore di fondo e trasera')}
+        ${campo(`${pc}.fondoMeno`, 'Fondo: larghezza = modulo meno')}
+        ${campo(`${pc}.fondoProfondita`, 'Fondo: profondità', 'uguale per tutti i cassetti')}
+        ${campo(`${pc}.traseraMeno`, 'Trasera: larghezza = modulo meno')}
       </div>
       <table class="par-tab">
         <thead><tr><th></th><th>Frontale fino a</th><th>Altezza trasera</th></tr></thead>
         <tbody>
-          <tr><th>Cassetto piccolo</th><td>${campo('cassetti.piccoloFinoA', '')}</td><td>${campo('cassetti.piccoloTrasera', '')}</td></tr>
-          <tr><th>Cassetto medio</th><td>${campo('cassetti.medioFinoA', '', '', { ph: '—' })}</td><td>${campo('cassetti.medioTrasera', '', '', { ph: '—' })}</td></tr>
-          <tr><th>Cassetto grande</th><td class="par-piu">più alti del medio</td><td>${campo('cassetti.grandeTrasera', '', '', { ph: '—' })}</td></tr>
+          <tr><th>Cassetto piccolo</th><td>${campo(`${pc}.piccoloFinoA`, '')}</td><td>${campo(`${pc}.piccoloTrasera`, '')}</td></tr>
+          <tr><th>Cassetto medio</th><td>${campo(`${pc}.medioFinoA`, '', '', { ph: '—' })}</td><td>${campo(`${pc}.medioTrasera`, '', '', { ph: '—' })}</td></tr>
+          <tr><th>Cassetto grande</th><td class="par-piu">più alti del medio</td><td>${campo(`${pc}.grandeTrasera`, '', '', { ph: '—' })}</td></tr>
         </tbody>
       </table>
+      ${azioniSistema('cass', _selCass)}
       <p class="imp-desc">Il cassetto grande: lascialo vuoto finché non ti serve. Quando lo usi, scrivi anche fino a che altezza di frontale arriva il medio: i frontali più alti diventano grandi.</p>
       <div class="par-esempio" id="par-es-cass" data-no-i18n></div>
       ${fig('cassetti', 'Schema: cassetto visto da sopra')}
@@ -1139,12 +1184,21 @@ function renderParametri(S) {
       <div id="par-binari">${P.binari.map((b, i) => cardBinario(b, i, P.binari.length)).join('')}</div>
       <button type="button" class="btn-ghost" id="par-bin-agg">+ Aggiungi binario</button>
     </div>
+    <div class="par-gruppo">
+      <h3>Tiradores degli armadi scorrevoli</h3>
+      <p class="imp-desc">Il profilo a tutta altezza sui due lati di ogni anta scorrevole (le maniglie che sporgono non si possono mettere: le ante scorrono una dietro l'altra). Uno per ogni modello che usi; nell'armadio scorrevole scegli quale.</p>
+      <div id="par-tiradori">${P.tiradori.map((x, i) => cardTirador(x, i, P.tiradori.length)).join('')}</div>
+      <button type="button" class="btn-ghost" id="par-tir-agg">+ Aggiungi tirador</button>
+    </div>
     <div class="par-azioni">
       <button type="button" class="btn-ghost" id="par-ripristina">↺ Rimetti i valori di partenza</button>
       <span class="imp-auto-msg" id="par-msg" hidden>✓ Salvato</span>
     </div>`;
   const esempi = () => {
-    const Q = parametri(), A = Q.ante, c = Q.cassetti, f = (n) => String(Math.round(n * 10) / 10);
+    const Q0 = parametri();
+    // esempi e schemi con la gola e i cassetti che si stanno modificando
+    const Q = { ...Q0, gola: [Q0.gola, ...Q0.goleAltre][_selGola] || Q0.gola, cassetti: [Q0.cassetti, ...Q0.cassettiAltri][_selCass] || Q0.cassetti };
+    const A = Q.ante, c = Q.cassetti, f = (n) => String(Math.round(n * 10) / 10);
     el.querySelector('#par-es-ante').textContent = tr(`Esempio: modulo 600 × 700 → 1 anta ${f(600 - A.ariaLarghezza)} × ${f(700 - A.ariaAltezza)} mm, 2 ante ${f((600 - A.ariaLarghezza - A.ariaTraAnte) / 2)} × ${f(700 - A.ariaAltezza)} mm`);
     el.querySelector('#par-es-j').textContent = tr(`Esempio: anta da 700 con maniglia a J → 700 − ${f(A.ariaAltezza)} − ${f(Q.manigliaJ.spessore)} = ${f(700 - A.ariaAltezza - Q.manigliaJ.spessore)} mm`);
     { const G = Q.gola.spazio, es = (H) => tr(`mobile basso da ${H} con la gola → anta ${H} − ${f(G)} = ${f(H - G)} mm · 3 cassetti da ${f(Math.floor((H - 3 * G) / 3))} mm`);
@@ -1155,11 +1209,11 @@ function renderParametri(S) {
     const tL = f(600 - c.traseraMeno), tipi = [[c.piccoloTrasera, 'piccolo'], [c.medioTrasera, 'medio'], [c.grandeTrasera, 'grande']].filter(([h]) => h);
     Q.binari.forEach((b, i) => {
       const box = el.querySelector(`[data-bin-es="${i}"]`); if (!box) return;
-      const w = Math.floor(1000 / 2 - b.larghezzaMeno - b.maniglia), h = Math.floor(2500 - b.altezzaMeno);
+      const w = Math.floor(1000 / 2 - b.larghezzaMeno - Q.tiradori[0].togli), h = Math.floor(2500 - b.altezzaMeno);
       box.textContent = tr(`Esempio: armadio 1000 × 2500 a 2 moduli (1 anta per modulo) → anta ${w} × ${h} mm`);
     });
     el.querySelectorAll('[data-fig]').forEach((d) => { d.innerHTML = svgParametro(d.dataset.fig, Q); });
-    el.querySelectorAll('[data-fig-bin]').forEach((d) => { const b = Q.binari[Number(d.dataset.figBin)]; if (b) d.innerHTML = svgBinario(b); });
+    el.querySelectorAll('[data-fig-bin]').forEach((d) => { const b = Q.binari[Number(d.dataset.figBin)]; if (b) d.innerHTML = svgBinario(b, Q.tiradori[0]); });
     el.querySelector('#par-es-cass').textContent = tr(`Esempio: modulo da 60 → fondo ${f(600 - c.fondoMeno)} × ${f(c.fondoProfondita)} mm · trasera ${tipi.map(([h, n]) => `${tL} × ${f(h)} ${n}`).join(', ')}`);
   };
   esempi();
@@ -1209,10 +1263,17 @@ function renderParametri(S) {
   const impostato = (g) => { if (daImpostare().includes(g)) { segnaImpostato(g); mostraMancanti(); } };
   el.querySelectorAll('[data-par]').forEach((inp) => inp.addEventListener('input', () => {
     const nuovo = JSON.parse(JSON.stringify(parametri()));
-    const [a, b] = inp.dataset.par.split('.');
-    nuovo[a][b] = inp.type === 'number' ? (inp.value === '' ? '' : Number(String(inp.value).replace(',', '.'))) : inp.value;
+    const parti = inp.dataset.par.split('.'), a = parti[0], ult = parti[parti.length - 1];
+    let o = nuovo; for (let i = 0; i < parti.length - 1; i++) { if (o == null) return; o = o[parti[i]]; }
+    if (o == null) return;
+    o[ult] = inp.type === 'number' ? (inp.value === '' ? '' : Number(String(inp.value).replace(',', '.'))) : inp.value;
     salvaParametri(nuovo);
-    if ((a === 'gola' || a === 'regletta' || a === 'cassetti') && Number(nuovo[a][b]) > 0) impostato(a);
+    if (parti.length === 2 && (a === 'gola' || a === 'regletta' || a === 'cassetti') && Number(o[ult]) > 0) impostato(a);
+    if (inp.type !== 'number' && ['gola', 'goleAltre', 'cassetti', 'cassettiAltri'].includes(a)) {
+      // il nome nella barra delle voci segue quello che si scrive
+      const tipo = a === 'gola' || a === 'goleAltre' ? 'gola' : 'cass', idx = parti.length === 2 ? 0 : Number(parti[1]) + 1;
+      const bt = el.querySelector(`[data-sis="${tipo}"][data-i="${idx}"]`); if (bt) bt.textContent = `✓ ${idx === 0 ? '⭐ ' : ''}${inp.value || '—'}`;
+    }
     esempi();
     msg.hidden = false; clearTimeout(timer); timer = setTimeout(() => { msg.hidden = true; }, 1400);
   }));
@@ -1237,6 +1298,51 @@ function renderParametri(S) {
     if (!b || nuovo.binari.length < 2) return;
     if (!confirm(tr(`Togliere il binario «${b.nome || '—'}»?`))) return;
     nuovo.binari.splice(i, 1); salvaParametri(nuovo); renderParametri(S);
+  }));
+  // GOLA / CASSETTI: scegli la voce, aggiungi (copia di quella scelta), metti come predefinita, togli
+  const LISTE = { gola: ['gola', 'goleAltre', 'g', 'nome'], cass: ['cassetti', 'cassettiAltri', 'c', 'marca'] };
+  const selDi = (tipo) => (tipo === 'gola' ? _selGola : _selCass), setSel = (tipo, v) => { if (tipo === 'gola') _selGola = v; else _selCass = v; };
+  el.querySelectorAll('[data-sis]').forEach((b) => b.addEventListener('click', () => { setSel(b.dataset.sis, Number(b.dataset.i)); renderParametri(S); }));
+  el.querySelectorAll('[data-sis-agg]').forEach((b) => b.addEventListener('click', () => {
+    const tipo = b.dataset.sisAgg, [prima, altre, pre, kNome] = LISTE[tipo], nuovo = JSON.parse(JSON.stringify(parametri()));
+    const lista = [nuovo[prima], ...nuovo[altre]], base = lista[selDi(tipo)] || nuovo[prima];
+    nuovo[altre].push({ ...JSON.parse(JSON.stringify(base)), id: pre + Date.now().toString(36), [kNome]: '' });
+    salvaParametri(nuovo); setSel(tipo, nuovo[altre].length); renderParametri(S);
+    const inp = el.querySelector(`[data-par="${altre}.${nuovo[altre].length - 1}.${kNome}"]`); if (inp) inp.focus();
+  }));
+  el.querySelectorAll('[data-sis-pref]').forEach((b) => b.addEventListener('click', () => {
+    const tipo = b.dataset.sisPref, [prima, altre] = LISTE[tipo], i = selDi(tipo) - 1, nuovo = JSON.parse(JSON.stringify(parametri()));
+    if (!nuovo[altre][i]) return;
+    const tmp = nuovo[prima]; nuovo[prima] = nuovo[altre][i]; nuovo[altre][i] = tmp;     // la scelta diventa quella di partenza
+    salvaParametri(nuovo); setSel(tipo, 0); renderParametri(S);
+  }));
+  el.querySelectorAll('[data-sis-togli]').forEach((b) => b.addEventListener('click', () => {
+    const tipo = b.dataset.sisTogli, [, altre, , kNome] = LISTE[tipo], i = selDi(tipo) - 1, nuovo = JSON.parse(JSON.stringify(parametri()));
+    const x = nuovo[altre][i]; if (!x) return;
+    if (!confirm(tr(`Togliere «${x[kNome] || '—'}»?`))) return;
+    nuovo[altre].splice(i, 1); salvaParametri(nuovo); setSel(tipo, 0); renderParametri(S);
+  }));
+  // TIRADORES: nome, misure e forma di ognuno, aggiungi / togli
+  el.querySelectorAll('[data-tir]').forEach((inp) => inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', () => {
+    const nuovo = JSON.parse(JSON.stringify(parametri()));
+    const [i, k] = inp.dataset.tir.split('.');
+    if (!nuovo.tiradori[i]) return;
+    nuovo.tiradori[i][k] = inp.type === 'number' ? (inp.value === '' ? 0 : Number(String(inp.value).replace(',', '.'))) : inp.value;
+    salvaParametri(nuovo); esempi();
+    if (Number(i) === 0 && k === 'togli') impostato('binario');
+    msg.hidden = false; clearTimeout(timer); timer = setTimeout(() => { msg.hidden = true; }, 1400);
+  }));
+  el.querySelector('#par-tir-agg').addEventListener('click', () => {
+    const nuovo = JSON.parse(JSON.stringify(parametri()));
+    nuovo.tiradori.push({ ...nuovo.tiradori[0], id: 't' + Date.now().toString(36), nome: '' });
+    salvaParametri(nuovo); renderParametri(S);
+    const ins = el.querySelectorAll('[data-tir$=".nome"]'); if (ins.length) ins[ins.length - 1].focus();
+  });
+  el.querySelectorAll('[data-tir-togli]').forEach((btn) => btn.addEventListener('click', () => {
+    const nuovo = JSON.parse(JSON.stringify(parametri())), i = Number(btn.dataset.tirTogli), x = nuovo.tiradori[i];
+    if (!x || nuovo.tiradori.length < 2) return;
+    if (!confirm(tr(`Togliere il tirador «${x.nome || '—'}»?`))) return;
+    nuovo.tiradori.splice(i, 1); salvaParametri(nuovo); renderParametri(S);
   }));
   el.querySelector('#par-ripristina').addEventListener('click', () => {
     if (!confirm(tr('Rimettere tutti i parametri ai valori di partenza?'))) return;

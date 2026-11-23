@@ -24,22 +24,22 @@ import {
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, latoApertoDi, latiLiberi, migraProfonditaPensili, PARTI_APERTO, coloreParteAperto, ledAperto,
-  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola, cucinaConGola, cambiaCucinaConGola, sistemaGoleColonne, aperturaColonneGola, goleVerticali, piediniCucina, altezzaBassiCucina, sporgenzaPiano, altezzaAlzatina } from './modello.js?v=20261124y';
-import { renderPianta } from './pianta.js?v=20261124y';
-import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261124y';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261124y';
-import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124y';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261124y';
-import { calcolaDistintaCucina } from './distinta.js?v=20261124y';
-import { svgModificaColonnaGola } from '../disegni-cucina.js?v=20261124y';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261124y';
-import { salvaEsempioModificato, salvaProgettoPredefinito } from '../esempi-dati.js?v=20261124y';
-import { parametri, daImpostare } from '../parametri.js?v=20261124y';
-import { htmlAvvisoMancanti, confermaEsportazione } from '../avviso-parametri.js?v=20261124y';
-import { agganciaTema } from '../tema.js?v=20261124y';
-import { tendinePannello } from '../tendine-pannello.js?v=20261124y';
+  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola, cucinaConGola, impostaProgettoFerramenta, golaScelta, cassettiDelMobile, cambiaCucinaConGola, sistemaGoleColonne, aperturaColonneGola, goleVerticali, piediniCucina, altezzaBassiCucina, sporgenzaPiano, altezzaAlzatina } from './modello.js?v=20261124z';
+import { renderPianta } from './pianta.js?v=20261124z';
+import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261124z';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261124z';
+import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261124z';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261124z';
+import { calcolaDistintaCucina } from './distinta.js?v=20261124z';
+import { svgModificaColonnaGola } from '../disegni-cucina.js?v=20261124z';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261124z';
+import { salvaEsempioModificato, salvaProgettoPredefinito } from '../esempi-dati.js?v=20261124z';
+import { parametri, daImpostare, sistemiGola, sistemiCassetti } from '../parametri.js?v=20261124z';
+import { htmlAvvisoMancanti, confermaEsportazione } from '../avviso-parametri.js?v=20261124z';
+import { agganciaTema } from '../tema.js?v=20261124z';
+import { tendinePannello } from '../tendine-pannello.js?v=20261124z';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261124y');
+const _excel = () => import('../modello-export.js?v=20261124z');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -61,6 +61,7 @@ if (progettoSalvato && progettoSalvato.piano) migraRotazioni(progettoSalvato);
 if (progettoSalvato && progettoSalvato.piano) migraProfonditaPensili(progettoSalvato);
 // Progetti salvati con versioni precedenti: completo i campi mancanti
 progetto = { ...progettoDefault(), ...progetto };
+impostaProgettoFerramenta(progetto);
 // CUCINA CON GOLA fatta prima della gola verticale delle colonne (anche le cucine di esempio): una volta
 // sola metto le maniglie al posto giusto e sposto le colonne di 3 cm, se c'è posto (se no: «Da sistemare»)
 if (progettoSalvato && cucinaConGola(progetto) && !progetto.golaVerticale) {
@@ -110,7 +111,7 @@ function mostraSceltaTipoCucina() {
     </div>`;
   document.body.appendChild(ov);
   // CUCINE DI ESEMPIO: la scheda c'è solo se ce ne sono (l'elenco è piccolo: solo nomi e foto)
-  fetch('esempi/cucine/indice.json?v=20261124y').then((r) => (r.ok ? r.json() : null)).then((j) => {
+  fetch('esempi/cucine/indice.json?v=20261124z').then((r) => (r.ok ? r.json() : null)).then((j) => {
     const a = ov.querySelector('#scelta-esempi');
     if (a && j && Array.isArray(j.cucine) && j.cucine.length) a.style.display = 'flex';
   }).catch(() => { /* niente esempi */ });
@@ -494,6 +495,15 @@ function renderPannelloStep1() {
       <div class="riga-3d" style="margin-top:6px">Con la gola: profili in alluminio nei mobili bassi e gola verticale nelle colonne. Fra due colonne, e fra colonna e costado dal lato della maniglia, restano 3 cm per il profilo: sceglilo prima di mettere i mobili. Se lo cambi dopo, i mobili si spostano da soli se c'è spazio.</div>
     </section>
 
+    <section data-tendina="ferramenta">
+      <h3>Ferramenta della cucina</h3>
+      <div class="riga-3d" style="margin-bottom:6px">Le misure di ogni marca si cambiano (o si aggiungono) in ⚙ Impostazioni → Parametri. Ogni cassettiera può avere un sistema di cassetti diverso.</div>
+      <label class="riga-3d" style="display:block;margin-bottom:8px">Gola
+        <select id="ferr-gola" style="width:100%">${sistemiGola().map((g) => `<option value="${g.id}" ${g.id === golaScelta(progetto).id ? 'selected' : ''}>${g.nome || '—'}</option>`).join('')}</select></label>
+      <label class="riga-3d" style="display:block">Cassetti
+        <select id="ferr-cass" style="width:100%">${sistemiCassetti().map((c) => `<option value="${c.id}" ${c.id === cassettiDelMobile(progetto, null).id ? 'selected' : ''}>${c.marca || '—'}</option>`).join('')}</select></label>
+    </section>
+
     <section>
       <h3>Mano libera</h3>
       <button type="button" id="ml-toggle" class="btn-ghost ${manoLibera ? 'attivo' : ''}" style="width:100%">${manoLibera ? '✓ ' : ''}✏ Disegna a mano libera</button>
@@ -628,6 +638,21 @@ function attaccaEventiPannello() {
   pannello.querySelectorAll('.opt-cucgola[data-cucgola]').forEach((b) => b.addEventListener('click', () => {
     applicaCucinaGola(b.dataset.cucgola === '1');
   }));
+  // FERRAMENTA della cucina: gola e cassetti per marca (con la gola cambiano anche i 3 cm delle colonne)
+  document.getElementById('ferr-gola')?.addEventListener('change', (e) => {
+    registraStoria();
+    const prima = progetto.golaSistema; progetto.golaSistema = e.target.value;
+    impostaProgettoFerramenta(progetto);
+    if (cucinaConGola(progetto) && !sistemaGoleColonne(progetto, { modo: 'apri' }).ok) {
+      progetto.golaSistema = prima; impostaProgettoFerramenta(progetto);
+      if (storiaPast.length) storiaPast.pop();
+      alert(MSG_GOLA_NO_SPAZIO);
+    }
+    aggiorna();
+  });
+  document.getElementById('ferr-cass')?.addEventListener('change', (e) => {
+    registraStoria(); progetto.cassettiSistema = e.target.value; aggiorna();
+  });
   pannello.querySelectorAll('.tipo-card').forEach((btn) => {
     btn.addEventListener('click', () => {
       registraStoria();
@@ -1667,8 +1692,8 @@ function apriPavimentoDaFoto() {
     if (!(w >= 5) || !(h >= 5)) { alert(tt('Scrivi la misura della zona fotografata (almeno 5 cm).')); return; }
     $('pav-salva').disabled = true;
     try {
-      const C = await import('../catalogo.js?v=20261124y');
-      const M = await import('../materiali.js?v=20261124y');
+      const C = await import('../catalogo.js?v=20261124z');
+      const M = await import('../materiali.js?v=20261124z');
       const stato = await C.leggiCatalogo();
       const id = 'pav-' + Date.now().toString(36);
       const prod = { id, sezione: 'pavimento', nome: ($('pav-nome').value || '').trim() || tt('Pavimento del cliente'), campioneCm: { w, h } };
@@ -1685,7 +1710,7 @@ async function eliminaPavimentoProprio(id) {
   const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
   if (!confirm(tt('Eliminare questo pavimento? Sparisce da tutti i progetti.'))) return;
   try {
-    const C = await import('../catalogo.js?v=20261124y');
+    const C = await import('../catalogo.js?v=20261124z');
     const stato = await C.leggiCatalogo();
     stato.prodotti = (stato.prodotti || []).filter((p) => p.id !== id);
     await C.salvaCatalogo(stato); await C.eliminaFoto(id);
@@ -2062,7 +2087,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261124y');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261124z');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2217,6 +2242,11 @@ function renderPannelloModificaMobile(m) {
       <div class="riga-3d" style="margin:8px 0 4px">Altezza del frontale piccolo (mm):</div>
       <input type="number" id="cass-piccolo" class="modale-num" value="${alt[0]}" min="60" step="1" style="width:100%" />` : ''}` : ''}
       <div class="riga-3d" style="margin-top:8px">Frontali (dall'alto): <strong>${alt.join(' · ')} mm</strong></div>
+      <label class="riga-3d" style="display:block;margin-top:10px">Cassetti di questa cassettiera
+        <select id="cass-sistema" style="width:100%">
+          <option value="" ${!m.cassettiSistema ? 'selected' : ''}>Come la cucina (${cassettiDelMobile(progetto, null).marca || '—'})</option>
+          ${sistemiCassetti().map((c) => `<option value="${c.id}" ${m.cassettiSistema === c.id ? 'selected' : ''}>${c.marca || '—'}</option>`).join('')}
+        </select></label>
       ${golaC ? `<div class="riga-3d" style="margin-top:4px">Con la gola: ${spazioGola()} mm sopra il primo cassetto (profilo L) e fra un cassetto e l'altro (profilo C).</div>` : ''}
     </section>`;
     })() : ''}
@@ -2510,6 +2540,11 @@ function renderPannelloModificaMobile(m) {
     aggiorna();
   });
   agganciaBaseAngolo(pannello, m);
+  pannello.querySelector('#cass-sistema')?.addEventListener('change', (e) => {
+    registraStoria();
+    if (e.target.value) m.cassettiSistema = e.target.value; else delete m.cassettiSistema;
+    aggiorna();
+  });
   pannello.querySelectorAll('.opt-ncass').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     m.cassetti = Number(b.dataset.ncass);
@@ -3007,6 +3042,7 @@ async function salvaComeEsempio() {
 }
 
 function aggiorna() {
+  impostaProgettoFerramenta(progetto);  // gola e cassetti scelti in questa cucina (⚙ Parametri: per marca)
   correggiLatoInterno(progetto);      // lato interno delle pareti sempre verso l'interno della forma
   riorientaMobili(progetto);          // ante sempre verso l'interno (a parete)
   sincronizzaFrigo(progetto);         // costadi del frigo alti fino al mobile sopra (anche nella distinta)
@@ -3090,13 +3126,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261124y');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261124z');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261124y'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261124z'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

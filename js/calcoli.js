@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, parametri } from './parametri.js?v=20261124y';
+import { binarioScorrevole, tiradorScorrevole, parametri } from './parametri.js?v=20261124z';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -691,6 +691,10 @@ export function pezziCostadi(config) {
 export function binarioArmadio(config) {
   return binarioScorrevole(config.scorrevole?.tipoBinario);
 }
+/** Il TIRADOR scelto per le ante scorrevoli (profilo a tutta altezza sui due lati; ⚙ Parametri). */
+export function tiradorArmadio(config) {
+  return tiradorScorrevole(config.scorrevole?.tirador);
+}
 /** La maniglia è alta come l'anta (da terra a soffitto)? (ante a battente) */
 export function manigliaTuttaAltezza(config) {
   return !!config.maniglia && config.manigliaLunghezza === 'anta';
@@ -701,7 +705,7 @@ export function numeroAnteScorrevoli(config) {
 export function larghezzaAntaScorrevole(config) {
   const b = binarioArmadio(config);
   const Lest = (config.moduli || []).reduce((t, m) => t + (Number(m.larghezza) || 0), 0);
-  return Lest / numeroAnteScorrevoli(config) - b.larghezzaMeno - b.maniglia;
+  return Lest / numeroAnteScorrevoli(config) - b.larghezzaMeno - tiradorArmadio(config).togli;
 }
 export function altezzaAntaScorrevole(config) {
   return config.altezzaEsterna - binarioArmadio(config).altezzaMeno;
@@ -730,7 +734,7 @@ export function pezziAnteScorrevoliModulo(config, modulo, indiceModulo) {
   }, {
     // PROFILO VERTICALE a tutta altezza su ENTRAMBI i lati di ogni anta (al posto delle maniglie)
     modulo: `Modulo ${indiceModulo + 1}`,
-    nome: `Profilo verticale anta scorrevole · ${nomeColoreProfilo(col)}`,
+    nome: `Tirador ${tiradorArmadio(config).nome || ''} (profilo verticale anta scorrevole) · ${nomeColoreProfilo(col)}`.replace('Tirador  (', 'Tirador ('),
     larghezza: null, altezza: Math.round(altAnta), spessore: null,
     materiale: 'accessorio', finitura: col === 'binario-nero' ? 'nero' : col, finituraNome: nomeColoreProfilo(col),
     quantita: 2 * N,

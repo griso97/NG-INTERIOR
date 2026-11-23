@@ -4,7 +4,7 @@
 //   svgGola(spazio)                → visto DI LATO: piano, profilo L, cassetti, profilo C, spazio per le dita
 //   svgRegletta(vista, spessore)   → visto DA SOPRA: l'angolo di una cucina a L con i due pezzi della regletta
 // =============================================================================
-import { svgAnteInterne } from './disegni-montaggio.js?v=20261124y';
+import { svgAnteInterne } from './disegni-montaggio.js?v=20261124z';
 const t = (s) => (typeof window !== 'undefined' && window.NGI18N ? window.NGI18N.t(s) : s);
 const C = { piano: '#2a2a2c', fianco: '#8d939b', anta: '#e8dcc0', profilo: '#4b4f55', testo: '#e6dcc6', dim: '#e8c25a', muro: '#5a5246', reg: '#e8c25a', cieco: '#cdbf9f' };
 const txt = (x, y, s, opz = '') => `<text x="${x}" y="${y}" ${/fill=/.test(opz) ? '' : `fill="${C.testo}"`} ${/font-size=/.test(opz) ? '' : 'font-size="10"'} font-family="sans-serif" ${opz}>${s}</text>`;
@@ -162,8 +162,8 @@ export function svgCassetto(c = {}) {
 }
 
 /** BINARIO DEGLI SCORREVOLI (vista davanti): armadio a 2 moduli, ante che scorrono, le misure dell'anta. */
-export function svgBinario(b = {}) {
-  const lM = Number(b.larghezzaMeno) || 0, hM = Number(b.altezzaMeno) || 0, pr = Number(b.maniglia) || 0;
+export function svgBinario(b = {}, tirador = null) {
+  const lM = Number(b.larghezzaMeno) || 0, hM = Number(b.altezzaMeno) || 0, pr = Number(tirador ? tirador.togli : b.maniglia) || 0;
   const p = [], x0 = 40, y0 = 24, W = 200, H = 150;
   p.push(rect(x0, y0, W, H, '#2a2620', `stroke="${C.fianco}"`));
   p.push(`<rect x="${x0}" y="${y0 + 2}" width="${W}" height="5" fill="#6d7075"/>`, `<rect x="${x0}" y="${y0 + H - 7}" width="${W}" height="5" fill="#6d7075"/>`);
@@ -217,7 +217,7 @@ export function svgParametro(nome, P) {
   if (nome === 'piano') return svgPianoLavoro(P.cucina);
   if (nome === 'manigliaJ') return svgManigliaJ(P.manigliaJ.spessore, P.ante.ariaAltezza);
   if (nome === 'cassetti') return svgCassetto(P.cassetti);
-  if (nome === 'binario') return svgBinario(P.binari[0] || {});
+  if (nome === 'binario') return svgBinario(P.binari[0] || {}, (P.tiradori || [])[0]);
   if (nome === 'gola') return svgGola(P.gola.spazio);
   if (nome === 'regletta') return svgRegletta(P.regletta.vista, P.regletta.spessoreAnta);
   if (nome === 'anteInterne') return svgAnteInterne(P.anteInterne);

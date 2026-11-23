@@ -14,9 +14,9 @@
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi,
-  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, GOLA_V_ACCORCIA, BARRA_GOLA_V } from './modello.js?v=20261124y';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261124y';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261124y';
+  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261124z';
+import { parametri, tipoCassetto } from '../parametri.js?v=20261124z';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261124z';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -110,8 +110,8 @@ function restoAntaColonna(m, rem) {
 // legno), con le misure del SISTEMA DI CASSETTI dei ⚙ Parametri (di partenza:
 // fondo = L − 53 × 480; trasera = L − 72, alta 59 sul cassetto piccolo, 155 sul grande).
 // `hCassetto` = altezza del fronte: dice se il cassetto è piccolo, medio o grande.
-function cassettoMelaminico(pz, mod, L, hCassetto, nc) {
-  const c = parametri().cassetti, t = tipoCassetto(hCassetto);
+function cassettoMelaminico(pz, mod, L, hCassetto, nc, c = parametri().cassetti) {
+  const t = tipoCassetto(hCassetto, parametri(), c);
   pz.push({ modulo: mod, nome: 'Cassetto · fondo', larghezza: round(L - c.fondoMeno), altezza: round(c.fondoProfondita), spessore: c.spessore, materiale: 'melaminico', quantita: nc });
   pz.push({ modulo: mod, nome: `Cassetto · trasera ${t.tipo}`, larghezza: round(L - c.traseraMeno), altezza: round(t.trasera), spessore: c.spessore, materiale: 'melaminico', quantita: nc });
 }
@@ -190,7 +190,7 @@ function pezziDiModulo(progetto, m) {
         const hJ = hf - rJ;                          // con la maniglia a J il frontale si accorcia
         pz.push({ modulo: mod, nome: (piccolo ? 'Fronte cassetto piccolo' : 'Fronte cassetto') + GN + (rJ ? ` · ${_nomeRid} (−${rJ} mm)` : ''), larghezza: round(L - aL), altezza: hJ, spessore: SP, materiale: 'anta', quantita: q });
         // parti per fare i cassetti: fondo e trasera in melaminico (sistema dei ⚙ Parametri)
-        cassettoMelaminico(pz, mod, L, hJ, q);
+        cassettoMelaminico(pz, mod, L, hJ, q, cassettiDelMobile(progetto, m));
       }
     } else if (m.tipo === 'forno') {
       // sotto il forno un pannello del colore delle ante (griglia sopra = accessorio)
@@ -262,7 +262,7 @@ function pezziDiModulo(progetto, m) {
         const fianco = /^Fianco/.test(p0.nome) && nG > 0;
         const lista = !fianco ? [p0] : [
           ...(p0.quantita - nG > 0 ? [{ ...p0, quantita: p0.quantita - nG }] : []),
-          { ...p0, nome: `${p0.nome} · ⚠ accorciato di ${GOLA_V_ACCORCIA} mm per la gola`, larghezza: p0.larghezza - GOLA_V_ACCORCIA, quantita: nG },
+          { ...p0, nome: `${p0.nome} · ⚠ accorciato di ${golaScelta(progetto).accorcia} mm per la gola`, larghezza: p0.larghezza - golaScelta(progetto).accorcia, quantita: nG },
         ];
         for (const p of lista) {
         pz.push({ modulo: mod, ...p, materiale: 'carcassa', struttura: true,
@@ -420,6 +420,7 @@ function angoliZoccolo(mobili) {
 
 export function calcolaDistintaCucina(progetto) {
   _progDist = progetto;
+  impostaProgettoFerramenta(progetto);            // gola e cassetti scelti in questa cucina
   // Gli "oggetti" (sgabelli, decor) sono arredo, non moduli di cucina:
   // non entrano né nei moduli né nei pezzi della distinta.
   const mobili = (progetto.mobiliLiberi || []).filter((m) => categoriaTipo(m.tipo) !== 'oggetto');
@@ -436,7 +437,7 @@ export function calcolaDistintaCucina(progetto) {
     const misura = m.altezza_mm ? `${m.altezza_mm}×${Lo}` : `${Lo}`;
     // CUCINA CON GOLA: la colonna accanto alla gola verticale va modificata (fianco accorciato di 12 mm)
     const latiG = golaColonna(progetto, m) ? [...new Set(goleDiColonna(progetto, m, goleV).filter((x) => x.accorcia).map((x) => x.lato))].sort() : [];
-    const avviso = latiG.length ? `Attenzione: la colonna va modificata per poter inserire la gola (${latiG.length === 2 ? 'tutti e due i fianchi accorciati' : latiG[0] > 0 ? 'fianco destro accorciato' : 'fianco sinistro accorciato'} di ${GOLA_V_ACCORCIA} mm)` : null;
+    const avviso = latiG.length ? `Attenzione: la colonna va modificata per poter inserire la gola (${latiG.length === 2 ? 'tutti e due i fianchi accorciati' : latiG[0] > 0 ? 'fianco destro accorciato' : 'fianco sinistro accorciato'} di ${golaScelta(progetto).accorcia} mm)` : null;
     const key = `${gruppo}|${m.tipo}|${misura}|${od ? od.taglio : m.fuoriMisura ? 1 : 0}|${avviso || ''}`;
     if (!modMap.has(key)) modMap.set(key, { gruppo, nome: `${nomeTipo(m.tipo)} · interno ${progetto.coloreInterno === 'antracite' ? 'antracite' : 'bianco'}`, misura, tipo: nomeTipo(m.tipo), fuoriMisura: !!(od || m.fuoriMisura), taglio: od ? od.taglio : null, avviso, quantita: 0 });
     modMap.get(key).quantita++;
@@ -522,11 +523,11 @@ export function calcolaDistintaCucina(progetto) {
   // VETRI delle ante vetrina con telaio in legno (misura del vetro da ordinare)
   for (const p of raw) if (p.vetro) aggiungi(`Vetro ${p.vetro.tipo} ${p.vetro.w}×${p.vetro.h} (anta vetrina)`, p.quantita);
   // CASSETTI (guide/scatola) del sistema dei ⚙ Parametri: uno per frontale, piccolo / medio / grande
-  { const c = parametri().cassetti;
-    for (const p of raw) {
-      if (!p.nome.startsWith('Fronte cassetto')) continue;
-      aggiungi(`Cassetti${c.marca ? ' ' + c.marca : ''} profondità ${c.profondita / 10} cm · ${tipoCassetto(p.altezza).tipo}`, p.quantita);
-    } }
+  for (const p of raw) {
+    if (!p.nome.startsWith('Fronte cassetto')) continue;
+    const c = cassettiDelMobile(progetto, perId.get(p.moduloId));       // il sistema di QUESTA cassettiera
+    aggiungi(`Cassetti${c.marca ? ' ' + c.marca : ''} profondità ${c.profondita / 10} cm · ${tipoCassetto(p.altezza, parametri(), c).tipo}`, p.quantita);
+  }
   // MANIGLIE: una per porta e per frontale, dove non c'è il finger-pull
   for (const p of raw) {
     if (!/^anta|^fronte cassetto/i.test(p.nome)) continue;
@@ -559,13 +560,14 @@ export function calcolaDistintaCucina(progetto) {
   // tappi sui capi liberi, angoli interni/esterni, supporti di fissaggio (uno per fianco)
   { const gc = golaProgetto(progetto);
     if (gc.base) {
-      const pg = profiliGola(progetto), col = nomeColoreGola(gc.colore);
+      const pg = profiliGola(progetto), col = nomeColoreGola(gc.colore), GS = golaScelta(progetto);
+      const marca = GS.nome ? ` · ${GS.nome}` : '', mBarra = (mm) => String(Math.round(mm) / 1000).replace('.', ',');
       for (const t of ['L', 'C']) {
         const prof = pg[t];
         if (!prof.length) continue;
-        const b = barreGola(prof.map((p) => p.lung));
-        aggiungi(`Profilo gola ${t} · ${col} · barre da 4 m (tagli ${b.tagli.join(' + ')} mm)`, b.barre);
-        aggiungi(`Tappi gola ${t} · ${col}`, prof.reduce((n, p) => n + p.capiLiberi, 0));
+        const b = barreGola(prof.map((p) => p.lung), GS.barra);
+        aggiungi(`Profilo gola ${t}${marca} · ${col} · barre da ${mBarra(GS.barra)} m (tagli ${b.tagli.join(' + ')} mm)`, b.barre);
+        aggiungi(`Tappi gola ${t}${marca} · ${col}`, prof.reduce((n, p) => n + p.capiLiberi, 0));
       }
       aggiungi(`Angoli interni gola L · ${col}`, pg.angoliInterni);
       aggiungi(`Angoli esterni gola L · ${col}`, pg.angoliEsterni);
@@ -576,9 +578,9 @@ export function calcolaDistintaCucina(progetto) {
         for (const sp of [16, 18]) {
           const lst = gv.filter((x) => x.tipo === tipo && (x.sp >= 17 ? 18 : 16) === sp);
           if (!lst.length) continue;
-          const b = barreGola(lst.map((x) => x.lung), BARRA_GOLA_V);
-          aggiungi(`Profilo gola verticale ${tipo} ${String(lst[0].larghezza).replace('.', ',')} mm (fianchi da ${sp}) · ${col} · barre da 2,60 m (tagli ${b.tagli.join(' + ')} mm)`, b.barre);
-          aggiungi(`Tappi gola verticale ${tipo} (sopra e sotto) · ${col}`, 2 * lst.length);
+          const b = barreGola(lst.map((x) => x.lung), GS.barraV);
+          aggiungi(`Profilo gola verticale ${tipo} ${String(lst[0].larghezza).replace('.', ',')} mm (fianchi da ${sp})${marca} · ${col} · barre da ${mBarra(GS.barraV)} m (tagli ${b.tagli.join(' + ')} mm)`, b.barre);
+          aggiungi(`Tappi gola verticale ${tipo} (sopra e sotto)${marca} · ${col}`, 2 * lst.length);
         }
       }
     } }

@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261124y';
-import { htmlTendineColori } from './tendine-colori.js?v=20261124y';
-import { misureCostado, binarioArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261124y';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261124y';
-import { binariScorrevoli, parametri, montaggioArmadio } from './parametri.js?v=20261124y';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261124z';
+import { htmlTendineColori } from './tendine-colori.js?v=20261124z';
+import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261124z';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261124z';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio } from './parametri.js?v=20261124z';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -72,7 +72,8 @@ function formulaScorrevole(config) {
   const b = binarioArmadio(config);
   const n = (x) => String(Math.round(x * 10) / 10).replace('.', ',');
   const t = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);    // il <code> non passa dalla traduzione automatica
-  const meno = (b.larghezzaMeno > 0 ? ` − ${n(b.larghezzaMeno)}` : '') + (b.maniglia > 0 ? ` − ${n(b.maniglia)}` : '');
+  const tg = tiradorArmadio(config).togli;
+  const meno = (b.larghezzaMeno > 0 ? ` − ${n(b.larghezzaMeno)}` : '') + (tg > 0 ? ` − ${n(tg)}` : '');
   return `Formula ante: larghezza = <code>${t(`L ÷ n° ante${meno}`)}</code> = <strong>${n(Math.floor(larghezzaAntaScorrevole(config)))} mm</strong>, altezza = <code>H − ${n(b.altezzaMeno)}</code> (H = altezza esterna totale).`;
 }
 function aggiornaFormulaScorrevole(config) {
@@ -149,7 +150,12 @@ export function renderPannello(contenitore, config, onChange) {
           ${binariScorrevoli().map((b) => `<option value="${escAttr(b.id)}" ${b.id === binarioArmadio(config).id ? 'selected' : ''}>${escAttr(b.nome || '—')}</option>`).join('')}
         </select>
       </label>
-      <p class="hint" style="margin-bottom:10px">I dati di ogni binario (quanto togliere alle ante) si cambiano in <a href="impostazioni.html#parametri">⚙ Impostazioni → Parametri</a>.</p>
+      <label>Tirador (profilo sui lati delle ante)
+        <select id="sc-tirador">
+          ${tiradoriScorrevoli().map((x) => `<option value="${escAttr(x.id)}" ${x.id === tiradorArmadio(config).id ? 'selected' : ''}>${escAttr(x.nome || '—')}</option>`).join('')}
+        </select>
+      </label>
+      <p class="hint" style="margin-bottom:10px">I dati di ogni binario e di ogni tirador (quanto togliere alle ante) si cambiano in <a href="impostazioni.html#parametri">⚙ Impostazioni → Parametri</a>.</p>
       <div class="grid-2">
         <label>Nº ante per modulo
           <input type="number" id="sc-n" value="${config.scorrevole?.anteModulo ?? 1}" min="1" max="4" step="1" />
@@ -345,6 +351,10 @@ export function renderPannello(contenitore, config, onChange) {
   });
   bind('#sc-tipo', (e) => {
     config.scorrevole.tipoBinario = e.target.value;
+    onChange(config);
+  }, 'change');
+  bind('#sc-tirador', (e) => {
+    config.scorrevole.tirador = e.target.value;
     onChange(config);
   }, 'change');
   bind('#sc-bin', (e) => {

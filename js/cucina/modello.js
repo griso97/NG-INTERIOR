@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261124y';
+import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261124z';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -1987,7 +1987,7 @@ export function problemiMobiliLiberi(progetto) {
   // CUCINA CON GOLA: fra colonna e colonna (o costado, dal lato della maniglia) servono 30 mm per il profilo
   for (const g of goleVerticali(progetto)) {
     if (g.ok) continue;
-    out.push({ tipo: 'gola-verticale', messaggio: `⚠ Gola verticale ${g.tipo}: fra ${g.tipo === 'centrale' ? 'le due colonne' : 'la colonna e il costado'} servono ${GOLA_V_SPAZIO} mm, ora ci sono ${Math.max(0, Math.round(g.gap))} mm. Sposta i mobili.` });
+    out.push({ tipo: 'gola-verticale', messaggio: `⚠ Gola verticale ${g.tipo}: fra ${g.tipo === 'centrale' ? 'le due colonne' : 'la colonna e il costado'} servono ${spazioGolaV(progetto)} mm, ora ci sono ${Math.max(0, Math.round(g.gap))} mm. Sposta i mobili.` });
   }
   return out;
 }
@@ -3079,7 +3079,15 @@ export const COLORI_GOLA = [
   { id: 'argento', nome: 'Argento opaco (anodizzato)', hex: '#c3c5c8' },
 ];
 export const GOLA_L_H = 57, GOLA_C_H = 70, GOLA_PROF = 26, BARRA_GOLA = 4000;
-export function spazioGola() { return parametri().gola.spazio; }
+// FERRAMENTA SCELTA NEL PROGETTO (⚙ Parametri: una voce per ogni marca). La cucina che si sta
+// disegnando la dice main (e la distinta e il 3D quando calcolano): spazioGola() senza progetto usa quella.
+let _progFerr = null;
+export function impostaProgettoFerramenta(progetto) { _progFerr = progetto || null; }
+/** La gola scelta per la cucina (di partenza quella con la ⭐). */
+export function golaScelta(progetto = _progFerr) { return golaSistema(progetto && progetto.golaSistema); }
+/** Il sistema di cassetti di un mobile: il suo, se no quello della cucina, se no quello di partenza. */
+export function cassettiDelMobile(progetto, m) { return cassettiDi((m && m.cassettiSistema) || (progetto && progetto.cassettiSistema)); }
+export function spazioGola(progetto = _progFerr) { return golaScelta(progetto).spazio; }
 export function golaProgetto(progetto) {
   const g = (progetto && progetto.gola) || {};
   return { base: !!g.base, colore: COLORI_GOLA.some((c) => c.id === g.colore) ? g.colore : 'nero' };
@@ -3618,10 +3626,13 @@ export function cucinaConGola(progetto) { return golaProgetto(progetto).base; }
 /** Questa colonna ha la gola verticale (cucina con gola)? */
 export function golaColonna(progetto, m) { return !!m && cucinaConGola(progetto) && categoriaTipo(m.tipo) === 'colonna'; }
 /** Larghezza del profilo (mm) per fianchi da 16 o 18. */
-export function larghezzaProfiloV(tipo, spFianco) {
-  const s = spFianco >= 17 ? 18 : 16;
-  return Math.round((tipo === 'centrale' ? GOLA_V_SPAZIO + 2 * (s + 0.3) : GOLA_V_SPAZIO + s + 0.3) * 10) / 10;
+export function larghezzaProfiloV(tipo, spFianco, progetto = _progFerr) {
+  const g = golaScelta(progetto), s18 = spFianco >= 17;
+  return tipo === 'centrale' ? (s18 ? g.centrale18 : g.centrale16) : (s18 ? g.laterale18 : g.laterale16);
 }
+/** mm fra colonna e colonna (o costado) per la gola verticale, e di quanto si accorcia il fianco. */
+export function spazioGolaV(progetto = _progFerr) { return golaScelta(progetto).spazioV; }
+export function accorciaGolaV(progetto = _progFerr) { return golaScelta(progetto).accorcia; }
 /** Assi in pianta: dx = verso la destra del mobile (lato 'dx' delle ante, come nel 3D), F = verso il fronte. */
 function assiPianta(m) {
   const r = ((m.rot || 0) * Math.PI) / 180;
@@ -3702,7 +3713,7 @@ export function goleVerticali(progetto) {
     const due = categoriaTipo(altro.tipo) === 'colonna';
     const lung = Math.round(due ? Math.min(col.altezza_mm || 2200, altro.altezza_mm || 2200) : (col.altezza_mm || 2200));
     return { tipo: c.tipo, col: col.id, altro: altro.id, lato: c.lato, gap: Math.round(c.gap * 10) / 10,
-      ok: Math.abs(c.gap - GOLA_V_SPAZIO) <= 2, lung, sp, larghezza: larghezzaProfiloV(c.tipo, sp), corte: c.corte };
+      ok: Math.abs(c.gap - spazioGolaV(progetto)) <= 2, lung, sp, larghezza: larghezzaProfiloV(c.tipo, sp, progetto), corte: c.corte };
   });
 }
 /** Lati della colonna m con la gola: [{ lato, tipo, gap, disegna (la disegna lei nel 3D), accorcia (fianco −12 mm), larghezza }]. */
@@ -3850,8 +3861,9 @@ export function sistemaGoleColonne(progetto, { modo = 'apri', preferisci = null 
   const fatti = new Set();
   // quanto deve esserci fra i due pezzi: 30 mm dove c'è la gola; 0 dove non serve più (era uno spazio da gola)
   const obiettivo = (c) => {
-    if (modo === 'apri' && c.tipo) return Math.abs(c.gap - GOLA_V_SPAZIO) <= 2 ? null : GOLA_V_SPAZIO;
-    return c.gap >= 20 && c.gap <= 40 ? 0 : null;
+    const sv = spazioGolaV(progetto);
+    if (modo === 'apri' && c.tipo) return Math.abs(c.gap - sv) <= 2 ? null : sv;
+    return c.gap >= Math.min(20, sv - 10) && c.gap <= Math.max(40, sv + 10) ? 0 : null;
   };
   for (let giro = 0; giro < 60; giro++) {
     const da = coppieColonne(progetto).map((c) => ({ c, t: obiettivo(c) }))
