@@ -13,10 +13,10 @@
 // TAVOLI: il piano è una superficie d'appoggio (un vaso ci si posa sopra).
 // =============================================================================
 import * as THREE from 'three';
-import { LIBRERIA } from './libreria3d-dati.js?v=20261124r';
-import { caricaGLB } from './carica-glb.js?v=20261124r';
+import { LIBRERIA } from './libreria3d-dati.js?v=20261124t';
+import { caricaGLB } from './carica-glb.js?v=20261124t';
 
-export { LIBRERIA, GRUPPI_OGGETTI, CREDITI_LIBRERIA, creditoVoce } from './libreria3d-dati.js?v=20261124r';
+export { LIBRERIA, GRUPPI_OGGETTI, CREDITI_LIBRERIA, creditoVoce } from './libreria3d-dati.js?v=20261124t';
 export const SOFFITTO = 2700, Y_LAMPADA = 1650, Y_QUADRO = 1550, Y_CAPPA = 1600;
 
 const qui = (p) => new URL(p, import.meta.url).href;

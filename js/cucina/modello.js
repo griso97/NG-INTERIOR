@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri } from '../parametri.js?v=20261124r';
+import { parametri } from '../parametri.js?v=20261124t';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -2626,11 +2626,68 @@ export function spaziTraMobili(progetto, min = 10, max = 300) {
 }
 
 /**
- * Riempie automaticamente gli spazi tra i mobili con una regletta dello
- * spessore esatto del vuoto. Ritorna quante reglette ha inserito.
+ * SPAZI DI CHIUSURA: fra l'ULTIMO mobile basso di una fila e il muro (o una colonna, il frigo, un
+ * costado) che c'è dopo, sulla stessa linea. Lì va la REGLETTA DI CHIUSURA. Fra due mobili in fila
+ * la regletta non ci va (i mobili si attaccano): quelli sono in spaziTraMobili.
+ * Ritorna [{ x, y, gap, rot, depth }] come spaziTraMobili.
+ */
+export function spaziDiChiusura(progetto, min = 10, max = 300) {
+  const mob = progetto.mobiliLiberi || [];
+  const inFila = mob.filter((m) => ['base', 'regletta', 'lavastoviglie', 'lavatrice'].includes(categoriaTipo(m.tipo)));
+  const ostacoli = mob.filter((m) => ['colonna', 'frigo', 'costado'].includes(categoriaTipo(m.tipo)));
+  const full = (progetto.piano && progetto.piano.pareti) || [];
+  const vert = full.length ? calcolaVertici(full) : [];
+  const muri = full.map((pw, i) => (pw.assente ? null : [vert[i], vert[i + 1]])).filter((w) => w && w[0] && w[1]);
+  const gruppi = {};
+  for (const m of inFila) {
+    const d = dimMobile(m);
+    const rotN = ((Math.round((m.rot || 0) / 90) * 90) % 360 + 360) % 360;
+    const horiz = rotN % 180 === 0;
+    const line = horiz ? Math.round(m.y / 5) * 5 : Math.round(m.x / 5) * 5;
+    (gruppi[`${horiz ? 'H' : 'V'}|${line}`] ||= { horiz, line, items: [] }).items.push({ pos: horiz ? m.x : m.y, half: d.w / 2, d: d.d, m });
+  }
+  const out = [];
+  for (const k in gruppi) {
+    const G = gruppi[k];
+    G.items.sort((a, b) => a.pos - b.pos);
+    for (const [it, s] of [[G.items[0], -1], [G.items[G.items.length - 1], 1]]) {
+      const E = it.pos + s * it.half;                       // capo della fila lungo l'asse
+      const c0 = G.line - it.d / 2 + 40, c1 = G.line + it.d / 2 - 40;
+      let t = Infinity;
+      // muri: dove la linea della fila (a più profondità) incontra un muro, dopo il capo
+      for (const [a, b] of muri) {
+        for (const c of [c0, G.line, c1]) {
+          const ap = G.horiz ? a.y : a.x, bp = G.horiz ? b.y : b.x, aa = G.horiz ? a.x : a.y, ba = G.horiz ? b.x : b.y;
+          if ((ap - c) * (bp - c) > 0 || Math.abs(bp - ap) < 1e-6) continue;
+          const X = aa + (c - ap) * (ba - aa) / (bp - ap), d = (X - E) * s;
+          if (d > -5 && d < t) t = Math.max(0, d);
+        }
+      }
+      // colonne, frigo, costadi: il loro ingombro sulla linea della fila
+      for (const o of ostacoli) {
+        const d = dimMobile(o), r = ((Math.round((o.rot || 0) / 90) * 90) % 180 + 180) % 180 === 0;
+        const hx = (r ? d.w : d.d) / 2, hy = (r ? d.d : d.w) / 2;
+        const lo = G.horiz ? o.x - hx : o.y - hy, hi = G.horiz ? o.x + hx : o.y + hy;
+        const pl = G.horiz ? o.y - hy : o.x - hx, ph = G.horiz ? o.y + hy : o.x + hx;
+        if (ph < c0 || pl > c1) continue;                   // non sta sulla linea della fila
+        const dd = s > 0 ? lo - E : E - hi;
+        if (dd > -5 && dd < t) t = Math.max(0, dd);
+      }
+      if (!(t >= min && t <= max)) continue;
+      const center = E + s * t / 2;
+      out.push({ x: G.horiz ? center : G.line, y: G.horiz ? G.line : center, gap: Math.round(t), rot: it.m.rot || 0, depth: Math.round(it.d), chiusura: true });
+    }
+  }
+  return out;
+}
+
+/**
+ * Mette la REGLETTA DI CHIUSURA dello spessore esatto dove una fila finisce contro il muro, una
+ * colonna, il frigo o un costado (spaziDiChiusura). Fra due mobili in fila NO: si attaccano.
+ * Ritorna quante reglette ha inserito.
  */
 export function riempiSpaziReglette(progetto) {
-  const gaps = spaziTraMobili(progetto);
+  const gaps = spaziDiChiusura(progetto);
   if (gaps.length === 0) return 0;
   let nextId = Math.max(0, ...progetto.mobiliLiberi.map((m) => m.id)) + 1;
   let n = 0;
