@@ -150,6 +150,20 @@ function completa(s) {
     medioFinoA: 'medioFinoA' in c ? numVuoto(c.medioFinoA) : D.cassetti.medioFinoA,
     medioTrasera: 'medioTrasera' in c ? numVuoto(c.medioTrasera) : D.cassetti.medioTrasera,
     grandeTrasera: 'grandeTrasera' in c ? numVuoto(c.grandeTrasera) : D.cassetti.grandeTrasera,
+    // CASSETTO FATTO DA NOI (tipo 'nostro'): la scatola la tagliamo noi
+    tipo: c.tipo === 'nostro' ? 'nostro' : 'comprato',
+    montaggio: c.montaggio === '3lati' ? '3lati' : '4lati',       // 4 lati + frontale · 3 lati (il frontale fa da davanti)
+    spazioGuide: Math.max(0, num(c.spazioGuide, 13)),            // mm per lato per le guide
+    spessoreScatola: Math.max(1, num(c.spessoreScatola, 16)),    // fianchi, dietro, davanti
+    altezzaModo: c.altezzaModo === 'tipo' ? 'tipo' : 'frontale', // fianchi: frontale meno X, oppure fissi per tipo
+    altezzaMeno: Math.max(0, num(c.altezzaMeno, 40)),
+    altezzaPiccolo: Math.max(20, num(c.altezzaPiccolo, 80)), altezzaMedio: Math.max(20, num(c.altezzaMedio, 150)), altezzaGrande: Math.max(20, num(c.altezzaGrande, 200)),
+    dietroMeno: Math.max(0, num(c.dietroMeno, 0)),               // il dietro è più basso dei fianchi di
+    fondoSpessore: Math.max(1, num(c.fondoSpessore, 8)),
+    fondoCanale: Math.max(0, num(c.fondoCanale, 8)),             // 0 = fondo avvitato sotto
+    fianchiMobile: Math.max(1, num(c.fianchiMobile, 18)),        // cucina: fianchi del mobile (lo spazio dentro = modulo − 2 ×)
+    materialeScatola: String(c.materialeScatola ?? 'Melaminico bianco 16').trim(),
+    materialeFondo: String(c.materialeFondo ?? 'Compensato 8').trim(),
   });
   const compGola = (g, i) => { const d = D.gola; return {
     id: idUnico(g.id || (i === 0 ? 'syskor' : ''), 'g', i, idsGola),
@@ -282,6 +296,36 @@ export function golaSistema(id, p = parametri()) { return sistemiGola(p).find((g
 /** I tiradores degli armadi scorrevoli (almeno uno) e quello scelto (se non c'è più, il primo). */
 export function tiradoriScorrevoli(p = parametri()) { return p.tiradori; }
 export function tiradorScorrevole(id, p = parametri()) { return p.tiradori.find((t) => t.id === id) || p.tiradori[0]; }
+
+/** Cassetto fatto da noi: che tipo è dal frontale (piccolo fino a piccoloFinoA, grande oltre medioFinoA). */
+export function tipoCassettoNostro(hF, sis) {
+  if (hF <= sis.piccoloFinoA) return 'piccolo';
+  if (sis.medioFinoA && hF > sis.medioFinoA) return 'grande';
+  return 'medio';
+}
+/**
+ * CASSETTO FATTO DA NOI: i pezzi di N cassetti con il frontale alto hF, dentro uno spazio largo `interno`
+ * (fra i fianchi del mobile o della cassettiera), guide lunghe `guida`.
+ *   scatola larga = interno − 2 × spazio guide · dietro / davanti = scatola − 2 × spessore
+ *   fianchi alti = frontale − X (modo «frontale») o fissi per tipo (modo «tipo»), lunghi come le guide
+ *   fondo in canale: + 2 × canale (4 lati: guida − 2 × spessore + 2 × canale; 3 lati: guida − spessore + canale)
+ *   fondo avvitato sotto (canale 0): largo come la scatola, lungo come le guide
+ */
+export function pezziCassettoNostro(sis, interno, hF, guida, N) {
+  const sp = sis.spessoreScatola, W = interno - 2 * sis.spazioGuide, Wi = W - 2 * sp;
+  const t = tipoCassettoNostro(hF, sis);
+  const hFi = Math.max(20, sis.altezzaModo === 'tipo' ? (t === 'piccolo' ? sis.altezzaPiccolo : t === 'grande' ? sis.altezzaGrande : sis.altezzaMedio) : hF - sis.altezzaMeno);
+  const c = sis.fondoCanale, quattro = sis.montaggio !== '3lati', R = (x) => Math.round(x);
+  const out = [
+    { nome: 'Cassetto · fianco', larghezza: R(guida), altezza: R(hFi), spessore: sp, quantita: 2 * N, materialeNome: sis.materialeScatola },
+    { nome: 'Cassetto · dietro', larghezza: R(Wi), altezza: R(hFi - sis.dietroMeno), spessore: sp, quantita: N, materialeNome: sis.materialeScatola },
+  ];
+  if (quattro) out.push({ nome: 'Cassetto · davanti', larghezza: R(Wi), altezza: R(hFi), spessore: sp, quantita: N, materialeNome: sis.materialeScatola });
+  out.push(c > 0
+    ? { nome: 'Cassetto · fondo (in canale)', larghezza: R(Wi + 2 * c), altezza: R(quattro ? guida - 2 * sp + 2 * c : guida - sp + c), spessore: sis.fondoSpessore, quantita: N, materialeNome: sis.materialeFondo }
+    : { nome: 'Cassetto · fondo (avvitato sotto)', larghezza: R(W), altezza: R(guida), spessore: sis.fondoSpessore, quantita: N, materialeNome: sis.materialeFondo });
+  return out;
+}
 
 /** Che cassetto è (dall'altezza del frontale): 'piccolo' | 'medio' | 'grande', con l'altezza della trasera.
  *  piccolo: frontale fino a piccoloFinoA · grande (solo se ha la sua trasera): frontale più alto del

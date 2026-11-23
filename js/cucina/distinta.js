@@ -14,9 +14,9 @@
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi,
-  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125e';
-import { parametri, tipoCassetto } from '../parametri.js?v=20261125e';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125e';
+  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125f';
+import { parametri, tipoCassetto, pezziCassettoNostro } from '../parametri.js?v=20261125f';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125f';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -138,6 +138,11 @@ function restoAntaColonna(m, rem) {
 // fondo = L − 53 × 480; trasera = L − 72, alta 59 sul cassetto piccolo, 155 sul grande).
 // `hCassetto` = altezza del fronte: dice se il cassetto è piccolo, medio o grande.
 function cassettoMelaminico(pz, mod, L, hCassetto, nc, c = parametri().cassetti) {
+  // CASSETTO FATTO DA NOI: la scatola la tagliamo noi (fianchi, dietro, davanti, fondo)
+  if (c.tipo === 'nostro') {
+    for (const p of pezziCassettoNostro(c, L - 2 * c.fianchiMobile, hCassetto, c.profondita, nc)) pz.push({ modulo: mod, ...p, materiale: 'melaminico' });
+    return;
+  }
   const t = tipoCassetto(hCassetto, parametri(), c);
   pz.push({ modulo: mod, nome: 'Cassetto · fondo', larghezza: round(L - c.fondoMeno), altezza: round(c.fondoProfondita), spessore: c.spessore, materiale: 'melaminico', quantita: nc });
   pz.push({ modulo: mod, nome: `Cassetto · trasera ${t.tipo}`, larghezza: round(L - c.traseraMeno), altezza: round(t.trasera), spessore: c.spessore, materiale: 'melaminico', quantita: nc });
@@ -557,6 +562,7 @@ export function calcolaDistintaCucina(progetto) {
   for (const p of raw) {
     if (!p.nome.startsWith('Fronte cassetto')) continue;
     const c = cassettiDelMobile(progetto, perId.get(p.moduloId));       // il sistema di QUESTA cassettiera
+    if (c.tipo === 'nostro') { aggiungi(`Guide cassetto ${c.profondita} mm (coppia)${c.marca ? ' · ' + c.marca : ''}`, p.quantita); continue; }
     aggiungi(`Cassetti${c.marca ? ' ' + c.marca : ''} profondità ${c.profondita / 10} cm · ${tipoCassetto(p.altezza, parametri(), c).tipo}`, p.quantita);
   }
   // MANIGLIE: una per porta e per frontale, dove non c'è il finger-pull

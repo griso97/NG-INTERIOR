@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri } from './parametri.js?v=20261125e';
+import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, pezziCassettoNostro } from './parametri.js?v=20261125f';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -314,7 +314,14 @@ const SP_MEL_ARM = 16;
  * Fisse: trasera 59 (cassetto basso, fronte ≤155) o 155 (alto). La lunghezza
  * varia col modulo: fondo = Lm−53, trasera = Lm−72. `altF` = altezza fronte.
  */
-function _cassettoMelArmadio(pezzi, nomeModulo, Lm, altF, guida, N) {
+function _cassettoMelArmadio(pezzi, nomeModulo, Lm, altF, guida, N, cassettiera = null, interno = null) {
+  // CASSETTO FATTO DA NOI (scelto nella cassettiera): scatola tagliata da noi nello spazio della cassettiera
+  const sis = cassettiera && cassettiera.sistemaCassetti ? cassettiDi(cassettiera.sistemaCassetti) : null;
+  if (sis && sis.tipo === 'nostro' && interno) {
+    for (const p of pezziCassettoNostro(sis, interno, altF, guida, N)) pezzi.push({ modulo: nomeModulo, ...p, materiale: 'melaminico' });
+    pezzi.push({ modulo: nomeModulo, nome: `Guide cassetto ${guida} mm (coppia)${sis.marca ? ' · ' + sis.marca : ''}`, larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: N });
+    return;
+  }
   const grande = altF > 155;
   pezzi.push({ modulo: nomeModulo, nome: 'Cassetto · fondo',
     larghezza: Math.round(Lm - 53), altezza: Math.round(guida - 20),
@@ -345,7 +352,7 @@ function _pezziCasScorrevole(config, cassettiera, modulo, indiceModulo) {
   pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fronte cassetto',
     larghezza: Math.round(larFronte), altezza: altFronte,
     spessore: sC, materiale: 'carcassa', parteMateriale: 'cassFronti', quantita: N });
-  _cassettoMelArmadio(pezzi, nomeModulo, Lm, altFronte, guida, N);
+  _cassettoMelArmadio(pezzi, nomeModulo, Lm, altFronte, guida, N, c, larFronte + 4);
   return pezzi;
 }
 
@@ -368,7 +375,7 @@ function _pezziCasBattente(config, cassettiera, modulo, indiceModulo) {
   pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fronte cassetto',
     larghezza: Math.round(larFronte), altezza: altFronte,
     spessore: sC, materiale: 'carcassa', parteMateriale: 'cassFronti', quantita: N });
-  _cassettoMelArmadio(pezzi, nomeModulo, Lm, altFronte, guida, N);
+  _cassettoMelArmadio(pezzi, nomeModulo, Lm, altFronte, guida, N, c, larFronte + 4);
   return pezzi;
 }
 
