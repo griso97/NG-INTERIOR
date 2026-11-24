@@ -520,6 +520,8 @@ window.NG_I18N_ES = {
  "Cerniere per anta": "Bisagras para puerta",
  "Maniglia a barra · {0} mm": "Tirador de barra · {0} mm",
  "Apertura a pressione (push)": "Apertura a presión (push)",
+ "lato davanti": "lado delantero",
+ "lato in profondità (dietro al lato davanti)": "lado en profundidad (detrás del lado delantero)",
  "Anta · cerniere a destra": "Puerta · bisagras a la derecha",
  "Anta · cerniere a sinistra": "Puerta · bisagras a la izquierda",
  "Anta trapezio · cerniere a destra (lato alto)": "Puerta trapecio · bisagras a la derecha (lado alto)",

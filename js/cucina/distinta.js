@@ -14,9 +14,9 @@
 import {
   infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi,
-  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125o';
-import { parametri, tipoCassetto, pezziCassettoNostro } from '../parametri.js?v=20261125o';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125o';
+  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125q';
+import { parametri, tipoCassetto, pezziCassettoNostro } from '../parametri.js?v=20261125q';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125q';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -149,7 +149,7 @@ function cassettoMelaminico(pz, mod, L, hCassetto, nc, c = parametri().cassetti)
 }
 
 // Regletta d'angolo e pannello cieco sul modulo "cieco" dell'angolo.
-function reglettaAngolo(pz, mod, progetto, m, H) {
+function reglettaAngolo(pz, mod, progetto, m, H, conPannello = true) {
   if (progetto.autoRegletta === false) return;
   const info = infoAngoloCieco(progetto, m);
   if (!info) return;
@@ -157,7 +157,7 @@ function reglettaAngolo(pz, mod, progetto, m, H) {
   const hF = golaSuMobile(progetto, m) ? altezzaAntaGola(H) : round(H - ariaH());
   // PANNELLO CIECO: la parte del fronte che ha davanti il mobile dell'altra fila (+ la regletta)
   const fc = fronteCieco(progetto, m);
-  if (fc) pz.push({ modulo: mod, nome: 'Pannello cieco (angolo)', larghezza: fc.ciecoW, altezza: hF, spessore: SP, materiale: 'anta', quantita: 1 });
+  if (fc && conPannello) pz.push({ modulo: mod, nome: 'Pannello cieco (angolo)', larghezza: round(fc.ciecoW - ariaL()), altezza: hF, spessore: SP, materiale: 'anta', quantita: 1 });
   const P = parametri().regletta, ra = progetto.reglettaAngolo || {};
   const spess = ra.spessore != null ? Number(ra.spessore) : P.spessoreAnta;
   const vis = fc ? fc.regletta : (info.gap != null && info.gap > 0) ? Math.max(spess || 18, info.gap) : (ra.base || P.vista);
@@ -205,13 +205,20 @@ function pezziDiModulo(progetto, m) {
     const { a, b } = anteBaseAngolo(m);
     for (const aw of a === b ? [a] : [a, b]) {
       const q = a === b ? 2 : 1;
-      pz.push({ modulo: mod, nome: 'Anta (base angolo)' + GN, larghezza: Math.max(1, aw), altezza: gola ? altG : round(H - aH - rJ), spessore: SP, materiale: 'anta', quantita: q });
+      pz.push({ modulo: mod, nome: 'Anta (base angolo)' + GN, larghezza: Math.max(1, round(aw - aL)), altezza: gola ? altG : round(H - aH - rJ), spessore: SP, materiale: 'anta', quantita: q });
       pz.push({ modulo: mod, nome: 'Zoccolo (frontale)', larghezza: Math.max(1, aw) + 50, altezza: zoccoloH(H), spessore: SP, materiale: 'zoccolo', quantita: q });
     }
   } else if (cat === 'base') {
     // carcassa, ripiani e cassetti interni: già nel modulo (non si tagliano)
     zoccolo(pz, mod, L, H);
-    if (m.tipo === 'base-cassetti') {
+    // ANGOLO: come nel 3D, anche cassettiere e forno. Coperti dall'altra fila → ante sulla parte libera
+    // + pannello cieco; solo vicini (con la luce della regletta) → restano com'erano, + la regletta
+    const angC = m.tipo !== 'base-ante' && m.tipo !== 'lavello' && !apertoDi(m) && progetto.autoRegletta !== false ? infoAngoloCieco(progetto, m) : null;
+    const fcC = angC ? fronteCieco(progetto, m) : null;
+    if (angC && angC.coperto && fcC) {
+      anteModulo(pz, mod, fcC.liberoW, H, fcC.nAnte, m.antaLato, altG, false, null, rJ, GN + ' · angolo, parte libera');
+      reglettaAngolo(pz, mod, progetto, m, H);
+    } else if (m.tipo === 'base-cassetti') {
       const nc = Math.max(1, m.cassetti || 3);
       // FUGHE: una in più dei cassetti, da 2 mm; frontali per difetto. Tutti
       // uguali, oppure uno piccolo in alto e gli altri uguali.
@@ -224,11 +231,14 @@ function pezziDiModulo(progetto, m) {
         // parti per fare i cassetti: fondo e trasera in melaminico (sistema dei ⚙ Parametri)
         cassettoMelaminico(pz, mod, L, hJ, q, cassettiDelMobile(progetto, m));
       }
+      if (angC) reglettaAngolo(pz, mod, progetto, m, H, false);
     } else if (m.tipo === 'forno') {
       // sotto il forno un pannello del colore delle ante (griglia sopra = accessorio)
       // con la gola il forno sta subito sotto la gola (l'aria passa dalla gola: niente griglia)
-      const hp = gola ? round(H - spazioGola() - H_FORNO_INCASSO - 3) : round(H - aH - GRIGLIA_FORNO - 3 - H_FORNO_INCASSO - 3);
+      const aT = parametri().ante.ariaTraAnte;                  // le fughe fra griglia, forno e pannello (come nel 3D)
+      const hp = gola ? round(H - spazioGola() - H_FORNO_INCASSO - aT) : round(H - aH - GRIGLIA_FORNO - aT - H_FORNO_INCASSO - aT);
       if (hp > 15) pz.push({ modulo: mod, nome: 'Pannello sotto forno', larghezza: round(L - aL), altezza: hp, spessore: SP, materiale: 'anta', quantita: 1 });
+      if (angC) reglettaAngolo(pz, mod, progetto, m, H, false);
     } else {
       // base-ante / lavello
       const N = m.tipo === 'lavello' ? (L >= 600 ? 2 : 1) : anteDiMobile(m);
@@ -241,10 +251,14 @@ function pezziDiModulo(progetto, m) {
     }
   } else if (cat === 'pensile') {
     if (m.tipo === 'pensile-angolo' || m.tipo === 'pensile-angolo-45') {
-      const aw = m.tipo === 'pensile-angolo-45' ? round(L * 0.5) : round(L - PROFONDITA_PENSILE);   // 63 − 33 = 30
+      // pensile angolo a L: un'anta per braccio, larga lato − profondità del pensile − fuga (63 − 33 − 0,3 = 29,7)
+      const dm = dimMobile(m);
+      const lati = m.tipo === 'pensile-angolo-45' ? [round(L * 0.5)]
+        : [round(dm.w - PROFONDITA_PENSILE - aL), round(dm.d - PROFONDITA_PENSILE - aL)];
       // con l'anta sporgente (70 → 72, 90 → 92 o personalizzata) anche qui l'anta scende, come nel 3D
       const scA = scendeAntaPensile(progetto, H), K = parametri().cucina;
-      pz.push({ modulo: mod, nome: scA ? 'Anta sporgente' : 'Anta', larghezza: Math.max(100, aw), altezza: scA ? round(H + scA) : round(H - aH - rJ), spessore: SP, materiale: 'anta', quantita: m.tipo === 'pensile-angolo-45' ? 1 : 2,
+      for (const aw of lati[1] === lati[0] ? [lati[0]] : lati)
+      pz.push({ modulo: mod, nome: scA ? 'Anta sporgente' : 'Anta', larghezza: Math.max(100, aw), altezza: scA ? round(H + scA) : round(H - aH - rJ), spessore: SP, materiale: 'anta', quantita: m.tipo === 'pensile-angolo-45' ? 1 : lati.length === 2 && lati[1] === lati[0] ? 2 : 1,
         cerniere: notaCerniere(K.cernieraSopra, K.cernieraSotto + (scA || 0), null) });
     } else {
       // Pensile: con l'anta sporgente la porta è H + quanto scende (70 → 72, 90 → 92, o personalizzata), altrimenti H − 2.
@@ -275,15 +289,18 @@ function pezziDiModulo(progetto, m) {
       const lato = o.lato || (m.antaLato === 'sx' ? 'sx' : 'dx');
       const rJp = golaC ? 0 : riduzioneJ({ ...scP, fp: fpP, push: pushP });
       const desc = ` (apertura ${lato === 'alto' ? "verso l'alto" : lato}${golaC ? ' · gola verticale' : ''}${fpP ? ' · finger-pull' : ''}${pushP ? ' · push' : ''}${rJp ? ` · ${_nomeRid} (−${rJp} mm)` : ''})`;
+      // maniglia a profilo sul bordo: con l'apertura di lato è VERTICALE (si toglie dalla larghezza),
+      // con l'apertura verso l'alto è sul bordo basso (si toglie dall'altezza) — come nel 3D
+      const awJ = lato === 'alto' ? aw : round(aw - rJp), ahJ = lato === 'alto' ? round(alt - rJp) : round(alt);
       if (o.vetro) {
         // PORTA IN VETRO: come le ante vetrina dei pensili (telaio in legno con il vano per il vetro, o telaio da ordinare)
-        const ah = round(alt - rJp), vt = NOMI_VETRO[o.vetro.vetro] || 'trasparente';
-        if ((o.vetro.telaio || 'legno') === 'legno') pz.push({ modulo: mod, nome: `${nome} vetrina (telaio 50 mm, vano vetro da fresare)${desc}`, larghezza: aw, altezza: ah, spessore: SP, materiale: 'anta', quantita: 1, lato,
-          vetro: { w: Math.max(10, aw - 80), h: Math.max(10, ah - 80), tipo: vt } });
+        const ah = ahJ, vt = NOMI_VETRO[o.vetro.vetro] || 'trasparente';
+        if ((o.vetro.telaio || 'legno') === 'legno') pz.push({ modulo: mod, nome: `${nome} vetrina (telaio 50 mm, vano vetro da fresare)${desc}`, larghezza: awJ, altezza: ah, spessore: SP, materiale: 'anta', quantita: 1, lato,
+          vetro: { w: Math.max(10, awJ - 80), h: Math.max(10, ah - 80), tipo: vt } });
         else { const tel = o.vetro.telaio === 'nero' ? 'nero' : 'alluminio'; pz.push({ modulo: mod, nome: `${nome} vetrina telaio ${tel} + vetro ${vt} (da ordinare)${desc}`, larghezza: aw, altezza: ah, spessore: 20, materiale: 'vetrina', quantita: 1, lato, materialeNome: `Telaio ${tel} + vetro ${vt}` }); }
         return;
       }
-      pz.push({ modulo: mod, nome: `${nome}${desc}`, larghezza: aw, altezza: round(alt - rJp), spessore: SP, materiale: 'anta', quantita: 1, fp: fpP, push: pushP, lato });
+      pz.push({ modulo: mod, nome: `${nome}${desc}`, larghezza: awJ, altezza: ahJ, spessore: SP, materiale: 'anta', quantita: 1, fp: fpP, push: pushP, lato });
     };
     if (m.variante === 'intera') porta('intera', 'Anta intera', H - aH);   // PORTA INTERA: una sola, da terra in cima
     else {
@@ -352,7 +369,10 @@ function pezziDiModulo(progetto, m) {
     pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(m.larghezza_mm || L), altezza: H, spessore: SP, materiale: 'anta', quantita: 1 });
   } else if (cat === 'regletta') {
     // con la GOLA è alta come le ante (700 → 675): il profilo L le passa sopra
-    pz.push({ modulo: mod, nome: nomeTipo(m.tipo), larghezza: round(m.latoA_mm || 30), altezza: golaSuMobile(progetto, m) ? altezzaAntaGola(H) : H, spessore: SP, materiale: 'anta', quantita: 1 });
+    // a L come nel 3D: il lato davanti (largo come si vede) e il lato in profondità, dietro al primo
+    const hR = golaSuMobile(progetto, m) ? altezzaAntaGola(H) : H, pB = round((m.latoB_mm || 30) - SP);
+    pz.push({ modulo: mod, nome: `${nomeTipo(m.tipo)} · lato davanti`, larghezza: round(m.latoA_mm || 30), altezza: hR, spessore: SP, materiale: 'anta', quantita: 1 });
+    if (pB > 0) pz.push({ modulo: mod, nome: `${nomeTipo(m.tipo)} · lato in profondità (dietro al lato davanti)`, larghezza: pB, altezza: hR, spessore: SP, materiale: 'anta', quantita: 1 });
   } else if (cat === 'altillo') {
     // MOBILE SOPRA FRIGO: la carcassa si ordina come i pensili; qui le ante (H − aria)
     anteModulo(pz, mod, L, H, anteDiMobile(m), m.antaLato, null, false, null, rJ);
@@ -568,6 +588,7 @@ export function calcolaDistintaCucina(progetto) {
   // MANIGLIE: una per porta e per frontale, dove non c'è il finger-pull
   for (const p of raw) {
     if (!/^anta|^fronte cassetto/i.test(p.nome)) continue;
+    if (/sporgente/i.test(p.nome)) continue;                     // anta sporgente: si apre da sotto, niente maniglia (come nel 3D)
     const cassetto = /^fronte cassetto/i.test(p.nome);           // i cassetti non hanno mai il push
     if (scelteDi(p).gola || fpDi(p) || (!cassetto && pushDi(p))) continue;
     aggiungi(`Maniglie · ${nomeManiglia(p)}`, p.quantita);

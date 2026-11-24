@@ -17,30 +17,30 @@ import {
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
   costadoCopreAnte, costadoColonnaATerra, fronteCieco, piediniCucina, zoccoloColonnaDi, sporgenzaPiano, altezzaAlzatina, scendeAntaPensile,
   golaColonna, goleDiColonna, impostaProgettoFerramenta, spazioGola,
-} from './modello.js?v=20261125o';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261125o';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261125o';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261125o';
+} from './modello.js?v=20261125q';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261125q';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261125q';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261125q';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261125o').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261125q').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261125o';
-import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261125o';
-export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261125o';
-import { parametri } from '../parametri.js?v=20261125o';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261125o';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261125o';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261125o';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261125q';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261125q';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261125q';
+import { parametri } from '../parametri.js?v=20261125q';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261125q';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261125q';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261125q';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261125o';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261125q';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261125o';
+export { telaPavimento } from '../resa.js?v=20261125q';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -1369,7 +1369,8 @@ function maniglia(g, x, y, z, orizz, lung, giu = false, max = Infinity) {
     // MANIGLIA DEL CATALOGO: modello 3D vero del suo tipo, misura e finitura reali
     const grp = costruisciManiglia(!def.forma || def.forma === 'foto' ? 'barra' : def.forma, _finMan || def.finitura, Lcat, def.colore);
     grp.position.set(x, y, z + 20);                    // 20 = faccia davanti dell'anta
-    if (!orizz) grp.rotation.z = Math.PI / 2;
+    // verticale: il risvolto dei profili verso sinistra, o verso destra con «giu» (bordo destro dell'anta)
+    if (!orizz) grp.rotation.z = giu ? -Math.PI / 2 : Math.PI / 2;
     else if (giu) grp.rotation.z = Math.PI;
     g.add(grp);
     return;
@@ -1833,11 +1834,15 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
     const px = -uw / 2 + pw / 2 + i * (pw + GAP_ANTE);
     // Anta sporgente sotto (gola integrata): si apre da sotto, niente maniglia.
     if (_vetrina) {
-      // ANTA VETRINA: telaio (legno come le ante, alluminio o nero) + vetro
-      antaVetro(g, px, py, z, pw, ph, matAnta, _vetrina);
-      if (!sporg && !_fingerPull && !_golaQui) {
+      // ANTA VETRINA: telaio (legno come le ante, alluminio o nero) + vetro; con la maniglia a J
+      // il profilo sta sul bordo e l'anta si accorcia del suo spessore, come in distinta
+      const conMan = !sporg && !_fingerPull && !_golaQui;
+      const rJ = conMan ? riduzioneJ() : 0, inAlto = suAlto ? false : !_anteInBasso;
+      const phJ = ph - rJ, pyJ = py + (inAlto ? -rJ / 2 : rJ / 2);
+      antaVetro(g, px, pyJ, z, pw, phJ, matAnta, _vetrina);
+      if (conMan) {
         const verso = centro ? 0 : n === 1 ? (sx ? -1 : 1) : (i === 0 ? 1 : -1);
-        manigliaOrizzAnta(g, px, py, pw, ph, z, verso, !_anteInBasso);
+        manigliaOrizzAnta(g, px, pyJ, pw, phJ, z, verso, inAlto);
       }
     } else if (!sporg && _golaQui) {
       pannello(g, px, py, z, pw, ph, matAnta || COL.anta);        // GOLA: niente maniglia, si apre dalla gola
@@ -1943,15 +1948,22 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
     const cyc = yB + segH / 2;
     const ph = segH - FUGA_H;
     const c = scelte(chiave), s = c.lato === 'sx' ? -1 : 1, alto = c.lato === 'alto';
-    const pushPrima = _push; _push = c.push;
+    const pushPrima = _push, fpPrima = _fingerPull; _push = c.push; _fingerPull = c.fp;
+    // MANIGLIA A PROFILO SUL BORDO (a J / sul bordo): l'anta è più corta del suo spessore dal lato della
+    // maniglia — di lato (verticale) si toglie dalla larghezza, con l'apertura in alto dall'altezza (come in distinta)
+    const rJ = golaC ? 0 : riduzioneJ();
+    const pwJ = alto ? pw : pw - rJ, phJ = alto ? ph - rJ : ph;
+    const xJ = alto ? 0 : -s * rJ / 2, yJ = alto ? cyc + rJ / 2 : cyc;
+    const fm = formaManiglia(), dBv = fm === 'bordol' ? 0 : ['profilo', 'bordo'].includes(fm) ? 17 : 30;
+    const manV = () => maniglia(g, xJ + s * (pwJ / 2 - dBv), cyc, z, false, Math.min(260, ph * 0.4), s === 1, ph);
     if (golaC) {
       if (c.vetro) antaVetro(g, 0, cyc, z, pw, ph, matAnta, c.vetro);
       else pannello(g, 0, cyc, z, pw, ph, matAnta || COL.anta);
     } else if (c.vetro) {
       // PORTA IN VETRO (vetrina): telaio + vetro, e dietro i RIPIANI della colonna (la cassa è aperta)
-      antaVetro(g, 0, cyc, z, pw, ph, matAnta, c.vetro);
-      if (alto) manigliaOrizzAnta(g, 0, cyc, pw, ph, z, 0, false);
-      else maniglia(g, s * (pw / 2 - 30), cyc, z, false, Math.min(260, ph * 0.4), false, ph);
+      antaVetro(g, xJ, yJ, z, pwJ, phJ, matAnta, c.vetro);
+      if (alto) manigliaOrizzAnta(g, 0, yJ, pw, phJ, z, 0, false);
+      else manV();
       const t = 18, nR = Math.max(1, Math.round(segH / 380) - 1);
       const matR = new THREE.MeshStandardMaterial({ color: _coloreCorpoCol != null && !(_coloreCorpoCol && _coloreCorpoCol.isMaterial) ? _coloreCorpoCol : COL.corpo || 0xe8e4dc, roughness: 0.7, metalness: 0.05 });
       for (let k = 1; k <= nR; k++) {
@@ -1968,11 +1980,11 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
       pannello(g, -s * CW / 2, cyc, z, pw - CW, ph, matAnta || COL.anta);
       canaleFingerPull(g, s * (pw / 2 - CW / 2), cyc, z, ph, CW, false, matAnta);
     } else {
-      pannello(g, 0, cyc, z, pw, ph, matAnta || COL.anta);
-      if (alto) manigliaOrizzAnta(g, 0, cyc, pw, ph, z, 0, false);
-      else maniglia(g, s * (pw / 2 - 30), cyc, z, false, Math.min(260, ph * 0.4), false, ph);
+      pannello(g, xJ, yJ, z, pwJ, phJ, matAnta || COL.anta);
+      if (alto) manigliaOrizzAnta(g, 0, yJ, pw, phJ, z, 0, false);
+      else manV();
     }
-    _push = pushPrima;
+    _push = pushPrima; _fingerPull = fpPrima;
   };
   // GOLA VERTICALE: nel vano di 30 mm accanto alla colonna si vede il fondo del profilo, 12 mm dietro
   // le ante (centrale: lo disegna una sola delle due colonne; laterale: verso il costado)
@@ -2502,7 +2514,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261125o')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261125q')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -2636,8 +2648,11 @@ function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, prof = PROFONDITA_PENS
       pannello(gg, cx, basso ? -CH / 2 : CH / 2, z, aw, Math.max(60, hA - CH), matAnta || COL.anta);
       canaleFingerPull(gg, cx, basso ? hA / 2 - CH / 2 : -hA / 2 + CH / 2, z, aw, CH, true, matAnta, !basso);
     } else {
-      pannello(gg, cx, 0, z, aw, h - FUGA_H, matAnta || COL.anta);
-      manigliaOrizzAnta(gg, cx, 0, aw, h - FUGA_H, z, verso, basso);
+      // MANIGLIA A J: l'anta si accorcia del suo spessore dal lato della maniglia (in alto nella base,
+      // in basso nel pensile), come in distinta
+      const rJ = riduzioneJ(), hA = h - FUGA_H - rJ, yA = basso ? -rJ / 2 : rJ / 2;
+      pannello(gg, cx, yA, z, aw, hA, matAnta || COL.anta);
+      manigliaOrizzAnta(gg, cx, yA, aw, hA, z, verso, basso);
     }
   };
   anta(g, antaAcx, zA, antaAw - FUGA_W, 1);                // maniglie verso l'esterno, non nell'angolo
@@ -3361,7 +3376,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   // CIERRE A TECHO: segue il fronte dei mobili (colonne a filo colonne, pensili a
   // filo pensili) con i pezzi che rientrano dove cambia la profondità
   if (cierre) {
-    for (const b of fasceCierreTecho(progetto, 20)) {
+    for (const b of fasceCierreTecho(progetto, SPESSORE_ANTA)) {      // stesso spessore della distinta
       const yb = Math.max(...b.ids.map((id) => cimeAlte.get(id) || 0));
       const mat = (b.gruppo === 'pensile' ? matPensile : matColonna) || COL.anta;
       const am = (b.a0 + b.a1) / 2;
