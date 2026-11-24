@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera } from './calcoli.js?v=20261125l';
-import { parametri } from './parametri.js?v=20261125l';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261125l';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261125l';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261125l';
-import { sfondoDi } from './sfondi.js?v=20261125l';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261125l';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261125l';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261125n';
+import { parametri } from './parametri.js?v=20261125n';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261125n';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261125n';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261125n';
+import { sfondoDi } from './sfondi.js?v=20261125n';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261125n';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261125n';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -95,16 +95,12 @@ function manigliaScelta(config) {
   return MATERIALI.find((m) => m.id === id && m.categoria === 'maniglia') || null;
 }
 /** Lunghezza vera della maniglia (quella standard: 30 cm). */
-export function lunghezzaManiglia(def) { return def.texture && def.lunghezzaMm ? def.lunghezzaMm : 300; }
+export function lunghezzaManiglia(def) { return lungManigliaStd(def); }   // la stessa della distinta (calcoli.js)
 /**
  * Lunghezza della maniglia SU QUESTA ANTA: quella scelta per l'armadio (config.manigliaLunghezza:
  * mm, oppure 'anta' = alta come l'anta) o quella del catalogo; MAI più lunga dell'anta (4 cm dai bordi).
  */
-export function lunghezzaManigliaAnta(def, config, altAnta) {
-  const scelta = config && config.manigliaLunghezza;
-  const L = scelta === 'anta' ? altAnta - 80 : Number(scelta) > 0 ? Number(scelta) : lunghezzaManiglia(def);
-  return Math.max(40, Math.min(L, altAnta - 80));
-}
+export function lunghezzaManigliaAnta(def, config, altAnta) { return lungManigliaAnta(def, config, altAnta); }
 /** Maniglia GRANDE (oltre 1 metro): si può far partire dal centro o dal fondo dell'anta. */
 export const MANIGLIA_GRANDE_MM = 1000;
 /**
@@ -120,7 +116,7 @@ function yManiglia(def, altAnta, yBase, config) {
   const c = Math.max(L / 2, Math.min(altAnta - L / 2, centro));        // tutta dentro l'anta
   return c - altAnta / 2;
 }
-function aggiungiManiglia(parent, def, x, y, z, L = lunghezzaManiglia(def)) {
+function aggiungiManiglia(parent, def, x, y, z, L = lunghezzaManiglia(def), rotZ = Math.PI / 2) {
   let grp = null;
   if (def.texture && def.lunghezzaMm && (def.forma === 'foto' || !def.formaV)) {
     // maniglia dalle foto: 3D vero ricostruito dalle viste (si ridisegna quando è pronta)
@@ -133,7 +129,7 @@ function aggiungiManiglia(parent, def, x, y, z, L = lunghezzaManiglia(def)) {
     grp = costruisciManiglia(forma, catalogo ? def.finitura : 'inox', L, catalogo ? def.colore : null);
   }
   grp.position.set(x, y, z);                       // z = faccia davanti dell'anta
-  grp.rotation.z = Math.PI / 2;                    // verticale
+  grp.rotation.z = rotZ;                           // verticale (il risvolto dei profili verso il bordo che apre)
   grp.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.userData.tipo = 'maniglia-anta'; } });
   parent.add(grp);
 }
@@ -549,6 +545,7 @@ export function aggiornaScena(config) {
 
   if (config.tipoArmadio === 'scorrevole') {
     costruisciBinariGlobali(config);
+    costruisciAnteScorrevoliGlobali(config);
   }
 
   costruisciTamponamenti(config);
@@ -736,11 +733,8 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
   if (modulo.ripiani > 0) {
     const larRipiano = W - 2 * sC;
     // dietro le ante (con le ante interne 10 mm più indietro dell'anta), come in distinta
-    let profRipianoVisivo = (scorrevole ? prof : profonditaRipiani(config)) - (modulo.riduzioneRipiano || 0);
-    if (scorrevole) {
-      const B = config.scorrevole?.binario ?? 75;
-      profRipianoVisivo = Math.min(profRipianoVisivo, prof - B);
-    }
+    // come in distinta: scorrevole fino al binario, meno l'eventuale riduzione
+    const profRipianoVisivo = profonditaRipiani(config) - (modulo.riduzioneRipiano || 0);
     // Calcolo dello spazio OCCUPATO dalle cassettiere di questo modulo
     const casseGlob = config.cassettiere || [];
     const casseQui = casseGlob.filter((cas) => {
@@ -787,7 +781,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
     gB.position.set(xOffset + W / 2, yBarra, zB);
     Object.assign(gB.userData, { tipo: 'perchero', modulo: indice, yMin: yMinB, yMax: yMaxB });
     const tubo = new THREE.Mesh(_geoBarra, matB);
-    tubo.scale.set(15, larInt - 4, 7.5);
+    tubo.scale.set(15, larInt - 2, 7.5);                           // come in distinta: spazio dentro − 2
     tubo.rotation.z = Math.PI / 2;
     tubo.castShadow = true;
     Object.assign(tubo.userData, { tipo: 'barra', gruppo: gB });
@@ -809,10 +803,11 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
     // sopra la struttura: (W − (N+1)·2) ÷ N × (H − 4) · INTERNE: dentro il vano, con l'aria attorno
     const aI = interne ? parametri().anteInterne.aria : 2;
     const x0V = interne ? sC : 0;                                  // le ante interne partono dentro il fianco
-    const larAnta = interne ? (W - 2 * sC - (N + 1) * aI) / N : (W - (N + 1) * 2) / N;
+    const ridJ = riduzioneManigliaArmadio(config);                  // maniglia a profilo sul bordo: anta più stretta
+    const larAnta = (interne ? (W - 2 * sC - (N + 1) * aI) / N : (W - (N + 1) * 2) / N) - ridJ;
     const altAnta = interne ? H - 2 * sC - 2 * aI : H - 4;
     for (let k = 0; k < N; k++) {
-      const xStart = xOffset + x0V + aI + k * (larAnta + aI); // bordo sinistro
+      const xStart = xOffset + x0V + aI + k * (larAnta + ridJ + aI); // bordo sinistro dello spazio dell'anta
       // Regola cardini:
       // - 1 anta: lato scelto dall'utente (antaLato). 'dx' (maniglia a destra)
       //   = cardine a sinistra; 'sx' (maniglia a sinistra) = cardine a destra.
@@ -820,7 +815,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       const cardineSx = (N === 1)
         ? (modulo.antaLato !== 'sx')
         : (k < Math.ceil(N / 2));
-      const hingeX = cardineSx ? xStart : xStart + larAnta;
+      const hingeX = cardineSx ? xStart : xStart + larAnta + ridJ;
       const rotAperta = cardineSx ? -Math.PI * 0.55 : Math.PI * 0.55; // ~100°
 
       const pivot = new THREE.Group();
@@ -840,101 +835,13 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       fugheAnta(pivot, mesh.position.x, 0, larAnta, altAnta, sA, aI);
       // maniglia sul bordo che si apre (lontano dal cardine)
       const man = manigliaScelta(config);
-      if (man) aggiungiManiglia(pivot, man, cardineSx ? larAnta - 40 : -larAnta + 40, yManiglia(man, altAnta, H / 2 - altAnta / 2, config), sA / 2, lunghezzaManigliaAnta(man, config, altAnta));
-      gruppoArmadio.add(pivot);
-    }
-  }
-
-  // ANTE SCORREVOLI (per modulo) — formula definitiva (sez. 4.5):
-  // larghezza = (L − 2 fianchi) ÷ n° ante − 35, altezza = H − 82 (calcoli.js). Due casi di layout:
-  //   N === 1 : 1 anta per modulo, alternata avanti/dietro tra moduli
-  //             adiacenti (modulo 0 avanti, modulo 1 dietro, ...).
-  //             L'apertura fa scorrere l'anta "avanti" di W a destra,
-  //             sopra l'anta "dietro" del modulo successivo.
-  //   N >= 2 : più ante per modulo, alternate avanti/dietro dentro il
-  //            modulo stesso; la "avanti" scorre di un passo a destra.
-  if (scorrevole) {
-    // Il rendering 3D usa dimensioni "visive" (W/N + 20) per far vedere
-    // chiaramente la sovrapposizione e lo scorrimento. La DISTINTA invece
-    // usa la formula del binario scelto (L ÷ n° ante − …, vedi calcoli.js).
-    const N = config.scorrevole?.anteModulo ?? 1;
-    const B = config.scorrevole?.binario ?? 75;
-    const altAntaSc = H - B;
-    const larAntaSc = W / N + 20;
-    const zAvanti = config.profonditaEsterna - sA / 2 - 2;
-    const zDietro = config.profonditaEsterna - sA - sA / 2 - 4;
-    const matAnteSc = matDi(config, "ante");
-    const cy = (B * 0.4) + altAntaSc / 2;
-
-    // SCORREVOLI: niente maniglie; su ENTRAMBI i lati di ogni anta il PROFILO verticale a tutta
-    // altezza (alluminio, colori del binario, di partenza bianco) che abbraccia il bordo dell'anta
-    const idProf = config.scorrevole?.coloreProfilo || 'binario-bianco';
-    const matProf = getMaterialeTHREE(MATERIALI.some((m) => m.id === idProf && m.categoria === 'binario') ? idProf : 'binario-bianco',
-      () => { if (resa) resa.cambiato(); else renderer?.render(scene, camera); });
-    // TIRADOR scelto (⚙ Parametri): faccia vista, sporgenza e forma
-    const tir = tiradorArmadio(config);
-    const profili = (pivot, w, h) => {
-      const PW = tir.larghezza, SP = tir.sporgenza;
-      for (const lato of [-1, 1]) {
-        const x = lato * (w / 2 - PW / 2 + 2);
-        const metti = (geo, px, pz, rotY = 0) => {
-          const pr = new THREE.Mesh(geo, matProf);
-          pr.position.set(px, 0, pz); pr.rotation.y = rotY;
-          pr.castShadow = true; pr.userData.tipo = 'profilo-anta';
-          pivot.add(pr);
-        };
-        if (tir.forma === 'piatto') {
-          // piatto: una lama sul fronte dell'anta, sul bordo
-          metti(new THREE.BoxGeometry(PW, h + 4, Math.max(2, SP)), x, sA / 2 + Math.max(2, SP) / 2);
-        } else if (tir.forma === 'tondo') {
-          // tondo: mezzo tubo a tutta altezza sul fronte, sul bordo dell'anta
-          const r = PW / 2, g = new THREE.CylinderGeometry(r, r, h + 4, 20, 1, false, 0, Math.PI);
-          metti(g, x, sA / 2, -Math.PI / 2);
-          metti(new THREE.BoxGeometry(3, h + 4, sA + 2), lato * (w / 2 - 1.5 + 2), 0);   // risvolto sul fianco dell'anta
-        } else {
-          // avvolgente: abbraccia il bordo dell'anta (davanti e dietro)
-          metti(new THREE.BoxGeometry(PW, h + 4, sA + 2 * SP), x, 0);
-        }
+      if (man) {
+        // profilo / a bordo: sul bordo che apre; le altre a 40 mm dal bordo
+        const dB = man.forma === 'bordol' ? 0 : ['profilo', 'bordo'].includes(man.forma) ? 17 : 40;
+        aggiungiManiglia(pivot, man, cardineSx ? larAnta - dB : -larAnta + dB, yManiglia(man, altAnta, H / 2 - altAnta / 2, config), sA / 2,
+          lunghezzaManigliaAnta(man, config, altAnta), cardineSx ? -Math.PI / 2 : Math.PI / 2);
       }
-    };
-    // lato: dove si prende l'anta per farla scorrere (bordo verso l'esterno del modulo)
-    const creaAnta = (xBase, cz, xOffsetAperto, latoManiglia = -1) => {
-      const pivot = new THREE.Group();
-      pivot.position.set(xBase + (porteAperte ? xOffsetAperto : 0), cy, cz);
-      pivot.userData.tipo = 'pivot-anta-scorrevole';
-      pivot.userData.xBase = xBase;
-      pivot.userData.xOffsetAperto = xOffsetAperto;
-      const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(larAntaSc, altAntaSc, sA), matAnteSc);
-      mesh.castShadow = true; mesh.receiveShadow = true;
-      mesh.userData.tipo = 'anta';
-      pivot.add(mesh);
-      fugheAnta(pivot, 0, 0, larAntaSc, altAntaSc, sA);
-      profili(pivot, larAntaSc, altAntaSc);
       gruppoArmadio.add(pivot);
-    };
-
-    if (N === 1) {
-      // 1 anta per modulo: alternata avanti/dietro tra moduli adiacenti,
-      // scorre di tutta la larghezza del modulo verso il modulo successivo.
-      const avanti = (indice % 2 === 0);
-      const cz = avanti ? zAvanti : zDietro;
-      const xBase = xOffset + W / 2;
-      const siApre = avanti && indice < totali - 1;
-      const xOffsetAperto = siApre ? W : 0;
-      creaAnta(xBase, cz, xOffsetAperto, avanti ? -1 : 1);
-    } else {
-      // N≥2 ante per modulo: le ante si sovrappongono dentro il modulo,
-      // alternate avanti/dietro. L'anta "avanti" scorre di un passo
-      // (larAnta − overlap) verso destra all'apertura.
-      const passo = larAntaSc - 20;
-      for (let k = 0; k < N; k++) {
-        const xBase = xOffset + larAntaSc / 2 + k * passo;
-        const cz = (k % 2 === 0) ? zAvanti : zDietro;
-        const siApre = (k % 2 === 0) && k < N - 1;
-        const xOffsetAperto = siApre ? passo : 0;
-        creaAnta(xBase, cz, xOffsetAperto, xBase < xOffset + W / 2 ? -1 : 1);
-      }
     }
   }
 
@@ -1013,6 +920,74 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       }
       yCassBase += AltMax + 10;
     });
+  }
+}
+
+/**
+ * ANTE SCORREVOLI di tutto l'armadio, con le MISURE DELLA DISTINTA (calcoli.js):
+ * larghezza = L ÷ n° ante − «larghezza meno» del binario − tirador, altezza = H − «altezza meno».
+ * Le ante sono distribuite su tutta la larghezza, alternate avanti/dietro; aprendo, quella
+ * davanti scorre sopra quella dietro accanto.
+ */
+function costruisciAnteScorrevoliGlobali(config) {
+  const sA = config.spessoreAnte;
+  const B = config.scorrevole?.binario ?? 75;
+  const L = config.moduli.reduce((t, m) => t + (Number(m.larghezza) || 0), 0);
+  const nTot = Math.max(1, config.moduli.length * (config.scorrevole?.anteModulo ?? 1));
+  const larAntaSc = larghezzaAntaScorrevole(config);
+  const altAntaSc = altezzaAntaScorrevole(config);
+  const zAvanti = config.profonditaEsterna - sA / 2 - 2;
+  const zDietro = config.profonditaEsterna - sA - sA / 2 - 4;
+  const matAnteSc = matDi(config, "ante");
+  const cy = (B * 0.4) + altAntaSc / 2;                        // appoggiata sul binario di sotto
+
+  // SCORREVOLI: niente maniglie; su ENTRAMBI i lati di ogni anta il PROFILO verticale a tutta
+  // altezza (alluminio, colori del binario, di partenza bianco) che abbraccia il bordo dell'anta
+  const idProf = config.scorrevole?.coloreProfilo || 'binario-bianco';
+  const matProf = getMaterialeTHREE(MATERIALI.some((m) => m.id === idProf && m.categoria === 'binario') ? idProf : 'binario-bianco',
+    () => { if (resa) resa.cambiato(); else renderer?.render(scene, camera); });
+  // TIRADOR scelto (⚙ Parametri): faccia vista, sporgenza e forma; lungo come l'anta (come in distinta)
+  const tir = tiradorArmadio(config);
+  const profili = (pivot, w, h) => {
+    const PW = tir.larghezza, SP = tir.sporgenza;
+    for (const lato of [-1, 1]) {
+      const x = lato * (w / 2 - PW / 2 + 2);
+      const metti = (geo, px, pz, rotY = 0) => {
+        const pr = new THREE.Mesh(geo, matProf);
+        pr.position.set(px, 0, pz); pr.rotation.y = rotY;
+        pr.castShadow = true; pr.userData.tipo = 'profilo-anta';
+        pivot.add(pr);
+      };
+      if (tir.forma === 'piatto') {
+        metti(new THREE.BoxGeometry(PW, h, Math.max(2, SP)), x, sA / 2 + Math.max(2, SP) / 2);
+      } else if (tir.forma === 'tondo') {
+        const r = PW / 2, g = new THREE.CylinderGeometry(r, r, h, 20, 1, false, 0, Math.PI);
+        metti(g, x, sA / 2, -Math.PI / 2);
+        metti(new THREE.BoxGeometry(3, h, sA + 2), lato * (w / 2 - 1.5 + 2), 0);   // risvolto sul fianco dell'anta
+      } else {
+        metti(new THREE.BoxGeometry(PW, h, sA + 2 * SP), x, 0);                    // avvolgente
+      }
+    }
+  };
+  const creaAnta = (xBase, cz, xOffsetAperto) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(xBase + (porteAperte ? xOffsetAperto : 0), cy, cz);
+    pivot.userData.tipo = 'pivot-anta-scorrevole';
+    pivot.userData.xBase = xBase;
+    pivot.userData.xOffsetAperto = xOffsetAperto;
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(larAntaSc, altAntaSc, sA), matAnteSc);
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    mesh.userData.tipo = 'anta';
+    pivot.add(mesh);
+    fugheAnta(pivot, 0, 0, larAntaSc, altAntaSc, sA);
+    profili(pivot, larAntaSc, altAntaSc);
+    gruppoArmadio.add(pivot);
+  };
+  // distribuite su tutta la larghezza (la prima a sinistra, l'ultima a destra), alternate avanti/dietro
+  const passo = nTot > 1 ? (L - larAntaSc) / (nTot - 1) : 0;
+  for (let k = 0; k < nTot; k++) {
+    const avanti = k % 2 === 0;
+    creaAnta(larAntaSc / 2 + k * passo, avanti ? zAvanti : zDietro, avanti && k < nTot - 1 ? passo : 0);
   }
 }
 

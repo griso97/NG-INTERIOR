@@ -517,6 +517,7 @@ window.NG_I18N_ES = {
  "Anta interna (apertura dx)": "Puerta interior (apertura der.)",
  "Anta interna (apertura sx)": "Puerta interior (apertura izq.)",
  "Cerniere a gomito per anta interna": "Bisagras de codo para puerta interior",
+ "Cerniere per anta": "Bisagras para puerta",
  "Acciaio (ferramenta)": "Acero (herraje)",
  "Sopra la struttura (normali)": "Sobre la estructura (normales)",
  "Interne (dentro il vano)": "Interiores (dentro del hueco)",

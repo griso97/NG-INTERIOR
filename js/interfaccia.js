@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261125l';
-import { htmlTendineColori } from './tendine-colori.js?v=20261125l';
-import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261125l';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261125l';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261125l';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261125n';
+import { htmlTendineColori } from './tendine-colori.js?v=20261125n';
+import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261125n';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261125n';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261125n';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,

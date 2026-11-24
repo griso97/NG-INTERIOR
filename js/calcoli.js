@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261125l';
+import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261125n';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -66,7 +66,39 @@ export function profonditaDentro(config) {
 }
 /** Profondità dei RIPIANI: lo spazio dentro; con le ANTE INTERNE ancora indietro di «spazio anta–ripiano» (10 mm). */
 export function profonditaRipiani(config) {
+  // SCORREVOLE: davanti c'è il binario (le ante scorrono lì): i ripiani arrivano fino al binario
+  if (config.tipoArmadio === 'scorrevole') return profonditaDentro(config) - (config.scorrevole?.binario ?? 75);
   return profonditaDentro(config) - (anteInterne(config) ? parametri().anteInterne.spazioRipiano : 0);
+}
+/** MANIGLIA delle ante a battente (catalogo materiali), o null. */
+export function manigliaArmadio(config) {
+  const id = config && config.maniglia;
+  if (!id || id === 'nessuna' || typeof window === 'undefined') return null;
+  return (window.NG_MATERIALI || []).find((m) => m.id === id && m.categoria === 'maniglia') || null;
+}
+/** Lunghezza standard della maniglia (quelle del catalogo con la loro misura; le altre 30 cm). */
+export function lunghezzaManiglia(def) { return def.texture && def.lunghezzaMm ? def.lunghezzaMm : 300; }
+/**
+ * Lunghezza della maniglia SU QUESTA ANTA: quella scelta per l'armadio (config.manigliaLunghezza:
+ * mm, oppure 'anta' = alta come l'anta) o quella del catalogo; MAI più lunga dell'anta (4 cm dai bordi).
+ */
+export function lunghezzaManigliaAnta(def, config, altAnta) {
+  const scelta = config && config.manigliaLunghezza;
+  const L = scelta === 'anta' ? altAnta - 80 : Number(scelta) > 0 ? Number(scelta) : lunghezzaManiglia(def);
+  return Math.max(40, Math.min(L, altAnta - 80));
+}
+/**
+ * MANIGLIA A PROFILO SUL BORDO (a J o «sul bordo»): sta sul bordo che apre, quindi l'anta è più
+ * stretta del suo spessore (spessoreJ della maniglia, altrimenti ⚙ Parametri → maniglia a J).
+ */
+export function riduzioneManigliaArmadio(config) {
+  const def = manigliaArmadio(config);
+  if (!def || !['profilo', 'bordol'].includes(def.forma)) return 0;
+  return Number(def.spessoreJ) > 0 ? Number(def.spessoreJ) : parametri().manigliaJ.spessore;
+}
+function nomeRiduzioneManiglia(config) {
+  const def = manigliaArmadio(config);
+  return def && def.forma === 'bordol' ? 'maniglia sul bordo' : 'maniglia a J';
 }
 /** Cerniere per anta, dall'altezza dell'anta. */
 export function cerniereAnta(h) {
@@ -272,36 +304,49 @@ export function pezziBarraModulo(config, modulo, indiceModulo) {
  */
 export function pezziAnteModulo(config, modulo, indiceModulo) {
   const N = modulo.numeroAnte || 1;
+  // maniglia a profilo sul bordo che apre: l'anta è più stretta del suo spessore (come nel 3D)
+  const rid = riduzioneManigliaArmadio(config);
+  const suff = rid ? ` · ${nomeRiduzioneManiglia(config)} (−${rid} mm)` : '';
+  // le MANIGLIE che si vedono nel 3D: una per anta, con la sua lunghezza
+  const def = manigliaArmadio(config);
+  const maniglie = (altA) => def ? [{
+    modulo: `Modulo ${indiceModulo + 1}`, nome: `${/^maniglia/i.test(def.nome || '') ? '' : 'Maniglia '}${def.nome} · ${Math.round(lunghezzaManigliaAnta(def, config, altA))} mm`,
+    larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', finitura: def.id, finituraNome: def.nome, quantita: N,
+  }] : [];
   if (anteInterne(config)) {
     // ANTE INTERNE: dentro il vano (modulo − 2 fianchi) × (altezza − top − fondo), con l'aria attorno
     //   larghezza = (Lm − 2·sC − (N + 1) × aria) ÷ N   ·   altezza = H − 2·sC − 2 × aria
     //   es. 1000 × 2000, 2 ante, struttura 18, aria 2 → (1000 − 36 − 6) ÷ 2 = 479 × (2000 − 36 − 4) = 1960
     const a = parametri().anteInterne.aria, sC = config.spessoreCarcassa;
-    const larI = (modulo.larghezza - 2 * sC - (N + 1) * a) / N;
+    const larI = (modulo.larghezza - 2 * sC - (N + 1) * a) / N - rid;
     const altI = config.altezzaEsterna - 2 * sC - 2 * a;
     return [{
       modulo: `Modulo ${indiceModulo + 1}`,
-      nome: N === 1 ? `Anta interna (apertura ${modulo.antaLato === 'sx' ? 'sx' : 'dx'})` : `Anta interna (×${N})`,
+      nome: (N === 1 ? `Anta interna (apertura ${modulo.antaLato === 'sx' ? 'sx' : 'dx'})` : `Anta interna (×${N})`) + suff,
       larghezza: larI, altezza: altI, spessore: config.spessoreAnte, materiale: 'ante', quantita: N,
     }, {
       modulo: `Modulo ${indiceModulo + 1}`, nome: 'Cerniere a gomito per anta interna',
       larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', finituraNome: 'Acciaio',
       quantita: N * cerniereAnta(altI),
-    }];
+    }, ...maniglie(altI)];
   }
-  const larAnta = (modulo.larghezza - (N + 1) * 2) / N;
+  const larAnta = (modulo.larghezza - (N + 1) * 2) / N - rid;
   const altAnta = config.altezzaEsterna - 4;
   return [{
     modulo: `Modulo ${indiceModulo + 1}`,
-    nome: N === 1
+    nome: (N === 1
       ? `Anta (apertura ${modulo.antaLato === 'sx' ? 'sx' : 'dx'})`
-      : `Anta (×${N})`,
+      : `Anta (×${N})`) + suff,
     larghezza: larAnta,
     altezza: altAnta,
     spessore: config.spessoreAnte,
     materiale: 'ante',
     quantita: N,
-  }];
+  }, {
+    modulo: `Modulo ${indiceModulo + 1}`, nome: 'Cerniere per anta',
+    larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', finituraNome: 'Acciaio',
+    quantita: N * cerniereAnta(altAnta),
+  }, ...maniglie(altAnta)];
 }
 
 // Spessore del melaminico bianco (fondo + trasera cassetto).
