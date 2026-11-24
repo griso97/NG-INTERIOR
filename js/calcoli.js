@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, sistemiCassetti, pezziCassettoNostro } from './parametri.js?v=20261125i';
+import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, sistemiCassetti, pezziCassettoNostro } from './parametri.js?v=20261125j';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -347,6 +347,8 @@ function _cassettoMelArmadio(pezzi, nomeModulo, Lm, altF, guida, N, cassettiera 
  *   Scorrevole: top/fondo (Lm − 4·sC) × (Pcas − sC − 2 − M), fascette 50 (di costa)
  *   Battente:   top/fondo (Lm − 2·sC − 80) × (Pc − 80 − sC), fascette 40 (di piatto)
  *   Fianchi: profondità scatola × (AltMax − 4·sC)
+ *   Fascette sotto: 2, una davanti (a filo dei frontali, fa da cornice) e una dietro; la scatola appoggia su tutte e due.
+ *   Fascette laterali e fascetta sotto davanti fanno la cornice dei frontali; sopra va il ripiano.
  */
 function _strutturaCassettiera(config, c, Lm, nomeModulo, N, scorrevole) {
   const sC = config.spessoreCarcassa;

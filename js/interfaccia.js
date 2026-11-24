@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261125i';
-import { htmlTendineColori } from './tendine-colori.js?v=20261125i';
-import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261125i';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261125i';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti } from './parametri.js?v=20261125i';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261125j';
+import { htmlTendineColori } from './tendine-colori.js?v=20261125j';
+import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261125j';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261125j';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti } from './parametri.js?v=20261125j';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -719,7 +719,7 @@ function renderCassettiere(config) {
     return;
   }
   wrap.innerHTML = casse.map((c, j) => {
-    const man = c.maniglia || { attiva: true, M: 50 };
+    const man = c.maniglia || { attiva: false, M: 50 };   // come il calcolo: senza la voce, niente spazio maniglia
     const moduliAttivi = Array.isArray(c.moduli) ? c.moduli : [];
     return `
       <div class="cass-row" data-j="${j}">

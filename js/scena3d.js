@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio } from './calcoli.js?v=20261125i';
-import { parametri } from './parametri.js?v=20261125i';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261125i';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261125i';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261125i';
-import { sfondoDi } from './sfondi.js?v=20261125i';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261125i';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261125i';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio } from './calcoli.js?v=20261125j';
+import { parametri } from './parametri.js?v=20261125j';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261125j';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261125j';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261125j';
+import { sfondoDi } from './sfondi.js?v=20261125j';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261125j';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261125j';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -951,52 +951,64 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
     casseDiQuestoModulo.forEach((c) => {
       const N = Math.max(1, c.numCassetti || 4);
       const AltMax = Math.max(100, c.altMax || 800);
-      // Dimensioni che dipendono dal tipo
-      let larTF, profScatola, zScatolaFronte;
+      // Dimensioni che dipendono dal tipo (le stesse della distinta: calcoli.js → _strutturaCassettiera)
+      let larTF, profScatola, fascia;
       if (scorrevole) {
         const B = config.scorrevole?.binario ?? 75;
-        const Pcas = profonditaDentro(config) - B;            // davanti alla schiena (dietro / a filo / in canale)
-        const Pscatola = Pcas - sC - 2;
+        const Pcas = profonditaDentro(config) - B;            // dalla schiena fino al binario
         const M = c.maniglia?.attiva ? (c.maniglia.M ?? 50) : 0;
         larTF = W - 4 * sC;
-        profScatola = Pscatola - M;
-        zScatolaFronte = zUtile + Pcas; // fronte della scatola allineato con i binari
+        profScatola = Pcas - sC - 2 - M;                        // lo spazio M resta DAVANTI ai frontali, per la maniglia
+        fascia = 50;                                            // fascette di costa: larghe sC, profonde 50
       } else {
-        // BATTENTE: la cassettiera resta INTERNA al mobile (dietro le ante).
-        // Il fronte della scatola è arretrato di sC + 3mm rispetto al retro
-        // delle ante, così il fronte cassetto (spessore sC) sta dietro
-        // l'anta e si vede solo quando si aprono le porte.
-        const Pc = profonditaDentro(config);                   // davanti alla schiena, dietro l'anta
+        const Pc = profonditaDentro(config);                   // dalla schiena fino al retro dell'anta
         larTF = W - 2 * sC - 80;
-        profScatola = Pc - 80 - sC;
-        zScatolaFronte = config.profonditaEsterna - config.spessoreAnte - sC - 3;
+        profScatola = Pc - 80 - sC;                             // davanti ai frontali restano 79 mm per la maniglia
+        fascia = 40;                                            // fascette di piatto: larghe 40, spesse sC
       }
       const altFianchi = AltMax - 4 * sC;
-      const As = AltMax - 2 * sC;
+      const As = AltMax - 2 * sC;                               // altezza della scatola (e dei frontali con le fughe)
       const altFronte = Math.floor((As - (N + 1) * 2) / N);   // per difetto, come in distinta
       const larFronte = larTF - 4;
       const xCentro = xOffset + W / 2;
-      const zScatolaCentro = zScatolaFronte - profScatola / 2;
-      // Scatola: top, fondo, fianchi (materiale "cassStruttura")
+      // SCATOLA appoggiata alla schiena, sopra le fascette sotto (sC); sopra la scatola va il ripiano (top della cassettiera)
+      const zScatolaFronte = zUtile + profScatola;
+      const zScatolaCentro = zUtile + profScatola / 2;
+      const yScatola = yCassBase + sC;
       const matStr = matDi(config, "cassStruttura");
       aggiungiBox(larTF, sC, profScatola,
-        xCentro, yCassBase + AltMax - sC / 2, zScatolaCentro,
+        xCentro, yScatola + As - sC / 2, zScatolaCentro,
         matStr, 'cass-top');
       aggiungiBox(larTF, sC, profScatola,
-        xCentro, yCassBase + sC + sC / 2, zScatolaCentro,
+        xCentro, yScatola + sC / 2, zScatolaCentro,
         matStr, 'cass-fondo');
-      const yFianchi = yCassBase + 2 * sC + altFianchi / 2;
+      const yFianchi = yScatola + sC + altFianchi / 2;
       aggiungiBox(sC, altFianchi, profScatola,
         xCentro - larTF / 2 + sC / 2, yFianchi, zScatolaCentro,
         matStr, 'cass-fianco');
       aggiungiBox(sC, altFianchi, profScatola,
         xCentro + larTF / 2 - sC / 2, yFianchi, zScatolaCentro,
         matStr, 'cass-fianco');
-      // Fronti cassetto — materiale "cassFronti" (scelta separata dall'utente)
+      // CORNICE a filo dei frontali: fascette laterali (alte AltMax − sC, fino sotto il ripiano)
+      // fra il fianco del modulo e la scatola, e la fascetta sotto davanti; più la fascetta sotto dietro.
+      const zCornice = zScatolaFronte + 1 + sC;                // faccia davanti dei frontali e della cornice
+      const altFL = AltMax - sC;
+      if (scorrevole) {
+        for (const lato of [-1, 1]) aggiungiBox(sC, altFL, fascia,
+          xCentro + lato * (larTF / 2 + sC / 2), yCassBase + altFL / 2, zCornice - fascia / 2,
+          matStr, 'cass-fascetta');
+      } else {
+        for (const lato of [-1, 1]) aggiungiBox(fascia, altFL, sC,
+          xCentro + lato * (larTF / 2 + fascia / 2), yCassBase + altFL / 2, zCornice - sC / 2,
+          matStr, 'cass-fascetta');
+      }
+      aggiungiBox(larTF, sC, fascia, xCentro, yCassBase + sC / 2, zCornice - fascia / 2, matStr, 'cass-fascetta');
+      aggiungiBox(larTF, sC, fascia, xCentro, yCassBase + sC / 2, zUtile + fascia / 2, matStr, 'cass-fascetta');
+      // FRONTALI davanti alla scatola (1 mm), fra la fascetta sotto e il ripiano, fughe 2 mm — materiale "cassFronti"
       const matFronti = matDi(config, "cassFronti");
-      const zFronte = zScatolaFronte + sC / 2 + 1;
+      const zFronte = zScatolaFronte + 1 + sC / 2;
       for (let k = 0; k < N; k++) {
-        const cy = yCassBase + 2 * sC + 2 + k * (altFronte + 2) + altFronte / 2;
+        const cy = yScatola + 2 + k * (altFronte + 2) + altFronte / 2;
         aggiungiBox(larFronte, altFronte, sC,
           xCentro, cy, zFronte,
           matFronti, 'cassetto');
