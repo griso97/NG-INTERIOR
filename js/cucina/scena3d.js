@@ -15,46 +15,43 @@ import {
   altezzeCassettiDi, cassettoSopraDi, calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
-  costadoCopreAnte, costadoColonnaATerra, fronteCieco, piediniCucina, zoccoloColonnaDi, sporgenzaPiano, altezzaAlzatina, scendeAntaPensile,
-  golaColonna, goleDiColonna, impostaProgettoFerramenta, spazioGola,
-} from './modello.js?v=20261125v';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261125v';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261125v';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261125v';
+  costadoCopreAnte, fronteCieco, piediniCucina, zoccoloColonnaDi, scendeAntaPensile,
+  golaColonna, goleDiColonna, impostaProgettoFerramenta, spazioGola, zoccoliContinui,
+} from './modello.js?v=20261125w';
+import {
+  MONTAGGIO_PENSILE, SP_TOP, SP_SCHIENALE, spessorePianoDi, baseAltillo, siSovrappongono, fondoPonteSopra, quoteAlte,
+  dimVasca, dimPlacca, fuochiPerLarghezza, distSegmento, basePensile, cimePensili as cimeDeiPensili, quoteCostado,
+  lastrePiano, ledCucina,
+} from './geometria.js?v=20261125w';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261125w';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261125w';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261125w';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261125v').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261125w').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261125v';
-import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261125v';
-export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261125v';
-import { parametri, profiloFingerPull } from '../parametri.js?v=20261125v';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261125v';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261125v';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261125v';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261125w';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261125w';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261125w';
+import { parametri, profiloFingerPull } from '../parametri.js?v=20261125w';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261125w';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261125w';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261125w';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261125v';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261125w';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261125v';
+export { telaPavimento } from '../resa.js?v=20261125w';
 
-export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
-const SP_TOP = 40;
+export { MONTAGGIO_PENSILE };              // altezza da terra del basso dei pensili (geometria.js)
 // Zoccolo (piedini) in base all'altezza della porta:
 //  porta 70 → zoccolo 150 mm · porta 80 → zoccolo 100 mm
 // i PIEDINI si possono scegliere per la cucina (10 o 15 cm): vedi piediniCucina nel modello
 function zoccoloPerAltezza(h, progetto) { return piediniCucina(progetto, h); }
-/** Spessore del piano di lavoro: scelto a mano per questa cucina, se no quello del materiale (nero standard 40). */
-function spessorePianoDi(progetto, encDef) {
-  const enc = (progetto && progetto.encimera) || {};
-  const mano = Number(enc.spessore);
-  const uno = mano > 0 ? mano : (encDef && encDef.spessore != null) ? encDef.spessore : SP_TOP;
-  return uno * Math.max(1, Math.min(3, Number(enc.strati) || 1));          // pannelli uno sopra l'altro
-}
 
 // Piedini della colonna: adattati ai mobili bassi della cucina; se non ce ne
 // sono, si usa la porta bassa della colonna stessa come riferimento.
@@ -62,95 +59,8 @@ function zoccoloColonna(progetto, m) {
   return zoccoloColonnaDi(progetto, m);
 }
 
-/**
- * Cima (mm da terra) di un costado A TERRA. Quello alto (≥ 150 cm) va a filo
- * sopra con le colonne, se ci sono; senza colonne (es. solo frigo tra due
- * costadi) sta appoggiato a terra, alto quanto l'hai fatto.
- */
-function cimaCostadoAlto(m, topLine) {
-  const h = m.altezza_mm || 850;
-  // costado legato al mobile sopra frigo: sempre a terra, alto fino alla sua cima
-  if (m.seguiFrigo != null) return h;
-  return (h >= 1500 && topLine != null ? Math.max(0, topLine - h) : 0) + h;
-}
-/**
- * MOBILE SOPRA FRIGO: la sua cima va a filo con la cosa alta che ha accanto
- * (costado alto, colonna, pannello alto); se non tocca niente di alto, con la
- * cima delle colonne, se no 235 cm. Non scende mai dentro il frigo sotto.
- * Ritorna la quota del suo fondo (mm da terra).
- */
-function baseAltillo(progetto, m, topLine, cimaAlta = topLine, cimaScelta = null) {
-  const h = m.altezza_mm || 350, dm = dimMobile(m);
-  // DISTANZA DAL FRIGO scelta a mano: il mobile sta a quella distanza dal frigo;
-  // gli altri mobili sopra frigo seguono la stessa cima (come i pensili)
-  const fr = frigoSottoAltillo(progetto, m);
-  if (fr && m.distanzaFrigo_mm != null) return (fr.altezza_mm || 1850) + Math.max(0, m.distanzaFrigo_mm);
-  if (cimaScelta != null) return Math.max(cimaScelta - h, fr ? (fr.altezza_mm || 1850) + 10 : 0);
-  const box = (o, d) => { const rr = ((Math.round((o.rot || 0) / 90) * 90) % 180 + 180) % 180;
-    const hx = (rr === 0 ? d.w : d.d) / 2, hy = (rr === 0 ? d.d : d.w) / 2; return { x0: o.x - hx, x1: o.x + hx, y0: o.y - hy, y1: o.y + hy }; };
-  const A = box(m, dm);
-  let cima = null, frigoSotto = 0;
-  for (const o of (progetto.mobiliLiberi || [])) {
-    if (o.id === m.id) continue;
-    const cat = categoriaTipo(o.tipo);
-    const B = box(o, dimMobile(o));
-    const gx = Math.max(B.x0 - A.x1, A.x0 - B.x1), gy = Math.max(B.y0 - A.y1, A.y0 - B.y1);
-    if (cat === 'frigo' && gx < -20 && gy < -20) { frigoSotto = Math.max(frigoSotto, o.altezza_mm || 1850); continue; }
-    if (gx > 60 || gy > 60) continue;                      // non lo tocca
-    let c = null;
-    if (cat === 'colonna') c = (o.altezza_mm || 2200) + zoccoloColonna(progetto, o);
-    else if (cat === 'costado' && (o.profondita_mm || 620) >= 500 && (o.altezza_mm || 0) >= 1500) c = cimaCostadoAlto(o, topLine);
-    else if (cat === 'pannello' && (o.altezza_mm || 0) >= 1500) c = o.altezza_mm;
-    if (c != null) cima = Math.max(cima ?? 0, c);
-  }
-  if (cima == null) cima = cimaAlta != null ? cimaAlta : 2350;
-  return Math.max(cima - h, frigoSotto ? frigoSotto + 10 : 0);
-}
+// (quote dei moduli alti, mobile sopra frigo, pensili sotto il ponte: geometria.js)
 
-/** Rettangolo in pianta (rotazioni a 90°). */
-function boxPianta(o) {
-  const d = dimMobile(o), rr = ((Math.round((o.rot || 0) / 90) * 90) % 180 + 180) % 180;
-  const hx = (rr === 0 ? d.w : d.d) / 2, hy = (rr === 0 ? d.d : d.w) / 2;
-  return { x0: o.x - hx, x1: o.x + hx, y0: o.y - hy, y1: o.y + hy };
-}
-function siSovrappongono(a, b) {
-  const A = boxPianta(a), B = boxPianta(b);
-  return Math.max(B.x0 - A.x1, A.x0 - B.x1) < -20 && Math.max(B.y0 - A.y1, A.y0 - B.y1) < -20;
-}
-/**
- * PENSILE SOTTO IL PONTE (o sotto un mobile sopra frigo): la sua cima tocca il
- * fondo del ponte. Ritorna la quota del fondo del ponte sopra m, o null.
- */
-function fondoPonteSopra(progetto, m, q) {
-  let fondo = null;
-  for (const o of (progetto.mobiliLiberi || [])) {
-    if (o.id === m.id || categoriaTipo(o.tipo) !== 'altillo' || !siSovrappongono(m, o)) continue;
-    // sotto il ponte c'è il PANNELLO che ne copre il fondo: il pensile va sotto di lui
-    const b = baseAltillo(progetto, o, q.topLine, q.cimaAlta, q.scelta) - (o.tipo === 'ponte' ? spessorePannelloPonte(progetto) : 0);
-    fondo = fondo == null ? b : Math.min(fondo, b);
-  }
-  return fondo;
-}
-
-/**
- * CIMA DEI MODULI ALTI scelta con la "distanza dal frigo" di un mobile sopra
- * frigo (frigo + distanza + altezza del mobile), oppure null.
- */
-function cimaDaDistanzaFrigo(progetto) {
-  for (const m of (progetto.mobiliLiberi || [])) {
-    if (categoriaTipo(m.tipo) !== 'altillo' || m.distanzaFrigo_mm == null) continue;
-    const fr = frigoSottoAltillo(progetto, m);
-    if (fr) return (fr.altezza_mm || 1850) + Math.max(0, m.distanzaFrigo_mm) + (m.altezza_mm || 350);
-  }
-  return null;
-}
-/** Quote del sistema alto: { topLine (colonne), cimaAlta (pensili), scelta (dalla distanza dal frigo) }. */
-function quoteAlte(progetto) {
-  const topLine = quotaAltaColonne(progetto);
-  const scelta = cimaDaDistanzaFrigo(progetto);
-  const cimaAlta = scelta != null ? scelta : (topLine != null ? topLine : quotaAltaPannelli(progetto));
-  return { topLine, cimaAlta, scelta };
-}
 /**
  * CUCINA A PONTE: spazio libero (mm) tra il piano di lavoro e il fondo dei
  * pensili sotto il ponte (il più piccolo), o null se non ci sono.
@@ -198,22 +108,6 @@ export function distanzaAltilloFrigo(progetto, m) {
   if (!fr) return null;
   const q = quoteAlte(progetto);
   return Math.round(baseAltillo(progetto, m, q.topLine, q.cimaAlta, q.scelta) - (fr.altezza_mm || 1850));
-}
-/** Cima più alta dei costadi (profondi, a terra) e dei pannelli alti (≥ 150 cm); null se non ce ne sono. */
-function quotaAltaPannelli(progetto) {
-  let q = null;
-  for (const m of (progetto.mobiliLiberi || [])) {
-    const cat = categoriaTipo(m.tipo), h = m.altezza_mm || 0;
-    if (h < 1500) continue;
-    if ((cat === 'costado' && (m.profondita_mm || 620) >= 500) || cat === 'pannello') q = Math.max(q ?? 0, h);
-  }
-  return q;
-}
-// Quota della cima delle colonne (cassa + zoccolo). null se non ci sono colonne.
-function quotaAltaColonne(progetto) {
-  const cols = (progetto.mobiliLiberi || []).filter((m) => categoriaTipo(m.tipo) === 'colonna');
-  if (cols.length === 0) return null;
-  return Math.max(...cols.map((c) => (c.altezza_mm || 2200) + zoccoloColonna(progetto, c)));
 }
 /** Altezza del SOFFITTO (mm): muri, soffitto e lampade appese. Si sceglie al passo 4. */
 export function altezzaSoffitto(progetto) { return Math.max(2200, Math.min(4500, Number(progetto && progetto.altezzaSoffitto) || 2700)); }
@@ -327,20 +221,7 @@ function evidenzia(g) {
   }
 }
 
-/** Dimensioni e posizione della vasca del lavello (condivise fra il 3D del
- *  lavello e il FORO che va ritagliato nel piano di lavoro). */
-function dimVasca(w, d) {
-  const vw = Math.min(w * 0.56, 500);
-  const vd = Math.min(d * 0.52, 400);
-  const zc = -d * 0.03;                 // leggermente arretrata rispetto al centro
-  return { vw, vd, zc };
-}
-
-/** Misura del vetro del piano cottura (e del suo foro nel piano di lavoro). */
-// PLACCA a 2 fuochi = «domino» stretto (29 × 51 cm, zone una dietro l'altra); a 4 fuochi = 58 × 48
-function dimPlacca(w, d, fuochi = 4) {
-  return fuochi === 2 ? { pw: Math.min(w - 40, 290), pd: Math.min(d - 80, 510) } : { pw: Math.min(w - 40, 580), pd: Math.min(d - 80, 480) };
-}
+// (vasca del lavello e vetro del piano cottura, con i loro FORI nel piano di lavoro: dimVasca, dimPlacca in geometria.js)
 
 /** Lavello / piano cottura / rubinetto posati SOPRA la superficie del top.
  *  fin = { lavello: 'acciaio'|'nero', rubinetto: 'acciaio'|'nero' } */
@@ -1915,7 +1796,6 @@ function cassetti(g, w, h, d, n, matAnta, piccolo = null, altezze = null) {
   _push = pushPrima;
 }
 // Numero di fuochi in base alla larghezza del mobile: piccolo → 2, grande → 4.
-function fuochiPerLarghezza(w) { return w < 600 ? 2 : 4; }
 
 
 function pianoCottura(g, w, h, d, fuochi = 4) {
@@ -2517,33 +2397,18 @@ function accendiLampada(og) {
 }
 
 /**
- * Strip LED sotto un pensile: una barra sottile emissiva appesa al bordo
- * inferiore RETRO della cassa (lato muro), così non intralcia l'anta
- * sporgente che a volte si prende sotto per aprire. Sotto la barra ci sono
- * vere luci (SpotLight + PointLight) che illuminano il piano di lavoro e
- * la parete di fondo con il colore della temperatura scelta.
- * Niente pannelli/texture colorati sovrapposti: facevano "rettangoli" e
- * distorcevano ciò che c'era dietro. Solo luce reale sulle superfici.
+ * Strip LED sotto i pensili: una barra sottile emissiva appesa al bordo inferiore RETRO della cassa
+ * (lato muro), così non intralcia l'anta sporgente che a volte si prende sotto per aprire, con una
+ * luce vera a striscia che illumina il piano di lavoro e la parete di fondo. Dove e quanto lunghe:
+ * ledCucina (geometria.js), le stesse della distinta.
  */
-/** LED sotto il pensile. avanti = mm di cui spostarlo verso il fronte
- *  (con il pannello dietro il piano: il suo spessore, così resta visibile). */
-/**
- * LED sotto un pensile (o sotto il ponte / il pannello del ponte): qui solo si SEGNA il tratto di
- * striscia; alla fine della scena i tratti attaccati diventano UNA STRISCIA UNICA per ogni fila di
- * pensili, con una luce vera a striscia (uniforme per tutta la lunghezza, niente «faretti»).
- */
-let _ledTratti = [];
-function aggiungiLedPensile(g, w, h, d, colore, avanti = 0) {
-  const hex = typeof colore === 'number' ? colore : (LED_COLORI[colore] || LED_COLORI.caldo);
-  _ledTratti.push({ g, w, h, d, hex, z: -d / 2 + 13 + avanti });
-}
 /** Luce vera a STRISCIA (RectAreaLight): serve un file di three.js, caricato solo se ci sono LED. */
 let _rectLib = null, _rectLibCaricando = false;
 function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261125v')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261125w')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -2570,68 +2435,28 @@ function luceStriscia(lung, larg, intensita, hex, p, u, vM, inclina = LED_INCLIN
   L.userData.ledLuce = true;
   return L;
 }
-/** Fine scena: i tratti di LED attaccati (stessa altezza, stessa linea) diventano una striscia unica. */
-function costruisciLedContinui() {
-  const tratti = _ledTratti; _ledTratti = [];
-  if (!tratti.length || !gruppo) return;
-  gruppo.updateMatrixWorld(true);
-  const segs = tratti.map((t) => {
-    const y = -t.h / 2;
-    const A = t.g.localToWorld(new THREE.Vector3(-t.w / 2, y, t.z)), B = t.g.localToWorld(new THREE.Vector3(t.w / 2, y, t.z));
-    const C = t.g.localToWorld(new THREE.Vector3(0, y, t.z)), D = t.g.localToWorld(new THREE.Vector3(0, y, t.z - 100));
-    const u = B.clone().sub(A); u.y = 0; u.normalize();
-    const vM = D.sub(C); vM.y = 0; vM.normalize();                  // verso il muro (dietro)
-    return { A, B, u, vM, y: (A.y + B.y) / 2, hex: t.hex };
-  });
-  // raggruppo: stessa altezza, stesso colore, stessa linea, uno dopo l'altro (al massimo 3 cm di buco)
-  const usati = new Set(), file = [];
-  for (let i = 0; i < segs.length; i++) {
-    if (usati.has(i)) continue;
-    const s0 = segs[i], fila = [s0]; usati.add(i);
-    let cambiato = true;
-    while (cambiato) {
-      cambiato = false;
-      for (let j = 0; j < segs.length; j++) {
-        if (usati.has(j)) continue;
-        const s = segs[j];
-        if (s.hex !== s0.hex || Math.abs(s.y - s0.y) > 3 || Math.abs(s.u.dot(s0.u)) < 0.999) continue;
-        // stessa linea: distanza dalla retta della fila
-        const off = s.A.clone().sub(s0.A); off.y = 0;
-        const perp = off.clone().sub(s0.u.clone().multiplyScalar(off.dot(s0.u))).length();
-        if (perp > 12) continue;
-        // attaccato a un tratto della fila
-        const t = (P) => P.clone().sub(s0.A).dot(s0.u);
-        const a = Math.min(t(s.A), t(s.B)), bb = Math.max(t(s.A), t(s.B));
-        if (fila.some((f) => { const fa = Math.min(t(f.A), t(f.B)), fb = Math.max(t(f.A), t(f.B)); return a <= fb + 30 && bb >= fa - 30; })) {
-          fila.push(s); usati.add(j); cambiato = true;
-        }
-      }
-    }
-    file.push(fila);
-  }
+/** Fine scena: le STRISCE LED (ledCucina in geometria.js, le stesse della distinta): i tratti attaccati
+ *  (stessa altezza, stessa linea) sono già una striscia unica, con la sua luce vera uniforme. */
+function costruisciLedContinui(progetto) {
+  const strisce = ledCucina(progetto);
+  if (!strisce.length || !gruppo) return;
+  const hex = ledHex(progetto);
   const pronte = lucieStrisciaPronte();
-  for (const fila of file) {
-    const s0 = fila[0], t = (P) => P.clone().sub(s0.A).dot(s0.u);
-    let a = Infinity, bb = -Infinity;
-    for (const f of fila) { a = Math.min(a, t(f.A), t(f.B)); bb = Math.max(bb, t(f.A), t(f.B)); }
-    const lung = Math.max(60, bb - a - 20);                          // 1 cm di margine ai due capi
-    const mid = s0.A.clone().add(s0.u.clone().multiplyScalar((a + bb) / 2)); mid.y = s0.y;
+  for (const S of strisce) {
+    const lung = S.lunghezza;
+    const u = new THREE.Vector3(S.u.x, 0, S.u.z), vM = new THREE.Vector3(S.vM.x, 0, S.vM.z);
     // la striscia accesa (sempre al colore pieno), sotto il fondo dei pensili
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(lung, 6, 18), new THREE.MeshBasicMaterial({ color: s0.hex, toneMapped: false }));
-    strip.position.set(mid.x, s0.y + 3, mid.z);
-    strip.rotation.y = -Math.atan2(s0.u.z, s0.u.x);
-    strip.userData.ledStriscia = { colore: s0.hex, lunghezza: lung };
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(lung, 6, 18), new THREE.MeshBasicMaterial({ color: hex, toneMapped: false }));
+    strip.position.set(S.mid.x, S.y + 3, S.mid.z);
+    strip.rotation.y = -Math.atan2(u.z, u.x);
+    strip.userData.ledStriscia = { colore: hex, lunghezza: lung };
+    strip.userData.ledPensili = true;                                // (per le prove: LED sotto i pensili)
     strip.userData.senzaOmbra = true;
     gruppo.add(strip);
     // la luce vera, uniforme per tutta la striscia
-    if (pronte) gruppo.add(luceStriscia(lung, LED_LARG, LED_INTENSITA, s0.hex, new THREE.Vector3(mid.x, s0.y - 4, mid.z).addScaledVector(s0.vM, -LED_AVANTI), s0.u, s0.vM));
+    if (pronte) gruppo.add(luceStriscia(lung, LED_LARG, LED_INTENSITA, hex, new THREE.Vector3(S.mid.x, S.y - 4, S.mid.z).addScaledVector(vM, -LED_AVANTI), u, vM));
   }
 }
-
-/** Dove vanno i LED nella cucina a ponte, SEMPRE sotto: 'pensili' (sotto ogni pensile, anche quelli sotto
- *  il ponte), 'ponte' (sotto il ponte dove non ci sono pensili: il suo fondo si vede) o 'entrambi'.
- *  (Le scelte di prima: sotto → entrambi, come faceva; sopra → ponte.) */
-const ledPonte = (progetto) => { const v = (progetto.led && progetto.led.ponte) || 'entrambi'; return v === 'sotto' ? 'entrambi' : v === 'sopra' ? 'ponte' : v; };
 
 /**
  * Pensile ad angolo a L (pezzo unico): due bracci perpendicolari, ingombro
@@ -2991,7 +2816,7 @@ export function aggiornaScena3d(progetto, reframe = false, selezionato = null) {
   for (const g of libera) g.dispose();
 }
 function costruisciScena3d(progetto, reframe = false, selezionato = null) {
-  _luciLampade = 0; _riverberi = 0; _aloni = []; _ledTratti = [];
+  _luciLampade = 0; _riverberi = 0; _aloni = [];
   impostaColoreLampade(progetto.lampadeK);
   if (!scene) return;
   selId = selezionato;
@@ -3069,13 +2894,11 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
     gruppo.add(muro);
   });
 
-  // Raccolgo le basi per il piano continuo e gli accessori (placca/lavello)
-  const basiTop = [];
+  // Lavelli e piani cottura da posare sopra il piano. Piano, fianchi che lo fermano, pensili (pannello
+  // dietro) e tavoli: calcolati una volta sola in geometria.js (lastrePiano), gli stessi della distinta
+  const basiTop = [];   // moduli VECCHI agganciati ai muri (sotto il piano)
   const accessori = [];
-  const fianchi = [];   // costadi e colonne: delimitano il top (lo taglia/estende)
-  const pensiliPlan = []; // pensili (per l'altezza del pannello dietro il piano)
-  const zoccoli = [];   // TUTTO ciò che poggia a terra (basi, colonne, reglette):
-                        // lo zoccolo è un unico pezzo continuo che li copre tutti
+  const zoccoli = [];   // moduli VECCHI agganciati ai muri (gli altri: zoccoliContinui nel modello)
 
   // Materiale delle ante per gruppo (bassi / pensili / colonne). null = colore di default.
   const col = progetto.coloriFronti || {};
@@ -3122,7 +2945,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       unisciPerMateriale(g);
       gruppo.add(collocaMobile(g, px, zocc, -py, porta, p.angolo_gradi));
       if (mm.tipo === 'forno' || mm.tipo === 'lavello') {
-        accessori.push({ id: mm.id, x: px, y: py, rot: p.angolo_gradi, w: mm.larghezza_mm, d: PROFONDITA_BASE,
+        accessori.push({ id: mm.id, vecchio: true, x: px, y: py, rot: p.angolo_gradi, w: mm.larghezza_mm, d: PROFONDITA_BASE,
           surfaceY: zocc + porta + spTop, placca: mm.tipo === 'forno', lavello: mm.tipo === 'lavello',
           fuochi: mm.fuochi || fuochiPerLarghezza(mm.larghezza_mm) });
       }
@@ -3140,15 +2963,12 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   const QUOTA_RIF = topLine != null ? topLine : 2350;
   // Cima di ogni pensile (stessa regola del pensile qui sotto): serve ai
   // costadi alti, che vanno SEMPRE a filo sopra col pensile vicino.
-  const cimePensili = (progetto.mobiliLiberi || []).filter((x) => categoriaTipo(x.tipo) === 'pensile')
-    .map((x) => { const h = x.altezza_mm || 700; return { x: x.x, y: x.y, cima: (cimaAlta != null ? cimaAlta - h : MONTAGGIO_PENSILE) + h,
-      hAnta: h + scendeAntaPensile(progetto, h) }; });
+  const cimePensili = cimeDeiPensili(progetto, { topLine, cimaAlta, scelta: cimaScelta });
 
   // CIERRE A TECHO: pannello sopra pensili e colonne fino al soffitto (altezza scelta)
   const cierre = progetto.cierreTecho && progetto.cierreTecho.attivo ? Math.max(20, Number(progetto.cierreTecho.altezza) || 300) : 0;
   const cimeAlte = new Map();      // cima (mm da terra) di pensili e colonne, per la fascia del cierre
   const daPosare = [];             // oggetti del catalogo: quota dal piano vero (dopo i piani)
-  const tavoli = [];               // PIANO / TAVOLO: dopo i mobili (la quota «a filo» viene dal piano dell'isola)
   _spTop = spTop;
   // Mobili liberi
   for (const m of (progetto.mobiliLiberi || [])) {
@@ -3194,13 +3014,9 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       if (og) { og.position.set(cx, 0, cz); og.rotation.y = -(m.rot || 0) * Math.PI / 180; g3d = og; }
     } else if (cat === 'pensile') {
       const h = m.altezza_mm || 700;
-      // Se ci sono colonne, la CIMA del pensile va alla cima delle colonne;
-      // altrimenti resta appeso all'altezza standard (140 cm da terra).
-      let base = cimaAlta != null ? (cimaAlta - h) : MONTAGGIO_PENSILE;
-      // sotto il PONTE: la cima del pensile tocca il fondo del ponte
-      const fondoPonte = fondoPonteSopra(progetto, m, { topLine, cimaAlta, scelta: cimaScelta });
-      if (fondoPonte != null) base = fondoPonte - h;
-      pensiliPlan.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, yBottom: base });
+      // Se ci sono colonne, la CIMA del pensile va alla cima delle colonne; altrimenti resta appeso
+      // all'altezza standard (140 cm da terra); sotto il PONTE la cima tocca il fondo del ponte
+      const { base, fondoPonte } = basePensile(progetto, m, { topLine, cimaAlta, scelta: cimaScelta });
       const sporg = scendeAntaPensile(progetto, h);      // mm di cui l'anta scende sotto il pensile (0 = normale)
       // PENSILE SOTTO IL PONTE: può avere il suo colore (Colori del ponte → pensili)
       const cp = progetto.coloriPonte || {};
@@ -3208,20 +3024,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       const gPens = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matPensPonte || matPensile,
         { sporg, porte: gruppoPorte(progetto, m).proprio ? sceltePorte(progetto, m) : null });
       cimeAlte.set(m.id, base + h);
-      // LED sotto i pensili (opzionale, con scelta temperatura colore).
-      // Il pensile-angolo (diagonale) non lo prende: ha una geometria dedicata.
-      if (progetto.led && progetto.led.attivo && m.tipo !== 'pensile-angolo-45' && (fondoPonte == null || ledPonte(progetto) !== 'ponte')) {
-        const conPannello = progetto.schienale && progetto.schienale.attivo;
-        // pensile APERTO con l'anta da 72 / 92: il fondo scende di 2 cm, il LED va sotto di lui
-        const gLed = apertoDi(m) && sporg ? (() => { const x = new THREE.Group(); x.position.y = -sporg; gPens.add(x); return x; })() : gPens;
-        aggiungiLedPensile(gLed, dim.w, h, dim.d, ledHex(progetto), conPannello ? SP_SCHIENALE : 0);
-        if (m.tipo === 'pensile-angolo') {                       // anche sotto il secondo braccio
-          const gB = new THREE.Group();
-          gB.rotation.y = Math.PI / 2; gB.position.z = PROFONDITA_PENSILE / 2;
-          aggiungiLedPensile(gB, dim.d - PROFONDITA_PENSILE, h, dim.w, ledHex(progetto), conPannello ? SP_SCHIENALE : 0);
-          gPens.add(gB);
-        }
-      }
+      // (LED sotto i pensili: ledCucina in geometria.js, disegnati alla fine in costruisciLedContinui)
       if (m.tipo === 'pensile-angolo') {
         // La L è asimmetrica: il 3D usa -rot e la pianta +rot, quindi con
         // collocaMobile apparirebbe specchiata/girata agli angoli ruotati
@@ -3237,15 +3040,12 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       // zoccolo. Così un costado da 2350 (= 2200 + 15 di piedini) combacia.
       const h = m.altezza_mm || 2200;
       const zocc = zoccoloColonna(progetto, m);
-      zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
-      fianchi.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, h: h + zocc, cat: 'colonna' });
       const gCol = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matColonna);
       cimeAlte.set(m.id, zocc + h);
       g3d = collocaMobile(gCol, cx, zocc, cz, h, m.rot);
     } else if (cat === 'frigo') {
       // FRIGO libero: a terra, niente zoccolo; il piano di lavoro si ferma contro
       const h = m.altezza_mm || 1850;
-      fianchi.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, h, cat: 'colonna' });
       g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, null), cx, 0, cz, h, m.rot);
     } else if (cat === 'altillo') {
       // MOBILE SOPRA FRIGO: cima a filo con il costado / la colonna accanto
@@ -3256,17 +3056,11 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       const gA = costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d, matMio || matPonte || matColonna || matPensile,
         { porte: m.tipo === 'ponte' ? sceltePorte(progetto, m) : null });
       cimeAlte.set(m.id, base + h);
-      // LED SOTTO IL PONTE dove sotto non ci sono pensili (il fondo del ponte si vede: luce sul piano);
-      // con il pannello sotto il ponte li porta lui, più in basso. Scelta «Sotto il ponte» o «Sotto entrambi»
-      if (m.tipo === 'ponte' && progetto.led && progetto.led.attivo && ledPonte(progetto) !== 'pensili' && !spessorePannelloPonte(progetto)
-        && !(progetto.mobiliLiberi || []).some((o) => categoriaTipo(o.tipo) === 'pensile' && siSovrappongono(o, m))) {
-        aggiungiLedPensile(gA, dim.w, h, dim.d, ledHex(progetto), 0);
-      }
+      // (LED SOTTO IL PONTE dove sotto non ci sono pensili: ledCucina in geometria.js)
       g3d = collocaMobile(gA, cx, base, cz, h, m.rot);
     } else if (cat === 'regletta') {
       const h = m.altezza_mm || 700;
       const zocc = zoccoloPerAltezza(h, progetto);
-      zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
       g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, h, dim.d), cx, zocc, cz, h, m.rot);
     } else if (cat === 'pannello') {
       // Pannello su misura: box 18 mm di spessore, finitura come le ante.
@@ -3275,46 +3069,14 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       // colore suo (scelto toccando il pannello) o come le ante dei mobili bassi
       g3d = collocaMobile(corpo(dim.w, h, dim.d, matMio || matBase || COL.anta), cx, 0, cz, h, m.rot);
     } else if (cat === 'costado') {
-      let h = m.altezza_mm || 850;
-      // Costado "alto" (profondità da pensile): sta in alto, appeso all'altezza
-      // di montaggio dei pensili, non per terra.
-      // Il costado ALTO è a filo SOPRA col pensile più vicino (qualunque sia
-      // la porta: 70, 72, 90, 92) e ha il colore delle ante dei pensili.
-      const alto = (m.profondita_mm || 620) < 500;
-      let base = alto ? MONTAGGIO_PENSILE : cimaCostadoAlto(m, topLine) - h;
-      // COSTADO ESTERNO DELLE COLONNE: fino a terra (alto colonna + piedini), lo zoccolo finisce contro di lui
-      if (!alto && base > 0 && costadoColonnaATerra(progetto, m)) { h += base; base = 0; }
-      if (alto) {
-        let vicino = null, dMin = Infinity;
-        for (const pz of cimePensili) { const dd = Math.hypot(pz.x - m.x, pz.y - m.y); if (dd < dMin) { dMin = dd; vicino = pz; } }
-        // altezza = quella delle ante del pensile vicino (70, 72, 90, 92):
-        // cambia da sola quando si sceglie l'anta sporgente
-        if (vicino && dMin < 2500) { h = vicino.hAnta; base = vicino.cima - h; }
-        else if (topLine != null) base = topLine - h;
-      }
-      // ZOCCOLO SOTTO IL COSTADO: il costado che sta SOPRA lo zoccolo (fra due colonne, in fondo a una
-      // fila di colonne…) non arriva a terra: lo zoccolo passa sotto di lui, tutto unico, senza buchi
-      // (prima sotto il costado restava un vuoto, come una fuga nello zoccolo)
-      if (!alto && base > 20 && base < 400) {
-        const rC0 = rotNorm(m.rot), cs = Math.cos(rC0 * Math.PI / 180), sn = Math.sin(rC0 * Math.PI / 180);
-        const lungo = (o) => o.x * cs + o.y * sn, trav = (o) => -o.x * sn + o.y * cs;
-        const vicino = (progetto.mobiliLiberi || []).find((o) => {
-          if (o.id === m.id || rotNorm(o.rot) !== rC0) return false;
-          if (!['base', 'colonna', 'lavastoviglie', 'lavatrice'].includes(categoriaTipo(o.tipo))) return false;
-          const dO = dimMobile(o);
-          if (Math.abs(trav(o) - trav(m)) > Math.max(dO.d, dim.d) / 2) return false;          // stessa fila
-          return Math.abs(Math.abs(lungo(o) - lungo(m)) - (dO.w + dim.w) / 2) <= 6;            // appoggiato al costado
-        });
-        if (vicino) {
-          const al = lungo(m), tr = trav(vicino);
-          zoccoli.push({ x: cs * al - sn * tr, y: sn * al + cs * tr, rot: vicino.rot, w: dim.w, d: dimMobile(vicino).d, zocc: base });
-        }
-      }
+      // Costado "alto" (profondità da pensile): a filo SOPRA col pensile più vicino, alto come le sue ante
+      // (70, 72, 90, 92), colore delle ante dei pensili. A terra: a filo sopra con le colonne; il costado
+      // ESTERNO DELLE COLONNE arriva fino a terra (lo zoccolo finisce contro di lui). Vedi quoteCostado.
+      const { h, base, alto } = quoteCostado(progetto, m, topLine, cimePensili);
+      // (lo ZOCCOLO SOTTO IL COSTADO alzato fra due mobili: in zoccoliContinui, modello.js)
       // costado basso accanto ai mobili: arriva fino al davanti delle ANTE (2 cm oltre la cassa);
       // il piano lo copre fino lì (impronta allungata davanti)
       const avanti = costadoCopreAnte(progetto, m);
-      const rC = ((m.rot || 0) * Math.PI) / 180;
-      fianchi.push({ x: m.x - Math.sin(rC) * avanti / 2, y: m.y - Math.cos(rC) * avanti / 2, rot: m.rot, w: dim.w, d: dim.d + avanti, h, cat: 'costado' });
       // Colore: costadi DIVERSI → quello scelto per questo costado; UGUALI (o
       // non ancora scelto) → come sempre: alto = ante dei pensili, basso = colore costadi
       const matProprio = progetto.costadiDiversi && m.colore ? matDa(m.colore) : null;
@@ -3327,7 +3089,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       cpC.position.z = avanti / 2; gC.add(cpC);
       g3d = collocaMobile(gC, cx, base, cz, h, m.rot);
     } else if (cat === 'tavolo') {
-      tavoli.push(m);
+      // PIANO / TAVOLO: dopo i mobili (la quota «a filo» viene dal piano dell'isola): renderTavoli
     } else {
       // base / lavello / forno: porta = altezza scelta, zoccolo 150/100.
       // Il piano di lavoro NON si disegna qui: è un pezzo unico continuo (dopo).
@@ -3354,20 +3116,9 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
         gL.position.set(cx, zocc + porta / 2, cz);
         gL.rotation.y = (m.rot || 0) * Math.PI / 180;
         g3d = gL;
-        const P = Math.min(m.profBraccio_mm || PROFONDITA_BASE, Math.min(dim.w, dim.d) - 10), hw = dim.w / 2, hd = dim.d / 2;
-        const rr = (m.rot || 0) * Math.PI / 180, c = Math.cos(rr), s = Math.sin(rr);
-        const vp = (lx, ly) => ({ x: m.x + lx * c - ly * s, y: m.y + lx * s + ly * c });
-        const A = vp(0, hd - P / 2), B = vp(-hw + P / 2, -P / 2);
-        const bracci = [{ ...A, rot: -(m.rot || 0), w: dim.w, d: P }, { ...B, rot: -(m.rot || 0) - 90, w: dim.d - P, d: P }];
-        for (const br of bracci) {
-          basiTop.push({ x: br.x, y: br.y, rot: br.rot, w: br.w, d: br.d, zocc, topY: zocc + porta });
-          zoccoli.push({ x: br.x, y: br.y, rot: br.rot, w: br.w, d: br.d, zocc });
-        }
       } else {
       g3d = collocaMobile(costruisciMobile(cat, m.tipo, m, dim.w, porta, dim.d, matMio || matBase, { cieco: ciecoOpt }), cx, zocc, cz, porta, m.rot);
       if (cieco && progetto.autoRegletta !== false) renderRegolettaAngolo(cieco, m, porta, zocc, matBase, progetto.reglettaAngolo);
-      basiTop.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc, topY: zocc + porta });
-      zoccoli.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
       }
       // Placca / lavello (tipi forno/lavello oppure aggiunti a mano): sopra il top
       const hasPlacca = m.tipo === 'forno' || m.placca;
@@ -3382,8 +3133,8 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   }
 
   // PANNELLO SOTTO IL PONTE: copre il fondo dei moduli del ponte, per tutta la
-  // fila, sopra i pensili piccoli; colore del ponte. Con i LED accesi e senza
-  // pensili sotto, la luce sta sotto il pannello.
+  // fila, sopra i pensili piccoli; colore del ponte. (Con i LED accesi e senza
+  // pensili sotto, la luce sta sotto il pannello: ledCucina in geometria.js.)
   {
     const spP = spessorePannelloPonte(progetto);
     const q = { topLine, cimaAlta, scelta: cimaScelta };
@@ -3397,21 +3148,6 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
       const mat = (idPann ? getMaterialeTHREE(idPann, reRender) : null) || matColonna || matPensile || COL.anta;
       const gP = new THREE.Group();
       gP.add(corpo(f.w, spP, f.d, mat));
-      const conPensili = (progetto.mobiliLiberi || []).some((o) => categoriaTipo(o.tipo) === 'pensile' && pz.some((p) => siSovrappongono(o, p)));
-      // LED sotto il pannello: sotto ogni modulo del ponte che NON ha un pensile sotto (lì il fondo si vede)
-      if (progetto.led && progetto.led.attivo && ledPonte(progetto) !== 'pensili') {
-        if (!conPensili) aggiungiLedPensile(gP, f.w, spP, f.d, ledHex(progetto), 0);
-        else {
-          const r = (f.rot || 0) * Math.PI / 180;
-          for (const o of pz) {
-            if ((progetto.mobiliLiberi || []).some((q) => categoriaTipo(q.tipo) === 'pensile' && siSovrappongono(q, o))) continue;
-            const gL = new THREE.Group();
-            gL.position.x = (o.x - f.x) * Math.cos(r) - (o.y - f.y) * Math.sin(r);
-            aggiungiLedPensile(gL, dimMobile(o).w, spP, f.d, ledHex(progetto), 0);
-            gP.add(gL);
-          }
-        }
-      }
       gruppo.add(collocaMobile(gP, f.x, fondo - spP, -f.y, spP, f.rot));
     }
   }
@@ -3442,25 +3178,21 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
 
   // Zoccolo continuo (un unico pezzo per fila: basi + colonne insieme) +
   // piano di lavoro continuo che non entra nei costadi/colonne
-  renderZoccoliContinui(zoccoli, materialeZoccolo(progetto.zoccoloColore, reRender));
-  // Pannello dietro il piano (schienale): stesso materiale del piano o un altro
+  // ZOCCOLO CONTINUO: lo stesso calcolo della distinta (zoccoliContinui nel modello)
+  renderZoccoliContinui(zoccoliContinui(progetto, zoccoli), materialeZoccolo(progetto.zoccoloColore, reRender));
+  // PIANO DI LAVORO, PANNELLO DIETRO / ALZATINA e PIANI / TAVOLI: misure da lastrePiano (geometria.js),
+  // le stesse della distinta. Qui solo i materiali e il disegno.
+  const GP = lastrePiano(progetto, spTop, { basi: basiTop, lavelli: accessori.filter((a) => a.vecchio) });
   const sch = progetto.schienale && progetto.schienale.attivo ? progetto.schienale : null;
-  let schienale = null;
-  if (sch) {
-    const matSch = sch.materiale ? getMaterialeTHREE(sch.materiale, reRender) : null;
-    const defSch = sch.materiale ? MATERIALI.find((x) => x.id === sch.materiale) : null;
-    schienale = {
-      altezza: altezzaAlzatina(progetto),          // un numero = ALZATINA (bassa); null = fino ai pensili
-      mat: matSch ? (defSch && defSch.categoria === 'encimera' ? materialePerTop(matSch) : matSch) : null,   // null = come il piano
-      pensili: pensiliPlan,
-      muri: full.map((p, i) => (p.assente ? null : { a: vertici[i], b: vertici[i + 1] })).filter(Boolean),
-    };
+  let matSchienale = null;
+  if (sch && sch.materiale) {
+    const matSch = getMaterialeTHREE(sch.materiale, reRender);
+    const defSch = MATERIALI.find((x) => x.id === sch.materiale);
+    matSchienale = matSch ? (defSch && defSch.categoria === 'encimera' ? materialePerTop(matSch) : matSch) : null;   // null = come il piano
   }
-  const muriPiano = full.map((p, i) => (p.assente ? null : { a: vertici[i], b: vertici[i + 1] })).filter(Boolean);
-  // PIANO / TAVOLO: la lastra, gli appoggi e dove il piano dell'isola si deve aprire
-  const tagliPiano = renderTavoli(tavoli, basiTop, spTop, matTop, muriPiano, selId, reRender, accessori.filter((a) => a.lavello || a.placca));
-  _sporgPiano = sporgenzaPiano(progetto);       // piano: profondità dal muro (davanti = profondità − 600), lati e dietro a filo
-  renderTopContinui(basiTop, fianchi, spTop, matTop, accessori.filter((a) => a.lavello || a.placca), schienale, muriPiano, tagliPiano);
+  // PIANO / TAVOLO: la lastra e gli appoggi (dove il piano dell'isola si apre: nelle lastre)
+  renderTavoli(GP.ingressi.tavoli, GP.ingressi.basiTop, spTop, matTop, GP.ingressi.muri, selId, reRender, accessori.filter((a) => a.lavello || a.placca));
+  renderTopContinui(GP.lastre, matTop, matSchienale);
   // Oggetti: sul piano che c'è DAVVERO sotto (anche la parte di piano che sporge
   // oltre i mobili, es. l'isola dal lato sgabelli, o il piano allungato nell'angolo)
   if (daPosare.length) {
@@ -3475,7 +3207,7 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
   // Lavello, piano cottura e rubinetto SOPRA il top
   for (const a of accessori) aggiungiAccessorioTop(a, progetto.finiture || {});
 
-  costruisciLedContinui();          // LED: una striscia unica per ogni fila di pensili, luce uniforme
+  costruisciLedContinui(progetto);  // LED: una striscia unica per ogni fila di pensili, luce uniforme (ledCucina)
   applicaLuceEsterna(luceEsternaDi(progetto));
   uvInScala(gruppo);
   try { riflettiStanza(gruppo, renderer); } catch (_) { /* senza riflessi va bene lo stesso */ }
@@ -3502,48 +3234,8 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
 
 
 /**
- * Disegna un piano di lavoro CONTINUO: raggruppa le basi che stanno sulla
- * stessa fila (stesso orientamento, stessa linea e stessa quota) e ne copre
- * l'intera lunghezza con un unico pezzo, invece di un pezzo per modulo.
- */
-/** Normalizza una rotazione a 0/90/180/270. */
-function rotNorm(r) { return ((Math.round((r || 0) / 90) * 90) % 360 + 360) % 360; }
-
-/**
- * Divide gli elementi di una fila (stessa linea/quota) in tratti CONTIGUI:
- * dove c'è un vuoto (es. una colonna in mezzo) si spezza, così top e zoccolo
- * non attraversano i buchi. Ritorna [{lo, hi, items}] in coordinate "along".
- */
-function tratti(items, c, s) {
-  const arr = items.map((b) => {
-    const along = b.x * c + b.y * s;
-    return { b, lo: along - b.w / 2, hi: along + b.w / 2 };
-  }).sort((p, q) => p.lo - q.lo);
-  const runs = [];
-  let cur = null;
-  for (const it of arr) {
-    if (!cur || it.lo > cur.hi + 60) { cur = { lo: it.lo, hi: it.hi, items: [it.b] }; runs.push(cur); }
-    else { cur.hi = Math.max(cur.hi, it.hi); cur.items.push(it.b); }
-  }
-  return runs;
-}
-
-/** Proiezione di un fianco (costado/colonna) sull'asse della fila: [near, far]. */
-function proiettaFianco(f, c, s) {
-  const along = f.x * c + f.y * s;
-  const perp = f.x * (-s) + f.y * c;
-  const fc = Math.cos((f.rot || 0) * Math.PI / 180), fs = Math.sin((f.rot || 0) * Math.PI / 180);
-  const hU = (f.w / 2) * Math.abs(c * fc + s * fs) + (f.d / 2) * Math.abs(-c * fs + s * fc);
-  return { along, perp, near: along - hU, far: along + hU };
-}
-
-/**
- * Piano di lavoro CONTINUO che rispetta i costadi e le colonne:
- * - alle estremità libere ha una piccola sporgenza;
- * - se c'è una COLONNA (o un costado a tutta altezza) il top si ferma lì
- *   (parte dalla colonna, non le entra sopra);
- * - se c'è un COSTADO basso il top arriva fino alla sua faccia ESTERNA
- *   (il modulo si appoggia al costado, il top lo copre).
+ * Piano di lavoro CONTINUO (lastrePiano in geometria.js): una lastra per fila di mobili bassi, che rispetta
+ * costadi e colonne, con i fori di lavelli e piani cottura e il pannello dietro / l'alzatina.
  */
 // Cache: dato il materiale "nudo" dell'encimera, ritorna un nuovo materiale
 // con la texture ruotata di 90 gradi. Serve per il TOP della cucina, dove
@@ -3744,35 +3436,20 @@ const _matGambe = {
   'gambe-oro': new THREE.MeshStandardMaterial({ color: 0xe2bf72, roughness: 0.3, metalness: 0.75 }),      // come le maniglie «Oro spazzolato»
 };
 _matGambe['una-nera'] = _matGambe['gambe-nere']; _matGambe['una-oro'] = _matGambe['gambe-oro'];
-function renderTavoli(tavoli, basiTop, spTop, matTop, muri, selId, reRender, accessori = []) {
-  const tagli = [];
-  if (!tavoli.length) return tagli;
+function renderTavoli(infoTavoli, basiTop, spTop, matTop, muri, selId, reRender, accessori = []) {
+  if (!infoTavoli.length) return;
   // un punto della pianta (x, y) è dentro il mobile basso b? (stessa rotazione dei mobili nel 3D)
   const dentroBase = (x, y, b) => {
     const t = -(b.rot || 0) * Math.PI / 180, X = x - b.x, Z = -(y - b.y);
     const lx = X * Math.cos(t) - Z * Math.sin(t), lz = X * Math.sin(t) + Z * Math.cos(t);
     return Math.abs(lx) <= b.w / 2 + 1 && Math.abs(lz) <= (b.d || PROFONDITA_BASE) / 2 + 1;
   };
-  for (const m of tavoli) {
-    const w = Math.max(100, m.larghezza_mm || 1800), d = Math.max(100, m.profondita_mm || 900);
-    const strati = Math.max(1, Math.min(3, m.strati || 1)), sp = Math.max(6, m.spessore_mm || 40) * strati;
+  for (const T of infoTavoli) {
+    // misure e QUOTA (scritta a mano, o a filo del piano dei mobili sotto o del più vicino): tavoliPiano
+    const { m, w, d, strati, sp, quota } = T;
     const g = new THREE.Group();
     g.position.set(m.x, 0, -m.y); g.rotation.y = -(m.rot || 0) * Math.PI / 180; g.updateMatrixWorld(true);
     const inPianta = (lx, lz) => { const v = g.localToWorld(new THREE.Vector3(lx, 0, lz)); return { x: v.x, y: -v.z }; };
-    // QUOTA: scritta a mano, o a filo del piano dei mobili sotto (o del più vicino)
-    let quota = Math.max(sp + 50, m.altezza_mm || 750);
-    if (m.quota === 'filo') {
-      let sopra = -Infinity;
-      for (let i = 0; i <= 6; i++) for (let j = 0; j <= 2; j++) {
-        const p = inPianta(-w / 2 + (w * i) / 6, -d / 2 + (d * j) / 2);
-        for (const b of basiTop) if (dentroBase(p.x, p.y, b)) sopra = Math.max(sopra, b.topY);
-      }
-      if (!Number.isFinite(sopra)) {
-        let dMin = Infinity;
-        for (const b of basiTop) { const dd = Math.hypot(b.x - m.x, b.y - m.y); if (dd < dMin) { dMin = dd; sopra = b.topY; } }
-      }
-      quota = (Number.isFinite(sopra) ? sopra : 850) + spTop;
-    }
     // MATERIALE: quello scelto, o come il piano della cucina
     const def = m.materiale ? MATERIALI.find((x) => x.id === m.materiale) : null;
     const base = m.materiale ? getMaterialeTHREE(m.materiale, reRender) : matTop;
@@ -3855,24 +3532,11 @@ function renderTavoli(tavoli, basiTop, spTop, matTop, muri, selId, reRender, acc
     }
     g.userData.mobId = m.id; if (m.id === selId) evidenzia(g);
     gruppo.add(g);
-    tagli.push({ angoli: [inPianta(-w / 2, -d / 2), inPianta(w / 2, -d / 2), inPianta(w / 2, d / 2), inPianta(-w / 2, d / 2)], y0: quota - sp, y1: quota });
   }
-  return tagli;
 }
 
-/** Distanza di un punto (pianta) dal segmento ab. */
-function distSegmento(p, a, b) {
-  const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy || 1;
-  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / L2));
-  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
-}
 
-const SP_SCHIENALE = 12;          // spessore del pannello dietro il piano
-const H_SCHIENALE = 600;          // altezza se sopra non ci sono pensili
-
-let _sporgPiano = { davanti: 25, lati: 0, dietro: 0 };
-function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, lavelli = [], schienale = null, muriPiano = [], tagli = []) {
-  const SD = _sporgPiano.davanti, SL = _sporgPiano.lati, SB = _sporgPiano.dietro;   // davanti alle ante, sui lati, dietro (al muro)
+function renderTopContinui(lastre, mat = null, matSchienale = null) {
   let matTop = materialePerTop(mat);
   // Il piano deve SEMPRE vincere lo z-fighting contro costadi/colonne che gli
   // arrivano a filo (stessa quota): con polygonOffset la lastra viene disegnata
@@ -3885,220 +3549,38 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
   matTop.polygonOffsetFactor = -3;
   matTop.polygonOffsetUnits = -3;
   matTop.needsUpdate = true;
-  const gruppi = {};
-  for (const b of basi) {
-    const rotN = rotNorm(b.rot);
-    const rad = rotN * Math.PI / 180, c = Math.cos(rad), s = Math.sin(rad);
-    const perp = Math.round((b.x * (-s) + b.y * c) / 5) * 5;
-    const key = `${rotN}|${perp}|${Math.round(b.topY)}`;
-    (gruppi[key] ||= { rotN, c, s, topY: b.topY, d: b.d || PROFONDITA_BASE, items: [] }).items.push(b);
-  }
-  // 1) TRATTI di piano (uno per fila continua di mobili)
-  const tratti1 = [];
-  for (const key in gruppi) {
-    const G = gruppi[key];
-    const { c, s, rotN, topY } = G;
-    // verso degli assi locali della lastra rispetto a lungo/perp: +1 a 0/180°, −1 a 90/270°
-    // (x locale = k·lungo, z locale = −k·perp; il retro dei moduli è a perp + k·d/2)
-    const k = rotN % 180 === 0 ? 1 : -1;
-    for (const run of tratti(G.items, c, s)) {
-      const lo = run.lo, hi = run.hi;
-      let perpSum = 0; for (const b of run.items) perpSum += b.x * (-s) + b.y * c;
-      const perp = perpSum / run.items.length;
-      let endLo = lo - SL, endHi = hi + SL;   // estremità libere: a filo dell'ultimo mobile (niente sporgenza sui lati)
-      let fermoLo = false, fermoHi = false;   // fermati da una colonna / un costado
-      for (const f of fianchi) {
-        const pf = proiettaFianco(f, c, s);
-        if (Math.abs(pf.perp - perp) > 350) continue;   // non sulla stessa linea
-        const tall = (f.h || 0) >= 1500;
-        if (pf.along >= hi - 1 && pf.near <= hi + 90) {          // estremità destra
-          endHi = (f.cat === 'costado' && !tall) ? pf.far : hi; fermoHi = true;
-        }
-        if (pf.along <= lo + 1 && pf.far >= lo - 90) {           // estremità sinistra
-          endLo = (f.cat === 'costado' && !tall) ? pf.near : lo; fermoLo = true;
-        }
+  for (const L of lastre) {
+    const { len, depth, spessore: thickness, fori, tagli } = L;
+    const slab = tagli.length
+      ? slabRitagliata(len, thickness, depth, matTop || COL.top, fori, tagli)
+      : fori.length
+        ? slabConFori(len, thickness, depth, matTop || COL.top, fori)
+        : corpo(len, thickness, depth, matTop || COL.top);
+    if (!slab) continue;                                 // tutto coperto dal piano/tavolo
+    slab.userData.pianoLavoro = true;                    // (per le prove: piano di lavoro)
+    slab.traverse((o) => { if (o.isMesh) o.userData.appoggio = true; });   // ci si appoggiano gli oggetti (friggitrice…)
+    // PANNELLO DIETRO IL PIANO (aplacado / alzatina): dietro la fila e sui fianchi del piano contro un muro
+    if (L.retro || L.fianchiSchienale.length) {
+      const matP = materialePerSchienale(matSchienale || matTop) || COL.top;
+      if (L.retro) {
+        const R = L.retro, pann = corpo(R.len, R.H, SP_SCHIENALE, matP);
+        pann.userData.schienale = 'retro';
+        pann.position.set(R.x, R.y, R.z);
+        pann.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
+        slab.add(pann);
       }
-      // Profondità del piano: normalmente = profondità dei moduli; ma se sulla
-      // stessa fila ci sono COSTADI bassi più profondi dei moduli (es. isola),
-      // il piano si estende ALL'INDIETRO per coprirli — il fronte (lato porte)
-      // resta dov'è. Copro l'unione delle impronte moduli + costadi.
-      let pMin = perp - G.d / 2, pMax = perp + G.d / 2;
-      let cMin = Infinity, cMax = -Infinity;                    // impronta dei costadi della fila
-      for (const f of fianchi) {
-        if (f.cat !== 'costado' || (f.h || 0) >= 1500) continue;   // solo costadi bassi
-        const pf = proiettaFianco(f, c, s);
-        if (pf.far < endLo - 90 || pf.near > endHi + 90) continue;  // non su questa fila
-        const fco = Math.cos((f.rot || 0) * Math.PI / 180), fso = Math.sin((f.rot || 0) * Math.PI / 180);
-        const hV = (f.w / 2) * Math.abs(fso * c - fco * s) + (f.d / 2) * Math.abs(fco * c + fso * s);
-        const fMin = pf.perp - hV, fMax = pf.perp + hV;
-        if (fMax < perp - G.d / 2 - 20 || fMin > perp + G.d / 2 + 20) continue; // non condivide il fronte
-        pMin = Math.min(pMin, fMin); pMax = Math.max(pMax, fMax);
-        cMin = Math.min(cMin, fMin); cMax = Math.max(cMax, fMax);
+      for (const F of L.fianchiSchienale) {
+        const fianco = corpo(SP_SCHIENALE, F.H, F.prof, matP);
+        fianco.userData.schienale = 'fianco';
+        fianco.position.set(F.x, F.y, F.z);
+        fianco.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
+        slab.add(fianco);
       }
-      // BORDI DEL PIANO: 2 cm oltre i mobili; ma dove c'è un COSTADO il piano finisce A FILO del
-      // costado (costado da 1000 → piano da 1000), non 2 cm oltre
-      // davanti (lato ante, a perp − k·d/2): profondità del piano − 600; dietro: a filo del retro dei mobili (il muro)
-      const mMin = perp - G.d / 2, mMax = perp + G.d / 2;
-      const sMin = k === 1 ? SD : SB, sMax = k === 1 ? SB : SD;
-      const bMin = cMin <= mMin + 1 ? cMin : mMin - sMin;
-      const bMax = cMax >= mMax - 1 ? cMax : mMax + sMax;
-      tratti1.push({ G, c, s, rotN, topY, k, lo, hi, perp, pMin, pMax, bMin, bMax, endLo, endHi, fermoLo, fermoHi });
     }
-  }
-  // 2) ANGOLI E MURI: un'estremità che non arriva al muro (es. il mobile d'angolo
-  //    da 1000 lontano dal muro) si allunga FINO AL MURO, così il piano chiude
-  //    l'angolo in un pezzo unico; se invece lì c'è il piano dell'altra fila, ci
-  //    si appoggia esattamente (niente buchi, niente lastre sovrapposte).
-  const MAX_ALLUNGO = 700;
-  const inCoord = (T, x, y) => ({ a: x * T.c + y * T.s, p: -x * T.s + y * T.c });
-  const angoliPiano = (T) => {                           // i 4 angoli della lastra (pianta)
-    const P = (a, p) => ({ x: T.c * a - T.s * p, y: T.s * a + T.c * p });
-    return [P(T.endLo, T.bMin), P(T.endHi, T.bMin), P(T.endLo, T.bMax), P(T.endHi, T.bMax)];
-  };
-  const nuoviFini = tratti1.map((T) => {
-    const out = { endLo: T.endLo, endHi: T.endHi };
-    for (const [lato, dir] of [['endLo', -1], ['endHi', 1]]) {
-      if (lato === 'endLo' ? T.fermoLo : T.fermoHi) continue;
-      const e = lato === 'endLo' ? T.lo : T.hi;              // filo dei mobili
-      const banda = T.pMax - T.pMin, pC = (T.pMin + T.pMax) / 2;
-      let meglio = null;                                     // { dist, fine }
-      // lastre delle altre file (perpendicolari o in linea) che stanno davanti a questa estremità
-      for (const Q of tratti1) {
-        if (Q === T || Math.abs(Q.topY - T.topY) > 5) continue;
-        if (Q.rotN % 180 === T.rotN % 180) continue;          // solo l'altra fila dell'ANGOLO (in linea: lo spazio resta)
-        const pts = angoliPiano(Q).map((q) => inCoord(T, q.x, q.y));
-        const qa0 = Math.min(...pts.map((q) => q.a)), qa1 = Math.max(...pts.map((q) => q.a));
-        const qp0 = Math.min(...pts.map((q) => q.p)), qp1 = Math.max(...pts.map((q) => q.p));
-        const sovP = Math.min(T.pMax, qp1) - Math.max(T.pMin, qp0);
-        if (sovP < banda * 0.5) continue;
-        const bordo = dir > 0 ? qa0 : qa1, dist = (bordo - e) * dir;
-        if (dist < -80 || dist > MAX_ALLUNGO) continue;
-        if (!meglio || dist < meglio.dist) meglio = { dist, fine: bordo };
-      }
-      // muri perpendicolari che chiudono questa estremità
-      for (const w of muriPiano) {
-        const A = inCoord(T, w.a.x, w.a.y), B = inCoord(T, w.b.x, w.b.y);
-        if (Math.abs(A.a - B.a) > 5) continue;                // non perpendicolare alla fila
-        if (pC < Math.min(A.p, B.p) - 5 || pC > Math.max(A.p, B.p) + 5) continue;
-        const dist = (A.a - e) * dir;
-        if (dist < -30 || dist > MAX_ALLUNGO) continue;
-        // oltre 15 cm si chiude solo negli ANGOLI (lì c'è l'altra fila contro questo muro):
-        // uno spazio voluto (es. frigo libero) in fondo a una fila resta aperto
-        if (dist > 150) {
-          const a0 = Math.min(e, A.a), a1 = Math.max(e, A.a);
-          const angolo = tratti1.some((Q) => {
-            if (Q === T || Q.rotN % 180 === T.rotN % 180) return false;
-            const pts = angoliPiano(Q).map((q) => inCoord(T, q.x, q.y));
-            const qa0 = Math.min(...pts.map((q) => q.a)), qa1 = Math.max(...pts.map((q) => q.a));
-            return qa1 > a0 + 10 && qa0 < a1 - 10;
-          });
-          if (!angolo) continue;
-        }
-        if (!meglio || dist < meglio.dist) meglio = { dist, fine: A.a };
-      }
-      if (meglio) out[lato] = meglio.fine;
-    }
-    return out;
-  });
-  tratti1.forEach((T, i) => Object.assign(T, nuoviFini[i]));
-  // 3) LASTRE (con i fori di lavello / piano cottura) e pannello dietro
-  for (const T of tratti1) {
-    const { G, c, s, rotN, topY, k, lo, hi, perp, pMin, pMax, bMin, bMax, endLo, endHi } = T;
-    {
-      const depth = bMax - bMin;
-      const perpTop = (bMin + bMax) / 2;
-      const len = endHi - endLo;
-      const centerAlong = (endLo + endHi) / 2;
-      const cx = c * centerAlong + (-s) * perpTop;
-      const cy = s * centerAlong + c * perpTop;
-      // Fori dei lavelli che cadono su questo tratto (stessa fila/quota).
-      const fori = [];
-      for (const lv of lavelli) {
-        if (rotNorm(lv.rot) !== rotN) continue;
-        const alongS = lv.x * c + lv.y * s;
-        const perpS = lv.x * (-s) + lv.y * c;
-        if (Math.abs(perpS - perpTop) > depth / 2 + 50) continue;
-        if (alongS < endLo - 10 || alongS > endHi + 10) continue;
-        if (lv.lavello) {
-          const { vw, vd, zc } = dimVasca(lv.w, lv.d);
-          // v locale della lastra = −(perp − perpTop): la lastra è ruotata come i mobili (−rot)
-          fori.push({ u: k * (alongS - centerAlong), v: k * (perpTop - perpS) + zc, w: vw + 6, d: vd + 6 });
-        } else if (lv.placca) {
-          // piano cottura INCASSATO: il vetro sta nel foro, così si vede da
-          // qualsiasi distanza (sopra il piano "spariva" da lontano)
-          const { pw, pd } = dimPlacca(lv.w, lv.d, lv.fuochi);
-          fori.push({ u: k * (alongS - centerAlong), v: k * (perpTop - perpS), w: pw - 12, d: pd - 12 });
-        }
-      }
-      // PIANO / TAVOLO che passa ALLA QUOTA del piano: lì il piano si apre (pezzi, tacca o buco)
-      const tagliQui = [];
-      for (const t of tagli) {
-        if (t.y1 <= topY + 1 || t.y0 >= topY + thickness - 1) continue;          // più basso o più alto: non si toccano
-        const loc = t.angoli.map((q) => { const al = q.x * c + q.y * s, pp = -q.x * s + q.y * c; return { u: k * (al - centerAlong), v: k * (perpTop - pp) }; });
-        const u0 = Math.min(...loc.map((q) => q.u)), u1 = Math.max(...loc.map((q) => q.u));
-        const v0 = Math.min(...loc.map((q) => q.v)), v1 = Math.max(...loc.map((q) => q.v));
-        if (u1 <= -len / 2 || u0 >= len / 2 || v1 <= -depth / 2 || v0 >= depth / 2) continue;
-        // solo se è dritta rispetto al piano (lati paralleli): girata di traverso il taglio a rettangolo sarebbe sbagliato
-        let area = 0; for (let i = 0; i < 4; i++) { const a = loc[i], b = loc[(i + 1) % 4]; area += a.u * b.v - b.u * a.v; }
-        if (Math.abs(area) / 2 < 0.97 * (u1 - u0) * (v1 - v0)) continue;
-        tagliQui.push({ u0, u1, v0, v1 });
-      }
-      const slab = tagliQui.length
-        ? slabRitagliata(len, thickness, depth, matTop || COL.top, fori, tagliQui)
-        : fori.length
-          ? slabConFori(len, thickness, depth, matTop || COL.top, fori)
-          : corpo(len, thickness, depth, matTop || COL.top);
-      if (!slab) continue;                                 // tutto coperto dal piano/tavolo
-      slab.traverse((o) => { if (o.isMesh) o.userData.appoggio = true; });   // ci si appoggiano gli oggetti (friggitrice…)
-      // PANNELLO DIETRO IL PIANO (aplacado): ovunque il piano tocca un muro —
-      // dietro la fila e anche sui fianchi del piano che finiscono contro un muro
-      // (es. negli angoli della cucina a L / U)
-      if (schienale) {
-        const perpMuro = perp + k * G.d / 2;                   // retro dei moduli = muro
-        const Pp = (al, pp) => ({ x: c * al - s * pp, y: s * al + c * pp });
-        const suMuro = (pts) => schienale.muri.some((w) => pts.filter((q) => distSegmento(q, w.a, w.b) < 90).length >= 2);
-        // altezza: fino ai pensili sopra questa fila, altrimenti 60 cm
-        let yPens = Infinity;
-        for (const pz of schienale.pensili) {
-          if (rotNorm(pz.rot) !== rotN) continue;
-          const al = pz.x * c + pz.y * s, pp = pz.x * (-s) + pz.y * c;
-          if (Math.abs(al - centerAlong) > len / 2 + pz.w / 2 - 20) continue;
-          const dd = k * (perpMuro - pp);
-          if (dd < -50 || dd > 700) continue;
-          yPens = Math.min(yPens, pz.yBottom);
-        }
-        const yTop = topY + thickness;
-        // ALZATINA: alta quanto scelto; se no il pannello va fino ai pensili (o 60 cm se sopra non ci sono)
-        const H = schienale.altezza ? schienale.altezza
-          : Number.isFinite(yPens) && yPens - yTop > 100 ? yPens - yTop : H_SCHIENALE;
-        const matP = materialePerSchienale(schienale.mat || matTop) || COL.top;
-        // coordinate locali della lastra: +z = fronte (stanza), il muro è dietro
-        const zMuro = -k * (perpMuro - perpTop);
-        const zFronte = -k * ((perp - k * G.d / 2) - perpTop);   // filo delle ante (senza la sporgenza del piano)
-        const dz = Math.sign(zFronte - zMuro) || 1;
-        if (suMuro([Pp(centerAlong, perpMuro), Pp(lo + 50, perpMuro), Pp(hi - 50, perpMuro)])) {
-          const pann = corpo(len, H, SP_SCHIENALE, matP);
-          pann.position.set(0, thickness / 2 + H / 2, zMuro + dz * SP_SCHIENALE / 2);
-          pann.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
-          slab.add(pann);
-        }
-        // fianchi del piano contro un muro
-        for (const e of [endLo, endHi]) {
-          const pts = [Pp(e, perpMuro - k * 100), Pp(e, perpMuro - k * (G.d / 2)), Pp(e, perpMuro - k * (G.d - 100))];
-          if (!suMuro(pts)) continue;
-          const xE = k * (e - centerAlong), dentro = -Math.sign(xE) || 1;
-          const prof = Math.abs(zFronte - zMuro) + SD - SP_SCHIENALE;   // fino al bordo davanti del piano: combacia col pannello dell'altro lato
-          const fianco = corpo(SP_SCHIENALE, H, prof, matP);
-          fianco.position.set(xE + dentro * SP_SCHIENALE / 2, thickness / 2 + H / 2, zMuro + dz * (SP_SCHIENALE + prof / 2));
-          fianco.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
-          slab.add(fianco);
-        }
-      }
-      // pietra vera: niente contorni da disegno tecnico sul piano e sull'aplacado (sull'isola il bordo
-      // di una metà si vedeva come una riga sopra l'altra metà)
-      slab.traverse((o) => { if (o.isLineSegments) o.visible = false; });
-      gruppo.add(collocaMobile(slab, cx, topY, -cy, thickness, rotN));
-    }
+    // pietra vera: niente contorni da disegno tecnico sul piano e sull'aplacado (sull'isola il bordo
+    // di una metà si vedeva come una riga sopra l'altra metà)
+    slab.traverse((o) => { if (o.isLineSegments) o.visible = false; });
+    gruppo.add(collocaMobile(slab, L.cx, L.topY, -L.cy, thickness, L.rotN));
   }
 }
 
@@ -4106,47 +3588,10 @@ function renderTopContinui(basi, fianchi = [], thickness = SP_TOP, mat = null, l
  * Zoccolo (piedini) CONTINUO: un unico pezzo per fila di basi, da un bordo
  * all'altro (quindi da costado a costado, coprendo tutti i moduli).
  */
-function renderZoccoliContinui(basi, mat) {
-  const gruppi = {};
-  for (const b of basi) {
-    const rotN = rotNorm(b.rot);
-    const rad = rotN * Math.PI / 180, c = Math.cos(rad), s = Math.sin(rad);
-    const perp = Math.round((b.x * (-s) + b.y * c) / 5) * 5;
-    const key = `${rotN}|${perp}|${Math.round(b.zocc || 150)}`;
-    (gruppi[key] ||= { rotN, c, s, zocc: b.zocc || 150, d: b.d || PROFONDITA_BASE, items: [] }).items.push(b);
-  }
-  // 1) i tratti di zoccolo di ogni fila, con la linea del loro FRONTE (arretrato di 100 dalle ante)
-  const runs = [];
-  for (const key in gruppi) {
-    const G = gruppi[key];
-    const { c, s, rotN, zocc } = G;
-    const k = s * s - c * c;                                   // fronte del mobile lungo l'asse perpendicolare (±1)
-    for (const run of tratti(G.items, c, s)) {
-      let perpSum = 0; for (const b of run.items) perpSum += b.x * (-s) + b.y * c;
-      const perp = perpSum / run.items.length;
-      runs.push({ c, s, rotN, zocc, d: G.d, perp, fronte: perp + k * (G.d / 2 - 100), lo: run.lo, hi: run.hi });
-    }
-  }
-  // 2) ANGOLI (cucine a L / U): dove due file si incontrano a 90° lo zoccolo GIRA senza buchi.
-  //    Ogni tratto che finisce prima dello spigolo si allunga fino al fronte dello zoccolo
-  //    dell'altra fila (prima restava un vuoto sotto il mobile d'angolo / la regletta).
-  const nuovi = runs.map((T) => ({ lo: T.lo, hi: T.hi }));
-  runs.forEach((T, i) => {
-    for (const Q of runs) {
-      if (Q === T || Math.abs(Q.zocc - T.zocc) > 5 || Math.abs(T.c * Q.c + T.s * Q.s) > 0.05) continue;   // solo file a 90°, stessa altezza
-      // incrocio dei due fronti: (-sT, cT)·X = fT ; (-sQ, cQ)·X = fQ
-      const a1 = -T.s, b1 = T.c, a2 = -Q.s, b2 = Q.c, det = a1 * b2 - a2 * b1;
-      if (Math.abs(det) < 1e-6) continue;
-      const X = (T.fronte * b2 - Q.fronte * b1) / det, Y = (a1 * Q.fronte - a2 * T.fronte) / det;
-      const aT = X * T.c + Y * T.s, aQ = X * Q.c + Y * Q.s;
-      if (aQ < Q.lo - 700 || aQ > Q.hi + 700) continue;                  // l'altra fila non arriva lì
-      if (aT > T.hi && aT - T.hi <= 700) nuovi[i].hi = Math.max(nuovi[i].hi, aT);
-      if (aT < T.lo && T.lo - aT <= 700) nuovi[i].lo = Math.min(nuovi[i].lo, aT);
-    }
-  });
-  // 3) i pezzi di zoccolo
-  runs.forEach((T, i) => {
-    const { lo, hi } = nuovi[i];
+function renderZoccoliContinui(runs, mat) {
+  // i pezzi di zoccolo (tratti già calcolati da zoccoliContinui, gli stessi della distinta)
+  runs.forEach((T) => {
+    const { lo, hi } = T;
     const len = hi - lo, centerAlong = (lo + hi) / 2;
     const cx = T.c * centerAlong + (-T.s) * T.perp;
     const cy = T.s * centerAlong + T.c * T.perp;

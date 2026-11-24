@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261125v';
+import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261125w';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -3078,6 +3078,123 @@ export function costadoColonnaATerra(progetto, m) {
     if (v) { lati++; if (['colonna', 'frigo'].includes(categoriaTipo(v.tipo))) colonna = true; }
   }
   return colonna && lati === 1;
+}
+
+/**
+ * Cima (mm da terra) di un costado A TERRA. Quello alto (≥ 150 cm) va a filo sopra con le colonne,
+ * se ci sono (topLine = cima delle colonne); senza colonne sta a terra, alto quanto l'hai fatto.
+ */
+export function cimaCostadoATerra(m, topLine) {
+  const h = m.altezza_mm || 850;
+  if (m.seguiFrigo != null) return h;              // costado legato al mobile sopra frigo: a terra
+  return (h >= 1500 && topLine != null ? Math.max(0, topLine - h) : 0) + h;
+}
+
+const rotNorm90 = (r) => ((Math.round((r || 0) / 90) * 90) % 360 + 360) % 360;
+// categorie che NON hanno lo zoccolo continuo (o lo hanno a parte, come colonne / reglette / costadi)
+const SENZA_ZOCCOLO_BASE = ['oggetto', 'pensile', 'colonna', 'frigo', 'altillo', 'regletta', 'pannello', 'costado', 'tavolo'];
+
+/**
+ * ZOCCOLO CONTINUO della cucina: un calcolo solo per il 3D e per la distinta.
+ * Tutto ciò che poggia a terra con lo zoccolo (mobili bassi, lavastoviglie e lavatrice, colonne,
+ * reglette, il pezzo sotto un costado alzato fra due mobili, la base angolo sulle sue facce libere)
+ * si mette in fila: stessa direzione, stessa linea e stessa altezza di zoccolo → un pezzo unico,
+ * spezzato dove c'è un vuoto (oltre 6 cm). Negli ANGOLI a 90° ogni tratto arriva fino al fronte dello
+ * zoccolo dell'altra fila (arretrato 100 mm dalle ante), così gira senza buchi.
+ * `extra`: altri pezzi a terra già pronti ({x, y, rot, w, d, zocc}).
+ * Ritorna i tratti: { rotN, c, s, zocc, d, perp, lo, hi, lunghezza } (lo/hi lungo la fila, in mm).
+ */
+export function zoccoliContinui(progetto, extra = []) {
+  const items = [...extra];
+  const mobili = progetto.mobiliLiberi || [];
+  const topLine = cimaColonne(progetto);
+  for (const m of mobili) {
+    const cat = categoriaTipo(m.tipo), dim = dimMobile(m);
+    if (cat === 'colonna') {
+      items.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc: zoccoloColonnaDi(progetto, m) });
+    } else if (cat === 'regletta') {
+      items.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc: piediniCucina(progetto, m.altezza_mm || 700) });
+    } else if (cat === 'costado') {
+      // COSTADO ALZATO fra due mobili (sopra lo zoccolo): lo zoccolo gli passa sotto, tutto unico
+      if ((m.profondita_mm || 620) < 500) continue;                    // costado alto (dei pensili)
+      const h = m.altezza_mm || 850;
+      let base = cimaCostadoATerra(m, topLine) - h;
+      if (base > 0 && costadoColonnaATerra(progetto, m)) base = 0;     // costado esterno delle colonne: a terra
+      if (!(base > 20 && base < 400)) continue;
+      const rC0 = rotNorm90(m.rot), cs = Math.cos(rC0 * Math.PI / 180), sn = Math.sin(rC0 * Math.PI / 180);
+      const lungo = (o) => o.x * cs + o.y * sn, trav = (o) => -o.x * sn + o.y * cs;
+      const vicino = mobili.find((o) => {
+        if (o.id === m.id || rotNorm90(o.rot) !== rC0) return false;
+        if (!['base', 'colonna', 'lavastoviglie', 'lavatrice'].includes(categoriaTipo(o.tipo))) return false;
+        const dO = dimMobile(o);
+        if (Math.abs(trav(o) - trav(m)) > Math.max(dO.d, dim.d) / 2) return false;          // stessa fila
+        return Math.abs(Math.abs(lungo(o) - lungo(m)) - (dO.w + dim.w) / 2) <= 6;            // appoggiato al costado
+      });
+      if (vicino) {
+        const al = lungo(m), tr = trav(vicino);
+        items.push({ x: cs * al - sn * tr, y: sn * al + cs * tr, rot: vicino.rot, w: dim.w, d: dimMobile(vicino).d, zocc: base });
+      }
+    } else if (!SENZA_ZOCCOLO_BASE.includes(cat)) {
+      const zocc = piediniCucina(progetto, m.altezza_mm || 700);
+      if (m.tipo === 'base-angolo') {
+        // BASE ANGOLO a L: lo zoccolo sta solo sulle due facce LIBERE (davanti alle ante);
+        // il braccio di fondo non lo prende dove davanti c'è l'altro braccio (lì non si vede).
+        // Nell'angolo i due tratti si incontrano (vedi sotto). Bracci come nel 3D (+rot, L asimmetrica).
+        const P = Math.min(m.profBraccio_mm || PROFONDITA_BASE, Math.min(dim.w, dim.d) - 10), hw = dim.w / 2, hd = dim.d / 2;
+        const rr = (m.rot || 0) * Math.PI / 180, c = Math.cos(rr), s = Math.sin(rr);
+        const vp = (lx, ly) => ({ x: m.x + lx * c - ly * s, y: m.y + lx * s + ly * c });
+        const A = vp(P / 2, hd - P / 2), B = vp(-hw + P / 2, -P / 2);
+        if (dim.w - P > 0) items.push({ ...A, rot: -(m.rot || 0), w: dim.w - P, d: P, zocc });
+        if (dim.d - P > 0) items.push({ ...B, rot: -(m.rot || 0) - 90, w: dim.d - P, d: P, zocc });
+      } else {
+        items.push({ x: m.x, y: m.y, rot: m.rot, w: dim.w, d: dim.d, zocc });
+      }
+    }
+  }
+  // 1) file: stessa direzione, stessa linea, stessa altezza di zoccolo; tratti contigui (vuoto > 60 mm = si spezza)
+  const gruppi = {};
+  for (const b of items) {
+    const rotN = rotNorm90(b.rot);
+    const rad = rotN * Math.PI / 180, c = Math.cos(rad), s = Math.sin(rad);
+    const perp = Math.round((b.x * (-s) + b.y * c) / 5) * 5;
+    const key = `${rotN}|${perp}|${Math.round(b.zocc || 150)}`;
+    (gruppi[key] ||= { rotN, c, s, zocc: b.zocc || 150, d: b.d || PROFONDITA_BASE, items: [] }).items.push(b);
+  }
+  const runs = [];
+  for (const key in gruppi) {
+    const G = gruppi[key];
+    const { c, s, rotN, zocc } = G;
+    const k = s * s - c * c;                                   // fronte del mobile lungo l'asse perpendicolare (±1)
+    const arr = G.items.map((b) => { const along = b.x * c + b.y * s; return { b, lo: along - b.w / 2, hi: along + b.w / 2 }; })
+      .sort((p, q) => p.lo - q.lo);
+    const tratti = [];
+    let cur = null;
+    for (const it of arr) {
+      if (!cur || it.lo > cur.hi + 60) { cur = { lo: it.lo, hi: it.hi, items: [it.b] }; tratti.push(cur); }
+      else { cur.hi = Math.max(cur.hi, it.hi); cur.items.push(it.b); }
+    }
+    for (const run of tratti) {
+      let perpSum = 0; for (const b of run.items) perpSum += b.x * (-s) + b.y * c;
+      const perp = perpSum / run.items.length;
+      runs.push({ c, s, rotN, zocc, d: G.d, perp, fronte: perp + k * (G.d / 2 - 100), lo: run.lo, hi: run.hi });
+    }
+  }
+  // 2) ANGOLI (cucine a L / U): dove due file si incontrano a 90° lo zoccolo GIRA senza buchi:
+  //    il tratto che finisce prima dello spigolo si allunga fino al fronte dello zoccolo dell'altra fila
+  const nuovi = runs.map((T) => ({ lo: T.lo, hi: T.hi }));
+  runs.forEach((T, i) => {
+    for (const Q of runs) {
+      if (Q === T || Math.abs(Q.zocc - T.zocc) > 5 || Math.abs(T.c * Q.c + T.s * Q.s) > 0.05) continue;   // solo file a 90°, stessa altezza
+      const a1 = -T.s, b1 = T.c, a2 = -Q.s, b2 = Q.c, det = a1 * b2 - a2 * b1;
+      if (Math.abs(det) < 1e-6) continue;
+      const X = (T.fronte * b2 - Q.fronte * b1) / det, Y = (a1 * Q.fronte - a2 * T.fronte) / det;
+      const aT = X * T.c + Y * T.s, aQ = X * Q.c + Y * Q.s;
+      if (aQ < Q.lo - 700 || aQ > Q.hi + 700) continue;                  // l'altra fila non arriva lì
+      if (aT > T.hi && aT - T.hi <= 700) nuovi[i].hi = Math.max(nuovi[i].hi, aT);
+      if (aT < T.lo && T.lo - aT <= 700) nuovi[i].lo = Math.min(nuovi[i].lo, aT);
+    }
+  });
+  return runs.map((T, i) => ({ ...T, lo: nuovi[i].lo, hi: nuovi[i].hi, lunghezza: Math.round(nuovi[i].hi - nuovi[i].lo) }));
 }
 
 /**

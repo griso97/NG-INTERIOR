@@ -13,16 +13,16 @@
 
 import {
   altezzeCassettiDi, cassettoSopraDi, infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
-  costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi,
-  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125v';
-import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull } from '../parametri.js?v=20261125v';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125v';
+  costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi, zoccoliContinui,
+  altezzaAlzatina, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125w';
+import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull } from '../parametri.js?v=20261125w';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125w';
+import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261125w';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
 const round = (n) => Math.round(n);
 let _progDist = null;                    // la cucina della distinta in calcolo (piedini scelti)
-const zoccoloH = (h) => piediniCucina(_progDist, h);
 const GRIGLIA_FORNO = 45, H_FORNO_INCASSO = 595;   // come nel 3D (scena3d.js)
 // Piedini: 4 per modulo a terra, 6 se è più largo di 90 cm
 const piediniDi = (L) => (L > 900 ? 6 : 4);
@@ -116,9 +116,6 @@ function anteModulo(pz, mod, L, H, N, lato, altAnta, sporg, vetrina, rJ = 0, ext
   pz.push({ modulo: mod, nome: `Anta${nota}${rJ ? ` · ${_nomeRid} (−${rJ} mm)` : ''}`, larghezza: a.w, altezza: altAnta != null ? altAnta : a.h, spessore: SP, materiale: 'anta', quantita: N });
 }
 
-function zoccolo(pz, mod, L, H) {
-  pz.push({ modulo: mod, nome: 'Zoccolo (frontale)', larghezza: round(L), altezza: zoccoloH(H), spessore: SP, materiale: 'zoccolo', quantita: 1 });
-}
 
 // Altezza dell'anta SUPERIORE della colonna: lo spazio che resta sopra la
 // porta bassa, tolto l'eventuale forno/microonde/vano (stessa logica del 3D).
@@ -203,16 +200,13 @@ function pezziDiModulo(progetto, m) {
   if (cat === 'base' && m.tipo === 'base-angolo') {
     // BASE ANGOLO a L: 2 ante larghe come quelle del pensile angolo
     // (larghezza − profondità bassi = 280), alte come la base (−2 mm);
-    // zoccolo sulle due facce interne (arretrato 5 cm: +50 per lato)
     const { a, b } = anteBaseAngolo(m);
     for (const aw of a === b ? [a] : [a, b]) {
       const q = a === b ? 2 : 1;
       pz.push({ modulo: mod, nome: 'Anta (base angolo)' + GN, larghezza: Math.max(1, round(aw - aL)), altezza: gola ? altG : round(H - aH - rJ), spessore: SP, materiale: 'anta', quantita: q });
-      pz.push({ modulo: mod, nome: 'Zoccolo (frontale)', larghezza: Math.max(1, aw) + 50, altezza: zoccoloH(H), spessore: SP, materiale: 'zoccolo', quantita: q });
     }
   } else if (cat === 'base') {
     // carcassa, ripiani e cassetti interni: già nel modulo (non si tagliano)
-    zoccolo(pz, mod, L, H);
     // ANGOLO: come nel 3D, anche cassettiere e forno. Coperti dall'altra fila → ante sulla parte libera
     // + pannello cieco; solo vicini (con la luce della regletta) → restano com'erano, + la regletta
     const angC = m.tipo !== 'base-ante' && m.tipo !== 'lavello' && !apertoDi(m) && progetto.autoRegletta !== false ? infoAngoloCieco(progetto, m) : null;
@@ -282,9 +276,7 @@ function pezziDiModulo(progetto, m) {
       }
     }
   } else if (cat === 'colonna') {
-    // Zoccolo della colonna: segue la porta bassa (70→150, 80→100), come i mobili bassi.
     const abC = portaBassaColonna(progetto, m);      // alta come i mobili bassi
-    zoccolo(pz, mod, L, abC);
     // Due ante reali: sotto = porta bassa − 2 (come il mobile base 70/80),
     // sopra = lo spazio che resta − 2 (tolto forno/microonde/vano, come nel 3D).
     const ab = abC;
@@ -393,9 +385,8 @@ function pezziDiModulo(progetto, m) {
   } else if (cat === 'lavatrice' || cat === 'lavastoviglie') {
     // Elettrodomestico: NON si tagliano carcassa/ante (è un apparecchio comprato).
     // Ma va calcolato come un modulo da 45/60 per le MISURE: occupa il suo spazio
-    // (già nel conteggio moduli e nel 3D con piano sopra) e dà la sua quota di
-    // ZOCCOLO, così lo zoccolo continuo della cucina ha la lunghezza giusta.
-    zoccolo(pz, mod, L, H);
+    // (già nel conteggio moduli e nel 3D con piano sopra) e la sua parte di ZOCCOLO
+    // (nello zoccolo continuo della cucina: zoccoliContinui).
     // lavastoviglie INTEGRATA: l'anta davanti la facciamo noi, come quelle dei mobili bassi
     if (m.tipo === 'lavastoviglie' && m.colore === 'integrata') anteModulo(pz, mod, L, H, 1, m.antaLato, altG, false, null, rJ, GN);
   } else {
@@ -437,7 +428,7 @@ function gruppoPezzo(p) {
   if (p.struttura) return 'Strutture su misura';
   if (p.cornice) return 'Cornici vano';
   if (p.aperto) return 'Mobili a giorno';            // cornice, rivestimento e ripiani dei mobili senza ante            // fianchi, top/fondo, schiena, ripiani della colonna su misura
-  if (['tavolo', 'vetro', 'gambe'].includes(p.materiale)) return 'Piani e tavoli';   // piano / tavolo e i suoi appoggi
+  if (['tavolo', 'vetro', 'gambe', 'piano'].includes(p.materiale)) return 'Piani e tavoli';   // piano di lavoro, alzatina, piano / tavolo e i suoi appoggi
   const n = String(p.nome).toLowerCase();
   if (n.includes('regletta')) return 'Reglette';
   if (n.includes('costado')) return 'Costadi';
@@ -515,6 +506,13 @@ export function calcolaDistintaCucina(progetto) {
   // 2) LISTA PEZZI DA FARE: ante/frontali e pezzi in legno nostri, aggregati per tipo+misura.
   const raw = [];
   for (const m of mobili) raw.push(...pezziDiModulo(progetto, m));
+  // ZOCCOLO CONTINUO: un pezzo per ogni tratto, lungo quanto nel 3D (stesso calcolo: zoccoliContinui);
+  // copre anche reglette e lavastoviglie, e negli angoli arriva fino allo zoccolo dell'altra fila
+  for (const T of zoccoliContinui(progetto)) {
+    if (T.lunghezza < 1) continue;
+    raw.push({ nome: 'Zoccolo (frontale)', larghezza: T.lunghezza, altezza: Math.round(T.zocc), spessore: SP, materiale: 'zoccolo',
+      materialeNome: nomeMateriale(progetto.zoccoloColore || 'nero-opaco', 'Zoccolo'), quantita: 1 });
+  }
   // CIERRE A TECHO: fasce a filo del fronte dei mobili + pezzi che rientrano (negli angoli una passa + spessore)
   const ct = progetto.cierreTecho;
   if (ct && ct.attivo) {
@@ -534,6 +532,42 @@ export function calcolaDistintaCucina(progetto) {
       raw.push({ nome: f.pezzi > 1 ? `Pannello sotto ponte (pezzo ${f.pezzo} di ${f.pezzi})` : 'Pannello sotto ponte',
         larghezza: f.w, altezza: Math.round(f.d), spessore: spP, materiale: 'anta',
         materialeNome: nomeMateriale((progetto.coloriPonte || {}).pannello || (primo && primo.coloreFronte) || (progetto.coloriPonte || {}).ponte || col.colonna || col.pensile, 'Colore da scegliere'), quantita: 1 });
+    }
+  }
+  // PIANO DI LAVORO e PANNELLO DIETRO IL PIANO / ALZATINA: le lastre del 3D (lastrePiano), stesse misure.
+  // Ogni lastra: lunga × profonda, spessa come il pannello del piano (più pannelli incollati = più pezzi),
+  // con i FORI di lavello e piano cottura (centro del foro dal bordo sinistro, guardando il piano da davanti)
+  // e i TAGLI dove passa un piano/tavolo (se lo taglia da parte a parte: due pezzi)
+  {
+    const encDef = defPiano(progetto);
+    const spTop = spessorePianoDi(progetto, encDef), uno = spessorePannelloPiano(progetto, encDef);
+    const strati = Math.max(1, Math.min(3, Number(progetto.encimera && progetto.encimera.strati) || 1));
+    const nomePiano = nomeMateriale(progetto.encimera && progetto.encimera.materiale, 'Nero standard');
+    const sch = progetto.schienale || {};
+    const nomeSch = sch.materiale ? nomeMateriale(sch.materiale, 'Materiale da scegliere') : nomePiano;
+    const alzatina = !!altezzaAlzatina(progetto);
+    const NOMI_FORO = { lavello: 'foro lavello', placca: 'foro piano cottura' };
+    for (const L of lastrePiano(progetto, spTop).lastre) {
+      for (const P of L.pezzi) {
+        const note = [];
+        for (const f of L.fori) {
+          if (f.u < P.u0 || f.u > P.u1) continue;
+          note.push(`${NOMI_FORO[f.tipo]} ${round(f.w)}×${round(f.d)} (centro a ${round(f.u - P.u0)} mm da sinistra)`);
+        }
+        for (const t of L.tagli) {                     // tacca / buco per il piano o tavolo che passa
+          const u0 = Math.max(t.u0, P.u0), u1 = Math.min(t.u1, P.u1), v0 = Math.max(t.v0, -L.depth / 2), v1 = Math.min(t.v1, L.depth / 2);
+          if (u1 - u0 < 1 || v1 - v0 < 1) continue;
+          const dove = v1 >= L.depth / 2 - 1 ? 'sul davanti' : v0 <= -L.depth / 2 + 1 ? 'dietro' : 'in mezzo';
+          note.push(`taglio per il piano / tavolo ${round(u1 - u0)}×${round(v1 - v0)} ${dove} (centro a ${round((u0 + u1) / 2 - P.u0)} mm da sinistra)`);
+        }
+        raw.push({ nome: (strati > 1 ? `Piano di lavoro (${strati} pannelli incollati)` : 'Piano di lavoro') + note.map((n) => ' · ' + n).join(''),
+          larghezza: round(P.u1 - P.u0), altezza: round(L.depth), spessore: uno, materiale: 'piano', materialeNome: nomePiano, quantita: strati });
+      }
+      const nomeP = alzatina ? 'Alzatina' : 'Pannello dietro il piano';
+      if (L.retro) raw.push({ nome: nomeP, larghezza: round(L.retro.len), altezza: round(L.retro.H), spessore: SP_SCHIENALE, materiale: 'piano', materialeNome: nomeSch, quantita: 1 });
+      for (const F of L.fianchiSchienale) {
+        raw.push({ nome: `${nomeP} · fianco contro il muro`, larghezza: round(F.prof), altezza: round(F.H), spessore: SP_SCHIENALE, materiale: 'piano', materialeNome: nomeSch, quantita: 1 });
+      }
     }
   }
   // FINGER-PULL FRESATO: sull'anta / sul frontale la nota della presa da fresare (con il profilo il nome
@@ -598,6 +632,11 @@ export function calcolaDistintaCucina(progetto) {
   for (const m of mobili) {
     const l = ledStrisceAperto(m, latoApertoDi(progetto, m));
     if (l.n) aggiungi(`Striscia LED ${Math.round(l.mm / 10)} cm (mobili a giorno)`, l.n);
+  }
+  // STRISCE LED sotto i pensili e sotto il ponte: come nel 3D (ledCucina), una per fila, lunga quanto lì
+  for (const S of ledCucina(progetto)) {
+    const dove = S.dove === 'pensili' ? 'sotto i pensili' : S.dove === 'ponte' ? 'sotto il ponte' : 'sotto pensili e ponte';
+    aggiungi(`Striscia LED ${round(S.lunghezza)} mm (${dove})`, 1);
   }
   // VETRI delle ante vetrina con telaio in legno (misura del vetro da ordinare)
   for (const p of raw) if (p.vetro) aggiungi(`Vetro ${p.vetro.tipo} ${p.vetro.w}×${p.vetro.h} (anta vetrina)`, p.quantita);
@@ -689,7 +728,7 @@ export function calcolaDistintaCucina(progetto) {
     const mq = (p.larghezza * p.altezza * p.quantita) / 1e6;
     if (p.materiale === 'zoccolo') mqZoccolo += mq;
     else if (p.materiale === 'melaminico') mqMelaminico += mq;
-    else if (['tavolo', 'vetro', 'gambe'].includes(p.materiale)) continue;   // non sono ante (piano / tavolo)
+    else if (['tavolo', 'vetro', 'gambe', 'piano'].includes(p.materiale)) continue;   // non sono ante (piano di lavoro, piano / tavolo)
     else mqAnte += mq;
   }
   const piedini = [...acc.entries()].filter(([k]) => k.startsWith('Piedini regolabili')).reduce((t, [, v]) => t + v, 0);
