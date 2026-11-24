@@ -9,10 +9,10 @@
 //   htmlMontaggio(v, opz)            → HTML (v = valori, vedi valoriDaParametri / valoriDaArmadio)
 //   agganciaMontaggio(root, leggi, scrivi, opz)  → collega tocchi e numeri: scrivi(patch) salva
 // =============================================================================
-import { svgStruttura, svgSchiena, svgAnteInterne } from './disegni-montaggio.js?v=20261125r';
-import { calcolaDistintaCompleta } from './calcoli.js?v=20261125r';
-import { parametri, salvaParametri } from './parametri.js?v=20261125r';
-import { binariScorrevoli } from './parametri.js?v=20261125r';
+import { svgStruttura, svgSchiena, svgAnteInterne } from './disegni-montaggio.js?v=20261125t';
+import { calcolaDistintaCompleta } from './calcoli.js?v=20261125t';
+import { parametri, salvaParametri } from './parametri.js?v=20261125t';
+import { binariScorrevoli } from './parametri.js?v=20261125t';
 
 const t = (s) => (typeof window !== 'undefined' && window.NGI18N ? window.NGI18N.t(s) : s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);

@@ -21,25 +21,25 @@ import {
   spaziTraMobili, spaziDiChiusura, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo, inserisciInAngolo, mettiNelVano,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro, rotazioneAutomatica, migraRotazioni,
-  anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti,
+  anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti, altezzeCassettiDi, spaziCassettiCucina, cassettoSopraDi,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, latoApertoDi, latiLiberi, migraProfonditaPensili, PARTI_APERTO, coloreParteAperto, ledAperto,
-  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola, cucinaConGola, impostaProgettoFerramenta, golaScelta, cassettiDelMobile, cambiaCucinaConGola, sistemaGoleColonne, aperturaColonneGola, goleVerticali, piediniCucina, altezzaBassiCucina, sporgenzaPiano, altezzaAlzatina } from './modello.js?v=20261125r';
-import { renderPianta } from './pianta.js?v=20261125r';
-import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261125r';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261125r';
-import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261125r';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261125r';
-import { calcolaDistintaCucina } from './distinta.js?v=20261125r';
-import { svgModificaColonnaGola } from '../disegni-cucina.js?v=20261125r';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261125r';
-import { salvaEsempioModificato, salvaProgettoPredefinito } from '../esempi-dati.js?v=20261125r';
-import { parametri, daImpostare, sistemiGola, sistemiCassetti, nomeSistemaCassetti } from '../parametri.js?v=20261125r';
-import { htmlAvvisoMancanti, confermaEsportazione } from '../avviso-parametri.js?v=20261125r';
-import { agganciaTema } from '../tema.js?v=20261125r';
-import { tendinePannello } from '../tendine-pannello.js?v=20261125r';
+  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola, cucinaConGola, impostaProgettoFerramenta, golaScelta, cassettiDelMobile, cambiaCucinaConGola, sistemaGoleColonne, aperturaColonneGola, goleVerticali, piediniCucina, altezzaBassiCucina, sporgenzaPiano, altezzaAlzatina } from './modello.js?v=20261125t';
+import { renderPianta } from './pianta.js?v=20261125t';
+import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261125t';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261125t';
+import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261125t';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261125t';
+import { calcolaDistintaCucina } from './distinta.js?v=20261125t';
+import { svgModificaColonnaGola } from '../disegni-cucina.js?v=20261125t';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261125t';
+import { salvaEsempioModificato, salvaProgettoPredefinito } from '../esempi-dati.js?v=20261125t';
+import { parametri, daImpostare, sistemiGola, sistemiCassetti, nomeSistemaCassetti } from '../parametri.js?v=20261125t';
+import { htmlAvvisoMancanti, confermaEsportazione } from '../avviso-parametri.js?v=20261125t';
+import { agganciaTema } from '../tema.js?v=20261125t';
+import { tendinePannello } from '../tendine-pannello.js?v=20261125t';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261125r');
+const _excel = () => import('../modello-export.js?v=20261125t');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -111,7 +111,7 @@ function mostraSceltaTipoCucina() {
     </div>`;
   document.body.appendChild(ov);
   // CUCINE DI ESEMPIO: la scheda c'è solo se ce ne sono (l'elenco è piccolo: solo nomi e foto)
-  fetch('esempi/cucine/indice.json?v=20261125r').then((r) => (r.ok ? r.json() : null)).then((j) => {
+  fetch('esempi/cucine/indice.json?v=20261125t').then((r) => (r.ok ? r.json() : null)).then((j) => {
     const a = ov.querySelector('#scelta-esempi');
     if (a && j && Array.isArray(j.cucine) && j.cucine.length) a.style.display = 'flex';
   }).catch(() => { /* niente esempi */ });
@@ -1692,8 +1692,8 @@ function apriPavimentoDaFoto() {
     if (!(w >= 5) || !(h >= 5)) { alert(tt('Scrivi la misura della zona fotografata (almeno 5 cm).')); return; }
     $('pav-salva').disabled = true;
     try {
-      const C = await import('../catalogo.js?v=20261125r');
-      const M = await import('../materiali.js?v=20261125r');
+      const C = await import('../catalogo.js?v=20261125t');
+      const M = await import('../materiali.js?v=20261125t');
       const stato = await C.leggiCatalogo();
       const id = 'pav-' + Date.now().toString(36);
       const prod = { id, sezione: 'pavimento', nome: ($('pav-nome').value || '').trim() || tt('Pavimento del cliente'), campioneCm: { w, h } };
@@ -1710,7 +1710,7 @@ async function eliminaPavimentoProprio(id) {
   const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
   if (!confirm(tt('Eliminare questo pavimento? Sparisce da tutti i progetti.'))) return;
   try {
-    const C = await import('../catalogo.js?v=20261125r');
+    const C = await import('../catalogo.js?v=20261125t');
     const stato = await C.leggiCatalogo();
     stato.prodotti = (stato.prodotti || []).filter((p) => p.id !== id);
     await C.salvaCatalogo(stato); await C.eliminaFoto(id);
@@ -2087,7 +2087,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261125r');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261125t');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -2223,9 +2223,12 @@ function renderPannelloModificaMobile(m) {
     </section>` : ''}
     ${m.tipo === 'base-cassetti' ? (() => {
       const nc = Math.max(1, m.cassetti || 3), H = m.altezza_mm || 700;
-      const piccolo = !!m.cassettoPiccolo_mm && nc > 1;
+      const pers = altezzeCassettiDi(m);
+      const piccolo = !pers && !!m.cassettoPiccolo_mm && nc > 1;
       const golaC = golaSuMobile(progetto, m);
-      const alt = frontiCassetti(H, nc, piccolo ? m.cassettoPiccolo_mm : null, golaC);
+      const alt = frontiCassetti(H, nc, piccolo ? m.cassettoPiccolo_mm : null, golaC, pers);
+      const passoC = golaC ? spazioGola() : parametri().ante.ariaCassetti;
+      const diffC = pers ? H - pers.reduce((t, v) => t + Number(v), 0) : 0;
       return `
     <section class="step3-pannello">
       <h3>Cassetti</h3>
@@ -2235,9 +2238,18 @@ function renderPannelloModificaMobile(m) {
       </div>
       ${nc > 1 ? `
       <div class="opzioni-anta" style="margin-top:10px">
-        <button type="button" class="btn-ghost opt-cassdiv ${!piccolo ? 'attivo' : ''}" data-cassdiv="uguali">${!piccolo ? '✓ ' : ''}Tutti uguali</button>
+        <button type="button" class="btn-ghost opt-cassdiv ${!piccolo && !pers ? 'attivo' : ''}" data-cassdiv="uguali">${!piccolo && !pers ? '✓ ' : ''}Tutti uguali</button>
         <button type="button" class="btn-ghost opt-cassdiv ${piccolo ? 'attivo' : ''}" data-cassdiv="piccolo">${piccolo ? '✓ ' : ''}Uno piccolo in alto, gli altri uguali</button>
+        <button type="button" class="btn-ghost opt-cassdiv ${pers ? 'attivo' : ''}" data-cassdiv="pers">${pers ? '✓ ' : ''}Personalizzata (ogni cassetto la sua misura)</button>
       </div>
+      ${pers ? `
+      <div class="cass-pers">
+        ${pers.map((v, i) => `<label class="riga-3d">Cassetto ${i + 1}${i === 0 ? ' (in alto)' : i === nc - 1 ? ' (in basso)' : ''} (mm)
+          <input type="number" class="modale-num cass-alt-i" data-i="${i}" value="${v}" min="60" step="1" />
+          <small>frontale ${alt[i]} mm</small></label>`).join('')}
+      </div>
+      <div class="riga-3d" style="margin-top:6px;${diffC ? 'color:#ff9b8c' : ''}">Altezza del mobile: ${H} mm · scritto: ${H - diffC} mm${diffC === 0 ? ' ✓' : diffC > 0 ? ` · mancano ${diffC} mm` : ` · ${-diffC} mm in più`}</div>
+      <div class="riga-3d" style="margin-top:4px">Ogni frontale è la misura scritta meno ${golaC ? `lo spazio della gola (${passoC} mm)` : `l'aria dei Parametri (${passoC} mm)`}: es. 150 → ${150 - passoC}.</div>` : ''}
       ${piccolo ? `
       <div class="riga-3d" style="margin:8px 0 4px">Altezza del frontale piccolo (mm):</div>
       <input type="number" id="cass-piccolo" class="modale-num" value="${alt[0]}" min="60" step="1" style="width:100%" />` : ''}` : ''}
@@ -2272,7 +2284,21 @@ function renderPannelloModificaMobile(m) {
       </div>` : ''}
       <div class="riga-3d" style="margin-top:6px">${isBase
         ? 'Il pensile sopra questa base prende la stessa configurazione.'
-        : 'Ereditato dalla base sotto; puoi comunque modificarlo qui.'}</div>`}
+        : 'Ereditato dalla base sotto; puoi comunque modificarlo qui.'}</div>
+      ${m.tipo === 'base-ante' && !m.vetrina ? (() => {
+        const cs = cassettoSopraDi(m), H = m.altezza_mm || 700, gol = golaSuMobile(progetto, m);
+        const passo = gol ? spazioGola() : parametri().ante.ariaCassetti, aH = gol ? spazioGola() : parametri().ante.ariaAltezza;
+        return `
+      <div class="riga-3d" style="margin:12px 0 6px"><strong>Cassetto sopra l'anta</strong></div>
+      <div class="opzioni-anta">
+        <button type="button" class="btn-ghost opt-cassopra ${!cs ? 'attivo' : ''}" data-cassopra="no">${!cs ? '✓ ' : ''}Solo anta</button>
+        <button type="button" class="btn-ghost opt-cassopra ${cs ? 'attivo' : ''}" data-cassopra="si">${cs ? '✓ ' : ''}Cassetto + anta</button>
+      </div>
+      ${cs ? `
+      <label class="riga-3d" style="display:block;margin-top:8px">Spazio del cassetto (mm)
+        <input type="number" id="cassopra-h" class="modale-num" value="${cs}" min="80" step="1" style="width:100%" /></label>
+      <div class="riga-3d" style="margin-top:4px">Frontale del cassetto ${cs - passo} mm · anta ${H - cs - aH} mm (mobile ${H}: ${cs} + ${H - cs}, meno ${gol ? 'la gola' : "l'aria"}).</div>` : ''}`;
+      })() : ''}`}
       ${(() => {
         const v = apertoDi(m) ? null : m.vetrina;
         const op = (cl, attr, val, et, on) => `<button type="button" class="btn-ghost ${cl} ${on ? 'attivo' : ''}" ${attr}="${val}" style="flex:1;min-width:90px">${on ? '✓ ' : ''}${et}</button>`;
@@ -2548,12 +2574,21 @@ function renderPannelloModificaMobile(m) {
   pannello.querySelectorAll('.opt-ncass').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
     m.cassetti = Number(b.dataset.ncass);
+    if (Array.isArray(m.cassettiAltezze)) m.cassettiAltezze = spaziCassettiCucina(m.altezza_mm || 700, m.cassetti);
     aggiorna();
   }));
   pannello.querySelectorAll('.opt-cassdiv').forEach((b) => b.addEventListener('click', () => {
     registraStoria();
-    if (b.dataset.cassdiv === 'uguali') delete m.cassettoPiccolo_mm;
-    else m.cassettoPiccolo_mm = m.cassettoPiccolo_mm || 140;
+    if (b.dataset.cassdiv === 'uguali') { delete m.cassettoPiccolo_mm; delete m.cassettiAltezze; }
+    else if (b.dataset.cassdiv === 'pers') { delete m.cassettoPiccolo_mm; m.cassettiAltezze = spaziCassettiCucina(m.altezza_mm || 700, m.cassetti || 3); }
+    else { delete m.cassettiAltezze; m.cassettoPiccolo_mm = m.cassettoPiccolo_mm || 140; }
+    aggiorna();
+  }));
+  pannello.querySelectorAll('.cass-alt-i').forEach((inp) => inp.addEventListener('change', (e) => {
+    const i = Number(inp.dataset.i), v = Math.round(Number(e.target.value));
+    if (!(v > 0) || !Array.isArray(m.cassettiAltezze)) return;
+    registraStoria();
+    m.cassettiAltezze[i] = v;
     aggiorna();
   }));
   pannello.querySelector('#cass-piccolo')?.addEventListener('change', (e) => {
@@ -2561,6 +2596,18 @@ function renderPannelloModificaMobile(m) {
     if (!(v > 0)) return;
     registraStoria();
     m.cassettoPiccolo_mm = v;
+    aggiorna();
+  });
+  pannello.querySelectorAll('.opt-cassopra').forEach((b) => b.addEventListener('click', () => {
+    registraStoria();
+    if (b.dataset.cassopra === 'si') m.cassettoSopra_mm = m.cassettoSopra_mm || 150; else delete m.cassettoSopra_mm;
+    aggiorna();
+  }));
+  pannello.querySelector('#cassopra-h')?.addEventListener('change', (e) => {
+    const v = Math.round(Number(e.target.value));
+    if (!(v > 0)) return;
+    registraStoria();
+    m.cassettoSopra_mm = v;
     aggiorna();
   });
   pannello.querySelectorAll('.opt-nante').forEach((b) => b.addEventListener('click', () => {
@@ -3127,13 +3174,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261125r');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261125t');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261125r'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261125t'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

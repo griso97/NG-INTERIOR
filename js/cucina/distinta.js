@@ -12,11 +12,11 @@
 // =============================================================================
 
 import {
-  infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
+  altezzeCassettiDi, cassettoSopraDi, infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi,
-  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125r';
-import { parametri, tipoCassetto, pezziCassettoNostro } from '../parametri.js?v=20261125r';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125r';
+  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125t';
+import { parametri, tipoCassetto, pezziCassettoNostro } from '../parametri.js?v=20261125t';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125t';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -222,7 +222,7 @@ function pezziDiModulo(progetto, m) {
       const nc = Math.max(1, m.cassetti || 3);
       // FUGHE: una in più dei cassetti, da 2 mm; frontali per difetto. Tutti
       // uguali, oppure uno piccolo in alto e gli altri uguali.
-      const alt = frontiCassetti(H, nc, m.cassettoPiccolo_mm, gola);
+      const alt = frontiCassetti(H, nc, m.cassettoPiccolo_mm, gola, altezzeCassettiDi(m));
       const perH = new Map(); alt.forEach((h) => perH.set(h, (perH.get(h) || 0) + 1));
       for (const [hf, q] of perH) {
         const piccolo = m.cassettoPiccolo_mm && alt.length > 1 && hf === alt[0] && hf !== alt[1];
@@ -244,8 +244,18 @@ function pezziDiModulo(progetto, m) {
       const N = m.tipo === 'lavello' ? (L >= 600 ? 2 : 1) : anteDiMobile(m);
       // MOBILE CIECO D'ANGOLO: ante solo sulla parte libera (il resto è il pannello cieco, sotto)
       const fc = !apertoDi(m) && progetto.autoRegletta !== false ? fronteCieco(progetto, m) : null;
+      const cs = !fc ? cassettoSopraDi(m) : 0;
       if (apertoDi(m)) mobileAperto(pz, mod, progetto, m);          // APERTO: niente ante
       else if (fc) anteModulo(pz, mod, fc.liberoW, H, fc.nAnte, m.antaLato, altG, false, m.tipo === 'base-ante' ? m.vetrina : null, rJ, GN + ' · angolo, parte libera');
+      else if (cs) {
+        // CASSETTO SOPRA + ANTA SOTTO: il cassetto è lo spazio scritto meno l'aria (o la gola), l'anta il resto
+        const passoC = gola ? spazioGola() : parametri().ante.ariaCassetti;
+        const hC = cs - passoC;
+        pz.push({ modulo: mod, nome: `Fronte cassetto (sopra l'anta)${GN}${rJ ? ` · ${_nomeRid} (−${rJ} mm)` : ''}`, larghezza: round(L - aL), altezza: round(hC - rJ), spessore: SP, materiale: 'anta', quantita: 1 });
+        cassettoMelaminico(pz, mod, L, hC - rJ, 1, cassettiDelMobile(progetto, m));
+        const resto = H - cs;
+        anteModulo(pz, mod, L, resto, N, m.antaLato, gola ? altezzaAntaGola(resto) : null, false, null, rJ, GN + ' · sotto il cassetto');
+      }
       else anteModulo(pz, mod, L, H, N, m.antaLato, altG, false, m.tipo === 'base-ante' ? m.vetrina : null, rJ, GN);
       reglettaAngolo(pz, mod, progetto, m, H);
     }

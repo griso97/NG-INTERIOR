@@ -12,35 +12,35 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js?v=20261111x';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
-  calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
+  altezzeCassettiDi, cassettoSopraDi, calcolaVertici, dimMobile, categoriaTipo, frigoSottoAltillo, pannelliSottoPonte, spessorePannelloPonte, anteDiMobile, portaBassaColonna, frontiCassetti, gruppoPorte, sceltePorte, spFiancoColonna, altezzaVanoColonna, apertoDi, ripianiAperto, latoApertoDi, SP_PEZZI_APERTO, coloreParteAperto, ledAperto,
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
   costadoCopreAnte, costadoColonnaATerra, fronteCieco, piediniCucina, zoccoloColonnaDi, sporgenzaPiano, altezzaAlzatina, scendeAntaPensile,
   golaColonna, goleDiColonna, impostaProgettoFerramenta, spazioGola,
-} from './modello.js?v=20261125r';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261125r';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261125r';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261125r';
+} from './modello.js?v=20261125t';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261125t';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261125t';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261125t';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261125r').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261125t').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261125r';
-import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261125r';
-export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261125r';
-import { parametri } from '../parametri.js?v=20261125r';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261125r';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261125r';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261125r';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261125t';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261125t';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261125t';
+import { parametri } from '../parametri.js?v=20261125t';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261125t';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261125t';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261125t';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261125r';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261125t';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261125r';
+export { telaPavimento } from '../resa.js?v=20261125t';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -1865,13 +1865,13 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
     }
   }
 }
-function cassetti(g, w, h, d, n, matAnta, piccolo = null) {
+function cassetti(g, w, h, d, n, matAnta, piccolo = null, altezze = null) {
   const z = d / 2;
   const pushPrima = _push; _push = false;        // i CASSETTI non hanno mai il push: maniglia (o finger-pull)
   // Fughe da 2 mm, una in più dei cassetti; frontali tutti uguali oppure uno
   // piccolo in alto e gli altri uguali (stessa regola della distinta)
   const uw = w - FUGA_W, FC = FUGA_CASS;
-  const alt = frontiCassetti(h, n, piccolo, _golaQui);   // dall'alto in basso
+  const alt = frontiCassetti(h, n, piccolo, _golaQui, altezze);   // dall'alto in basso (uguali, uno piccolo o personalizzati)
   const rJ = _golaQui ? 0 : riduzioneJ();                // maniglia a J: ogni frontale si accorcia in alto
   // con la GOLA: 25 mm sopra il primo frontale e fra un frontale e l'altro (profili L e C)
   const passo = _golaQui ? G_GOLA : FC;
@@ -2514,7 +2514,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261125r')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261125t')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -2832,7 +2832,7 @@ function costruisciMobileCorpo(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   if (aperto) { mobileAperto(g, w, h, d, m, matAnta, coloreCorpo, latoAp, cat === 'pensile' ? (opt.sporg || 0) : 0); return g; }
   if (tipo === 'pensile-angolo-45') { pensileAngoloFronte(g, w, h, d, matAnta, opt.sporg || 0); return g; }
   if (cat === 'colonna') { _coloreCorpoCol = coloreCorpo; colonnaFronte(g, w, h, d, m, matAnta); return g; }
-  if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta, m.cassettoPiccolo_mm); return g; }
+  if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta, m.cassettoPiccolo_mm, altezzeCassettiDi(m)); return g; }
   if (tipo === 'lavello') { ante(g, w, h, d, w >= 600 ? 2 : 1, matAnta); return g; } // lavello disegnato sopra il top
   if (tipo === 'lavastoviglie') {
     // INTEGRATA: dietro un'anta come quelle dei mobili (con la sua maniglia); se no a vista
@@ -2841,6 +2841,15 @@ function costruisciMobileCorpo(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   }
   if (cat === 'lavatrice') { lavatriceFronte(g, w, h, d); return g; }
   if (tipo === 'forno') { fronteForno(g, w, h, d, matAnta); return g; } // placca sopra il top
+  // CASSETTO SOPRA + ANTA SOTTO (mobile basso): il cassetto come quelli delle cassettiere, l'anta nel resto
+  const cs = cat === 'base' && !(opt.cieco && opt.cieco.porte) ? cassettoSopraDi(m) : 0;
+  if (cs) {
+    const gC = new THREE.Group(); gC.position.y = (h - cs) / 2; g.add(gC);
+    cassetti(gC, w, cs, d, 1, matAnta, null, [cs]);
+    const gA = new THREE.Group(); gA.position.y = -cs / 2; g.add(gA);
+    ante(gA, w, h - cs, d, anteDiMobile(m), matAnta, false, m.antaLato);
+    return g;
+  }
   // base con ante / pensile (il pensile può avere l'anta sporgente sotto)
   _anteInBasso = cat === 'pensile' || cat === 'altillo';   // in alto: maniglia sotto
   _vetrina = vetrina;

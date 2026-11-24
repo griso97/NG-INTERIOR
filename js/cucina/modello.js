@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261125r';
+import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261125t';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -3054,9 +3054,15 @@ export function costadoColonnaATerra(progetto, m) {
  * - con un cassetto PICCOLO in alto (piccolo = sua altezza): gli altri si
  *   dividono in parti uguali lo spazio che resta.
  */
-export function frontiCassetti(H, n, piccolo = null, gola = false) {
+export function frontiCassetti(H, n, piccolo = null, gola = false, altezze = null) {
   n = Math.max(1, n || 3);
   const fc = parametri().ante.ariaCassetti;            // aria tra i frontali (⚙ Parametri)
+  // PERSONALIZZATA: il falegname scrive lo spazio di ogni cassetto (dall'alto); il frontale è quello
+  // meno l'aria dei Parametri (es. 150 → 148), con la gola meno lo spazio della gola
+  if (Array.isArray(altezze) && altezze.length === n && altezze.every((v) => Number(v) > 0)) {
+    const passo = gola ? spazioGola() : fc;
+    return altezze.map((v) => Math.max(20, Math.floor(Number(v) - passo)));
+  }
   // con la GOLA: sopra il primo frontale e fra un frontale e l'altro lo spazio della gola
   // (25 mm: profilo L sotto il piano, profilo C fra i cassetti); sotto niente aria (come l'anta: 700 − 25)
   const netto = gola ? H - n * spazioGola() : H - (n + 1) * fc;
@@ -3106,13 +3112,35 @@ export function golaSuMobile(progetto, m) {
 /** Altezza dell'anta con la gola: il modulo meno lo spazio della gola (700 → 675; 800 → 775). */
 export function altezzaAntaGola(H) { return Math.round(H - spazioGola()); }
 /**
+ * MOBILE BASSO CON CASSETTO SOPRA E ANTA SOTTO: lo spazio del cassetto (mm, scritto dal falegname) o 0.
+ * Il frontale del cassetto è quello meno l'aria (o la gola), l'anta è il resto del mobile meno l'aria.
+ */
+export function cassettoSopraDi(m) {
+  if (!m || m.tipo !== 'base-ante' || !(Number(m.cassettoSopra_mm) > 0) || (m.vetrina) || m.aperto) return 0;
+  const H = m.altezza_mm || 700;
+  return Math.round(Math.max(80, Math.min(Number(m.cassettoSopra_mm), H - 150)));
+}
+/** Cassetti di misure diverse del mobile (spazi dall'alto), o null se sono uguali / uno piccolo. */
+export function altezzeCassettiDi(m) {
+  const n = Math.max(1, (m && m.cassetti) || 3);
+  return m && Array.isArray(m.cassettiAltezze) && m.cassettiAltezze.length === n ? m.cassettiAltezze : null;
+}
+/** Spazi di partenza per «personalizzata»: tutti uguali, il resto all'ultimo (la somma è l'altezza del mobile). */
+export function spaziCassettiCucina(H, n) {
+  n = Math.max(1, n || 3);
+  const base = Math.floor(H / n);
+  return Array.from({ length: n }, (_, i) => (i === n - 1 ? H - base * (n - 1) : base));
+}
+/**
  * Dove passano i profili in un mobile alto H (mm dal fondo del mobile):
  * [{ tipo: 'L', y: cima }, { tipo: 'C', y: centro dello spazio fra due cassetti }, …]
  */
 export function righeGola(m, H) {
   const out = [{ tipo: 'L', y: H }];
+  const cs = cassettoSopraDi(m);
+  if (cs) out.push({ tipo: 'C', y: H - cs - spazioGola() / 2 });          // fra il cassetto e l'anta
   if (m && m.tipo === 'base-cassetti') {
-    const G = spazioGola(), alt = frontiCassetti(H, Math.max(1, m.cassetti || 3), m.cassettoPiccolo_mm, true);
+    const G = spazioGola(), alt = frontiCassetti(H, Math.max(1, m.cassetti || 3), m.cassettoPiccolo_mm, true, altezzeCassettiDi(m));
     let top = H - G;
     for (let i = 0; i < alt.length - 1; i++) { top -= alt[i]; out.push({ tipo: 'C', y: top - G / 2 }); top -= G; }
   }
