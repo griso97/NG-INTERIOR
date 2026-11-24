@@ -20,6 +20,9 @@ export const PARAMETRI_DEFAULT = Object.freeze({
     ariaTraAnte: 3,       // mm tra due ante dello stesso modulo
     ariaCassetti: 2,      // mm tra un frontale di cassetto e l'altro (e sopra e sotto)
   },
+  // FINGER-PULL (cucina, al posto della maniglia): 'fresato' = anta intera, la presa si scava nel bordo;
+  // 'profilo' = profilo in alluminio sul bordo dell'anta, che si accorcia di «profilo» mm
+  fingerPull: { tipo: 'fresato', profilo: 25 },
   manigliaJ: {
     spessore: 2,          // mm del profilo a J sopra l'anta: l'anta si accorcia di tanto (700 → 698 → 696)
   },
@@ -218,6 +221,7 @@ function completa(s) {
       ariaCassetti: Math.max(0, num(a.ariaCassetti, D.ante.ariaCassetti)),
     },
     manigliaJ: { spessore: Math.max(0, num(j.spessore, D.manigliaJ.spessore)) },
+    fingerPull: (() => { const f = (s && s.fingerPull) || {}; return { tipo: f.tipo === 'profilo' ? 'profilo' : 'fresato', profilo: Math.max(0, num(f.profilo, D.fingerPull.profilo)) }; })(),
     daImpostare: mancano,
     // saltate («lo imposto dopo»): restano a 0 finché non si impostano
     gola: compGola(go, 0),
@@ -306,6 +310,8 @@ export function binarioScorrevole(id, p = parametri()) {
 /** Tutti i sistemi di cassetti (il primo è quello di partenza). */
 export function sistemiCassetti(p = parametri()) { return [p.cassetti, ...p.cassettiAltri]; }
 /** Il sistema di cassetti scelto (per id); se non c'è più, quello di partenza. */
+/** FINGER-PULL con il profilo: di quanti mm si accorcia l'anta (0 = fresato, anta intera). */
+export function profiloFingerPull(p = parametri()) { return p.fingerPull.tipo === 'profilo' && p.fingerPull.profilo > 0 ? p.fingerPull.profilo : 0; }
 /** Misure della cassettiera dentro l'armadio ('battente' | 'scorrevole'). */
 export function cassettieraArmadio(tipo, p = parametri()) { return p.cassettieraArmadio[tipo === 'scorrevole' ? 'scorrevole' : 'battente']; }
 /** Nome nelle tendine: «Syskor (a sistema)», «Cassetto legno 16 (su misura)». */

@@ -17,30 +17,30 @@ import {
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
   costadoCopreAnte, costadoColonnaATerra, fronteCieco, piediniCucina, zoccoloColonnaDi, sporgenzaPiano, altezzaAlzatina, scendeAntaPensile,
   golaColonna, goleDiColonna, impostaProgettoFerramenta, spazioGola,
-} from './modello.js?v=20261125t';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261125t';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261125t';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261125t';
+} from './modello.js?v=20261125u';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261125u';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261125u';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261125u';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261125t').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261125u').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261125t';
-import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261125t';
-export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261125t';
-import { parametri } from '../parametri.js?v=20261125t';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261125t';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261125t';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261125t';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261125u';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261125u';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261125u';
+import { parametri, profiloFingerPull } from '../parametri.js?v=20261125u';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261125u';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261125u';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261125u';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261125t';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261125u';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261125t';
+export { telaPavimento } from '../resa.js?v=20261125u';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 const SP_TOP = 40;
@@ -1406,6 +1406,15 @@ function fpCat(fp, cat) {
 // nella realtà: il fronte è accorciato e in cima/di lato c'è il canale.
 // La faccia del fronte è a z+20; il fondo del canale è arretrato a z+6.
 const matCanaleOmbra = new THREE.MeshStandardMaterial({ color: 0x2b2b30, roughness: 1.0, metalness: 0 });
+// FINGER-PULL (⚙ Parametri): con il PROFILO l'anta è più corta e sul bordo c'è il profilo in alluminio;
+// FRESATO l'anta è intera e la presa è scavata nel bordo (si vede la riga d'ombra)
+const MAT_ALU_FP = new THREE.MeshStandardMaterial({ color: 0xc3c5c8, roughness: 0.35, metalness: 0.8 });
+function profiloFP() { return _fingerPull ? profiloFingerPull() : 0; }
+function segnoFresata(g, cx, cy, z, L, orizz) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(orizz ? L : 5, orizz ? 5 : L, 1), matCanaleOmbra);
+  m.position.set(cx, cy, z + 20.6);
+  g.add(m);
+}
 function canaleFingerPull(g, cx, cy, z, length, thick, orizz, matAnta, giu = false) {
   const L = Math.max(40, length);
   // Finger-pull da foto: la gola ha il suo materiale (es. nero), la porta il suo
@@ -1847,10 +1856,15 @@ function ante(g, w, h, d, n, matAnta, sporg, lato) {
     } else if (!sporg && _golaQui) {
       pannello(g, px, py, z, pw, ph, matAnta || COL.anta);        // GOLA: niente maniglia, si apre dalla gola
     } else if (!sporg && _fingerPull) {
-      // canale in alto nei mobili bassi; nei PENSILI in basso, rivolto verso il basso
-      const CH = 30, giu = _anteInBasso;
-      pannello(g, px, py + (giu ? CH / 2 : -CH / 2), z, pw, Math.max(60, ph - CH), matAnta || COL.anta);
-      canaleFingerPull(g, px, giu ? py - ph / 2 + CH / 2 : py + ph / 2 - CH / 2, z, pw, CH, true, matAnta, giu);
+      // in alto nei mobili bassi; nei PENSILI in basso, rivolto verso il basso
+      const CH = profiloFP(), giu = _anteInBasso;
+      if (CH) {
+        pannello(g, px, py + (giu ? CH / 2 : -CH / 2), z, pw, Math.max(60, ph - CH), matAnta || COL.anta);
+        canaleFingerPull(g, px, giu ? py - ph / 2 + CH / 2 : py + ph / 2 - CH / 2, z, pw, CH, true, MAT_ALU_FP, giu);
+      } else {
+        pannello(g, px, py, z, pw, ph, matAnta || COL.anta);
+        segnoFresata(g, px, giu ? py - ph / 2 + 3 : py + ph / 2 - 3, z, pw, true);
+      }
     } else {
       // MANIGLIA A J: il profilo sta sul bordo dell'anta (in alto sui bassi, in basso sui pensili)
       // e l'anta si accorcia del suo spessore (⚙ Parametri), proprio come in distinta
@@ -1883,9 +1897,14 @@ function cassetti(g, w, h, d, n, matAnta, piccolo = null, altezze = null) {
     if (_golaQui) {
       pannello(g, 0, py, z, uw, ph, matAnta || COL.cassetto);
     } else if (_fingerPull) {
-      const CH = Math.min(26, ph * 0.35);
-      pannello(g, 0, py - CH / 2, z, uw, Math.max(40, ph - CH), matAnta || COL.cassetto);
-      canaleFingerPull(g, 0, py + ph / 2 - CH / 2, z, uw, CH, true, matAnta);
+      const CH = profiloFP();
+      if (CH) {
+        pannello(g, 0, py - CH / 2, z, uw, Math.max(40, ph - CH), matAnta || COL.cassetto);
+        canaleFingerPull(g, 0, py + ph / 2 - CH / 2, z, uw, CH, true, MAT_ALU_FP);
+      } else {
+        pannello(g, 0, py, z, uw, ph, matAnta || COL.cassetto);
+        segnoFresata(g, 0, py + ph / 2 - 3, z, uw, true);
+      }
     } else {
       pannello(g, 0, py, z, uw, ph, matAnta || COL.cassetto);
       // profilo sul bordo: proprio sul bordo alto del frontale; le altre un po' sotto
@@ -1972,13 +1991,23 @@ function colonnaFronte(g, w, h, d, m, matAnta) {
         r.castShadow = true; r.receiveShadow = true; g.add(r);
       }
     } else if (c.fp && alto) {
-      const CH = 30;                                 // canale orizzontale sul bordo basso (si apre verso l'alto)
-      pannello(g, 0, cyc + CH / 2, z, pw, ph - CH, matAnta || COL.anta);
-      canaleFingerPull(g, 0, cyc - ph / 2 + CH / 2, z, pw, CH, true, matAnta, true);
+      const CH = profiloFP();                        // sul bordo basso (si apre verso l'alto)
+      if (CH) {
+        pannello(g, 0, cyc + CH / 2, z, pw, ph - CH, matAnta || COL.anta);
+        canaleFingerPull(g, 0, cyc - ph / 2 + CH / 2, z, pw, CH, true, MAT_ALU_FP, true);
+      } else {
+        pannello(g, 0, cyc, z, pw, ph, matAnta || COL.anta);
+        segnoFresata(g, 0, cyc - ph / 2 + 3, z, pw, true);
+      }
     } else if (c.fp) {
-      const CW = 30;                                 // larghezza del canale (dal lato della maniglia)
-      pannello(g, -s * CW / 2, cyc, z, pw - CW, ph, matAnta || COL.anta);
-      canaleFingerPull(g, s * (pw / 2 - CW / 2), cyc, z, ph, CW, false, matAnta);
+      const CW = profiloFP();                        // verticale, sul lato che apre
+      if (CW) {
+        pannello(g, -s * CW / 2, cyc, z, pw - CW, ph, matAnta || COL.anta);
+        canaleFingerPull(g, s * (pw / 2 - CW / 2), cyc, z, ph, CW, false, MAT_ALU_FP);
+      } else {
+        pannello(g, 0, cyc, z, pw, ph, matAnta || COL.anta);
+        segnoFresata(g, s * (pw / 2 - 3), cyc, z, ph, false);
+      }
     } else {
       pannello(g, xJ, yJ, z, pwJ, phJ, matAnta || COL.anta);
       if (alto) manigliaOrizzAnta(g, 0, yJ, pw, phJ, z, 0, false);
@@ -2514,7 +2543,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261125t')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261125u')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -2643,10 +2672,15 @@ function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, prof = PROFONDITA_PENS
     } else if (gola) {                               // GOLA: 25 mm sotto il piano, niente maniglia
       const v = vertAnta(h);
       pannello(gg, cx, v.py, z, aw, v.ph, matAnta || COL.anta);
-    } else if (_fingerPull) {                        // gola: in alto nella base, in basso nel pensile
-      const CH = 30, hA = h - FUGA_H;
-      pannello(gg, cx, basso ? -CH / 2 : CH / 2, z, aw, Math.max(60, hA - CH), matAnta || COL.anta);
-      canaleFingerPull(gg, cx, basso ? hA / 2 - CH / 2 : -hA / 2 + CH / 2, z, aw, CH, true, matAnta, !basso);
+    } else if (_fingerPull) {                        // in alto nella base, in basso nel pensile
+      const CH = profiloFP(), hA = h - FUGA_H;
+      if (CH) {
+        pannello(gg, cx, basso ? -CH / 2 : CH / 2, z, aw, Math.max(60, hA - CH), matAnta || COL.anta);
+        canaleFingerPull(gg, cx, basso ? hA / 2 - CH / 2 : -hA / 2 + CH / 2, z, aw, CH, true, MAT_ALU_FP, !basso);
+      } else {
+        pannello(gg, cx, 0, z, aw, hA, matAnta || COL.anta);
+        segnoFresata(gg, cx, basso ? hA / 2 - 3 : -hA / 2 + 3, z, aw, true);
+      }
     } else {
       // MANIGLIA A J: l'anta si accorcia del suo spessore dal lato della maniglia (in alto nella base,
       // in basso nel pensile), come in distinta

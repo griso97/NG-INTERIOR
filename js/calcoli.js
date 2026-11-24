@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261125t';
+import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261125u';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.

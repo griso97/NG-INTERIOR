@@ -14,9 +14,9 @@
 import {
   altezzeCassettiDi, cassettoSopraDi, infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi,
-  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125t';
-import { parametri, tipoCassetto, pezziCassettoNostro } from '../parametri.js?v=20261125t';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125t';
+  scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125u';
+import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull } from '../parametri.js?v=20261125u';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125u';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -41,7 +41,9 @@ const ariaH = () => parametri().ante.ariaAltezza, ariaL = () => parametri().ante
 /** Come si chiama la maniglia che accorcia l'anta (per la distinta). */
 let _nomeRid = 'maniglia a J';
 function riduzioneJ(scelte) {
-  if (!scelte || scelte.fp || scelte.push) return 0;
+  if (!scelte || scelte.push) return 0;
+  // FINGER-PULL con il profilo (⚙ Parametri): l'anta si accorcia del profilo; fresato: anta intera
+  if (scelte.fp) { const P = profiloFingerPull(); if (P) _nomeRid = 'profilo finger-pull'; return P; }
   const def = scelte.maniglia && typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === scelte.maniglia);
   if (!def || !['profilo', 'bordol'].includes(def.forma)) return 0;      // a J o profilo sul bordo
   _nomeRid = def.forma === 'bordol' ? 'maniglia sul bordo' : 'maniglia a J';
@@ -534,6 +536,17 @@ export function calcolaDistintaCucina(progetto) {
         materialeNome: nomeMateriale((progetto.coloriPonte || {}).pannello || (primo && primo.coloreFronte) || (progetto.coloriPonte || {}).ponte || col.colonna || col.pensile, 'Colore da scegliere'), quantita: 1 });
     }
   }
+  // FINGER-PULL FRESATO: sull'anta / sul frontale la nota della presa da fresare (con il profilo il nome
+  // dice già di quanto è più corto)
+  if (!profiloFingerPull()) {
+    const perIdF = new Map(mobili.map((m) => [m.id, m]));
+    for (const p of raw) {
+      if (!/^anta|^fronte cassetto/i.test(p.nome) || /sporgente/i.test(p.nome)) continue;
+      const m = perIdF.get(p.moduloId); if (!m) continue;
+      const sc = sceltePorte(progetto, m);
+      if (!sc.gola && (p.fp != null ? p.fp : sc.fp)) p.nome += ' · presa finger-pull da fresare';
+    }
+  }
   const aggMap = new Map();
   for (const p of raw) {
     const gruppo = gruppoPezzo(p);
@@ -602,6 +615,16 @@ export function calcolaDistintaCucina(progetto) {
     const cassetto = /^fronte cassetto/i.test(p.nome);           // i cassetti non hanno mai il push
     if (scelteDi(p).gola || fpDi(p) || (!cassetto && pushDi(p))) continue;
     aggiungi(`Maniglie · ${nomeManiglia(p)}`, p.quantita);
+  }
+  // PROFILO FINGER-PULL (⚙ Parametri): uno per anta / frontale, lungo come il suo bordo
+  // (sulle colonne con l'apertura di lato è verticale: lungo come l'anta)
+  {
+    const Pfp = profiloFingerPull();
+    if (Pfp) for (const p of raw) {
+      if (!/^anta|^fronte cassetto/i.test(p.nome) || /sporgente/i.test(p.nome) || scelteDi(p).gola || !fpDi(p)) continue;
+      const vert = (p.lato === 'sx' || p.lato === 'dx') && /^Anta (bassa|alta|intera)/.test(p.nome);
+      aggiungi(`Profilo finger-pull ${Pfp} mm · lungo ${Math.round(vert ? p.altezza : p.larghezza)} mm`, p.quantita);
+    }
   }
   // PUSH: per ogni porta un push pull e la sua base
   for (const p of raw) {
