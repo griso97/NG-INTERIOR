@@ -9,10 +9,11 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261125n';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261125n';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261125n';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261125n';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261125o';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261125o';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261125o';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261125o';
+import { lunghezzaManigliaModulare } from './calcoli.js?v=20261125o';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -175,7 +176,7 @@ function mobile(e, P, sp, matS, matA) {
   const n = e.ripiani || 0;
   for (let k = 1; k <= n; k++) {
     const yk = y0 + sC + (k * (hBasso - 2 * sC)) / (n + 1);
-    prisma(rett(x0 + sC, yk - sC / 2, x1 - sC, yk + sC / 2), zC, Pc - 10, matS);
+    prisma(rett(x0 + sC, yk - sC / 2, x1 - sC, yk + sC / 2), zC, Pc, matS);   // profondi come in distinta
   }
   // Ante (trapezi), 2 mm di fuga come in distinta, + maniglia
   const N = Math.max(0, Math.round(e.ante || 0));
@@ -195,7 +196,7 @@ function mobile(e, P, sp, matS, matA) {
       prisma(rel([[xa, y0 + 2], [xb, y0 + 2], [xb, yt(xb) - 2], [xa, yt(xa) - 2]]), 0, sA, matA, true, g);
       const xm = sx ? xa + 40 : xb - 52;
       const hDoor = Math.min(yt(xa), yt(xb)) - y0;
-      const lm = Math.min(220, hDoor * 0.35);
+      const lm = lunghezzaManigliaModulare(hDoor);                 // la stessa lunghezza della distinta
       const ym = y0 + Math.min(hDoor * 0.55, 1000);
       prisma(rel(rett(xm, ym - lm / 2, xm + 12, ym + lm / 2)), sA, 18, matMetallo, true, g);
       g.rotation.y = anteAperte ? (sx ? 1 : -1) * ANGOLO_APERTA : 0;

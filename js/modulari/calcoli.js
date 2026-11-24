@@ -197,8 +197,11 @@ export function geometriaChiusura(c, sp = SPESSORI_DEFAULT) {
     },
     misure: {
       fondo: uf, top: uf / Math.cos(alfa), fianco: hS - tv - sC,
-      schiena: { larghezza: schiena.larghezza, altezza: schiena.altezza },
-      anta: { larghezza: anta.larghezza, altezza: anta.altezza },
+      // il top arriva al muro basso (testata verticale contro il muro) o si appoggia sul fondo
+      topAlMuro: uf >= L - 0.01 && yt(L) > sC + 0.5, testataMuro: Math.max(0, yt(L) - sC),
+      // triangolo (3 punti) o trapezio (4 punti: il muro basso taglia la punta) + lato basso
+      schiena: { larghezza: schiena.larghezza, altezza: schiena.altezza, triangolo: schiena.pts.length === 3, bassa: schiena.pts.length === 3 ? 0 : schiena.pts[2][1] - 1 },
+      anta: { larghezza: anta.larghezza, altezza: anta.altezza, triangolo: anta.pts.length === 3, bassa: anta.pts.length === 3 ? 0 : anta.pts[2][1] - 2 },
     },
   };
 }
@@ -231,6 +234,12 @@ function fronteInclinato(larghezza, altezza, a, e, triangolo, bassa = 0) {
   return { larghezza: L, altezza: H, note: `${finito}${taglio} · ${ang}` };
 }
 
+/** Cerniere per anta dall'altezza (stessa regola degli armadi: 2 fino a 90 cm, 3 fino a 160, 4 fino a 200, 5 fino a 240, poi 6). */
+const cerniereAnta = (h) => (h <= 900 ? 2 : h <= 1600 ? 3 : h <= 2000 ? 4 : h <= 2400 ? 5 : 6);
+/** Maniglia disegnata nel 3D su ogni anta: barra lunga il 35% del lato basso dell'anta, al massimo 220 mm. */
+export const lunghezzaManigliaModulare = (hLatoBasso) => Math.round(Math.min(220, hLatoBasso * 0.35));
+const accessorio = (modulo, nome, quantita, extra = {}) => ({ modulo, nome, larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita, ...extra });
+
 /** Pezzi del modulo di chiusura. */
 export function pezziChiusura(ch, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFAULT) {
   const a = ch.angolo;
@@ -255,13 +264,20 @@ export function pezziChiusura(ch, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEF
     pz.push({ modulo: 'Chiusura triangolare', nome, larghezza: r0(larghezza), altezza: r0(altezza), spessore, materiale, quantita: 1, ...extra });
   add('Fondo', m.fondo, Pc, sC, 'carcassa');
   add('Top inclinato', m.top + abb.top, Pc, sC, 'carcassa', { parte: 'top', abbondanza: abb.top, angolo: a,
-    note: `finito ${fmtMm(m.top)} mm, tagliato +${abb.top} da rifilare · testata alta: ${noteBisello(a)} · testata bassa orizzontale, in appoggio sul fondo: lama ${gradi(90 - a)} (punta a ${gradi(a)})` });
+    note: `finito ${fmtMm(m.top)} mm, tagliato +${abb.top} da rifilare · testata alta: ${noteBisello(a)} · ${m.topAlMuro
+      ? `testata bassa verticale contro il muro (alta ${fmtMm(m.testataMuro)} mm)`
+      : `testata bassa orizzontale, in appoggio sul fondo: lama ${gradi(90 - a)} (punta a ${gradi(a)})`}` });
   add('Fianco lato alto', Pc, m.fianco + abb.fianchi, sC, 'carcassa', { parte: 'fianco', abbondanza: abb.fianchi, angolo: a,
     note: `finito ${fmtMm(m.fianco)} mm, tagliato +${abb.fianchi} da rifilare · bordo alto: ${noteBisello(a)}` });
-  add('Schiena triangolare', m.schiena.larghezza, m.schiena.altezza, sS, 'schiena', { note: `triangolo rettangolo: angolo di punta ${gradi(a)}, in alto ${gradi(90 - a)}` });
+  if (m.schiena.triangolo) add('Schiena triangolare', m.schiena.larghezza, m.schiena.altezza, sS, 'schiena', { note: `triangolo rettangolo: angolo di punta ${gradi(a)}, in alto ${gradi(90 - a)}` });
+  else add('Schiena a trapezio', m.schiena.larghezza, m.schiena.altezza, sS, 'schiena', { note: `lato basso ${r0(m.schiena.bassa)} mm · ${notePiano(a)}` });
   if (ante) {
-    const f = fronteInclinato(m.anta.larghezza, m.anta.altezza, a, abb.ante, true);
-    add('Anta triangolare (apertura a pressione)', f.larghezza, f.altezza, sA, 'ante', { note: f.note, parte: 'anta', abbondanza: abb.ante, angolo: a });
+    const tri = m.anta.triangolo;
+    const f = fronteInclinato(m.anta.larghezza, m.anta.altezza, a, abb.ante, tri, m.anta.bassa);
+    const lato = ch.daSinistra ? 'sinistra' : 'destra';
+    add(`Anta ${tri ? 'triangolare' : 'a trapezio'} (apertura a pressione) · cerniere sul lato alto (${lato})`, f.larghezza, f.altezza, sA, 'ante', { note: f.note, parte: 'anta', abbondanza: abb.ante, angolo: a });
+    pz.push(accessorio('Chiusura triangolare', 'Cerniere per anta', cerniereAnta(m.anta.altezza)));
+    pz.push(accessorio('Chiusura triangolare', 'Apertura a pressione (push)', 1));
   }
   return pz;
 }
@@ -307,14 +323,21 @@ export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFA
     const la = (L - (N + 1) * 2) / N;
     // Altezza dell'anta = altezza del modulo in quel punto − 4 (come negli armadi)
     const hA = (x) => (hL + ((hR - hL) * x) / L) - 4;
-    const conta = new Map();
+    const conta = new Map(), maniglie = new Map();
+    let cerniere = 0;
     for (let i = 0; i < N; i++) {
       const xa = 2 + i * (la + 2), xb = xa + la;
       const a = hA(xa), b = hA(xb);
       const alta = Math.max(a, b), bassa = Math.min(a, b);
+      // cerniere come nel 3D: 1 anta → dal lato opposto alla maniglia; più ante → la 2ª a destra, le altre a sinistra
+      const cerDx = N === 1 ? mod.lato === 'sx' : i === 1;
+      const latoCer = cerDx ? 'destra' : 'sinistra';
       const nome = !inclinato
-        ? (N === 1 ? `Anta (apertura ${mod.lato === 'sx' ? 'sx' : 'dx'})` : 'Anta')
-        : 'Anta trapezio';
+        ? (N === 1 ? `Anta (apertura ${mod.lato === 'sx' ? 'sx' : 'dx'})` : `Anta · cerniere a ${latoCer}`)
+        : `Anta trapezio · cerniere a ${latoCer} (lato ${cerDx === (hR > hL) ? 'alto' : 'basso'})`;
+      cerniere += cerniereAnta(alta);
+      const lm = lunghezzaManigliaModulare(bassa + 4);
+      maniglie.set(lm, (maniglie.get(lm) || 0) + 1);
       const f = inclinato ? fronteInclinato(la, alta, ang, abb.ante, false, bassa) : null;
       const k = `${nome}|${r0(alta)}|${f ? f.note : ''}`;
       if (!conta.has(k)) conta.set(k, { nome, alta, f, q: 0 });
@@ -324,6 +347,9 @@ export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFA
       if (f) add(nome, f.larghezza, f.altezza, sA, 'ante', q, { note: f.note, parte: 'anta', abbondanza: abb.ante, angolo: ang });
       else add(nome, la, alta, sA, 'ante', q);
     }
+    // ferramenta che si vede nel 3D: cerniere e maniglie
+    pz.push(accessorio(mod.nome, 'Cerniere per anta', cerniere));
+    for (const [lm, q] of maniglie) pz.push(accessorio(mod.nome, `Maniglia a barra · ${lm} mm`, q));
   }
   return pz;
 }
@@ -449,13 +475,13 @@ export function distintaModulari(forma, stato) {
     if (lay.chiusura) chiusura = lay.chiusura;
   }
   // ogni pezzo con la sua finitura (id): ante → finitura ante, il resto → struttura
-  const conFinitura = (pz, chiave) => pz.map((p) => ({ ...p, finitura: finitureDi(stato.materiali, chiave)[p.materiale === 'ante' ? 'ante' : 'struttura'] }));
+  const conFinitura = (pz, chiave) => pz.map((p) => (p.materiale === 'accessorio' ? p : { ...p, finitura: finitureDi(stato.materiali, chiave)[p.materiale === 'ante' ? 'ante' : 'struttura'] }));
   const abb = abbondanzaDi(stato);
   for (const e of elementi) pezzi.push(...conFinitura(pezziModulo(e, P, sp, abb), e.chiave));
   if (chiusura) pezzi.push(...conFinitura(pezziChiusura(chiusura, P, sp, abb), 'chiusura'));
   let mq = { carcassa: 0, schiena: 0, ante: 0 };
   let totale = 0;
-  for (const p of pezzi) { mq[p.materiale] += (p.larghezza * p.altezza * p.quantita) / 1e6; totale += p.quantita; }
+  for (const p of pezzi) { if (!(p.materiale in mq)) continue; mq[p.materiale] += (p.larghezza * p.altezza * p.quantita) / 1e6; totale += p.quantita; }
   // Avviso: per ogni modulo inclinato quali pezzi sono più lunghi e di quanto
   const perMod = new Map();
   for (const p of pezzi) {
