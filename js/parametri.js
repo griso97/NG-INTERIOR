@@ -54,6 +54,10 @@ export const PARAMETRI_DEFAULT = Object.freeze({
     // (72, 92 o personalizzata) sotto si aggiungono da soli i mm in più (92 → 115)
     cernieraSopra: 95,
     cernieraSotto: 95,
+    // CIAFLAN (pensile d'angolo a L con le due ante unite): anta grande = lato − profondità pensile − aria;
+    // anta piccola = la stessa misura − spessore dell'anta (regletta) − giunto. 63×63 → 295 e 276
+    ciaflanAria: 5,
+    ciaflanGiunto: 1,
     alzatina: false,
     altezzaAlzatina: 100,
   },
@@ -240,6 +244,8 @@ function completa(s) {
       // (prima c'era un numero solo per sopra e sotto: vale per tutti e due)
       cernieraSopra: Math.max(20, Math.min(300, num(k.cernieraSopra, num(k.cerniera, d.cernieraSopra)))),
       cernieraSotto: Math.max(20, Math.min(300, num(k.cernieraSotto, num(k.cerniera, d.cernieraSotto)))),
+      ciaflanAria: Math.max(0, Math.min(50, num(k.ciaflanAria, d.ciaflanAria))),
+      ciaflanGiunto: Math.max(0, Math.min(20, num(k.ciaflanGiunto, d.ciaflanGiunto))),
     }; })(),
     armadi: (() => { const a = (s && s.armadi) || {}, d = D.armadi; return {
       setup: Number(a.setup) === 2 ? 2 : 1,

@@ -14,10 +14,10 @@
 import {
   altezzeCassettiDi, cassettoSopraDi, infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi, zoccoliContinui,
-  altezzaAlzatina, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125w';
-import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull } from '../parametri.js?v=20261125w';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125w';
-import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261125w';
+  altezzaAlzatina, anteCiaflan, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125x';
+import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull } from '../parametri.js?v=20261125x';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125x';
+import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261125x';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -258,14 +258,19 @@ function pezziDiModulo(progetto, m) {
   } else if (cat === 'pensile') {
     if (m.tipo === 'pensile-angolo' || m.tipo === 'pensile-angolo-45') {
       // pensile angolo a L: un'anta per braccio, larga lato − profondità del pensile − fuga (63 − 33 − 0,3 = 29,7)
-      const dm = dimMobile(m);
-      const lati = m.tipo === 'pensile-angolo-45' ? [round(L * 0.5)]
+      // CIAFLAN: le due ante unite nell'angolo, la grande fino all'angolo e la piccola contro di lei
+      // (63×63 → 295 e 276: anteCiaflan, come nel 3D)
+      const dm = dimMobile(m), cf = m.tipo === 'pensile-angolo-45' ? anteCiaflan(m) : null;
+      const lati = cf ? [cf.grande, cf.piccola]
         : [round(dm.w - PROFONDITA_PENSILE - aL), round(dm.d - PROFONDITA_PENSILE - aL)];
+      const nomi = cf ? [' Ciaflan grande (fino all\'angolo)', ' Ciaflan piccola (contro l\'anta grande)'] : ['', ''];
       // con l'anta sporgente (70 → 72, 90 → 92 o personalizzata) anche qui l'anta scende, come nel 3D
       const scA = scendeAntaPensile(progetto, H), K = parametri().cucina;
-      for (const aw of lati[1] === lati[0] ? [lati[0]] : lati)
-      pz.push({ modulo: mod, nome: scA ? 'Anta sporgente' : 'Anta', larghezza: Math.max(100, aw), altezza: scA ? round(H + scA) : round(H - aH - rJ), spessore: SP, materiale: 'anta', quantita: m.tipo === 'pensile-angolo-45' ? 1 : lati.length === 2 && lati[1] === lati[0] ? 2 : 1,
-        cerniere: notaCerniere(K.cernieraSopra, K.cernieraSotto + (scA || 0), null) });
+      const uguali = !cf && lati[1] === lati[0];
+      (uguali ? [0] : [0, 1]).forEach((i) => {
+        pz.push({ modulo: mod, nome: (scA ? 'Anta sporgente' : 'Anta') + nomi[i], larghezza: Math.max(100, lati[i]), altezza: scA ? round(H + scA) : round(H - aH - rJ), spessore: SP, materiale: 'anta', quantita: uguali ? 2 : 1,
+          cerniere: notaCerniere(K.cernieraSopra, K.cernieraSotto + (scA || 0), null) });
+      });
     } else {
       // Pensile: con l'anta sporgente la porta è H + quanto scende (70 → 72, 90 → 92, o personalizzata), altrimenti H − 2.
       const sporg = scendeAntaPensile(progetto, H);

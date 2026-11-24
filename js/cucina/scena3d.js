@@ -16,36 +16,36 @@ import {
   golaSuMobile, golaProgetto, righeGola, GOLA_PROF,
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
   costadoCopreAnte, fronteCieco, piediniCucina, zoccoloColonnaDi, scendeAntaPensile,
-  golaColonna, goleDiColonna, impostaProgettoFerramenta, spazioGola, zoccoliContinui,
-} from './modello.js?v=20261125w';
+  golaColonna, goleDiColonna, impostaProgettoFerramenta, spazioGola, zoccoliContinui, pensileAdL, anteCiaflan,
+} from './modello.js?v=20261125x';
 import {
   MONTAGGIO_PENSILE, SP_TOP, SP_SCHIENALE, spessorePianoDi, baseAltillo, siSovrappongono, fondoPonteSopra, quoteAlte,
   dimVasca, dimPlacca, fuochiPerLarghezza, distSegmento, basePensile, cimePensili as cimeDeiPensili, quoteCostado,
   lastrePiano, ledCucina,
-} from './geometria.js?v=20261125w';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261125w';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261125w';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261125w';
+} from './geometria.js?v=20261125x';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261125x';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261125x';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261125x';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261125w').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261125x').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261125w';
-import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261125w';
-export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261125w';
-import { parametri, profiloFingerPull } from '../parametri.js?v=20261125w';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261125w';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261125w';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261125w';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261125x';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261125x';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261125x';
+import { parametri, profiloFingerPull } from '../parametri.js?v=20261125x';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261125x';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261125x';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261125x';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261125w';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261125x';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261125w';
+export { telaPavimento } from '../resa.js?v=20261125x';
 
 export { MONTAGGIO_PENSILE };              // altezza da terra del basso dei pensili (geometria.js)
 // Zoccolo (piedini) in base all'altezza della porta:
@@ -2408,7 +2408,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261125w')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261125x')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -2464,8 +2464,9 @@ function costruisciLedContinui(progetto) {
  * sul fronte interno di ogni braccio. L'angolo pieno sta verso il retro-
  * sinistra (lato muri); l'utente ruota il modulo per l'angolo giusto.
  */
-function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, prof = PROFONDITA_PENSILE, basso = false, sporg = false) {
+function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, prof = PROFONDITA_PENSILE, basso = false, sporg = false, ciaflan = null) {
   // prof = profondità di ogni braccio (pensile 330, base 600); basso = base angolo
+  // ciaflan = { grande, piccola, aria, sp, giunto }: CIAFLAN, le due ante unite nell'angolo (anteCiaflan)
   const matCorpo = (coloreCorpo && coloreCorpo.isMaterial) ? coloreCorpo
     : new THREE.MeshStandardMaterial({ color: coloreCorpo, roughness: 0.7, metalness: 0.05 });
   // GOLA (base angolo): in cima il fronte di ogni braccio rientra per il profilo L
@@ -2514,42 +2515,29 @@ function pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, prof = PROFONDITA_PENS
       manigliaOrizzAnta(gg, cx, yA, aw, hA, z, verso, basso);
     }
   };
-  anta(g, antaAcx, zA, antaAw - FUGA_W, 1);                // maniglie verso l'esterno, non nell'angolo
-  // Anta B: sul fronte del braccio B (+x), in un subgruppo ruotato +90°.
   const subB = new THREE.Group();
   const antaBw = d - prof;
-  anta(subB, 0, 0, antaBw - FUGA_W, -1);
-  subB.rotation.y = Math.PI / 2;                     // fronte +z locale → +x mondo
-  subB.position.set(-w / 2 + prof, 0, (-d / 2 + prof + d / 2) / 2);
+  if (ciaflan) {
+    // CIAFLAN: l'anta GRANDE (braccio A) arriva fino all'angolo e ne copre il bordo; la PICCOLA (braccio B)
+    // si ferma contro di lei (spessore dell'anta + giunto); tutte e due a «aria» dal lato libero
+    const x0 = -w / 2 + prof;
+    anta(g, x0 + ciaflan.grande / 2, zA, ciaflan.grande, 1);
+    anta(subB, 0, 0, ciaflan.piccola, -1);
+    subB.rotation.y = Math.PI / 2;
+    subB.position.set(x0, 0, d / 2 - ciaflan.aria - ciaflan.piccola / 2);
+  } else {
+    anta(g, antaAcx, zA, antaAw - FUGA_W, 1);                // maniglie verso l'esterno, non nell'angolo
+    // Anta B: sul fronte del braccio B (+x), in un subgruppo ruotato +90°.
+    anta(subB, 0, 0, antaBw - FUGA_W, -1);
+    subB.rotation.y = Math.PI / 2;                     // fronte +z locale → +x mondo
+    subB.position.set(-w / 2 + prof, 0, (-d / 2 + prof + d / 2) / 2);
+  }
   g.add(subB);
   if (gola) {
     // profili L dei due fronti: arrivano fino all'angolo interno (dove si incontrano)
     profiloGola(g, 'L', -w / 2 + prof - R, w / 2, h / 2, zA);
     profiloGola(subB, 'L', -antaBw / 2, antaBw / 2 + R, h / 2, 0);
   }
-}
-
-/** Pensile ad angolo (63×63): cassa quadrata + anta diagonale a 45°. */
-function pensileAngoloFronte(g, w, h, d, matAnta, sporg = 0) {
-  const mat = (matAnta && matAnta.isMaterial)
-    ? matAnta
-    : new THREE.MeshStandardMaterial({ color: COL.anta, roughness: 0.6, metalness: 0.08 });
-  const diag = Math.min(w, d) * 1.18;              // larghezza anta diagonale
-  // anta sporgente sotto (come gli altri pensili): alta h + quanto scende, si apre da sotto (niente maniglia)
-  const sc = Math.max(0, Number(sporg) || 0);
-  const geo = new THREE.BoxGeometry(diag, sc ? h + sc : h - FUGA_H, 18);
-  const porta = new THREE.Mesh(geo, mat);
-  porta.rotation.y = -Math.PI / 4;                 // fronte verso l'angolo stanza
-  porta.position.set(w * 0.16, sc ? -sc / 2 : 0, d * 0.16);
-  g.add(porta);
-  const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), matOro);
-  e.position.copy(porta.position); e.rotation.copy(porta.rotation); g.add(e);
-  // Maniglia verticale sul fronte diagonale
-  const nx = Math.sin(Math.PI / 4), nz = Math.cos(Math.PI / 4);  // normale anta
-  const man = new THREE.Mesh(new THREE.BoxGeometry(16, Math.min(300, (h - FUGA_H) * 0.45), 16), matManigliaScelta());
-  man.visible = !_push && !sc;
-  man.position.set(w * 0.16 + nx * 16 - 120 * nz, 0, d * 0.16 + nz * 16 + 120 * nx);
-  g.add(man);
 }
 
 /**
@@ -2666,6 +2654,8 @@ function costruisciMobileCorpo(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   }
   // Pensile angolo a L: corpo a L (due bracci), non il box quadrato.
   if (tipo === 'pensile-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, PROFONDITA_PENSILE, false, opt.sporg || 0); return g; }
+  // CIAFLAN: a L come il pensile angolo, con le due ante unite nell'angolo (misure di anteCiaflan, come in distinta)
+  if (tipo === 'pensile-angolo-45') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, PROFONDITA_PENSILE, false, opt.sporg || 0, anteCiaflan(m || { tipo, larghezza_mm: w, profondita_mm: d })); return g; }
   if (tipo === 'base-angolo') { pensileAngoloL(g, w, h, d, coloreCorpo, matAnta, Math.min((m && m.profBraccio_mm) || PROFONDITA_BASE, Math.min(w, d) - 10), true); return g; }
   // Colonna con VANO APERTO: carcassa a fronte aperto (si vede dentro);
   // le altre colonne/mobili restano scatola piena.
@@ -2689,7 +2679,6 @@ function costruisciMobileCorpo(cat, tipo, m, w, h, d, matAnta, opt = {}) {
   if (cat === 'regletta') return g;
   if (opt.cieco && (opt.cieco.coperto || (opt.cieco.porte && !aperto && (tipo === 'base-ante' || tipo === 'lavello')))) { anteCieche(g, w, h, d, matAnta, opt.cieco); return g; }
   if (aperto) { mobileAperto(g, w, h, d, m, matAnta, coloreCorpo, latoAp, cat === 'pensile' ? (opt.sporg || 0) : 0); return g; }
-  if (tipo === 'pensile-angolo-45') { pensileAngoloFronte(g, w, h, d, matAnta, opt.sporg || 0); return g; }
   if (cat === 'colonna') { _coloreCorpoCol = coloreCorpo; colonnaFronte(g, w, h, d, m, matAnta); return g; }
   if (tipo === 'base-cassetti') { cassetti(g, w, h, d, Math.max(1, m.cassetti || 3), matAnta, m.cassettoPiccolo_mm, altezzeCassettiDi(m)); return g; }
   if (tipo === 'lavello') { ante(g, w, h, d, w >= 600 ? 2 : 1, matAnta); return g; } // lavello disegnato sopra il top
@@ -3025,8 +3014,8 @@ function costruisciScena3d(progetto, reframe = false, selezionato = null) {
         { sporg, porte: gruppoPorte(progetto, m).proprio ? sceltePorte(progetto, m) : null });
       cimeAlte.set(m.id, base + h);
       // (LED sotto i pensili: ledCucina in geometria.js, disegnati alla fine in costruisciLedContinui)
-      if (m.tipo === 'pensile-angolo') {
-        // La L è asimmetrica: il 3D usa -rot e la pianta +rot, quindi con
+      if (pensileAdL(m.tipo)) {
+        // La L è asimmetrica (pensile angolo e Ciaflan): il 3D usa -rot e la pianta +rot, quindi con
         // collocaMobile apparirebbe specchiata/girata agli angoli ruotati
         // (90/270). Uso +rot così la L 3D combacia con la pianta.
         gPens.position.set(cx, base + h / 2, cz);

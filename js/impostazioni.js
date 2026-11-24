@@ -8,22 +8,22 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261125w';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261125w';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261125w';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261125w';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261125w';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261125w';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261125w';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261125w';
-import { agganciaTema } from './tema.js?v=20261125w';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261125w';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro } from './parametri.js?v=20261125w';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261125w';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261125w';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261125w';
-import { geometriaCassettiera } from './calcoli.js?v=20261125w';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261125w';
+} from './catalogo.js?v=20261125x';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261125x';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261125x';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261125x';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261125x';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261125x';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261125x';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261125x';
+import { agganciaTema } from './tema.js?v=20261125x';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261125x';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro } from './parametri.js?v=20261125x';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261125x';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261125x';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261125x';
+import { geometriaCassettiera } from './calcoli.js?v=20261125x';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261125x';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1259,6 +1259,15 @@ function renderParametri(S) {
       ${fig('regletta', 'Schema: l\'angolo visto da sopra', [['img/guida/regletta-angolo.jpg', 'Come si vede nel 3D del programma']])}
       <p class="imp-desc">Vale per le cucine nuove; in una cucina già fatta la cambi toccando il mobile dell'angolo.</p>
     </div>
+    <div class="par-gruppo">
+      <h3>Ciaflan (pensile d'angolo con le due ante unite)</h3>
+      <p class="imp-desc">L'anta grande arriva fino all'angolo: lato − profondità del pensile − l'aria sul lato libero. L'anta piccola si ferma contro la grande: la stessa misura − lo spessore dell'anta (quello della regletta d'angolo) − il giunto.</p>
+      <div class="par-griglia">
+        ${campo('cucina.ciaflanAria', 'Aria sul lato libero', 'si toglie a tutte e due le ante (di partenza 5)')}
+        ${campo('cucina.ciaflanGiunto', 'Giunto fra le due ante', 'in più dello spessore dell\'anta, solo sull\'anta piccola (di partenza 1)')}
+      </div>
+      <div class="par-esempio" id="par-es-ciaflan" data-no-i18n></div>
+    </div>
     ${gruppoCassetti('cucina')}
     </div>
     <div class="par-scheda" data-scheda="battente" ${_schedaPar === 'battente' ? '' : 'hidden'}>
@@ -1343,6 +1352,8 @@ function renderParametri(S) {
         ? tr(`Esempio: anta da 700 → 700 − ${f(A.ariaAltezza)} − ${f(F.profilo)} = ${f(700 - A.ariaAltezza - F.profilo)} mm + profilo da ${f(F.profilo)} lungo come l'anta`)
         : tr(`Esempio: anta da 700 → ${f(700 - A.ariaAltezza)} mm intera, con la presa da fresare nel bordo`); }
     { const K = Q.cucina; el.querySelector('#par-es-cern').textContent = tr(`Esempio: anta da 70 → cerniere a ${f(K.cernieraSopra)} mm da sopra e ${f(K.cernieraSotto)} mm da sotto · anta da 72 (scende 20 mm in più) → ${f(K.cernieraSopra)} da sopra e ${f(K.cernieraSotto + 20)} da sotto`); }
+    { const K = Q.cucina, sp = Q.regletta.spessoreAnta, g = 630 - 330 - K.ciaflanAria;
+      el.querySelector('#par-es-ciaflan').textContent = tr(`Esempio: Ciaflan 63 × 63 con pensili da 33 → anta grande ${f(630 - 330)} − ${f(K.ciaflanAria)} = ${f(g)} mm, anta piccola ${f(g)} − ${f(sp)} − ${f(K.ciaflanGiunto)} = ${f(g - sp - K.ciaflanGiunto)} mm`); }
     { const R = Q.regletta; el.querySelector('#par-es-reg').textContent = tr(`Esempio: regletta ${f(R.vista / 10)} × ${f(R.vista / 10)} cm con ante da ${f(R.spessoreAnta)} → pezzi da ${f(R.vista)} e ${f(R.vista + R.spessoreAnta)} mm`); }
     const tL = f(600 - c.traseraMeno), tipi = [[c.piccoloTrasera, 'piccolo'], [c.medioTrasera, 'medio'], [c.grandeTrasera, 'grande']].filter(([h]) => h);
     Q.binari.forEach((b, i) => {

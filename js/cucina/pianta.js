@@ -8,10 +8,10 @@
 
 import {
   calcolaVertici, bboxPerimetro,
-  moduliDiParete, nomeTipo, PROFONDITA_BASE, PROFONDITA_PENSILE, angoloInterno,
+  moduliDiParete, nomeTipo, PROFONDITA_BASE, PROFONDITA_PENSILE, angoloInterno, pensileAdL,
   profonditaTipo, categoriaTipo, descrizioneMobile,
   dimMobile, liberoPareti, livelloDiMobile, spaziTraMobili, spaziDiChiusura, angoloInternoVertice, rettangoloSoffitto,
-} from './modello.js?v=20261125w';
+} from './modello.js?v=20261125x';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -432,7 +432,7 @@ function renderMobileLibero(m, selezionato, interattivo, bloccato = false) {
   // Pensile angolo a L: contorno a 6 vertici (incavo fronte-destra), coerente
   // con la geometria 3D a L. Gli altri mobili: rettangolo a 4 vertici.
   let cornersLocali;
-  const profL = m.tipo === 'pensile-angolo' ? PROFONDITA_PENSILE : m.tipo === 'base-angolo' ? Math.min(m.profBraccio_mm || PROFONDITA_BASE, Math.min(hw, hd) * 2 - 10) : 0;
+  const profL = pensileAdL(m.tipo) ? PROFONDITA_PENSILE : m.tipo === 'base-angolo' ? Math.min(m.profBraccio_mm || PROFONDITA_BASE, Math.min(hw, hd) * 2 - 10) : 0;
   if (profL) {
     const prof = profL;
     const xi = -hw + prof, yi = hd - prof;
