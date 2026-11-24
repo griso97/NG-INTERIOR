@@ -13,11 +13,11 @@
 
 import {
   altezzeCassettiDi, cassettoSopraDi, infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
-  costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi, zoccoliContinui,
-  altezzaAlzatina, antePensileAngolo, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125y';
-import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull } from '../parametri.js?v=20261125y';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125y';
-import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261125y';
+  costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi, zoccoliContinui, angoliZoccolo,
+  altezzaAlzatina, antePensileAngolo, antaCiaflan, MODULI_SPECIALI, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261125z';
+import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull } from '../parametri.js?v=20261125z';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261125z';
+import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261125z';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -260,8 +260,11 @@ function pezziDiModulo(progetto, m) {
       // PENSILE ANGOLO a L: le due ante si incontrano nell'angolo, la grande fino all'angolo e la piccola
       // contro di lei (63×63 → 295 e 276: antePensileAngolo, come nel 3D). CIAFLAN: un'anta sola
       const pa = m.tipo === 'pensile-angolo' ? antePensileAngolo(m) : null;
-      const lati = pa ? [pa.grande, pa.piccola] : [round(L * 0.5)];
-      const nomi = pa ? [' grande (fino all\'angolo)', ' piccola (contro l\'anta grande)'] : [''];
+      // CIAFLAN: un'anta sola in diagonale, larga come scritto per il mobile o nei ⚙ Parametri (come nel 3D)
+      const lati = pa ? [pa.grande, pa.piccola] : [antaCiaflan(m).anta];
+      // MODULO SPECIALE: misure da controllare, cambiano da una marca all'altra
+      const avv = ' · ⚠ misura da controllare (cambia da marca a marca)';
+      const nomi = pa ? [' grande (fino all\'angolo)' + avv, ' piccola (contro l\'anta grande)' + avv] : [' Ciaflan (in diagonale)' + avv];
       // con l'anta sporgente (70 → 72, 90 → 92 o personalizzata) anche qui l'anta scende, come nel 3D
       const scA = scendeAntaPensile(progetto, H), K = parametri().cucina;
       lati.forEach((_, i) => {
@@ -452,33 +455,6 @@ function gruppoModulo(cat) {
   return null;
 }
 
-/**
- * Angoli a 90° dello zoccolo: dove due file di moduli a terra con direzioni
- * diverse (cucine a L / U) si toccano, lo zoccolo gira → 1 angolo.
- * Ogni fila = moduli contigui con la stessa rotazione e sulla stessa linea.
- */
-function angoliZoccolo(mobili) {
-  const aTerra = mobili.filter((m) => { const c = categoriaTipo(m.tipo); return c === 'base' || c === 'colonna' || c === 'lavastoviglie' || c === 'lavatrice'; });
-  const rotN = (r) => ((Math.round((r || 0) / 90) * 90) % 360 + 360) % 360;
-  // ingombro in pianta di ogni modulo (rettangolo allineato agli assi)
-  const box = (m) => { const d = dimMobile(m); const r = rotN(m.rot) % 180 === 0; const w = r ? d.w : d.d, h = r ? d.d : d.w;
-    return { x0: m.x - w / 2, x1: m.x + w / 2, y0: m.y - h / 2, y1: m.y + h / 2, rot: rotN(m.rot) }; };
-  // file: unisco i moduli con la stessa rotazione che si toccano
-  const file = [];
-  for (const b of aTerra.map(box)) {
-    const f = file.find((F) => F.rot === b.rot && F.items.some((q) => Math.max(q.x0, b.x0) - Math.min(q.x1, b.x1) < 60 && Math.max(q.y0, b.y0) - Math.min(q.y1, b.y1) < 60));
-    if (f) f.items.push(b); else file.push({ rot: b.rot, items: [b] });
-  }
-  let angoli = 0;
-  for (let i = 0; i < file.length; i++) for (let j = i + 1; j < file.length; j++) {
-    if ((file[i].rot - file[j].rot + 360) % 180 === 0) continue;       // stessa direzione: niente angolo
-    const tocca = file[i].items.some((a) => file[j].items.some((b) =>
-      Math.max(a.x0, b.x0) - Math.min(a.x1, b.x1) < 60 && Math.max(a.y0, b.y0) - Math.min(a.y1, b.y1) < 60));
-    if (tocca) angoli++;
-  }
-  return angoli;
-}
-
 export function calcolaDistintaCucina(progetto) {
   _progDist = progetto;
   impostaProgettoFerramenta(progetto);            // gola e cassetti scelti in questa cucina
@@ -498,7 +474,11 @@ export function calcolaDistintaCucina(progetto) {
     const misura = m.altezza_mm ? `${m.altezza_mm}×${Lo}` : `${Lo}`;
     // CUCINA CON GOLA: la colonna accanto alla gola verticale va modificata (fianco accorciato di 12 mm)
     const latiG = golaColonna(progetto, m) ? [...new Set(goleDiColonna(progetto, m, goleV).filter((x) => x.accorcia).map((x) => x.lato))].sort() : [];
-    const avviso = latiG.length ? `Attenzione: la colonna va modificata per poter inserire la gola (${latiG.length === 2 ? 'tutti e due i fianchi accorciati' : latiG[0] > 0 ? 'fianco destro accorciato' : 'fianco sinistro accorciato'} di ${golaScelta(progetto).accorcia} mm)` : null;
+    // MODULI SPECIALI (pensile angolo a L, Ciaflan): da una marca all'altra le misure cambiano
+    const avvSpec = !MODULI_SPECIALI.includes(m.tipo) ? null : m.tipo === 'pensile-angolo'
+      ? (() => { const a = antePensileAngolo(m); return `Mi raccomando: controlla le misure del pensile angolo, da una marca all'altra possono cambiare (qui ante da ${a.grande} e ${a.piccola} mm)`; })()
+      : `Mi raccomando: controlla la misura del Ciaflan, da una marca all'altra può cambiare (qui anta da ${antaCiaflan(m).anta} mm)`;
+    const avviso = [latiG.length ? `Attenzione: la colonna va modificata per poter inserire la gola (${latiG.length === 2 ? 'tutti e due i fianchi accorciati' : latiG[0] > 0 ? 'fianco destro accorciato' : 'fianco sinistro accorciato'} di ${golaScelta(progetto).accorcia} mm)` : null, avvSpec].filter(Boolean).join(' · ') || null;
     const key = `${gruppo}|${m.tipo}|${misura}|${od ? od.taglio : m.fuoriMisura ? 1 : 0}|${avviso || ''}`;
     if (!modMap.has(key)) modMap.set(key, { gruppo, nome: `${nomeTipo(m.tipo)} · interno ${progetto.coloreInterno === 'antracite' ? 'antracite' : 'bianco'}`, misura, tipo: nomeTipo(m.tipo), fuoriMisura: !!(od || m.fuoriMisura), taglio: od ? od.taglio : null, avviso, quantita: 0 });
     modMap.get(key).quantita++;
@@ -508,11 +488,13 @@ export function calcolaDistintaCucina(progetto) {
   // 2) LISTA PEZZI DA FARE: ante/frontali e pezzi in legno nostri, aggregati per tipo+misura.
   const raw = [];
   for (const m of mobili) raw.push(...pezziDiModulo(progetto, m));
-  // ZOCCOLO CONTINUO: un pezzo per ogni tratto, lungo quanto nel 3D (stesso calcolo: zoccoliContinui);
-  // copre anche reglette e lavastoviglie, e negli angoli arriva fino allo zoccolo dell'altra fila
-  for (const T of zoccoliContinui(progetto)) {
+  // ZOCCOLO CONTINUO: un pezzo per ogni tratto, lungo quanto nel 3D (stesso calcolo: zoccoliContinui) + il
+  // MARGINE dei ⚙ Parametri (di partenza 10 cm, per tagliarlo sul posto); copre anche reglette e
+  // lavastoviglie, e negli angoli arriva fino allo zoccolo dell'altra fila
+  const trattiZoccolo = zoccoliContinui(progetto), margineZ = parametri().cucina.margineZoccolo;
+  for (const T of trattiZoccolo) {
     if (T.lunghezza < 1) continue;
-    raw.push({ nome: 'Zoccolo (frontale)', larghezza: T.lunghezza, altezza: Math.round(T.zocc), spessore: SP, materiale: 'zoccolo',
+    raw.push({ nome: 'Zoccolo (frontale)' + (margineZ ? ` · con ${String(margineZ / 10).replace('.', ',')} cm di margine` : ''), larghezza: T.lunghezza + margineZ, altezza: Math.round(T.zocc), spessore: SP, materiale: 'zoccolo',
       materialeNome: nomeMateriale(progetto.zoccoloColore || 'nero-opaco', 'Zoccolo'), quantita: 1 });
   }
   // CIERRE A TECHO: fasce a filo del fronte dei mobili + pezzi che rientrano (negli angoli una passa + spessore)
@@ -716,10 +698,9 @@ export function calcolaDistintaCucina(progetto) {
         }
       }
     } }
-  // la base angolo ha il suo angolo di zoccolo (interno) e non fa da fila a parte
-  aggiungi('Angoli zoccolo 90°', angoliZoccolo(mobili.filter((m) => m.tipo !== 'base-angolo'))
-    + mobili.filter((m) => m.tipo === 'base-angolo').length);
-  const ORDINE_ACC = ['Cerniere', 'Cassetti', 'Maniglie', 'Push', 'Profilo gola', 'Tappi gola', 'Angoli interni gola', 'Angoli esterni gola', 'Supporti fissaggio gola', 'Kit', 'Piedini', 'Grappe', 'Angoli', 'Griglia'];
+  // ANGOLARI dello zoccolo: uno per ogni angolo a 90° (cucina a L 1, a U 2…), alti come lo zoccolo (10 o 15)
+  for (const a of angoliZoccolo(trattiZoccolo)) aggiungi(`Angolari zoccolo 90° da ${String(a.zocc / 10).replace('.', ',')} cm`, 1);
+  const ORDINE_ACC = ['Cerniere', 'Cassetti', 'Maniglie', 'Push', 'Profilo gola', 'Tappi gola', 'Angoli interni gola', 'Angoli esterni gola', 'Supporti fissaggio gola', 'Kit', 'Piedini', 'Grappe', 'Angolari', 'Griglia'];
   const pos = (n) => { const i = ORDINE_ACC.findIndex((k) => n.startsWith(k)); return i < 0 ? 99 : i; };
   const accessori = [...acc.entries()].map(([nome, quantita]) => ({ nome, quantita })).sort((x, y) => pos(x.nome) - pos(y.nome));
 

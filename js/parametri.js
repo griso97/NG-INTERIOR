@@ -47,6 +47,8 @@ export const PARAMETRI_DEFAULT = Object.freeze({
   // CUCINA: piedini di partenza di ogni cucina nuova (0 = automatico: bassi da 70 → 15 cm, da 80 → 10 cm)
   cucina: {
     piedini: 0,
+    // ZOCCOLO: in distinta ogni pezzo è più lungo di questo margine (per tagliarlo sul posto); il 3D no
+    margineZoccolo: 100,
     // PIANO DI LAVORO: profondità (mm, dal muro: si appoggia al muro come i mobili; di serie 625 = 25 davanti
     // alle ante dei mobili da 600); sui lati niente sporgenza. Alzatina sul muro sì/no e altezza
     profonditaPiano: 625,
@@ -58,6 +60,8 @@ export const PARAMETRI_DEFAULT = Object.freeze({
     // anta piccola (contro la grande) = la stessa misura − spessore dell'anta (regletta) − giunto. 63×63 → 295 e 276
     angoloAria: 5,
     angoloGiunto: 1,
+    // CIAFLAN (un'anta sola in diagonale): larghezza dell'anta del 63×63 (diagonale fra due pensili da 33 = 424, − 3)
+    ciaflanAnta: 421,
     alzatina: false,
     altezzaAlzatina: 100,
   },
@@ -238,6 +242,7 @@ function completa(s) {
     binari: binari.length ? binari : D.binari.map((b) => ({ ...b })),
     cucina: (() => { const k = (s && s.cucina) || {}, d = D.cucina; return {
       piedini: [100, 150].includes(Number(k.piedini)) ? Number(k.piedini) : 0,
+      margineZoccolo: Math.max(0, Math.min(500, num(k.margineZoccolo, d.margineZoccolo))),
       profonditaPiano: Math.max(500, Math.min(1200, num(k.profonditaPiano, d.profonditaPiano))),
       alzatina: k.alzatina === true,
       altezzaAlzatina: Math.max(20, Math.min(600, num(k.altezzaAlzatina, d.altezzaAlzatina))),
@@ -247,6 +252,7 @@ function completa(s) {
       // (per poco si chiamavano ciaflanAria / ciaflanGiunto)
       angoloAria: Math.max(0, Math.min(50, num(k.angoloAria, num(k.ciaflanAria, d.angoloAria)))),
       angoloGiunto: Math.max(0, Math.min(20, num(k.angoloGiunto, num(k.ciaflanGiunto, d.angoloGiunto)))),
+      ciaflanAnta: Math.max(100, Math.min(1200, num(k.ciaflanAnta, d.ciaflanAnta))),
     }; })(),
     armadi: (() => { const a = (s && s.armadi) || {}, d = D.armadi; return {
       setup: Number(a.setup) === 2 ? 2 : 1,

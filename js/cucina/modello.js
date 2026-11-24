@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261125y';
+import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261125z';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -3212,6 +3212,26 @@ export function zoccoliContinui(progetto, extra = []) {
 }
 
 /**
+ * ANGOLI A 90° DELLO ZOCCOLO (uno per angolo: ci va un angolare alto come lo zoccolo): dove due tratti
+ * di zoccolo perpendicolari, della stessa altezza, si incontrano con almeno uno dei due che finisce lì
+ * (cucina a L: 1, a U: 2, la base angolo: 1). `tratti` = zoccoliContinui(progetto). Ritorna [{ zocc }].
+ */
+export function angoliZoccolo(tratti) {
+  const out = [];
+  for (let i = 0; i < tratti.length; i++) for (let j = i + 1; j < tratti.length; j++) {
+    const T = tratti[i], Q = tratti[j];
+    if (Math.abs(Q.zocc - T.zocc) > 5 || Math.abs(T.c * Q.c + T.s * Q.s) > 0.05) continue;   // perpendicolari, stessa altezza
+    const a1 = -T.s, b1 = T.c, a2 = -Q.s, b2 = Q.c, det = a1 * b2 - a2 * b1;
+    if (Math.abs(det) < 1e-6) continue;
+    const X = (T.fronte * b2 - Q.fronte * b1) / det, Y = (a1 * Q.fronte - a2 * T.fronte) / det;
+    const aT = X * T.c + Y * T.s, aQ = X * Q.c + Y * Q.s;
+    const dentro = (R, a) => a >= R.lo - 5 && a <= R.hi + 5, alCapo = (R, a) => Math.abs(a - R.lo) <= 5 || Math.abs(a - R.hi) <= 5;
+    if (dentro(T, aT) && dentro(Q, aQ) && (alCapo(T, aT) || alCapo(Q, aQ))) out.push({ zocc: Math.round(T.zocc) });
+  }
+  return out;
+}
+
+/**
  * Altezze dei FRONTALI dei cassetti (dall'alto in basso), in mm interi per
  * difetto. Fughe da 2 mm, una in più dei cassetti.
  * - tutti uguali: (H − (n+1)·2) ÷ n
@@ -3611,8 +3631,23 @@ export function profBraccioL(tipo, m = null) {
 export function antePensileAngolo(m) {
   const d = dimMobile(m), P = parametri(), K = P.cucina;
   const aria = K.angoloAria, giunto = K.angoloGiunto, sp = P.regletta.spessoreAnta;
-  return { grande: Math.round(d.w - PROFONDITA_PENSILE - aria), piccola: Math.round(d.d - PROFONDITA_PENSILE - aria - sp - giunto), aria, giunto, sp };
+  const grandeStd = Math.round(d.w - PROFONDITA_PENSILE - aria), piccolaStd = Math.round(d.d - PROFONDITA_PENSILE - aria - sp - giunto);
+  // MODULO SPECIALE: le misure scritte per QUESTO mobile (cambiano da una marca all'altra), se no quelle di partenza
+  const mano = (v) => (Number(v) > 0 ? Math.round(Number(v)) : null);
+  return { grande: mano(m.antaGrande_mm) || grandeStd, piccola: mano(m.antaPiccola_mm) || piccolaStd, grandeStd, piccolaStd, aria, giunto, sp };
 }
+/**
+ * CIAFLAN: pensile d'angolo con UN'ANTA SOLA in diagonale. Larghezza dell'anta: quella scritta per questo
+ * mobile, se no quella dei ⚙ Parametri (63×63: 421 = diagonale fra i due pensili da 33, 424, − 3 di aria);
+ * per un'altra misura la diagonale cambia di conseguenza.
+ */
+export function antaCiaflan(m) {
+  const d = dimMobile(m), K = parametri().cucina;
+  const std = Math.round(K.ciaflanAnta + Math.SQRT2 * (Math.min(d.w, d.d) - 630));
+  return { anta: Number(m.antaCiaflan_mm) > 0 ? Math.round(Number(m.antaCiaflan_mm)) : std, std };
+}
+/** MODULI SPECIALI (pensile angolo a L, Ciaflan): da una marca all'altra le misure possono cambiare. */
+export const MODULI_SPECIALI = ['pensile-angolo', 'pensile-angolo-45'];
 /** Larghezza delle due ante della base angolo (lato − profondità braccio). */
 export function anteBaseAngolo(m) {
   const d = dimMobile(m), P = profBraccioL('base-angolo', m);

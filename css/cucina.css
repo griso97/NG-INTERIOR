@@ -468,6 +468,10 @@
   cursor: pointer;
 }
 .palette-btn:active, .palette-btn:hover { border-color: var(--oro); }
+/* MODULI SPECIALI (pensile angolo, Ciaflan): un gruppo a parte nella barra dei mobili */
+.palette-gruppo { flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; padding: 3px 6px 6px; border: 1px dashed var(--oro); border-radius: 6px; }
+.palette-gruppo-tit { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--oro-chiaro); text-align: center; }
+.palette-gruppo-btn { display: flex; gap: 8px; }
 .palette-btn svg { width: 48px; height: 48px; fill: none; stroke: var(--oro-chiaro); stroke-width: 2.5; stroke-linejoin: round; }
 
 /* ===== Finestra scelta misura ===== */

@@ -23,23 +23,23 @@ import {
   vincolaAiMuri, posizionaVincolata, orientaVersoMuro, rotazioneAutomatica, migraRotazioni, migraModuliParete, annullaCiaflanL,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti, altezzeCassettiDi, spaziCassettiCucina, cassettoSopraDi,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
-  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, latoApertoDi, latiLiberi, migraProfonditaPensili, PARTI_APERTO, coloreParteAperto, ledAperto,
-  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola, cucinaConGola, impostaProgettoFerramenta, golaScelta, cassettiDelMobile, cambiaCucinaConGola, sistemaGoleColonne, aperturaColonneGola, goleVerticali, piediniCucina, altezzaBassiCucina, sporgenzaPiano, altezzaAlzatina } from './modello.js?v=20261125y';
-import { renderPianta } from './pianta.js?v=20261125y';
-import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261125y';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261125y';
-import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261125y';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261125y';
-import { calcolaDistintaCucina } from './distinta.js?v=20261125y';
-import { svgModificaColonnaGola } from '../disegni-cucina.js?v=20261125y';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261125y';
-import { salvaEsempioModificato, salvaProgettoPredefinito } from '../esempi-dati.js?v=20261125y';
-import { parametri, daImpostare, sistemiGola, sistemiCassetti, nomeSistemaCassetti } from '../parametri.js?v=20261125y';
-import { htmlAvvisoMancanti, confermaEsportazione } from '../avviso-parametri.js?v=20261125y';
-import { agganciaTema } from '../tema.js?v=20261125y';
-import { tendinePannello } from '../tendine-pannello.js?v=20261125y';
+  correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, antePensileAngolo, antaCiaflan, MODULI_SPECIALI, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, latoApertoDi, latiLiberi, migraProfonditaPensili, PARTI_APERTO, coloreParteAperto, ledAperto,
+  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola, cucinaConGola, impostaProgettoFerramenta, golaScelta, cassettiDelMobile, cambiaCucinaConGola, sistemaGoleColonne, aperturaColonneGola, goleVerticali, piediniCucina, altezzaBassiCucina, sporgenzaPiano, altezzaAlzatina } from './modello.js?v=20261125z';
+import { renderPianta } from './pianta.js?v=20261125z';
+import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261125z';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261125z';
+import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261125z';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261125z';
+import { calcolaDistintaCucina } from './distinta.js?v=20261125z';
+import { svgModificaColonnaGola } from '../disegni-cucina.js?v=20261125z';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261125z';
+import { salvaEsempioModificato, salvaProgettoPredefinito } from '../esempi-dati.js?v=20261125z';
+import { parametri, daImpostare, sistemiGola, sistemiCassetti, nomeSistemaCassetti } from '../parametri.js?v=20261125z';
+import { htmlAvvisoMancanti, confermaEsportazione } from '../avviso-parametri.js?v=20261125z';
+import { agganciaTema } from '../tema.js?v=20261125z';
+import { tendinePannello } from '../tendine-pannello.js?v=20261125z';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261125y');
+const _excel = () => import('../modello-export.js?v=20261125z');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -115,7 +115,7 @@ function mostraSceltaTipoCucina() {
     </div>`;
   document.body.appendChild(ov);
   // CUCINE DI ESEMPIO: la scheda c'è solo se ce ne sono (l'elenco è piccolo: solo nomi e foto)
-  fetch('esempi/cucine/indice.json?v=20261125y').then((r) => (r.ok ? r.json() : null)).then((j) => {
+  fetch('esempi/cucine/indice.json?v=20261125z').then((r) => (r.ok ? r.json() : null)).then((j) => {
     const a = ov.querySelector('#scelta-esempi');
     if (a && j && Array.isArray(j.cucine) && j.cucine.length) a.style.display = 'flex';
   }).catch(() => { /* niente esempi */ });
@@ -1240,8 +1240,35 @@ window.addEventListener('pointerup', (e) => { ditiVista.delete(e.pointerId); dit
 window.addEventListener('pointercancel', (e) => { ditiVista.delete(e.pointerId); ditiIgnorati.delete(e.pointerId); });
 window.addEventListener('blur', () => { ditiVista.clear(); ditiIgnorati.clear(); if (spostamentoAttivo) fineSpost(null); });
 
+// MODULI SPECIALI (pensile angolo a L, Ciaflan): le misure delle ante si cambiano per ogni mobile, perché da
+// una marca all'altra cambiano; di partenza quelle dei ⚙ Parametri. Come nel 3D e in distinta.
+function htmlModuloSpeciale(m) {
+  const campo = (k, tit, v) => `<label class="riga-3d">${tit}<input type="number" class="modale-num ms-mis" data-campo="${k}" value="${v}" min="100" max="1500" step="1" style="width:100%"></label>`;
+  const avviso = '<div class="avviso-pannello">⚠ Mi raccomando: controlla le misure del tuo fornitore, da una marca all\'altra possono cambiare.</div>';
+  if (m.tipo === 'pensile-angolo') {
+    const a = antePensileAngolo(m), mano = m.antaGrande_mm > 0 || m.antaPiccola_mm > 0;
+    return `
+    <section class="step3-pannello">
+      <h3>Pensile angolo · misure delle ante</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${campo('antaGrande_mm', 'Anta grande (mm)', a.grande)}${campo('antaPiccola_mm', 'Anta piccola (mm)', a.piccola)}</div>
+      <div class="riga-3d" style="margin-top:6px">L'anta grande arriva fino all'angolo, la piccola si ferma contro la grande. Di partenza ${a.grandeStd} e ${a.piccolaStd} mm (⚙ Parametri).</div>
+      ${mano ? `<button type="button" class="btn-ghost btn-mini" id="ms-reset" style="margin-top:6px;width:100%">↺ Misure di partenza (${a.grandeStd} e ${a.piccolaStd} mm)</button>` : ''}
+      ${avviso}
+    </section>`;
+  }
+  const c = antaCiaflan(m), mano = m.antaCiaflan_mm > 0;
+  return `
+    <section class="step3-pannello">
+      <h3>Ciaflan · misura dell'anta</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${campo('antaCiaflan_mm', 'Anta (mm)', c.anta)}</div>
+      <div class="riga-3d" style="margin-top:6px">Un'anta sola in diagonale. Di partenza ${c.std} mm (⚙ Parametri).</div>
+      ${mano ? `<button type="button" class="btn-ghost btn-mini" id="ms-reset" style="margin-top:6px;width:100%">↺ Misura di partenza (${c.std} mm)</button>` : ''}
+      ${avviso}
+    </section>`;
+}
 // BASE ANGOLO: lati e profondità modificabili (misure del fornitore)
 function htmlBaseAngolo(m) {
+  if (MODULI_SPECIALI.includes(m.tipo)) return htmlModuloSpeciale(m);
   if (m.tipo !== 'base-angolo') return '';
   const lA = m.larghezza_mm || 880, lB = m.latoB_mm || lA, P = m.profBraccio_mm || 600;
   const { a, b } = anteBaseAngolo(m), H = m.altezza_mm || 700;
@@ -1259,6 +1286,19 @@ function htmlBaseAngolo(m) {
     </section>`;
 }
 function agganciaBaseAngolo(root, m) {
+  // MODULI SPECIALI: misure delle ante di questo mobile
+  root.querySelectorAll('.ms-mis').forEach((inp) => inp.addEventListener('change', () => {
+    const v = Math.round(Number(String(inp.value).replace(',', '.')));
+    if (!(v >= 50)) return;
+    registraStoria();
+    m[inp.dataset.campo] = v;
+    aggiorna();
+  }));
+  root.querySelector('#ms-reset')?.addEventListener('click', () => {
+    registraStoria();
+    delete m.antaGrande_mm; delete m.antaPiccola_mm; delete m.antaCiaflan_mm;
+    aggiorna();
+  });
   root.querySelector('#ba-come-sopra')?.addEventListener('click', () => {
     registraStoria();
     m.larghezza_mm = 880; delete m.latoB_mm; delete m.profBraccio_mm;
@@ -1600,8 +1640,8 @@ function apriPavimentoDaFoto() {
     if (!(w >= 5) || !(h >= 5)) { alert(tt('Scrivi la misura della zona fotografata (almeno 5 cm).')); return; }
     $('pav-salva').disabled = true;
     try {
-      const C = await import('../catalogo.js?v=20261125y');
-      const M = await import('../materiali.js?v=20261125y');
+      const C = await import('../catalogo.js?v=20261125z');
+      const M = await import('../materiali.js?v=20261125z');
       const stato = await C.leggiCatalogo();
       const id = 'pav-' + Date.now().toString(36);
       const prod = { id, sezione: 'pavimento', nome: ($('pav-nome').value || '').trim() || tt('Pavimento del cliente'), campioneCm: { w, h } };
@@ -1618,7 +1658,7 @@ async function eliminaPavimentoProprio(id) {
   const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
   if (!confirm(tt('Eliminare questo pavimento? Sparisce da tutti i progetti.'))) return;
   try {
-    const C = await import('../catalogo.js?v=20261125y');
+    const C = await import('../catalogo.js?v=20261125z');
     const stato = await C.leggiCatalogo();
     stato.prodotti = (stato.prodotti || []).filter((p) => p.id !== id);
     await C.salvaCatalogo(stato); await C.eliminaFoto(id);
@@ -1995,7 +2035,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261125y');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261125z');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -3060,10 +3100,15 @@ function renderPalette() {
     && (t.id !== 'ponte' || cucinaPonte()));          // il Ponte solo nella cucina a ponte
   // OGGETTI del catalogo (creati dalle foto): si posano sul piano o a terra
   const oggetti = [];        // gli OGGETTI si aggiungono al passo Accessori (e nel rendering)
-  palette.innerHTML = voci.map((t) => `
+  // MODULI SPECIALI (pensile angolo a L, Ciaflan) a parte: le loro misure cambiano da una marca all'altra
+  const bottone = (t) => `
     <button type="button" class="palette-btn" data-tipo="${t.id}">
       ${iconaMobile(t.id)}<span>${t.nome}</span>
-    </button>`).join('') + oggetti.map((o) => `
+    </button>`;
+  const speciali = voci.filter((t) => MODULI_SPECIALI.includes(t.id));
+  palette.innerHTML = voci.filter((t) => !MODULI_SPECIALI.includes(t.id)).map(bottone).join('')
+    + (speciali.length ? `<div class="palette-gruppo"><span class="palette-gruppo-tit">Moduli speciali</span><div class="palette-gruppo-btn">${speciali.map(bottone).join('')}</div></div>` : '')
+    + oggetti.map((o) => `
     <button type="button" class="palette-btn palette-ogg" data-ogg="${o.id}" title="${escHtml(o.nome)}">
       <span class="palette-ogg-img" style="background-image:url('${o.thumb}')"></span><span data-no-i18n>${escHtml(o.nome)}</span>
     </button>`).join('');
@@ -3082,13 +3127,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261125y');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261125z');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261125y'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261125z'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

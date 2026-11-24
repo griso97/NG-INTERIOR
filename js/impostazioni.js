@@ -8,22 +8,22 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261125y';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261125y';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261125y';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261125y';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261125y';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261125y';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261125y';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261125y';
-import { agganciaTema } from './tema.js?v=20261125y';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261125y';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro } from './parametri.js?v=20261125y';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261125y';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261125y';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261125y';
-import { geometriaCassettiera } from './calcoli.js?v=20261125y';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261125y';
+} from './catalogo.js?v=20261125z';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261125z';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261125z';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261125z';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261125z';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261125z';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261125z';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261125z';
+import { agganciaTema } from './tema.js?v=20261125z';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261125z';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro } from './parametri.js?v=20261125z';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261125z';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261125z';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261125z';
+import { geometriaCassettiera } from './calcoli.js?v=20261125z';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261125z';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1186,6 +1186,9 @@ function renderParametri(S) {
       <div class="par-scelte" id="par-piedini">${[[100, 'Piedini da 10 cm', 'Zoccolo alto 10 cm'], [150, 'Piedini da 15 cm', 'Zoccolo alto 15 cm'], [0, 'Automatico', 'Bassi da 70 → 15 cm, bassi da 80 → 10 cm']].map(([v, tit, sotto]) => `<button type="button" class="par-scelta ${P.cucina.piedini === v ? 'sel' : ''}" data-piedini="${v}"><b>${esc(tit)}</b><small>${esc(sotto)}</small></button>`).join('')}</div>
       ${fig('piedini', 'Schema: mobile basso visto di lato')}
       <p class="imp-desc">Vale per le cucine nuove; in una cucina già fatta lo cambi nella cucina stessa.</p>
+      <div class="par-griglia" style="margin-top:10px">
+        ${campo('cucina.margineZoccolo', 'Margine sullo zoccolo', 'in distinta ogni pezzo di zoccolo è più lungo di questo (di partenza 100 = 10 cm), per tagliarlo sul posto; nel 3D resta com\'è')}
+      </div>
     </div>
     <div class="par-gruppo">
       <h3>Piano di lavoro</h3>
@@ -1260,13 +1263,17 @@ function renderParametri(S) {
       <p class="imp-desc">Vale per le cucine nuove; in una cucina già fatta la cambi toccando il mobile dell'angolo.</p>
     </div>
     <div class="par-gruppo">
-      <h3>Pensile angolo a L (63 × 63)</h3>
-      <p class="imp-desc">Le due ante si incontrano nell'angolo. L'anta grande arriva fino all'angolo: lato − profondità del pensile − l'aria sul lato libero. L'anta piccola si ferma contro la grande: la stessa misura − lo spessore dell'anta (quello della regletta d'angolo) − il giunto.</p>
+      <h3>Moduli speciali: pensile angolo a L e Ciaflan</h3>
+      <p class="imp-desc">Da una marca all'altra questi moduli possono cambiare: controlla che le misure di partenza siano quelle del tuo fornitore. In cucina le puoi cambiare anche per un mobile solo.</p>
+      <p class="imp-desc">Pensile angolo a L (63 × 63): le due ante si incontrano nell'angolo. L'anta grande arriva fino all'angolo: lato − profondità del pensile − l'aria sul lato libero. L'anta piccola si ferma contro la grande: la stessa misura − lo spessore dell'anta (quello della regletta d'angolo) − il giunto.</p>
       <div class="par-griglia">
         ${campo('cucina.angoloAria', 'Aria sul lato libero', 'si toglie a tutte e due le ante (di partenza 5)')}
         ${campo('cucina.angoloGiunto', 'Giunto fra le due ante', 'in più dello spessore dell\'anta, solo sull\'anta piccola (di partenza 1)')}
       </div>
       <div class="par-esempio" id="par-es-angolo" data-no-i18n></div>
+      <div class="par-griglia" style="margin-top:10px">
+        ${campo('cucina.ciaflanAnta', 'Anta del Ciaflan 63 × 63', 'un\'anta sola in diagonale; di partenza 421 (diagonale fra due pensili da 33 = 424, − 3 di aria)')}
+      </div>
     </div>
     ${gruppoCassetti('cucina')}
     </div>
