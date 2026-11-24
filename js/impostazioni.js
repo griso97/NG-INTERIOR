@@ -8,21 +8,22 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261125j';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261125j';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261125j';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261125j';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261125j';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261125j';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261125j';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261125j';
-import { agganciaTema } from './tema.js?v=20261125j';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261125j';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro } from './parametri.js?v=20261125j';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261125j';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261125j';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261125j';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261125j';
+} from './catalogo.js?v=20261125k';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261125k';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261125k';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261125k';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261125k';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261125k';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261125k';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261125k';
+import { agganciaTema } from './tema.js?v=20261125k';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261125k';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro } from './parametri.js?v=20261125k';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261125k';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261125k';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261125k';
+import { geometriaCassettiera } from './calcoli.js?v=20261125k';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261125k';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1069,6 +1070,30 @@ function renderParametri(S) {
       </div>`;
   // SISTEMI DI CASSETTI: comprati (scatola già fatta) o fatti da noi; lo stesso gruppo in Cucina e negli Armadi
   const scelta2 = (attr, val, on, tit, sotto) => `<button type="button" class="par-scelta ${on ? 'sel' : ''}" data-${attr}="${val}"><b>${esc(tit)}</b><small>${esc(sotto)}</small></button>`;
+  // CASSETTIERA DENTRO GLI ARMADI: scatola, cornice di fascette, frontali, ripiano sopra (top)
+  const gruppoCassettiera = (tipo) => {
+    const pc = `cassettieraArmadio.${tipo}`;
+    return `
+    <div class="par-gruppo">
+      <h3>Cassettiera</h3>
+      <p class="imp-desc">La cassettiera dentro l'armadio: la scatola appoggiata alla schiena, i frontali davanti, le fascette che fanno la cornice dei frontali (laterali e sotto) e il ripiano sopra che fa da top. In ogni cassettiera si sceglie «Con maniglia» o «Frontali ribassati».</p>
+      <div class="par-griglia">
+        ${tipo === 'battente'
+          ? campo(`${pc}.fascia`, 'Fascette laterali: larghezza', 'di piatto, una per lato, a filo dei frontali')
+          : campo(`${pc}.fascia`, 'Fascette laterali: profondità', 'di costa, larghe come la struttura, a filo dei frontali')}
+        ${campo(`${pc}.fasciaSotto`, 'Fascette sotto: profondità', 'due: una davanti a filo dei frontali, una dietro')}
+        ${tipo === 'battente'
+          ? campo(`${pc}.spazioManiglia`, 'Spazio davanti per la maniglia', 'scatola profonda: spazio dentro − questo − struttura')
+          : campo(`${pc}.spazioManiglia`, 'Spazio per la maniglia', 'di partenza in ogni cassettiera nuova; nella cassettiera si cambia')}
+        ${tipo === 'scorrevole' ? campo(`${pc}.ariaBinario`, 'Aria fra frontali e binario') : ''}
+        ${campo(`${pc}.fuga`, 'Fuga dei frontali', 'fra un frontale e l\'altro e ai lati')}
+        ${campo(`${pc}.ribasso`, 'Frontali ribassati: di quanto', 'senza maniglia: il vuoto resta sopra il frontale per la mano')}
+        ${tipo === 'battente' ? campo(`${pc}.sporgenzaManiglia`, 'Sporgenza della maniglia', 'il ripiano sopra arriva fino alla maniglia') : ''}
+        ${campo(`${pc}.fondoMeno`, 'Fondo del cassetto: guida meno', 'es. guida 500 − 20 = fondo 480')}
+      </div>
+      <div class="par-esempio" data-es-cassettiera="${tipo}" data-no-i18n style="white-space:pre-line"></div>
+    </div>`;
+  };
   const gruppoCassetti = (dove = 'cucina') => {
     const C = listaCass[_selCass] || P.cassetti, nostro = C.tipo === 'nostro';
     return `
@@ -1245,6 +1270,7 @@ function renderParametri(S) {
       ${fig('anteInterne', 'Schema: ante interne viste davanti e da sopra')}
       <p class="imp-desc">Vale quando nell'armadio a battente scegli «Ante interne»: l'anta sta dentro il vano, a filo della struttura.</p>
     </div>
+    ${gruppoCassettiera('battente')}
     ${gruppoCassetti('battente')}
     </div>
     <div class="par-scheda" data-scheda="scorrevole" ${_schedaPar === 'scorrevole' ? '' : 'hidden'}>
@@ -1265,6 +1291,7 @@ function renderParametri(S) {
       <div id="par-tiradori">${P.tiradori.map((x, i) => cardTirador(x, i, P.tiradori.length)).join('')}</div>
       <button type="button" class="btn-ghost" id="par-tir-agg">+ Aggiungi tirador</button>
     </div>
+    ${gruppoCassettiera('scorrevole')}
     ${gruppoCassetti('scorrevole')}
     </div>
     <div class="par-scheda" data-scheda="modulari" ${_schedaPar === 'modulari' ? '' : 'hidden'}>
@@ -1318,12 +1345,28 @@ function renderParametri(S) {
       : tr(`Esempio: modulo da 60 → fondo ${f(600 - c.fondoMeno)} × ${f(c.fondoProfondita)} mm · trasera ${tipi.map(([h, n]) => `${tL} × ${f(h)} ${n}`).join(', ')}`);
     // negli armadi (cassetto a sistema): modulo esterno − valori segnati qui − quello che occupa la cassettiera
     const esArm = (dove) => {
-      const fm2 = 2 * (c.fianchiMobile ?? 18), extra = dove === 'battente' ? 4 * 18 + 80 - fm2 : 6 * 18 - fm2;
+      const fa = Q.cassettieraArmadio.battente.fascia;
+      const fm2 = 2 * (c.fianchiMobile ?? 18), extra = dove === 'battente' ? 4 * 18 + 2 * fa - fm2 : 6 * 18 - fm2;
       const mF = c.fondoMeno + extra, mT = c.traseraMeno + extra;
-      return tr(dove === 'battente' ? 'Armadio a battente: la cassettiera occupa in più fascette 2 × 40 e fianchi 2 × 18 (struttura da 18).' : 'Armadio scorrevole: la cassettiera occupa in più fascette 2 × 18 e fianchi 2 × 18 (struttura da 18).') + '\n'
+      return (dove === 'battente' ? tr(`Armadio a battente: la cassettiera occupa in più fascette 2 × ${f(fa)} e fianchi 2 × 18 (struttura da 18).`) : tr('Armadio scorrevole: la cassettiera occupa in più fascette 2 × 18 e fianchi 2 × 18 (struttura da 18).')) + '\n'
         + tr(`Fondo = modulo − ${f(c.fondoMeno)} − ${f(extra)} = modulo − ${f(mF)} · trasera = modulo − ${f(c.traseraMeno)} − ${f(extra)} = modulo − ${f(mT)}`) + '\n'
         + [400, 500, 600, 800].map((L) => tr(`modulo ${L} → fondo ${f(L - mF)}, trasera ${f(L - mT)}`)).join(' · ');
     };
+    el.querySelectorAll('[data-es-cassettiera]').forEach((d) => {
+      const tipo = d.dataset.esCassettiera;
+      const conf = { tipoArmadio: tipo, spessoreCarcassa: 18, spessoreSchiena: 10, spessoreAnte: 18, profonditaEsterna: 600, scorrevole: { binario: 75 } };
+      const G = geometriaCassettiera(conf, { numCassetti: 3, altMax: 600, guida: 500, maniglia: { attiva: true, M: Q.cassettieraArmadio.scorrevole.spazioManiglia } }, 500);
+      const R = geometriaCassettiera(conf, { numCassetti: 3, altMax: 600, guida: 500, apertura: 'ribassati' }, 500);
+      d.textContent = [
+        tr('Esempio: modulo 500, struttura 18, profondo 600, cassettiera alta 600 con 3 cassetti'),
+        tr(`Scatola: top e fondo ${f(G.larTF)} × ${f(G.profScatola)}, fianchi ${f(G.profScatola)} × ${f(G.AltMax - 4 * 18)}`),
+        tr(`Fascette laterali ${f(G.fascia)} × ${f(G.AltMax - 18)} · fascette sotto ${f(G.larTF)} × ${f(G.fasciaSotto)}`),
+        tr(`Frontali ${f(G.larFronte)} × ${f(G.altFrontale)} con la maniglia, ${f(R.larFronte)} × ${f(R.altFrontale)} ribassati`),
+        tipo === 'battente'
+          ? tr(`Ripiano sopra ${f(G.larRipiano)} × ${f(G.profRipiano)} con la maniglia, ${f(R.larRipiano)} × ${f(R.profRipiano)} con i frontali ribassati`)
+          : tr(`Ripiano sopra ${f(G.larRipiano)} × ${f(G.profRipiano)}, come gli altri ripiani`),
+      ].join('\n');
+    });
     el.querySelectorAll('[data-es-cass]').forEach((d) => { d.textContent = c.tipo !== 'nostro' && (d.dataset.esCass === 'battente' || d.dataset.esCass === 'scorrevole') ? esArm(d.dataset.esCass) : esCass; });
   };
   esempi();

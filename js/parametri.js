@@ -87,6 +87,15 @@ export const PARAMETRI_DEFAULT = Object.freeze({
     canale: 8,            // mm: profondità del canale (la schiena entra tanto per lato)
     dentro: 10,           // mm: quanto dentro sta la schiena (dal retro dei fianchi al canale)
   },
+  // CASSETTIERA DENTRO GLI ARMADI (mm): scatola, fascette che fanno la cornice dei frontali, ripiano sopra (top)
+  //   battente:   fascette laterali di piatto larghe «fascia»; scatola = spazio dentro − spazioManiglia − struttura
+  //   scorrevole: fascette laterali di costa profonde «fascia»; scatola = fino al binario − struttura − ariaBinario − maniglia
+  //   frontali: fuga fra uno e l'altro e ai lati · «ribasso» = quanto più bassi con i frontali ribassati (senza maniglia)
+  //   fondo del cassetto = guida − fondoMeno
+  cassettieraArmadio: {
+    battente:   { fascia: 40, fasciaSotto: 40, spazioManiglia: 80, fuga: 2, ribasso: 30, sporgenzaManiglia: 25, fondoMeno: 20 },
+    scorrevole: { fascia: 50, fasciaSotto: 50, spazioManiglia: 50, ariaBinario: 2, fuga: 2, ribasso: 30, fondoMeno: 20 },
+  },
   // MOBILI MODULARI (sottoscala, nicchie, mansarde): valori di partenza di ogni progetto nuovo
   //   spessori di struttura, schiena e ante · abbondanza sul lato inclinato (si rifila in opera)
   modulari: { carcassa: 18, schiena: 10, ante: 18, abbFianchi: 20, abbTop: 40, abbAnte: 20 },
@@ -246,6 +255,12 @@ function completa(s) {
       carcassa: Math.max(1, num(m.carcassa, d.carcassa)), schiena: Math.max(1, num(m.schiena, d.schiena)), ante: Math.max(1, num(m.ante, d.ante)),
       abbFianchi: Math.max(0, num(m.abbFianchi, d.abbFianchi)), abbTop: Math.max(0, num(m.abbTop, d.abbTop)), abbAnte: Math.max(0, num(m.abbAnte, d.abbAnte)),
     }; })(),
+    cassettieraArmadio: (() => { const s0 = (s && s.cassettieraArmadio) || {}, out = {};
+      for (const t of ['battente', 'scorrevole']) {
+        const a = s0[t] || {}, d = D.cassettieraArmadio[t]; out[t] = {};
+        for (const k of Object.keys(d)) out[t][k] = Math.max(0, num(a[k], d[k]));
+      }
+      return out; })(),
     anteInterne: {
       aria: Math.max(0, num(((s && s.anteInterne) || {}).aria, D.anteInterne.aria)),
       spazioRipiano: Math.max(0, num(((s && s.anteInterne) || {}).spazioRipiano, D.anteInterne.spazioRipiano)),
@@ -289,6 +304,8 @@ export function binarioScorrevole(id, p = parametri()) {
 /** Tutti i sistemi di cassetti (il primo è quello di partenza). */
 export function sistemiCassetti(p = parametri()) { return [p.cassetti, ...p.cassettiAltri]; }
 /** Il sistema di cassetti scelto (per id); se non c'è più, quello di partenza. */
+/** Misure della cassettiera dentro l'armadio ('battente' | 'scorrevole'). */
+export function cassettieraArmadio(tipo, p = parametri()) { return p.cassettieraArmadio[tipo === 'scorrevole' ? 'scorrevole' : 'battente']; }
 /** Nome nelle tendine: «Syskor (a sistema)», «Cassetto legno 16 (su misura)». */
 export function nomeSistemaCassetti(c) { return `${(c && c.marca) || '—'} (${c && c.tipo === 'nostro' ? 'su misura' : 'a sistema'})`; }
 export function cassettiDi(id, p = parametri()) { return sistemiCassetti(p).find((c) => c.id === id) || p.cassetti; }

@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, sistemiCassetti, pezziCassettoNostro } from './parametri.js?v=20261125j';
+import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261125k';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -308,118 +308,100 @@ export function pezziAnteModulo(config, modulo, indiceModulo) {
 const SP_MEL_ARM = 16;
 
 /**
- * Fondo + trasera del cassetto in MELAMINICO BIANCO (guide metalliche: niente
- * scatola di legno). Come in cucina, ma il FONDO cambia profondità in base
- * alla guida scorrevole: fondo = guida − 20 (guida 500→480, 400→380, 350→330).
- * Fisse: trasera 59 (cassetto basso, fronte ≤155) o 155 (alto). `altF` = altezza fronte.
- * LARGHEZZA: modulo esterno − i valori segnati nei Parametri (fondo 53, trasera 72,
- * gli stessi della cucina) − quello che la cassettiera occupa in più rispetto ai
- * fianchi di un mobile da cucina (fascette + fianchi della cassettiera).
- * Si calcola dallo spazio fra i fianchi della cassettiera (`interno`):
+ * GEOMETRIA di UNA cassettiera dentro un modulo largo Lm: la usano la distinta e il 3D.
+ * Misure dai ⚙ Parametri (Armadio a battente / scorrevole → Cassettiera); di partenza:
+ *   Battente:   scatola larga Lm − 2·sC − 2·40, profonda spazio dentro − 80 − sC (davanti resta lo spazio per la maniglia)
+ *   Scorrevole: scatola larga Lm − 4·sC, profonda (spazio dentro − binario) − sC − 2 − M (M = spazio maniglia)
+ *   Scatola alta AltMax − 2·sC: sotto le fascette sotto (sC), sopra il ripiano (top della cassettiera, sC)
+ *   Frontali: larghi scatola − 2 fughe; ogni cassetto (As − (N+1) fughe) ÷ N; ribassati = più bassi di «ribasso»
+ *   Ripiano sopra: scorrevole come gli altri ripiani (fino al binario); battente a filo dei frontali,
+ *   con la maniglia fino alla maniglia.
+ */
+export function geometriaCassettiera(config, c, Lm) {
+  const scorrevole = config.tipoArmadio === 'scorrevole';
+  const P = cassettieraArmadio(scorrevole ? 'scorrevole' : 'battente');
+  const sC = config.spessoreCarcassa;
+  const N = Math.max(1, c.numCassetti || 4);
+  const AltMax = Math.max(100, c.altMax || 800);
+  const ribassati = c.apertura === 'ribassati';
+  let larTF, profScatola, profRipiano, M = 0;
+  if (scorrevole) {
+    const Pcas = profonditaDentro(config) - (config.scorrevole?.binario ?? 75);   // dalla schiena fino al binario
+    M = !ribassati && c.maniglia?.attiva ? (c.maniglia.M ?? P.spazioManiglia) : 0;
+    larTF = Lm - 4 * sC;
+    profScatola = Pcas - sC - P.ariaBinario - M;
+    profRipiano = Pcas;
+  } else {
+    larTF = Lm - 2 * sC - 2 * P.fascia;
+    profScatola = profonditaDentro(config) - P.spazioManiglia - sC;
+    const fronte = profScatola + 1 + sC;                  // faccia davanti dei frontali (dalla schiena)
+    profRipiano = Math.min(profonditaDentro(config), ribassati ? fronte : fronte + P.sporgenzaManiglia);
+  }
+  const As = AltMax - 2 * sC;
+  const altFronte = Math.floor((As - (N + 1) * P.fuga) / N);          // spazio di ogni cassetto (per difetto)
+  return {
+    scorrevole, P, sC, N, AltMax, guida: c.guida || 500, ribassati, maniglia: !ribassati, M,
+    larTF, profScatola, profRipiano, As, altFronte,
+    altFrontale: ribassati ? Math.max(20, altFronte - P.ribasso) : altFronte,
+    larFronte: larTF - 2 * P.fuga, fuga: P.fuga,
+    fascia: P.fascia, fasciaSotto: P.fasciaSotto,
+    larRipiano: Lm - 2 * sC, interno: larTF - 2 * sC,
+  };
+}
+
+/**
+ * Fondo + trasera del cassetto A SISTEMA (guide e fianchi del produttore), oppure i pezzi del
+ * cassetto SU MISURA. `altF` = altezza dello spazio del cassetto (dice se è piccolo, medio o grande).
+ * Fondo profondo guida − «fondoMeno» (di partenza 20: guida 500 → 480).
+ * Trasera: altezza dal sistema di cassetti dei ⚙ Parametri (di partenza 59 fino al frontale da 155, poi 155).
+ * LARGHEZZA: dallo spazio fra i fianchi della cassettiera (`interno`), come in cucina:
  * fondo = interno − (53 − 2 × 18), trasera = interno − (72 − 2 × 18).
  * Es. battente, modulo 500: interno 348 → fondo 331 (= 500 − 169), trasera 312 (= 500 − 188).
  */
-function _cassettoMelArmadio(pezzi, nomeModulo, Lm, altF, guida, N, cassettiera = null, interno = null) {
-  // CASSETTO FATTO DA NOI (scelto nella cassettiera): scatola tagliata da noi nello spazio della cassettiera
+function _cassettoMelArmadio(pezzi, nomeModulo, Lm, altF, guida, N, cassettiera = null, interno = null, fondoMeno = 20) {
+  // CASSETTO SU MISURA (scelto nella cassettiera): scatola tagliata da noi nello spazio della cassettiera
   const sis = cassettiera && cassettiera.sistemaCassetti ? cassettiDi(cassettiera.sistemaCassetti) : null;
   if (sis && sis.tipo === 'nostro' && interno) {
     for (const p of pezziCassettoNostro(sis, interno, altF, guida, N)) pezzi.push({ modulo: nomeModulo, ...p, materiale: 'melaminico' });
     pezzi.push({ modulo: nomeModulo, nome: `Guide per cassetto ${guida} mm (coppia)${sis.marca ? ' · ' + sis.marca : ''}`, larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: N });
     return;
   }
-  const grande = altF > 155;
   // sistema a guide comprate: quello della cassettiera, se è a sistema, altrimenti il primo a sistema dei Parametri
   const sisC = sis && sis.tipo !== 'nostro' ? sis : (sistemiCassetti().find((x) => x.tipo !== 'nostro') || parametri().cassetti);
+  const t = tipoCassetto(altF, parametri(), sisC);
   const fm2 = 2 * (sisC.fianchiMobile ?? 18);                      // i 2 fianchi del mobile da cucina, già dentro 53 e 72
   const larFondo = interno != null ? interno - (sisC.fondoMeno - fm2) : Lm - sisC.fondoMeno;
   const larTrasera = interno != null ? interno - (sisC.traseraMeno - fm2) : Lm - sisC.traseraMeno;
   pezzi.push({ modulo: nomeModulo, nome: 'Cassetto · fondo',
-    larghezza: Math.round(larFondo), altezza: Math.round(guida - 20),
+    larghezza: Math.round(larFondo), altezza: Math.round(guida - fondoMeno),
     spessore: SP_MEL_ARM, materiale: 'melaminico', quantita: N });
-  pezzi.push({ modulo: nomeModulo, nome: `Cassetto · trasera ${grande ? 'grande' : 'ridotta'}`,
-    larghezza: Math.round(larTrasera), altezza: grande ? 155 : 59,
+  pezzi.push({ modulo: nomeModulo, nome: `Cassetto · trasera ${t.tipo}`,
+    larghezza: Math.round(larTrasera), altezza: t.trasera,
     spessore: SP_MEL_ARM, materiale: 'melaminico', quantita: N });
 }
 
 /**
- * STRUTTURA della cassettiera (la stessa scatola del 3D): top e fondo, fianchi
- * fra top e fondo, fascette laterali e fascette sotto, + le maniglie dei cassetti.
- *   Scorrevole: top/fondo (Lm − 4·sC) × (Pcas − sC − 2 − M), fascette 50 (di costa)
- *   Battente:   top/fondo (Lm − 2·sC − 80) × (Pc − 80 − sC), fascette 40 (di piatto)
- *   Fianchi: profondità scatola × (AltMax − 4·sC)
- *   Fascette sotto: 2, una davanti (a filo dei frontali, fa da cornice) e una dietro; la scatola appoggia su tutte e due.
- *   Fascette laterali e fascetta sotto davanti fanno la cornice dei frontali; sopra va il ripiano.
+ * Pezzi di UNA cassettiera in UN modulo (la cassettiera è globale: si ripete nei moduli del suo campo `moduli`).
+ * Frontali, scatola (top e fondo, fianchi fra top e fondo), cornice (fascette laterali e fascetta sotto
+ * davanti, a filo dei frontali) + fascetta sotto dietro, ripiano sopra (top), maniglie, fondo e trasera.
  */
-function _strutturaCassettiera(config, c, Lm, nomeModulo, N, scorrevole) {
-  const sC = config.spessoreCarcassa;
-  const AltMax = Math.max(100, c.altMax || 800);
-  let larTF, profScatola, fascia;
-  if (scorrevole) {
-    const Pcas = profonditaDentro(config) - (config.scorrevole?.binario ?? 75);
-    const M = c.maniglia?.attiva ? (c.maniglia.M ?? 50) : 0;
-    larTF = Lm - 4 * sC; profScatola = Pcas - sC - 2 - M; fascia = 50;
-  } else {
-    larTF = Lm - 2 * sC - 80; profScatola = profonditaDentro(config) - 80 - sC; fascia = 40;
-  }
+function _pezziCassettiera(config, c, modulo, indiceModulo) {
+  const nomeModulo = `Modulo ${indiceModulo + 1}`;
+  const G = geometriaCassettiera(config, c, modulo.larghezza);
+  const { sC, N } = G;
   const str = { spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura' };
-  return [
-    { modulo: nomeModulo, nome: 'Cassettiera · Top / Fondo', larghezza: larTF, altezza: profScatola, ...str, quantita: 2 },
-    { modulo: nomeModulo, nome: 'Cassettiera · Fianco', larghezza: profScatola, altezza: AltMax - 4 * sC, ...str, quantita: 2 },
-    { modulo: nomeModulo, nome: 'Cassettiera · Fascetta laterale', larghezza: fascia, altezza: AltMax - sC, ...str, quantita: 2 },
-    { modulo: nomeModulo, nome: 'Cassettiera · Fascetta sotto', larghezza: larTF, altezza: fascia, ...str, quantita: 2 },
-    { modulo: nomeModulo, nome: 'Maniglia cassetto', larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: N },
+  const pezzi = [
+    { modulo: nomeModulo, nome: G.ribassati ? 'Cassettiera · Fronte cassetto (ribassato)' : 'Cassettiera · Fronte cassetto',
+      larghezza: Math.round(G.larFronte), altezza: G.altFrontale, spessore: sC, materiale: 'carcassa', parteMateriale: 'cassFronti', quantita: N },
+    { modulo: nomeModulo, nome: 'Cassettiera · Top / Fondo', larghezza: G.larTF, altezza: G.profScatola, ...str, quantita: 2 },
+    { modulo: nomeModulo, nome: 'Cassettiera · Fianco', larghezza: G.profScatola, altezza: G.AltMax - 4 * sC, ...str, quantita: 2 },
+    { modulo: nomeModulo, nome: 'Cassettiera · Fascetta laterale', larghezza: G.fascia, altezza: G.AltMax - sC, ...str, quantita: 2 },
+    { modulo: nomeModulo, nome: 'Cassettiera · Fascetta sotto', larghezza: G.larTF, altezza: G.fasciaSotto, ...str, quantita: 2 },
+    { modulo: nomeModulo, nome: 'Cassettiera · Ripiano sopra (top)', larghezza: G.larRipiano, altezza: G.profRipiano, spessore: sC, materiale: 'carcassa', quantita: 1 },
   ];
-}
-
-/**
- * Costruisce i pezzi di UNA cassettiera scorrevole in UN modulo.
- * La cassettiera non è più "per modulo" ma globale: viene replicata
- * in ciascuno dei moduli selezionati nel suo campo `moduli` (indici 0-based).
- */
-function _pezziCasScorrevole(config, cassettiera, modulo, indiceModulo) {
-  const pezzi = [];
-  const nomeModulo = `Modulo ${indiceModulo + 1}`;
-  const Lm = modulo.larghezza;
-  const sC = config.spessoreCarcassa;
-  const c = cassettiera;
-  const N = Math.max(1, c.numCassetti || 4);
-  const AltMax = Math.max(100, c.altMax || 800);
-  const guida = c.guida || 500;
-  const As = AltMax - 2 * sC;
-  const larFronte = (Lm - 4 * sC) - 4;
-  const altFronte = Math.floor((As - (N + 1) * 2) / N);
-
-  pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fronte cassetto',
-    larghezza: Math.round(larFronte), altezza: altFronte,
-    spessore: sC, materiale: 'carcassa', parteMateriale: 'cassFronti', quantita: N });
-  pezzi.push(..._strutturaCassettiera(config, c, Lm, nomeModulo, N, true));
-  // spazio per il cassetto: fra i fianchi della cassettiera (top e fondo larghi larFronte + 4, fianchi fra loro)
-  _cassettoMelArmadio(pezzi, nomeModulo, Lm, altFronte, guida, N, c, larFronte + 4 - 2 * sC);
-  return pezzi;
-}
-
-/**
- * Costruisce i pezzi di UNA cassettiera battente in UN modulo.
- */
-function _pezziCasBattente(config, cassettiera, modulo, indiceModulo) {
-  const pezzi = [];
-  const nomeModulo = `Modulo ${indiceModulo + 1}`;
-  const Lm = modulo.larghezza;
-  const sC = config.spessoreCarcassa;
-  const c = cassettiera;
-  const N = Math.max(1, c.numCassetti || 4);
-  const AltMax = Math.max(100, c.altMax || 800);
-  const guida = c.guida || 500;
-  const As = AltMax - 2 * sC;
-  const larFronte = (Lm - 2 * sC - 80) - 4;
-  const altFronte = Math.floor((As - (N + 1) * 2) / N);
-
-  pezzi.push({ modulo: nomeModulo, nome: 'Cassettiera · Fronte cassetto',
-    larghezza: Math.round(larFronte), altezza: altFronte,
-    spessore: sC, materiale: 'carcassa', parteMateriale: 'cassFronti', quantita: N });
-  pezzi.push(..._strutturaCassettiera(config, c, Lm, nomeModulo, N, false));
-  // spazio per il cassetto: fra i fianchi della cassettiera (top e fondo larghi larFronte + 4, fianchi fra loro)
-  _cassettoMelArmadio(pezzi, nomeModulo, Lm, altFronte, guida, N, c, larFronte + 4 - 2 * sC);
+  if (G.maniglia) pezzi.push({ modulo: nomeModulo, nome: 'Maniglia cassetto', larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: N });
+  // cassetto: nello spazio fra i fianchi della cassettiera; piccolo/medio/grande dall'altezza dello spazio del cassetto
+  _cassettoMelArmadio(pezzi, nomeModulo, modulo.larghezza, G.altFronte, G.guida, N, c, G.interno, G.P.fondoMeno);
   return pezzi;
 }
 
@@ -431,8 +413,6 @@ function _pezziCasBattente(config, cassettiera, modulo, indiceModulo) {
 export function pezziCassettiereArmadio(config) {
   const casse = config.cassettiere || [];
   if (casse.length === 0) return [];
-  const scorrevole = config.tipoArmadio === 'scorrevole';
-  const builder = scorrevole ? _pezziCasScorrevole : _pezziCasBattente;
   const pezzi = [];
   casse.forEach((cas) => {
     const idxs = Array.isArray(cas.moduli) && cas.moduli.length > 0
@@ -440,7 +420,7 @@ export function pezziCassettiereArmadio(config) {
       : config.moduli.map((_, i) => i); // di default in tutti i moduli
     idxs.forEach((i) => {
       const m = config.moduli[i];
-      if (m) pezzi.push(...builder(config, cas, m, i));
+      if (m) pezzi.push(..._pezziCassettiera(config, cas, m, i));
     });
   });
   return pezzi;

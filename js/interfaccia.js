@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261125j';
-import { htmlTendineColori } from './tendine-colori.js?v=20261125j';
-import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261125j';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261125j';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti } from './parametri.js?v=20261125j';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261125k';
+import { htmlTendineColori } from './tendine-colori.js?v=20261125k';
+import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261125k';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261125k';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261125k';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -748,13 +748,15 @@ function renderCassettiere(config) {
           </select>
         </label>
         ${sistemiCassetti().some((x) => x.tipo === 'nostro') ? '' : '<p class="hint">I cassetti su misura si configurano in <a href="impostazioni.html#parametri">Impostazioni → Parametri</a> → Sistemi di cassetti.</p>'}
-        ${scorrevole ? `
-        <label class="chk">
-          <input type="checkbox" class="c-man-on" ${man.attiva ? 'checked' : ''} />
-          <span>Maniglia (spazio in profondità)</span>
+        <label>Apertura dei cassetti
+          <select class="c-apertura">
+            <option value="maniglia" ${c.apertura !== 'ribassati' ? 'selected' : ''}>Con maniglia</option>
+            <option value="ribassati" ${c.apertura === 'ribassati' ? 'selected' : ''}>Frontali ribassati, senza maniglia</option>
+          </select>
         </label>
-        <label>Spazio maniglia M (mm)
-          <input type="number" class="c-man-m" value="${man.M ?? 50}" min="0" step="1" ${man.attiva ? '' : 'disabled'} />
+        ${scorrevole && c.apertura !== 'ribassati' ? `
+        <label>Spazio per la maniglia (mm)
+          <input type="number" class="c-man-m" value="${man.attiva ? (man.M ?? 50) : 0}" min="0" step="1" />
         </label>` : ''}
         <div class="cass-mod-sel">
           <span>Metti nei moduli:</span>
@@ -778,7 +780,7 @@ function attaccaEventiCassettiere(contenitore, config, onChange) {
       const base = { numCassetti: 4, altMax: 800, guida: 500,
         moduli: config.moduli.map((_, i) => i) }; // di default in tutti
       const nuova = scorrevole
-        ? { ...base, maniglia: { attiva: true, M: 50 } }
+        ? { ...base, maniglia: { attiva: true, M: cassettieraArmadio('scorrevole').spazioManiglia } }
         : base;
       config.cassettiere.push(nuova);
       renderCassettiere(config);
@@ -802,8 +804,8 @@ function attaccaEventiCassettiere(contenitore, config, onChange) {
     const num = row.querySelector('.c-num');
     const alt = row.querySelector('.c-alt');
     const guida = row.querySelector('.c-guida');
-    const manOn = row.querySelector('.c-man-on');
     const manM = row.querySelector('.c-man-m');
+    const apertura = row.querySelector('.c-apertura');
     if (num) num.oninput = (e) => {
       cas.numCassetti = Math.max(1, Math.round(Number(e.target.value) || 1));
       onChange(config);
@@ -821,15 +823,14 @@ function attaccaEventiCassettiere(contenitore, config, onChange) {
       cas.altMax = Math.max(100, Math.round(Number(e.target.value) || 800));
       onChange(config);
     };
-    if (manOn) manOn.onchange = (e) => {
-      if (!cas.maniglia) cas.maniglia = { M: 50 };
-      cas.maniglia.attiva = e.target.checked;
-      if (manM) manM.disabled = !cas.maniglia.attiva;
+    if (apertura) apertura.onchange = (e) => {
+      if (e.target.value === 'ribassati') cas.apertura = 'ribassati'; else delete cas.apertura;
+      renderCassettiere(config);                       // lo spazio per la maniglia c'è solo con la maniglia
+      attaccaEventiCassettiere(contenitore, config, onChange);
       onChange(config);
     };
     if (manM) manM.oninput = (e) => {
-      if (!cas.maniglia) cas.maniglia = { attiva: true };
-      cas.maniglia.M = Math.max(0, Math.round(Number(e.target.value) || 0));
+      cas.maniglia = { attiva: true, M: Math.max(0, Math.round(Number(e.target.value) || 0)) };
       onChange(config);
     };
     // Pills "Modulo N": toggle inclusione del modulo in cas.moduli

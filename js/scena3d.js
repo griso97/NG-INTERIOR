@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio } from './calcoli.js?v=20261125j';
-import { parametri } from './parametri.js?v=20261125j';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261125j';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261125j';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261125j';
-import { sfondoDi } from './sfondi.js?v=20261125j';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261125j';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261125j';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera } from './calcoli.js?v=20261125k';
+import { parametri } from './parametri.js?v=20261125k';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261125k';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261125k';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261125k';
+import { sfondoDi } from './sfondi.js?v=20261125k';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261125k';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261125k';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -949,29 +949,12 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
   if (casseDiQuestoModulo.length > 0) {
     let yCassBase = sC; // appoggiata al fondo del modulo
     casseDiQuestoModulo.forEach((c) => {
-      const N = Math.max(1, c.numCassetti || 4);
-      const AltMax = Math.max(100, c.altMax || 800);
-      // Dimensioni che dipendono dal tipo (le stesse della distinta: calcoli.js → _strutturaCassettiera)
-      let larTF, profScatola, fascia;
-      if (scorrevole) {
-        const B = config.scorrevole?.binario ?? 75;
-        const Pcas = profonditaDentro(config) - B;            // dalla schiena fino al binario
-        const M = c.maniglia?.attiva ? (c.maniglia.M ?? 50) : 0;
-        larTF = W - 4 * sC;
-        profScatola = Pcas - sC - 2 - M;                        // lo spazio M resta DAVANTI ai frontali, per la maniglia
-        fascia = 50;                                            // fascette di costa: larghe sC, profonde 50
-      } else {
-        const Pc = profonditaDentro(config);                   // dalla schiena fino al retro dell'anta
-        larTF = W - 2 * sC - 80;
-        profScatola = Pc - 80 - sC;                             // davanti ai frontali restano 79 mm per la maniglia
-        fascia = 40;                                            // fascette di piatto: larghe 40, spesse sC
-      }
+      // stesse misure della distinta (calcoli.js → geometriaCassettiera, ⚙ Parametri → Cassettiera)
+      const G = geometriaCassettiera(config, c, W);
+      const { N, AltMax, larTF, profScatola, As, altFronte, altFrontale, larFronte, fuga, fascia, fasciaSotto } = G;
       const altFianchi = AltMax - 4 * sC;
-      const As = AltMax - 2 * sC;                               // altezza della scatola (e dei frontali con le fughe)
-      const altFronte = Math.floor((As - (N + 1) * 2) / N);   // per difetto, come in distinta
-      const larFronte = larTF - 4;
       const xCentro = xOffset + W / 2;
-      // SCATOLA appoggiata alla schiena, sopra le fascette sotto (sC); sopra la scatola va il ripiano (top della cassettiera)
+      // SCATOLA appoggiata alla schiena, sopra le fascette sotto (sC); sopra la scatola il ripiano (top della cassettiera)
       const zScatolaFronte = zUtile + profScatola;
       const zScatolaCentro = zUtile + profScatola / 2;
       const yScatola = yCassBase + sC;
@@ -993,7 +976,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       // fra il fianco del modulo e la scatola, e la fascetta sotto davanti; più la fascetta sotto dietro.
       const zCornice = zScatolaFronte + 1 + sC;                // faccia davanti dei frontali e della cornice
       const altFL = AltMax - sC;
-      if (scorrevole) {
+      if (G.scorrevole) {
         for (const lato of [-1, 1]) aggiungiBox(sC, altFL, fascia,
           xCentro + lato * (larTF / 2 + sC / 2), yCassBase + altFL / 2, zCornice - fascia / 2,
           matStr, 'cass-fascetta');
@@ -1002,24 +985,28 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
           xCentro + lato * (larTF / 2 + fascia / 2), yCassBase + altFL / 2, zCornice - sC / 2,
           matStr, 'cass-fascetta');
       }
-      aggiungiBox(larTF, sC, fascia, xCentro, yCassBase + sC / 2, zCornice - fascia / 2, matStr, 'cass-fascetta');
-      aggiungiBox(larTF, sC, fascia, xCentro, yCassBase + sC / 2, zUtile + fascia / 2, matStr, 'cass-fascetta');
-      // FRONTALI davanti alla scatola (1 mm), fra la fascetta sotto e il ripiano, fughe 2 mm — materiale "cassFronti"
+      aggiungiBox(larTF, sC, fasciaSotto, xCentro, yCassBase + sC / 2, zCornice - fasciaSotto / 2, matStr, 'cass-fascetta');
+      aggiungiBox(larTF, sC, fasciaSotto, xCentro, yCassBase + sC / 2, zUtile + fasciaSotto / 2, matStr, 'cass-fascetta');
+      // RIPIANO SOPRA (top della cassettiera): sopra le fascette laterali, largo come lo spazio del modulo
+      aggiungiBox(G.larRipiano, sC, G.profRipiano, xCentro, yCassBase + AltMax - sC / 2, zUtile + G.profRipiano / 2,
+        matDi(config, "carcassa"), 'cass-ripiano');
+      // FRONTALI davanti alla scatola (1 mm), fra la fascetta sotto e il ripiano; ribassati = più bassi, il vuoto resta sopra
       const matFronti = matDi(config, "cassFronti");
       const zFronte = zScatolaFronte + 1 + sC / 2;
       for (let k = 0; k < N; k++) {
-        const cy = yScatola + 2 + k * (altFronte + 2) + altFronte / 2;
-        aggiungiBox(larFronte, altFronte, sC,
+        const yBasso = yScatola + fuga + k * (altFronte + fuga);
+        const cy = yBasso + altFrontale / 2;
+        aggiungiBox(larFronte, altFrontale, sC,
           xCentro, cy, zFronte,
           matFronti, 'cassetto');
+        if (!G.maniglia) continue;
         // Maniglia: barra metallica orizzontale vicino al bordo alto del fronte
         const lman = Math.min(larFronte * 0.5, 300);
         const hman = Math.min(altFronte * 0.14, 22);
         const man = new THREE.Mesh(new THREE.BoxGeometry(lman, hman, 20), MAT_METALLO);
         man.position.set(xCentro, cy + altFronte / 2 - Math.min(altFronte * 0.22, 55), zFronte + sC / 2 + 11);
         man.castShadow = true;
-        // cassettiera DENTRO l'armadio: la maniglia si vede solo a porte
-        // aperte (a porte chiuse sbucherebbe attraverso le ante)
+        // cassettiera DENTRO l'armadio: la maniglia si vede solo a porte aperte
         man.userData.tipo = 'maniglia-cassetto';
         man.visible = porteAperte;
         gruppoArmadio.add(man);
