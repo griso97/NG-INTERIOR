@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261125x';
+import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261125y';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -16,7 +16,6 @@ export function progettoDefault() {
     versioneRot: 1,          // rotazione "girato a mano" (rotManuale) gestita
     profPensile: PROFONDITA_PENSILE,   // profondità dei pensili con cui sono stati messi (vedi migraProfonditaPensili)
     stepCorrente: 1,
-    ciaflanL: true,         // Ciaflan a L (due ante unite): girato come il pensile angolo (vedi migraCiaflanL)
     passi5: true,           // passi: 1 Pianta · 2 Bassi · 3 Alti · 4 Accessori · 5 Rendering (prima il rendering era il 4)
     piano: {
       tipologia: 'lineare',
@@ -1161,16 +1160,16 @@ function rotazionePenisola(progetto, m, x, y) {
  * (o dov'era) e il davanti rientra di 2 cm. Una volta sola per progetto.
  */
 /**
- * CIAFLAN di prima (cassa quadrata con un'anta in diagonale, girata come i mobili normali): ora è a L
- * come il pensile angolo (due ante unite nell'angolo), che nel 3D gira di +rot. Perché l'angolo
- * aperto resti dove guardava l'anta in diagonale, la rotazione diventa 360 − rot. Una volta sola.
+ * CIAFLAN: per poco è stato disegnato a L (girato come il pensile angolo, rotazione 360 − rot) per uno
+ * sbaglio; il Ciaflan ha UN'ANTA SOLA in diagonale. Le cucine aperte in quel momento hanno il segno
+ * ciaflanL: rimetto la rotazione di prima (360 − rot) e tolgo il segno. Una volta sola.
  */
-export function migraCiaflanL(progetto) {
-  if (progetto.ciaflanL) return false;
+export function annullaCiaflanL(progetto) {
+  if (!progetto.ciaflanL) return false;
   for (const m of (progetto.mobiliLiberi || [])) {
     if (m.tipo === 'pensile-angolo-45') m.rot = (360 - (Math.round(m.rot || 0) % 360)) % 360;
   }
-  progetto.ciaflanL = true;
+  delete progetto.ciaflanL;
   return true;
 }
 
@@ -2223,7 +2222,7 @@ export function spaziPensili(progetto, max = 150) {
         const B = aabbMondo(b), b0 = oriz ? B.x0 : B.y0, b1 = oriz ? B.x1 : B.y1, c0 = oriz ? B.y0 : B.x0, c1 = oriz ? B.y1 : B.x1;
         return Math.min(b1, g1) - Math.max(b0, g0) > 2 && Math.min(q1, c1) - Math.max(q0, c0) > 2;
       });
-      const dAngolo = vicino && (pensileAdL(vicino.tipo) || aabbMondo(vicino).horiz !== oriz);
+      const dAngolo = vicino && (vicino.tipo === 'pensile-angolo' || aabbMondo(vicino).horiz !== oriz);
       if (!qualcosaSotto && dAngolo) out.push({ id: p.id, lato, gap: Math.round(gap), w: Math.round(p.larghezza_mm + gap), angolo: true });
     }
   }
@@ -3598,22 +3597,20 @@ export function latoInternoAutomatico(progetto) {
   return pareti.length >= 2 && Math.abs(svolte) >= 1;
 }
 
-/** Pensili d'angolo a L: il pensile angolo (un'anta per braccio) e il CIAFLAN (due ante unite). */
-export function pensileAdL(tipo) { return tipo === 'pensile-angolo' || tipo === 'pensile-angolo-45'; }
-/** Mobili d'angolo a L (pensile angolo, Ciaflan e base angolo): profondità dei bracci. */
+/** Mobili d'angolo a L (pensile angolo e base angolo): profondità dei bracci. */
 export function profBraccioL(tipo, m = null) {
   if (tipo === 'base-angolo') return (m && m.profBraccio_mm) || PROFONDITA_BASE;
-  return pensileAdL(tipo) ? PROFONDITA_PENSILE : null;
+  return tipo === 'pensile-angolo' ? PROFONDITA_PENSILE : null;
 }
 /**
- * CIAFLAN (pensile d'angolo a L con le due ante unite): l'anta GRANDE arriva fino all'angolo
+ * PENSILE ANGOLO a L: le due ante si incontrano nell'angolo. L'anta GRANDE arriva fino all'angolo
  * (lato − profondità del pensile − aria sul lato libero); la PICCOLA si ferma contro la grande:
  * il suo lato − profondità − aria − spessore dell'anta − il giunto. Aria e giunto in ⚙ Parametri,
  * lo spessore dell'anta è quello della regletta d'angolo (18). 63×63 → 295 e 276.
  */
-export function anteCiaflan(m) {
+export function antePensileAngolo(m) {
   const d = dimMobile(m), P = parametri(), K = P.cucina;
-  const aria = K.ciaflanAria, giunto = K.ciaflanGiunto, sp = P.regletta.spessoreAnta;
+  const aria = K.angoloAria, giunto = K.angoloGiunto, sp = P.regletta.spessoreAnta;
   return { grande: Math.round(d.w - PROFONDITA_PENSILE - aria), piccola: Math.round(d.d - PROFONDITA_PENSILE - aria - sp - giunto), aria, giunto, sp };
 }
 /** Larghezza delle due ante della base angolo (lato − profondità braccio). */
@@ -3679,8 +3676,8 @@ export function fasceCierreTecho(progetto, spessore = 18) {
     if (cat !== 'pensile' && cat !== 'colonna' && !fine) continue;
     const d = dimMobile(m), r = ((Math.round((m.rot || 0) / 90) * 90) % 360 + 360) % 360, A = assi(r);
     const a = m.x * A.ux + m.y * A.uy, c = m.x * A.fx + m.y * A.fy;
-    if (pensileAdL(m.tipo)) {
-      // PENSILE D'ANGOLO a L (anche il Ciaflan): due bracci profondi come i pensili, uno per muro;
+    if (m.tipo === 'pensile-angolo') {
+      // PENSILE D'ANGOLO a L: due bracci profondi come i pensili, uno per muro;
       // ciascun braccio entra nella fila del suo muro. (Nel 3D la L gira di +rot:
       // braccio A lungo x locale con il fronte verso +z, braccio B lungo z con
       // il fronte verso +x, angolo pieno in (-x, -z).)
