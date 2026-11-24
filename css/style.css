@@ -270,6 +270,8 @@ body {
   border: 1px solid var(--bordo);
   border-radius: 2px;
 }
+.cass-row .c-altezze { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin-top: 6px; }
+.cass-row .c-altezze small { display: block; font-size: 11px; color: var(--testo-dim); margin-top: 2px; }
 .cass-row header {
   display: flex; justify-content: space-between; align-items: center;
   font-size: 10px; letter-spacing: 1.5px; color: var(--oro-chiaro);

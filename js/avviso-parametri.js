@@ -5,7 +5,7 @@
 // completa. Sopra la distinta compare l'avviso con cosa manca; esportando si chiede
 // «Vuoi esportarla comunque?». Quando il falegname le imposta in ⚙ Parametri l'avviso sparisce.
 // =============================================================================
-import { GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261125q';
+import { GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261125r';
 
 const t = (s) => (typeof window !== 'undefined' && window.NGI18N ? window.NGI18N.t(s) : s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -26,7 +26,10 @@ function stile() {
   .conferma-esporta .riga{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
   .conferma-esporta button{all:unset;cursor:pointer;padding:11px 18px;border-radius:999px;font-weight:600;font-size:14px}
   .conferma-esporta .no{border:1px solid #6a5a36;color:#e6dcc6}
-  .conferma-esporta .si{background:linear-gradient(180deg,#e8c25a,#a77c16);color:#14110d}`;
+  .conferma-esporta .si{background:linear-gradient(180deg,#e8c25a,#a77c16);color:#14110d}
+  .conferma-esporta .si[aria-disabled="true"]{opacity:.4;cursor:not-allowed}
+  .conferma-esporta label.spunta{display:flex;gap:10px;align-items:flex-start;margin-top:12px;cursor:pointer}
+  .conferma-esporta label.spunta input{margin-top:3px;width:18px;height:18px;flex:none}`;
   document.head.appendChild(st);
 }
 
@@ -59,6 +62,43 @@ export function confermaEsportazione(lista) {
     const fine = (v) => { ov.remove(); ok(v); };
     ov.querySelector('.no').addEventListener('click', () => fine(false));
     ov.querySelector('.si').addEventListener('click', () => fine(true));
+    ov.addEventListener('click', (e) => { if (e.target === ov) fine(false); });
+    document.body.appendChild(ov);
+  });
+}
+
+/** L'avviso sopra la distinta: cassettiere con la maniglia esterna senza la sporgenza ('' se non manca). */
+export function htmlAvvisoSporgenza(cassettiere) {
+  if (!cassettiere || !cassettiere.length) return '';
+  stile();
+  return `<div class="avviso-mancanti" role="alert">⚠ <b>${esc(t('Manca quanto sporge la maniglia dal cassetto'))}</b>
+    <ul>${cassettiere.map((n) => `<li>${esc(t('Cassettiera'))} ${n}</li>`).join('')}</ul>
+    ${esc(t('Scrivila nella cassettiera («Quanto sporge la maniglia dal frontale»): senza questa misura la profondità della cassettiera e dei cassetti non si può calcolare.'))}</div>`;
+}
+
+/**
+ * Prima di esportare: se una cassettiera ha la maniglia esterna senza la sporgenza scritta, avvisa.
+ * Si esporta solo spuntando «Esporta comunque…». Ritorna una Promise: true = esporta.
+ */
+export function confermaSporgenzaManiglia(cassettiere) {
+  if (!cassettiere || !cassettiere.length || typeof document === 'undefined') return Promise.resolve(true);
+  stile();
+  return new Promise((ok) => {
+    const ov = document.createElement('div');
+    ov.className = 'conferma-esporta';
+    ov.innerHTML = `<div class="box" role="dialog" aria-modal="true">
+      <h3>⚠ ${esc(t('Attenzione: non hai scelto quanto la maniglia sporge rispetto al cassetto'))}</h3>
+      <div>${esc(t('Cassettiere senza la misura:'))}</div>
+      <ul>${cassettiere.map((n) => `<li>${esc(t('Cassettiera'))} ${n}</li>`).join('')}</ul>
+      <div>${esc(t('Per esportare il file seleziona la misura nella cassettiera. Senza questa misura la profondità della cassettiera e dei cassetti non è giusta.'))}</div>
+      <label class="spunta"><input type="checkbox" class="comunque"><span>${esc(t('Esporta comunque, anche se la dimensione della maniglia non è stata inserita'))}</span></label>
+      <div class="riga"><button type="button" class="no">${esc(t('Annulla'))}</button><button type="button" class="si" aria-disabled="true">${esc(t('Esporta'))}</button></div>
+    </div>`;
+    const si = ov.querySelector('.si'), spunta = ov.querySelector('.comunque');
+    spunta.addEventListener('change', () => si.setAttribute('aria-disabled', spunta.checked ? 'false' : 'true'));
+    const fine = (v) => { ov.remove(); ok(v); };
+    ov.querySelector('.no').addEventListener('click', () => fine(false));
+    si.addEventListener('click', () => { if (spunta.checked) fine(true); });
     ov.addEventListener('click', (e) => { if (e.target === ov) fine(false); });
     document.body.appendChild(ov);
   });

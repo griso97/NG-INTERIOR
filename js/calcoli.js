@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261125q';
+import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261125r';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -368,32 +368,63 @@ export function geometriaCassettiera(config, c, Lm) {
   const sC = config.spessoreCarcassa;
   const N = Math.max(1, c.numCassetti || 4);
   const AltMax = Math.max(100, c.altMax || 800);
-  const ribassati = c.apertura === 'ribassati';
-  let larTF, profScatola, profRipiano, M = 0;
+  // APERTURA: maniglia incassata (di partenza, fresata nel frontale: non sporge niente), maniglia esterna
+  // (sporge di quanto scritto nella cassettiera), frontali ribassati (senza maniglia)
+  const apertura = c.apertura === 'ribassati' ? 'ribassati' : c.apertura === 'maniglia' ? 'maniglia' : 'incassata';
+  const ribassati = apertura === 'ribassati';
+  const sporgenza = apertura === 'maniglia' && Number(c.sporgenza) > 0 ? Number(c.sporgenza) : 0;
+  const sporgenzaMancante = apertura === 'maniglia' && !(Number(c.sporgenza) > 0);
+  let larTF, profScatola, profRipiano;
   if (scorrevole) {
     const Pcas = profonditaDentro(config) - (config.scorrevole?.binario ?? 75);   // dalla schiena fino al binario
-    M = !ribassati && c.maniglia?.attiva ? (c.maniglia.M ?? P.spazioManiglia) : 0;
     larTF = Lm - 4 * sC;
-    profScatola = Pcas - sC - P.ariaBinario - M;
-    profRipiano = Pcas;
+    profScatola = Pcas - sC - P.ariaBinario - sporgenza;
+    profRipiano = Pcas;                                   // come gli altri ripiani
   } else {
     larTF = Lm - 2 * sC - 2 * P.fascia;
-    profScatola = profonditaDentro(config) - P.spazioManiglia - sC;
+    profScatola = profonditaDentro(config) - P.ariaDavanti - sporgenza - sC;
     const fronte = profScatola + 1 + sC;                  // faccia davanti dei frontali (dalla schiena)
-    profRipiano = Math.min(profonditaDentro(config), ribassati ? fronte : fronte + P.sporgenzaManiglia);
+    profRipiano = Math.min(profonditaDentro(config), apertura === 'maniglia' ? fronte + sporgenza : fronte);
   }
-  const As = AltMax - 2 * sC;
-  const altFronte = Math.floor((As - (N + 1) * P.fuga) / N);          // spazio di ogni cassetto (per difetto)
+  const As = AltMax - 2 * sC;                             // fra la fascetta sotto e il ripiano
+  const fuga = P.fuga;
   // ribasso: quello scritto nella cassettiera, altrimenti quello di partenza dei Parametri
   const ribasso = Number.isFinite(Number(c.ribasso)) && c.ribasso !== '' && c.ribasso != null ? Math.max(0, Number(c.ribasso)) : P.ribasso;
+  // FRONTALI dall'alto in basso: { slot (spazio del cassetto), h (frontale da tagliare), y (bordo basso, da sopra la fascetta) }
+  //   tutti uguali: (As − (N + 1) fughe) ÷ N
+  //   personalizzati: il falegname scrive lo spazio di ogni cassetto; il frontale è quello meno la fuga
+  //   (es. 150 → 148); gli spazi riempiono As − 1 fuga (la fuga sotto il ripiano)
+  const spazioCassetti = As - fuga;
+  const pers = c.divisione === 'personalizzata' && Array.isArray(c.altezze) && c.altezze.length === N
+    && c.altezze.every((v) => Number(v) > 0);
+  const fronti = [];
+  if (pers) {
+    let y = 0;
+    const dalBasso = [];
+    for (let i = N - 1; i >= 0; i--) { const sl = Number(c.altezze[i]); dalBasso.push({ i, slot: sl, y: y + fuga, h0: sl - fuga }); y += sl; }
+    for (const f of dalBasso.reverse()) fronti.push(f);
+  } else {
+    const h0 = Math.floor((As - (N + 1) * fuga) / N);
+    for (let i = 0; i < N; i++) fronti.push({ i, slot: h0 + fuga, y: fuga + (N - 1 - i) * (h0 + fuga), h0 });
+  }
+  for (const f of fronti) f.h = ribassati ? Math.max(20, f.h0 - ribasso) : f.h0;
+  const sommaSpazi = fronti.reduce((t, f) => t + f.slot, 0);
   return {
-    scorrevole, P, sC, N, AltMax, guida: c.guida || 500, ribassati, maniglia: !ribassati, M,
-    larTF, profScatola, profRipiano, As, altFronte,
-    ribasso, altFrontale: ribassati ? Math.max(20, altFronte - ribasso) : altFronte,
-    larFronte: larTF - 2 * P.fuga, fuga: P.fuga,
+    scorrevole, P, sC, N, AltMax, guida: c.guida || 500, apertura, ribassati, maniglia: apertura === 'maniglia',
+    incassata: apertura === 'incassata', sporgenza, sporgenzaMancante,
+    larTF, profScatola, profRipiano, As, fronti, personalizzata: pers,
+    spazioCassetti: pers ? spazioCassetti : null, differenza: pers ? Math.round(spazioCassetti - sommaSpazi) : 0,
+    altFronte: fronti[0].h0, ribasso, altFrontale: fronti[0].h,
+    larFronte: larTF - 2 * fuga, fuga,
     fascia: P.fascia, fasciaSotto: P.fasciaSotto,
     larRipiano: Lm - 2 * sC, interno: larTF - 2 * sC,
   };
+}
+/** Spazi dei cassetti di partenza per «personalizzata»: tutti uguali, il resto all'ultimo. */
+export function spaziCassettiDiPartenza(config, c, Lm) {
+  const G = geometriaCassettiera(config, { ...c, divisione: 'uguali' }, Lm);
+  const N = G.N, tot = G.As - G.fuga, base = Math.floor(tot / N);
+  return Array.from({ length: N }, (_, i) => (i === N - 1 ? tot - base * (N - 1) : base));
 }
 
 /**
@@ -437,19 +468,32 @@ function _pezziCassettiera(config, c, modulo, indiceModulo) {
   const G = geometriaCassettiera(config, c, modulo.larghezza);
   const { sC, N } = G;
   const str = { spessore: sC, materiale: 'carcassa', parteMateriale: 'cassStruttura' };
-  const pezzi = [
-    { modulo: nomeModulo, nome: G.ribassati ? 'Cassettiera · Fronte cassetto (ribassato)' : 'Cassettiera · Fronte cassetto',
-      larghezza: Math.round(G.larFronte), altezza: G.altFrontale, spessore: sC, materiale: 'carcassa', parteMateriale: 'cassFronti', quantita: N },
+  const pezzi = [];
+  // FRONTALI (uguali o di misure diverse): uno per misura
+  const nomeF = G.ribassati ? 'Cassettiera · Fronte cassetto (ribassato)'
+    : G.incassata ? 'Cassettiera · Fronte cassetto (fresata per la maniglia incassata)' : 'Cassettiera · Fronte cassetto';
+  const perH = new Map();
+  for (const f of G.fronti) { const k = `${f.h}|${f.h0}`; perH.set(k, { h: f.h, h0: f.h0, q: ((perH.get(k) || {}).q || 0) + 1 }); }
+  for (const { h, q } of perH.values()) pezzi.push({ modulo: nomeModulo, nome: nomeF, larghezza: Math.round(G.larFronte), altezza: Math.round(h), spessore: sC, materiale: 'carcassa', parteMateriale: 'cassFronti', quantita: q });
+  pezzi.push(
     { modulo: nomeModulo, nome: 'Cassettiera · Top / Fondo', larghezza: G.larTF, altezza: G.profScatola, ...str, quantita: 2 },
     { modulo: nomeModulo, nome: 'Cassettiera · Fianco', larghezza: G.profScatola, altezza: G.AltMax - 4 * sC, ...str, quantita: 2 },
     { modulo: nomeModulo, nome: 'Cassettiera · Fascetta laterale', larghezza: G.fascia, altezza: G.AltMax - sC, ...str, quantita: 2 },
     { modulo: nomeModulo, nome: 'Cassettiera · Fascetta sotto', larghezza: G.larTF, altezza: G.fasciaSotto, ...str, quantita: 2 },
     { modulo: nomeModulo, nome: 'Cassettiera · Ripiano sopra (top)', larghezza: G.larRipiano, altezza: G.profRipiano, spessore: sC, materiale: 'carcassa', quantita: 1 },
-  ];
-  if (G.maniglia) pezzi.push({ modulo: nomeModulo, nome: 'Maniglia cassetto', larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: N });
-  // cassetto: nello spazio fra i fianchi della cassettiera; piccolo/medio/grande dall'altezza dello spazio del cassetto
-  _cassettoMelArmadio(pezzi, nomeModulo, modulo.larghezza, G.altFronte, G.guida, N, c, G.interno, G.P.fondoMeno);
+  );
+  const acc = (nome) => pezzi.push({ modulo: nomeModulo, nome, larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: N });
+  if (G.incassata) acc('Maniglia incassata (da incassare nel frontale)');
+  else if (G.maniglia) acc(G.sporgenzaMancante ? 'Maniglia cassetto · ATTENZIONE: sporgenza da scegliere' : `Maniglia cassetto · sporge ${G.sporgenza} mm`);
+  // cassetto: nello spazio fra i fianchi della cassettiera; piccolo/medio/grande dallo spazio del cassetto
+  const perSlot = new Map();
+  for (const f of G.fronti) perSlot.set(f.h0, (perSlot.get(f.h0) || 0) + 1);
+  for (const [h0, q] of perSlot) _cassettoMelArmadio(pezzi, nomeModulo, modulo.larghezza, h0, G.guida, q, c, G.interno, G.P.fondoMeno);
   return pezzi;
+}
+/** Cassettiere con la maniglia esterna senza la sporgenza scritta (prima di esportare si avvisa). */
+export function cassettiereSenzaSporgenza(config) {
+  return (config.cassettiere || []).map((c, j) => ({ c, j })).filter(({ c }) => c.apertura === 'maniglia' && !(Number(c.sporgenza) > 0)).map(({ j }) => j + 1);
 }
 
 /**

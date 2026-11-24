@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261125q';
-import { parametri } from './parametri.js?v=20261125q';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261125q';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261125q';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261125q';
-import { sfondoDi } from './sfondi.js?v=20261125q';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261125q';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261125q';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261125r';
+import { parametri } from './parametri.js?v=20261125r';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261125r';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261125r';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261125r';
+import { sfondoDi } from './sfondi.js?v=20261125r';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261125r';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261125r';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -26,6 +26,8 @@ import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261125q';
 // Non stira mai la texture, replica la fotografia.
 const TEX_MM = 300;
 
+// Incasso della maniglia incassata (fresata nel frontale): scuro, opaco
+const MAT_INCASSO = new THREE.MeshStandardMaterial({ color: 0x1b1a18, roughness: 0.8, metalness: 0.2 });
 // Materiale metallico per le maniglie (cassettiera, ecc.)
 const MAT_METALLO = new THREE.MeshStandardMaterial({ color: 0xd0d2d6, roughness: 0.28, metalness: 0.9 });
 
@@ -858,7 +860,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
     casseDiQuestoModulo.forEach((c) => {
       // stesse misure della distinta (calcoli.js → geometriaCassettiera, ⚙ Parametri → Cassettiera)
       const G = geometriaCassettiera(config, c, W);
-      const { N, AltMax, larTF, profScatola, As, altFronte, altFrontale, larFronte, fuga, fascia, fasciaSotto } = G;
+      const { AltMax, larTF, profScatola, As, larFronte, fascia, fasciaSotto } = G;
       const altFianchi = AltMax - 4 * sC;
       const xCentro = xOffset + W / 2;
       // SCATOLA appoggiata alla schiena, sopra le fascette sotto (sC); sopra la scatola il ripiano (top della cassettiera)
@@ -900,18 +902,25 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       // FRONTALI davanti alla scatola (1 mm), fra la fascetta sotto e il ripiano; ribassati = più bassi, il vuoto resta sopra
       const matFronti = matDi(config, "cassFronti");
       const zFronte = zScatolaFronte + 1 + sC / 2;
-      for (let k = 0; k < N; k++) {
-        const yBasso = yScatola + fuga + k * (altFronte + fuga);
-        const cy = yBasso + altFrontale / 2;
-        aggiungiBox(larFronte, altFrontale, sC,
-          xCentro, cy, zFronte,
-          matFronti, 'cassetto');
-        if (!G.maniglia) continue;
-        // Maniglia: barra metallica orizzontale vicino al bordo alto del fronte
+      for (const f of G.fronti) {                              // dall'alto in basso, uguali o di misure diverse
+        const cy = yScatola + f.y + f.h / 2;
+        aggiungiBox(larFronte, f.h, sC, xCentro, cy, zFronte, matFronti, 'cassetto');
         const lman = Math.min(larFronte * 0.5, 300);
-        const hman = Math.min(altFronte * 0.14, 22);
-        const man = new THREE.Mesh(new THREE.BoxGeometry(lman, hman, 20), MAT_METALLO);
-        man.position.set(xCentro, cy + altFronte / 2 - Math.min(altFronte * 0.22, 55), zFronte + sC / 2 + 11);
+        const hman = Math.min(f.h0 * 0.14, 22);
+        const yMan = cy + f.h / 2 - Math.min(f.h0 * 0.22, 55);
+        if (G.incassata) {
+          // MANIGLIA INCASSATA: fresata nel frontale, a filo (non sporge niente)
+          const inc = new THREE.Mesh(new THREE.BoxGeometry(Math.min(larFronte * 0.4, 200), Math.max(14, hman), 2), MAT_INCASSO);
+          inc.position.set(xCentro, yMan, zFronte + sC / 2 - 0.6);
+          inc.userData.tipo = 'maniglia-incassata';
+          gruppoArmadio.add(inc);
+          continue;
+        }
+        if (!G.maniglia) continue;
+        // MANIGLIA ESTERNA: barra che sporge dal frontale quanto scritto nella cassettiera
+        const sp = G.sporgenza || 25;
+        const man = new THREE.Mesh(new THREE.BoxGeometry(lman, hman, sp), MAT_METALLO);
+        man.position.set(xCentro, yMan, zFronte + sC / 2 + sp / 2);
         man.castShadow = true;
         // cassettiera DENTRO l'armadio: la maniglia si vede solo a porte aperte
         man.userData.tipo = 'maniglia-cassetto';

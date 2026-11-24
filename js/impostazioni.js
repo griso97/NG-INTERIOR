@@ -8,22 +8,22 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261125q';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261125q';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261125q';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261125q';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261125q';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261125q';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261125q';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261125q';
-import { agganciaTema } from './tema.js?v=20261125q';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261125q';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro } from './parametri.js?v=20261125q';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261125q';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261125q';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261125q';
-import { geometriaCassettiera } from './calcoli.js?v=20261125q';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261125q';
+} from './catalogo.js?v=20261125r';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261125r';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261125r';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261125r';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261125r';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261125r';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261125r';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261125r';
+import { agganciaTema } from './tema.js?v=20261125r';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261125r';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro } from './parametri.js?v=20261125r';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261125r';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261125r';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261125r';
+import { geometriaCassettiera } from './calcoli.js?v=20261125r';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261125r';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1076,19 +1076,17 @@ function renderParametri(S) {
     return `
     <div class="par-gruppo">
       <h3>Cassettiera</h3>
-      <p class="imp-desc">La cassettiera dentro l'armadio: la scatola appoggiata alla schiena, i frontali davanti, le fascette che fanno la cornice dei frontali (laterali e sotto) e il ripiano sopra che fa da top. In ogni cassettiera si sceglie «Con maniglia» o «Frontali ribassati».</p>
+      <p class="imp-desc">La cassettiera dentro l'armadio: la scatola appoggiata alla schiena, i frontali davanti, le fascette che fanno la cornice dei frontali (laterali e sotto) e il ripiano sopra che fa da top. Di partenza la maniglia è incassata (fresata nel frontale, non sporge niente). In ogni cassettiera si può scegliere la maniglia esterna (scrivendo quanto sporge) o i frontali ribassati, e le misure dei cassetti una per una.</p>
       <div class="par-griglia">
         ${tipo === 'battente'
           ? campo(`${pc}.fascia`, 'Fascette laterali: larghezza', 'di piatto, una per lato, a filo dei frontali')
           : campo(`${pc}.fascia`, 'Fascette laterali: profondità', 'di costa, larghe come la struttura, a filo dei frontali')}
         ${campo(`${pc}.fasciaSotto`, 'Fascette sotto: profondità', 'due: una davanti a filo dei frontali, una dietro')}
         ${tipo === 'battente'
-          ? campo(`${pc}.spazioManiglia`, 'Spazio davanti per la maniglia', 'scatola profonda: spazio dentro − questo − struttura')
-          : campo(`${pc}.spazioManiglia`, 'Spazio per la maniglia', 'di partenza in ogni cassettiera nuova; nella cassettiera si cambia')}
-        ${tipo === 'scorrevole' ? campo(`${pc}.ariaBinario`, 'Aria fra frontali e binario') : ''}
+          ? campo(`${pc}.ariaDavanti`, 'Aria fra frontali e anta chiusa', 'con la maniglia esterna si aggiunge quanto sporge')
+          : campo(`${pc}.ariaBinario`, 'Aria fra frontali e binario', 'con la maniglia esterna si aggiunge quanto sporge')}
         ${campo(`${pc}.fuga`, 'Fuga dei frontali', 'fra un frontale e l\'altro e ai lati')}
         ${campo(`${pc}.ribasso`, 'Frontali ribassati: di quanto', 'senza maniglia: il vuoto resta sopra il frontale per la mano')}
-        ${tipo === 'battente' ? campo(`${pc}.sporgenzaManiglia`, 'Sporgenza della maniglia', 'il ripiano sopra arriva fino alla maniglia') : ''}
         ${campo(`${pc}.fondoMeno`, 'Fondo del cassetto: guida meno', 'es. guida 500 − 20 = fondo 480')}
       </div>
       <div class="par-esempio" data-es-cassettiera="${tipo}" data-no-i18n style="white-space:pre-line"></div>
@@ -1355,15 +1353,17 @@ function renderParametri(S) {
     el.querySelectorAll('[data-es-cassettiera]').forEach((d) => {
       const tipo = d.dataset.esCassettiera;
       const conf = { tipoArmadio: tipo, spessoreCarcassa: 18, spessoreSchiena: 10, spessoreAnte: 18, profonditaEsterna: 600, scorrevole: { binario: 75 } };
-      const G = geometriaCassettiera(conf, { numCassetti: 3, altMax: 600, guida: 500, maniglia: { attiva: true, M: Q.cassettieraArmadio.scorrevole.spazioManiglia } }, 500);
+      const G = geometriaCassettiera(conf, { numCassetti: 3, altMax: 600, guida: 500, apertura: 'incassata' }, 500);
       const R = geometriaCassettiera(conf, { numCassetti: 3, altMax: 600, guida: 500, apertura: 'ribassati' }, 500);
+      const Mn = geometriaCassettiera(conf, { numCassetti: 3, altMax: 600, guida: 500, apertura: 'maniglia', sporgenza: 30 }, 500);
       d.textContent = [
         tr('Esempio: modulo 500, struttura 18, profondo 600, cassettiera alta 600 con 3 cassetti'),
         tr(`Scatola: top e fondo ${f(G.larTF)} × ${f(G.profScatola)}, fianchi ${f(G.profScatola)} × ${f(G.AltMax - 4 * 18)}`),
         tr(`Fascette laterali ${f(G.fascia)} × ${f(G.AltMax - 18)} · fascette sotto ${f(G.larTF)} × ${f(G.fasciaSotto)}`),
-        tr(`Frontali ${f(G.larFronte)} × ${f(G.altFrontale)} con la maniglia, ${f(R.larFronte)} × ${f(R.altFrontale)} ribassati`),
+        tr(`Frontali ${f(G.larFronte)} × ${f(G.altFrontale)} (maniglia incassata), ${f(R.larFronte)} × ${f(R.altFrontale)} ribassati`),
+        tr(`Con una maniglia esterna che sporge 30 mm: scatola profonda ${f(Mn.profScatola)} invece di ${f(G.profScatola)}`),
         tipo === 'battente'
-          ? tr(`Ripiano sopra ${f(G.larRipiano)} × ${f(G.profRipiano)} con la maniglia, ${f(R.larRipiano)} × ${f(R.profRipiano)} con i frontali ribassati`)
+          ? tr(`Ripiano sopra ${f(G.larRipiano)} × ${f(G.profRipiano)} (a filo dei frontali), ${f(Mn.larRipiano)} × ${f(Mn.profRipiano)} con la maniglia esterna (fino alla maniglia)`)
           : tr(`Ripiano sopra ${f(G.larRipiano)} × ${f(G.profRipiano)}, come gli altri ripiani`),
       ].join('\n');
     });
