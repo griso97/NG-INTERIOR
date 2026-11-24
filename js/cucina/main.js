@@ -20,26 +20,26 @@ import {
   toggleParete, muroTolto, snap, liberoPareti, generaPensiliAuto, generaPonteAuto, spessorePannelloPonte, spessoreAntePonte, pannelliSottoPonte, riorientaMobili,
   spaziTraMobili, spaziDiChiusura, riempiSpaziReglette, infoAngoloCieco, applicaRegletteAngolo, inserisciInAngolo, mettiNelVano,
   aggiungiMobileLibero, trovaMobileLibero, ruotaMobileLibero, rimuoviMobileLibero, muoviMobileLibero,
-  vincolaAiMuri, posizionaVincolata, orientaVersoMuro, rotazioneAutomatica, migraRotazioni,
+  vincolaAiMuri, posizionaVincolata, orientaVersoMuro, rotazioneAutomatica, migraRotazioni, migraModuliParete,
   anteDiMobile, sincronizzaAntePensile, VARIANTI_COLONNA, frontiCassetti, altezzeCassettiDi, spaziCassettiCucina, cassettoSopraDi,
   angoloInternoVertice, impostaAngoloVertice, muoviVertice, agganciaSquadra, aggiungiPareteLibera, calcolaVertici,
   correggiLatoInterno, latoInternoAutomatico, agganciaAngoloL, anteBaseAngolo, dimMobile, rettangoloSoffitto, apertoDi, ripianiAperto, latoApertoDi, latiLiberi, migraProfonditaPensili, PARTI_APERTO, coloreParteAperto, ledAperto,
-  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola, cucinaConGola, impostaProgettoFerramenta, golaScelta, cassettiDelMobile, cambiaCucinaConGola, sistemaGoleColonne, aperturaColonneGola, goleVerticali, piediniCucina, altezzaBassiCucina, sporgenzaPiano, altezzaAlzatina } from './modello.js?v=20261125u';
-import { renderPianta } from './pianta.js?v=20261125u';
-import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261125u';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261125u';
-import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261125u';
-import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261125u';
-import { calcolaDistintaCucina } from './distinta.js?v=20261125u';
-import { svgModificaColonnaGola } from '../disegni-cucina.js?v=20261125u';
-import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261125u';
-import { salvaEsempioModificato, salvaProgettoPredefinito } from '../esempi-dati.js?v=20261125u';
-import { parametri, daImpostare, sistemiGola, sistemiCassetti, nomeSistemaCassetti } from '../parametri.js?v=20261125u';
-import { htmlAvvisoMancanti, confermaEsportazione } from '../avviso-parametri.js?v=20261125u';
-import { agganciaTema } from '../tema.js?v=20261125u';
-import { tendinePannello } from '../tendine-pannello.js?v=20261125u';
+  COLORI_GOLA, golaProgetto, golaSuMobile, spazioGola, cucinaConGola, impostaProgettoFerramenta, golaScelta, cassettiDelMobile, cambiaCucinaConGola, sistemaGoleColonne, aperturaColonneGola, goleVerticali, piediniCucina, altezzaBassiCucina, sporgenzaPiano, altezzaAlzatina } from './modello.js?v=20261125v';
+import { renderPianta } from './pianta.js?v=20261125v';
+import { PAVIMENTI, GRUPPI_PAVIMENTI, aggiungiPavimentoProprio, rimuoviPavimentoProprio } from '../pavimenti-dati.js?v=20261125v';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261125v';
+import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261125v';
+import { coloriLampada, lampadaDaTipo } from '../colori-lampade.js?v=20261125v';
+import { calcolaDistintaCucina } from './distinta.js?v=20261125v';
+import { svgModificaColonnaGola } from '../disegni-cucina.js?v=20261125v';
+import { salvaProgetto, caricaProgetto, resetProgetto, MODO_CUCINA } from './storage.js?v=20261125v';
+import { salvaEsempioModificato, salvaProgettoPredefinito } from '../esempi-dati.js?v=20261125v';
+import { parametri, daImpostare, sistemiGola, sistemiCassetti, nomeSistemaCassetti } from '../parametri.js?v=20261125v';
+import { htmlAvvisoMancanti, confermaEsportazione } from '../avviso-parametri.js?v=20261125v';
+import { agganciaTema } from '../tema.js?v=20261125v';
+import { tendinePannello } from '../tendine-pannello.js?v=20261125v';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261125u');
+const _excel = () => import('../modello-export.js?v=20261125v');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
@@ -59,6 +59,8 @@ if (!progetto.passi5) { if (progetto.stepCorrente === 4) progetto.stepCorrente =
 if (progettoSalvato && progettoSalvato.piano) migraRotazioni(progettoSalvato);
 // Pensili da 33 (prima 35): nei progetti di prima la schiena resta contro il muro
 if (progettoSalvato && progettoSalvato.piano) migraProfonditaPensili(progettoSalvato);
+// Mobili messi con il metodo vecchio (moduli in fila lungo il muro + fasce): diventano mobili normali
+if (progettoSalvato && progettoSalvato.piano) migraModuliParete(progettoSalvato);
 // Progetti salvati con versioni precedenti: completo i campi mancanti
 progetto = { ...progettoDefault(), ...progetto };
 impostaProgettoFerramenta(progetto);
@@ -111,7 +113,7 @@ function mostraSceltaTipoCucina() {
     </div>`;
   document.body.appendChild(ov);
   // CUCINE DI ESEMPIO: la scheda c'è solo se ce ne sono (l'elenco è piccolo: solo nomi e foto)
-  fetch('esempi/cucine/indice.json?v=20261125u').then((r) => (r.ok ? r.json() : null)).then((j) => {
+  fetch('esempi/cucine/indice.json?v=20261125v').then((r) => (r.ok ? r.json() : null)).then((j) => {
     const a = ov.querySelector('#scelta-esempi');
     if (a && j && Array.isArray(j.cucine) && j.cucine.length) a.style.display = 'flex';
   }).catch(() => { /* niente esempi */ });
@@ -885,59 +887,7 @@ function renderPannelloModuli() {
         ${progetto.autoRegletta !== false ? '✓ Auto regletta: ATTIVA' : 'Auto regletta: DISATTIVATA'}
       </button>
     </section>
-
-    <section>
-      <h3>Aggiungi modulo · profondità 600 mm</h3>
-      <label>Tipo
-        <select id="s2-tipo">
-          ${TIPI_MODULO_BASE.map((t) => `
-            <option value="${t.id}" ${t.id === tipo.id ? 'selected' : ''}>${t.nome}</option>`).join('')}
-        </select>
-      </label>
-      <label style="margin-top:8px;display:block">Larghezza (mm)
-        <select id="s2-larg">
-          ${tipo.larghezze.map((l) => `
-            <option value="${l}" ${l === step2.larghezzaSelezionata ? 'selected' : ''}
-              ${l > s.libero ? 'disabled' : ''}>${l}${l > s.libero ? ' — non entra' : ''}</option>`).join('')}
-        </select>
-      </label>
-      <button id="s2-aggiungi" class="btn-oro" type="button" style="margin-top:10px;width:100%"
-        ${tipo.larghezze.some((l) => l <= s.libero) ? '' : 'disabled'}>
-        + Aggiungi a parete ${idx + 1}
-      </button>
-    </section>
-
-    <section>
-      <h3>Fascia di chiusura</h3>
-      <div style="display:flex;gap:6px;align-items:flex-end">
-        <label style="flex:1">Larghezza (mm)
-          <input type="number" id="s2-fascia" min="10" step="1" value="${step2.fasciaLarghezza}" />
-        </label>
-        <button id="s2-fascia-add" class="btn-ghost" type="button">+ Fascia</button>
-      </div>
-      <button id="s2-fascia-riempi" class="btn-ghost" type="button" style="margin-top:6px;width:100%"
-        ${s.libero > 0 ? '' : 'disabled'}>Chiudi lo spazio libero (${Math.max(0, s.libero)} mm)</button>
-      ${step2.errore ? `<div class="avviso-pannello">${step2.errore}</div>` : ''}
-    </section>
-
-    <section>
-      <h3>Moduli su parete ${idx + 1} · da inizio a fine</h3>
-      <div class="mod-elenco">
-        ${mods.length === 0 ? '<div class="mod-vuoto">Nessun modulo su questa parete</div>' : ''}
-        ${mods.map((m, i) => `
-          <div class="mod-row ${m.categoria === 'fascia' ? 'fascia' : m.tipo}">
-            <span>${nomeTipo(m.tipo)} · <strong>${m.larghezza_mm}</strong></span>
-            <span class="mod-azioni">
-              <button class="btn-mini s2-sposta" type="button" title="Sposta verso l'inizio"
-                data-cat="${m.categoria}" data-id="${m.id}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>↑</button>
-              <button class="btn-mini s2-sposta" type="button" title="Sposta verso la fine"
-                data-cat="${m.categoria}" data-id="${m.id}" data-dir="1" ${i === mods.length - 1 ? 'disabled' : ''}>↓</button>
-              <button class="btn-mini s2-rimuovi" type="button" title="Rimuovi"
-                data-cat="${m.categoria}" data-id="${m.id}">✕</button>
-            </span>
-          </div>`).join('')}
-      </div>
-    </section>` : ''}
+` : ''}
 
     ${problemi.length ? `
       <section>
@@ -980,50 +930,6 @@ function attaccaEventiStep2() {
   pannello.querySelectorAll('.sel-parete-pill').forEach((btn) => {
     btn.addEventListener('click', () => {
       step2.pareteAttivaId = Number(btn.dataset.id);
-      fatto();
-    });
-  });
-  const elTipo = document.getElementById('s2-tipo');
-  if (elTipo) elTipo.addEventListener('change', (e) => {
-    step2.tipoSelezionato = e.target.value;
-    fatto();
-  });
-  const elLarg = document.getElementById('s2-larg');
-  if (elLarg) elLarg.addEventListener('change', (e) => {
-    step2.larghezzaSelezionata = Number(e.target.value);
-  });
-  const elAgg = document.getElementById('s2-aggiungi');
-  if (elAgg) elAgg.addEventListener('click', () => {
-    registraStoria();
-    fatto(aggiungiModuloBase(progetto, pareteId, step2.tipoSelezionato, step2.larghezzaSelezionata));
-  });
-  const inpFascia = document.getElementById('s2-fascia');
-  if (inpFascia) inpFascia.addEventListener('input', (e) => {
-    step2.fasciaLarghezza = Math.max(1, Math.floor(Number(e.target.value) || 0));
-  });
-  const elFasciaAdd = document.getElementById('s2-fascia-add');
-  if (elFasciaAdd) elFasciaAdd.addEventListener('click', () => {
-    registraStoria();
-    fatto(aggiungiFascia(progetto, pareteId, step2.fasciaLarghezza));
-  });
-  const elFasciaRiempi = document.getElementById('s2-fascia-riempi');
-  if (elFasciaRiempi) elFasciaRiempi.addEventListener('click', () => {
-    const libero = spazioLiberoParete(progetto, pareteId).libero;
-    if (libero > 0) { registraStoria(); fatto(aggiungiFascia(progetto, pareteId, libero)); }
-  });
-  pannello.querySelectorAll('.s2-sposta').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      registraStoria();
-      spostaModulo(progetto, btn.dataset.cat, Number(btn.dataset.id), Number(btn.dataset.dir));
-      fatto();
-    });
-  });
-  pannello.querySelectorAll('.s2-rimuovi').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      registraStoria();
-      const id = Number(btn.dataset.id);
-      if (btn.dataset.cat === 'fascia') rimuoviFascia(progetto, id);
-      else rimuoviModuloBase(progetto, id);
       fatto();
     });
   });
@@ -1191,13 +1097,14 @@ function attaccaEventiStep2() {
 // --------- RENDER RIEPILOGO (destra) — STEP 2 ---------
 function renderRiepilogoModuli() {
   const pareti = progetto.piano.pareti;
+  // i mobili di QUESTO passo (bassi o alti), messi sulla pianta
   const conteggio = {};
-  for (const m of progetto.moduliBase) {
-    const k = `${nomeTipo(m.tipo)} ${m.larghezza_mm}`;
+  const liv = livelloStep(), delPasso = (progetto.mobiliLiberi || []).filter((m) => livelloDiMobile(m) === liv);
+  for (const m of delPasso) {
+    const k = `${nomeTipo(m.tipo)} ${Math.round(dimMobile(m).w)}`;
     conteggio[k] = (conteggio[k] || 0) + 1;
   }
-  const totFasce = progetto.fasce.reduce((s, f) => s + f.larghezza_mm, 0);
-  const lineari = progetto.moduliBase.reduce((s, m) => s + m.larghezza_mm, 0);
+  const lineari = delPasso.filter((m) => ['base', 'colonna', 'pensile'].includes(categoriaTipo(m.tipo))).reduce((t, m) => t + dimMobile(m).w, 0);
   const lib = liberoPareti(progetto);
   riepilogo.innerHTML = `
     <h3>Spazio sui muri · cm</h3>
@@ -1216,8 +1123,7 @@ function renderRiepilogoModuli() {
       ? '<div class="riep-riga"><span>Nessun modulo</span><strong>—</strong></div>'
       : Object.entries(conteggio).map(([k, n]) =>
         `<div class="riep-riga"><span>${k}</span><strong>×${n}</strong></div>`).join('')}
-    <div class="riep-riga"><span>Fasce (totale)</span><strong>${progetto.fasce.length} · ${totFasce} mm</strong></div>
-    <div class="riep-riga"><span>Mobili liberi sulla pianta</span><strong>${progetto.mobiliLiberi.length}</strong></div>
+    <div class="riep-riga"><span>Mobili in questo passo</span><strong>${delPasso.length}</strong></div>
     <div class="riep-riga"><span>Metri lineari moduli</span><strong>${(lineari / 1000).toFixed(2)} m</strong></div>
     <div class="riep-riga"><span>Stato</span><strong>${progetto.moduliBaseConfermati ? 'Confermato' : 'In modifica'}</strong></div>
     </section>
@@ -1692,8 +1598,8 @@ function apriPavimentoDaFoto() {
     if (!(w >= 5) || !(h >= 5)) { alert(tt('Scrivi la misura della zona fotografata (almeno 5 cm).')); return; }
     $('pav-salva').disabled = true;
     try {
-      const C = await import('../catalogo.js?v=20261125u');
-      const M = await import('../materiali.js?v=20261125u');
+      const C = await import('../catalogo.js?v=20261125v');
+      const M = await import('../materiali.js?v=20261125v');
       const stato = await C.leggiCatalogo();
       const id = 'pav-' + Date.now().toString(36);
       const prod = { id, sezione: 'pavimento', nome: ($('pav-nome').value || '').trim() || tt('Pavimento del cliente'), campioneCm: { w, h } };
@@ -1710,7 +1616,7 @@ async function eliminaPavimentoProprio(id) {
   const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
   if (!confirm(tt('Eliminare questo pavimento? Sparisce da tutti i progetti.'))) return;
   try {
-    const C = await import('../catalogo.js?v=20261125u');
+    const C = await import('../catalogo.js?v=20261125v');
     const stato = await C.leggiCatalogo();
     stato.prodotti = (stato.prodotti || []).filter((p) => p.id !== id);
     await C.salvaCatalogo(stato); await C.eliminaFoto(id);
@@ -2087,7 +1993,7 @@ function renderPannelloStep3d() {
   }));
   document.getElementById('s3-foto-reale')?.addEventListener('click', async () => {
     if (!scena3dMod || !scena3dMod.fotoRealistica3d) return;
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261125u');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261125v');
     apriFotoRealistica({ calcola: (p) => scena3dMod.fotoRealistica3d(p), tela3d: document.getElementById('cucina-3d'), nome: 'cucina' });
   });
   document.getElementById('s3-salva-img')?.addEventListener('click', () => {
@@ -3174,13 +3080,13 @@ var matMod = null;      // (var: usabile anche prima di questa riga, mentre si c
 var _materialiPromessa = null, _scena3dPromessa = null;
 /** Il modulo dei materiali, caricato UNA volta sola (lo usa anche la vista 3D). */
 function caricaMateriali() {
-  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261125u');
+  if (!_materialiPromessa) _materialiPromessa = import('../materiali.js?v=20261125v');
   return _materialiPromessa;
 }
 /** Il modulo della vista 3D, caricato UNA volta sola e DOPO i materiali (se fallisce si può riprovare). */
 function caricaScena3d() {
   if (!_scena3dPromessa) {
-    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261125u'));
+    _scena3dPromessa = caricaMateriali().catch(() => null).then(() => import('./scena3d.js?v=20261125v'));
     _scena3dPromessa.catch(() => { _scena3dPromessa = null; });
   }
   return _scena3dPromessa;

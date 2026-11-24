@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261125u';
+import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261125v';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -1159,6 +1159,39 @@ function rotazionePenisola(progetto, m, x, y) {
  * sposta verso la sua schiena di metà della differenza (1 cm): la schiena resta contro il muro
  * (o dov'era) e il davanti rientra di 2 cm. Una volta sola per progetto.
  */
+/**
+ * MOBILI DEL METODO VECCHIO (moduli in fila lungo il muro e fasce di chiusura, tolti dal Passo 2):
+ * diventano mobili normali nella stessa posizione e girati come prima (le fasce = reglette), così
+ * vanno in distinta e hanno tutte le scelte. Ritorna true se ha cambiato qualcosa.
+ */
+export function migraModuliParete(progetto) {
+  const mb = progetto.moduliBase || [], fa = progetto.fasce || [];
+  if (!mb.length && !fa.length) return false;
+  const full = (progetto.piano && progetto.piano.pareti) || [];
+  const vertici = calcolaVertici(full);
+  progetto.mobiliLiberi = progetto.mobiliLiberi || [];
+  let nextId = Math.max(0, ...progetto.mobiliLiberi.map((m) => m.id || 0)) + 1;
+  full.forEach((p, i) => {
+    if (p.assente || !vertici[i + 1]) return;
+    const a = vertici[i], b = vertici[i + 1];
+    const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
+    const ux = dx / L, uy = dy / L, sgn = p.latoInterno === 'interno' ? 1 : -1;
+    const nx = -dy / L * sgn, ny = dx / L * sgn;
+    for (const mm of moduliDiParete(progetto, p.id)) {
+      const centro = mm.posizione_mm + mm.larghezza_mm / 2;
+      const x = a.x + ux * centro + nx * (PROFONDITA_BASE / 2), y = a.y + uy * centro + ny * (PROFONDITA_BASE / 2);
+      if (mm.categoria === 'fascia') {
+        progetto.mobiliLiberi.push({ id: nextId++, tipo: 'regletta', latoA_mm: mm.larghezza_mm, latoB_mm: PROFONDITA_BASE, altezza_mm: 700, x, y, rot: p.angolo_gradi || 0 });
+      } else {
+        progetto.mobiliLiberi.push({ id: nextId++, tipo: mm.tipo, larghezza_mm: mm.larghezza_mm, altezza_mm: 700, x, y, rot: p.angolo_gradi || 0,
+          ...(mm.fuochi ? { fuochi: mm.fuochi } : {}) });
+      }
+    }
+  });
+  progetto.moduliBase = [];
+  progetto.fasce = [];
+  return true;
+}
 export function migraProfonditaPensili(progetto) {
   if (!progetto || progetto.profPensile === PROFONDITA_PENSILE) return;
   const vecchia = Number(progetto.profPensile) || 350, delta = (vecchia - PROFONDITA_PENSILE) / 2;
