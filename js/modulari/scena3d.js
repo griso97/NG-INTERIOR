@@ -9,10 +9,10 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261125k';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261125k';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261125k';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261125k';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261125l';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261125l';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261125l';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261125l';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.

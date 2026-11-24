@@ -2770,6 +2770,8 @@ window.NG_I18N_ES = {
  "Con maniglia": "Con tirador",
  "Frontali ribassati, senza maniglia": "Frentes rebajados, sin tirador",
  "Spazio per la maniglia (mm)": "Espacio para el tirador (mm)",
+ "Frontali più bassi di (mm)": "Frentes más bajos (mm)",
+ "Il vuoto sopra ogni frontale per prendere il cassetto con la mano. Di partenza la misura dei Parametri.": "El hueco encima de cada frente para coger el cajón con la mano. Por defecto la medida de los Parámetros.",
  "Maniglia cassetto": "Tirador de cajón",
  "Armadio scorrevole: la cassettiera occupa in più fascette 2 × 18 e fianchi 2 × 18 (struttura da 18).": "Armario corredero: la cajonera ocupa además remates 2 × 18 y costados 2 × 18 (estructura de 18).",
  "Fondo = modulo − {0} − {1} = modulo − {2} · trasera = modulo − {3} − {4} = modulo − {5}": "Fondo = módulo − {0} − {1} = módulo − {2} · trasera = módulo − {3} − {4} = módulo − {5}",

@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261125k';
-import { htmlTendineColori } from './tendine-colori.js?v=20261125k';
-import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261125k';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261125k';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261125k';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261125l';
+import { htmlTendineColori } from './tendine-colori.js?v=20261125l';
+import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta } from './calcoli.js?v=20261125l';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261125l';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261125l';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -754,6 +754,11 @@ function renderCassettiere(config) {
             <option value="ribassati" ${c.apertura === 'ribassati' ? 'selected' : ''}>Frontali ribassati, senza maniglia</option>
           </select>
         </label>
+        ${c.apertura === 'ribassati' ? `
+        <label>Frontali più bassi di (mm)
+          <input type="number" class="c-ribasso" value="${c.ribasso ?? cassettieraArmadio(scorrevole ? 'scorrevole' : 'battente').ribasso}" min="0" step="1" />
+        </label>
+        <p class="hint">Il vuoto sopra ogni frontale per prendere il cassetto con la mano. Di partenza la misura dei Parametri.</p>` : ''}
         ${scorrevole && c.apertura !== 'ribassati' ? `
         <label>Spazio per la maniglia (mm)
           <input type="number" class="c-man-m" value="${man.attiva ? (man.M ?? 50) : 0}" min="0" step="1" />
@@ -827,6 +832,11 @@ function attaccaEventiCassettiere(contenitore, config, onChange) {
       if (e.target.value === 'ribassati') cas.apertura = 'ribassati'; else delete cas.apertura;
       renderCassettiere(config);                       // lo spazio per la maniglia c'è solo con la maniglia
       attaccaEventiCassettiere(contenitore, config, onChange);
+      onChange(config);
+    };
+    const rib = row.querySelector('.c-ribasso');
+    if (rib) rib.oninput = (e) => {
+      if (e.target.value === '') delete cas.ribasso; else cas.ribasso = Math.max(0, Math.round(Number(e.target.value) || 0));
       onChange(config);
     };
     if (manM) manM.oninput = (e) => {

@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261125k';
+import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261125l';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -339,10 +339,12 @@ export function geometriaCassettiera(config, c, Lm) {
   }
   const As = AltMax - 2 * sC;
   const altFronte = Math.floor((As - (N + 1) * P.fuga) / N);          // spazio di ogni cassetto (per difetto)
+  // ribasso: quello scritto nella cassettiera, altrimenti quello di partenza dei Parametri
+  const ribasso = Number.isFinite(Number(c.ribasso)) && c.ribasso !== '' && c.ribasso != null ? Math.max(0, Number(c.ribasso)) : P.ribasso;
   return {
     scorrevole, P, sC, N, AltMax, guida: c.guida || 500, ribassati, maniglia: !ribassati, M,
     larTF, profScatola, profRipiano, As, altFronte,
-    altFrontale: ribassati ? Math.max(20, altFronte - P.ribasso) : altFronte,
+    ribasso, altFrontale: ribassati ? Math.max(20, altFronte - ribasso) : altFronte,
     larFronte: larTF - 2 * P.fuga, fuga: P.fuga,
     fascia: P.fascia, fasciaSotto: P.fasciaSotto,
     larRipiano: Lm - 2 * sC, interno: larTF - 2 * sC,
