@@ -5,7 +5,7 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261126b';
+import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261126c';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).

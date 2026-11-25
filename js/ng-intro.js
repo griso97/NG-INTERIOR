@@ -2,7 +2,8 @@
    NG STUDIO — ANIMAZIONE D'APERTURA (3D vero + suoni)          file: js/ng-intro.js
    =============================================================================
    COSA FA
-   Quando si apre la pagina iniziale copre lo schermo (nero) e in ~8,6 secondi:
+   Quando si apre la pagina iniziale copre lo schermo (nero) e in ~8,6 secondi (tempi dell'animazione:
+   con CONFIG.velocita 1.3 tutto va il 30% più veloce, ~6,6 secondi veri):
      0,0 s  NG compare come disegno 3D a linee (girato di 3/4)
      1,2 s  una lama di luce passa da sinistra a destra e lo trasforma nel logo
             d'oro vero (la faccia è il logo originale, dietro uno spessore d'oro)
@@ -43,9 +44,10 @@ const CONFIG = {
   motto: true,                 // true = mostra anche "3D DESIGN · CUSTOM FURNITURE"
   logo: 'img/logo.png',        // logo del sito (relativo alla pagina)
   ritaglioNG: [84, 16, 461, 318],   // x, y, larghezza, altezza della parte "NG" dentro logo.png
-  durata: 8.6,                 // secondi dell'animazione
-  pausaFinale: 1.0,            // secondi fermi sul finale prima di sparire
-  sfumaUscita: 0.8,            // secondi della dissolvenza d'uscita
+  durata: 8.6,                 // secondi dell'animazione (a velocità 1)
+  velocita: 1.3,               // 1 = come disegnata (8,6 s); 1.3 = tutto (anche i suoni) il 30% più veloce: ~6,6 s
+  pausaFinale: 0.7,            // secondi fermi sul finale prima di sparire
+  sfumaUscita: 0.7,            // secondi della dissolvenza d'uscita
 };
 const TESTI = {
   it: { frase: 'Dove la creatività prende vita', salta: 'Tocca per entrare', audioOn: 'Disattiva audio', audioOff: 'Attiva audio' },
@@ -277,7 +279,7 @@ const FORME_NG = [{"f":[[310.6,314.7],[304.9,314.4],[298.8,313.7],[292.5,312.9],
     const c = new AC();
     if (c.state !== 'running') { try { c.resume(); } catch (_) { /* niente */ } }
     const u = c.createGain(); u.gain.value = 1; u.connect(c.destination);
-    programmaSuoni(c, u, c.currentTime + 0.05, CONFIG.durata);
+    programmaSuoni(c, u, c.currentTime + 0.05, CONFIG.durata, CONFIG.velocita);
     ctxAudio = c; uscitaAudio = u;
     return true;
   }
@@ -298,10 +300,10 @@ const FORME_NG = [{"f":[[310.6,314.7],[304.9,314.4],[298.8,313.7],[292.5,312.9],
   }
   function giro() {
     if (fine) return;
-    const t = ora() - inizio;
+    const vero = ora() - inizio, t = vero * CONFIG.velocita;      // tempo dell'animazione (più veloce del vero)
     fotogramma(Math.min(t, CONFIG.durata));
     if (t > 1.5) el.salta.style.opacity = '1';
-    if (t >= CONFIG.durata + CONFIG.pausaFinale) { chiudi(); return; }
+    if (vero >= CONFIG.durata / CONFIG.velocita + CONFIG.pausaFinale) { chiudi(); return; }
     idRaf = requestAnimationFrame(giro);
   }
   el.audio.addEventListener('click', (e) => {
@@ -343,8 +345,8 @@ const FORME_NG = [{"f":[[310.6,314.7],[304.9,314.4],[298.8,313.7],[292.5,312.9],
 //   3.35 clic appena accennati, senza melodia (gli spigoli del cubo)
 //   4.6  finito il cubo, il suono sfuma piano (~2,5 s); STUDIO e la frase in silenzio
 // =============================================================================
-function programmaSuoni(ctx, uscita, t0 = ctx.currentTime, durata = 8.6) {
-  const T = (s) => t0 + s;
+function programmaSuoni(ctx, uscita, t0 = ctx.currentTime, durata = 8.6, velocita = 1) {
+  const T = (s) => t0 + s / velocita;            // i tempi qui sotto sono quelli dell'animazione (a velocità 1)
   // ---- uscita: compressore morbido + riverbero da sala grande ----
   const comp = ctx.createDynamicsCompressor();
   comp.threshold.value = -18; comp.knee.value = 18; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.4;
