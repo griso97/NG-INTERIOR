@@ -8,7 +8,7 @@
 // Assi (mm): x = lunghezza (−L/2..L/2) · y = altezza · z = sporgenza (0 = anta)
 // =============================================================================
 import * as THREE from 'three';
-import { FINITURE_MANIGLIA } from './finiture-maniglia.js?v=20261126v';
+import { FINITURE_MANIGLIA } from './finiture-maniglia.js?v=20261126w';
 
 export const FORME_MANIGLIA = [
   { id: 'foto', nome: 'La mia forma (dalla foto)', svg: '<svg viewBox="0 0 48 24"><rect x="9" y="5" width="30" height="16" rx="3" fill="none"/><circle cx="24" cy="13" r="4.5" fill="none"/><rect x="17" y="2" width="9" height="4" rx="1"/></svg>' },
@@ -149,7 +149,7 @@ function matDoppio(mat) {
  * forma: id di FORME_MANIGLIA · finitura: id di FINITURE_MANIGLIA · L: lunghezza mm.
  * Per profilo / a bordo il lato "bordo anta" è in alto (+y).
  */
-export function costruisciManiglia(forma, finitura, L, colore = null) {
+export function costruisciManiglia(forma, finitura, L, colore = null, sporgenza = null) {
   const mat = materialeFinitura(finituraReale(finitura, colore));
   const g = new THREE.Group();
   L = Math.max(20, L || 160);
@@ -320,7 +320,43 @@ export function costruisciManiglia(forma, finitura, L, colore = null) {
     }
   }
   g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-  return g;
+  return adattaSporgenza(g, sporgenza);
+}
+
+/**
+ * SPORGENZA SCRITTA NELLA SCHEDA DELLA MANIGLIA (mm): la parte davanti all'anta (z > 0) si allunga o si
+ * accorcia fino a quella misura; quello che sta dietro (la L dei profili sul bordo) resta com'è.
+ * Si chiama sul gruppo della maniglia appena fatto (prima di metterlo sull'anta). Senza misura: niente.
+ */
+export function adattaSporgenza(grp, mm) {
+  const S = Number(mm);
+  if (!grp || !(S > 0)) return grp;
+  grp.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(grp.matrixWorld).invert();
+  const mesh = []; grp.traverse((o) => { if (o.isMesh) mesh.push(o); });
+  let maxZ = 0;
+  const geo = mesh.map((o) => {
+    const g = o.geometry.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+    g.computeBoundingBox(); maxZ = Math.max(maxZ, g.boundingBox.max.z); return g;
+  });
+  if (!(maxZ > 0.5) || Math.abs(S / maxZ - 1) < 0.01) { geo.forEach((g) => g.dispose()); return grp; }
+  const k = S / maxZ;
+  mesh.forEach((o, i) => {
+    const g = geo[i], pos = g.attributes.position, nor = g.attributes.normal;
+    for (let j = 0; j < pos.count; j++) {
+      if (pos.getZ(j) <= 0) continue;
+      pos.setZ(j, pos.getZ(j) * k);
+      if (nor) { const x = nor.getX(j), y = nor.getY(j), z = nor.getZ(j) / k, l = Math.hypot(x, y, z) || 1; nor.setXYZ(j, x / l, y / l, z / l); }
+    }
+    pos.needsUpdate = true; if (nor) nor.needsUpdate = true;
+    g.computeBoundingBox(); g.computeBoundingSphere();
+    o.geometry = g;
+    o.position.set(0, 0, 0); o.rotation.set(0, 0, 0); o.scale.set(1, 1, 1);
+  });
+  // le misure sono già dentro le geometrie: i pezzi vanno direttamente nel gruppo, senza spostamenti
+  while (grp.children.length) grp.remove(grp.children[0]);
+  mesh.forEach((o) => grp.add(o));
+  return grp;
 }
 
 // =============================================================================

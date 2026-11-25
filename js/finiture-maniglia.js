@@ -25,6 +25,18 @@ export const SPORGENZA_FORMA = {
   piatta: 32, profilo: 22, bordol: 13, bordo: 26, incasso: 2,
   ponteC: 32, ponteCpiatto: 28, trapezio: 30, arco: 35, ovale: 35, zigrinata: 43, quadra: 38, filo: 31, pomoloq: 29, conchiglia: 22, pelle: 31,
 };
+/**
+ * QUANTO SPORGE davanti all'anta una maniglia (mm): quella scritta nella sua scheda (Impostazioni → Maniglie),
+ * se no come è fatta nel 3D. Senza maniglia del catalogo: la barra standard (28 + 12 = 40).
+ */
+export function sporgenzaDef(def) {
+  if (def && Number(def.sporgenzaMm) > 0) return Number(def.sporgenzaMm);
+  if (!def || !def.texture || !def.lunghezzaMm) return 40;
+  const L = def.lunghezzaMm, forma = def.forma && def.forma !== 'foto' && def.formaV ? def.forma : 'barra';
+  if (SPORGENZA_FORMA[forma] != null) return SPORGENZA_FORMA[forma];
+  if (forma === 'pomolo') { const D = Math.max(18, Math.min(L, 45)); return Math.ceil(20 + D * 0.25 + D * 0.275); }
+  return Math.ceil(30 + 2 * Math.max(5, Math.min(7, L * 0.04)));      // barra tonda
+}
 /** Nome del colore di una maniglia (per la distinta). */
 export function nomeFinituraManiglia(id) {
   const f = FINITURE_MANIGLIA.find((x) => x.id === id);

@@ -9,12 +9,12 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261126v';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261126v';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261126v';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261126v';
-import { anteConManiglie, manigliaModulari } from './calcoli.js?v=20261126v';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261126v';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261126w';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261126w';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261126w';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261126w';
+import { anteConManiglie, manigliaModulari } from './calcoli.js?v=20261126w';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from '../maniglia3d.js?v=20261126w';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -225,11 +225,12 @@ function aggiungiManiglia(parent, x, y, z, L, rotZ) {
     if (r) {
       const mesh = new THREE.Mesh(r.geo, r.mat); if (L < def.lunghezzaMm) mesh.scale.x = L / def.lunghezzaMm;   // lunga come in distinta
       grp = new THREE.Group(); grp.add(mesh);
+      adattaSporgenza(grp, def.sporgenzaMm);         // sporge quanto scritto nella scheda
     }
   }
   if (!grp) {
     const forma = catalogo ? (!def.forma || def.forma === 'foto' ? 'barra' : def.forma) : 'barra';
-    grp = costruisciManiglia(forma, colore || (catalogo ? def.finitura : 'inox'), L, catalogo ? def.colore : null);
+    grp = costruisciManiglia(forma, colore || (catalogo ? def.finitura : 'inox'), L, catalogo ? def.colore : null, catalogo ? def.sporgenzaMm : null);
   }
   grp.position.set(x, y, z);
   grp.rotation.z = rotZ;

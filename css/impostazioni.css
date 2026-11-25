@@ -164,6 +164,8 @@
 #par-bin-agg { margin-top: 10px; }
 .par-azioni { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 24px; }
 @media (max-width: 520px) { .par-tab tbody th { white-space: normal; } .par-input input { max-width: 110px; } }
+/* elenco di misure (es. le guide dei cassetti): campo largo anche sul telefono */
+.par-input input.par-elenco, .par-input input.par-elenco:not(#x) { max-width: 260px; }
 
 /* FOTO DEI PARAMETRI: miniature sotto ogni numero, foto grande a tutto schermo */
 .par-campo-box { display: flex; flex-direction: column; gap: 6px; }

@@ -11,8 +11,8 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126v';
-import { SPORGENZA_FORMA } from './finiture-maniglia.js?v=20261126v';
+import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126w';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261126w';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -100,13 +100,7 @@ export function lunghezzaManigliaCassetto(def, larFronte) {
   return Math.round(Math.max(40, lunghezzaSulBordo(def, lunghezzaManiglia(def), larFronte)));
 }
 /** Quanto sporge una maniglia del catalogo davanti al frontale (mm), come è fatta nel 3D: per proporre la misura. */
-export function sporgenzaDiManiglia(def) {
-  if (!def || !def.texture || !def.lunghezzaMm) return 40;            // barra standard: 28 + 12
-  const L = def.lunghezzaMm, forma = def.forma && def.forma !== 'foto' && def.formaV ? def.forma : 'barra';
-  if (SPORGENZA_FORMA[forma] != null) return SPORGENZA_FORMA[forma];   // come nel 3D (finiture-maniglia.js)
-  if (forma === 'pomolo') { const D = Math.max(18, Math.min(L, 45)); return Math.ceil(20 + D * 0.25 + D * 0.275); }
-  return Math.ceil(30 + 2 * Math.max(5, Math.min(7, L * 0.04)));      // barra tonda
-}
+export function sporgenzaDiManiglia(def) { return sporgenzaDef(def); }   // scheda della maniglia, se no come nel 3D
 /** Lunghezza standard della maniglia (quelle del catalogo con la loro misura; le altre 30 cm). */
 export function lunghezzaManiglia(def) { return def.texture && def.lunghezzaMm ? def.lunghezzaMm : 300; }
 /**
@@ -390,13 +384,16 @@ const SP_MEL_ARM = 16;
  *   Ripiano sopra: scorrevole come gli altri ripiani (fino al binario); battente a filo dei frontali,
  *   con la maniglia fino alla maniglia.
  */
+/** Il SISTEMA DI CASSETTI di questa cassettiera (scelto nella cassettiera; se no il primo dei ⚙ Parametri). */
+export function sistemaCassettiera(c) {
+  return c && c.sistemaCassetti ? cassettiDi(c.sistemaCassetti) : sistemiCassetti()[0];
+}
 /**
  * GUIDA DEI CASSETTI: AUTOMATICA dalla profondità della cassettiera (la scatola), non si sceglie
  * (un cassetto da 500 in una cassettiera da 400 non esiste e sbaglierebbe tutti i tagli):
- * da 500 mm in su → guida 500 · da 400 a 499 → guida 400 · sotto 400 → guida 300.
+ * la più lunga delle guide del sistema di cassetti (⚙ Parametri, di partenza 500, 400, 350, 300) che entra.
  */
-export const GUIDE_CASSETTI = [500, 400, 300];
-export function guidaCassetti(profScatola) { return GUIDE_CASSETTI.find((g) => profScatola >= g) || GUIDE_CASSETTI[GUIDE_CASSETTI.length - 1]; }
+export function guidaCassetti(profScatola, sis) { return guidaPerProfondita(sis, profScatola).guida; }
 export function geometriaCassettiera(config, c, Lm) {
   const scorrevole = config.tipoArmadio === 'scorrevole';
   const P = cassettieraArmadio(scorrevole ? 'scorrevole' : 'battente');
@@ -407,8 +404,11 @@ export function geometriaCassettiera(config, c, Lm) {
   // (sporge di quanto scritto nella cassettiera), frontali ribassati (senza maniglia)
   const apertura = c.apertura === 'ribassati' ? 'ribassati' : c.apertura === 'maniglia' ? 'maniglia' : 'incassata';
   const ribassati = apertura === 'ribassati';
-  const sporgenza = apertura === 'maniglia' && Number(c.sporgenza) > 0 ? Number(c.sporgenza) : 0;
-  const sporgenzaMancante = apertura === 'maniglia' && !(Number(c.sporgenza) > 0);
+  // maniglia esterna: sporge quanto scritto nella cassettiera, se no quanto dice la scheda della maniglia
+  const defMan = apertura === 'maniglia' ? manigliaCassettiera(config, c) : null;
+  const sporgenzaScritta = apertura === 'maniglia' && Number(c.sporgenza) > 0 ? Number(c.sporgenza) : 0;
+  const sporgenza = apertura === 'maniglia' ? (sporgenzaScritta || sporgenzaDiManiglia(defMan)) : 0;
+  const sporgenzaMancante = false;
   let larTF, profScatola, profRipiano;
   if (scorrevole) {
     const Pcas = profonditaDentro(config) - (config.scorrevole?.binario ?? 75);   // dalla schiena fino al binario
@@ -443,14 +443,15 @@ export function geometriaCassettiera(config, c, Lm) {
     for (let i = 0; i < N; i++) fronti.push({ i, slot: h0 + fuga, y: fuga + (N - 1 - i) * (h0 + fuga), h0 });
   }
   // maniglia dei cassetti a profilo sul bordo (scheda della maniglia: sottrai lo spessore): il frontale è più basso
-  const defMan = apertura === 'maniglia' ? manigliaCassettiera(config, c) : null;
   const ridMan = defMan ? spessoreTirador(defMan) : 0;
   for (const f of fronti) f.h = ribassati ? Math.max(20, f.h0 - ribasso) : f.h0 - ridMan;
   const sommaSpazi = fronti.reduce((t, f) => t + f.slot, 0);
+  // GUIDA: la più lunga del sistema di cassetti scelto che entra nella scatola
+  const sisG = sistemaCassettiera(c), gG = guidaPerProfondita(sisG, profScatola);
   return {
-    scorrevole, P, sC, N, AltMax, apertura,
-    guida: guidaCassetti(profScatola), guidaNonEntra: profScatola < GUIDE_CASSETTI[GUIDE_CASSETTI.length - 1], ribassati, maniglia: apertura === 'maniglia',
-    incassata: apertura === 'incassata', sporgenza, sporgenzaMancante, defMan, ridMan,
+    scorrevole, P, sC, N, AltMax, apertura, sistema: sisG,
+    guida: gG.guida, guidaNonEntra: !gG.entra, guidaMinima: gG.minima, guide: gG.guide, ribassati, maniglia: apertura === 'maniglia',
+    incassata: apertura === 'incassata', sporgenza, sporgenzaScritta, sporgenzaMancante, defMan, ridMan,
     larTF, profScatola, profRipiano, As, fronti, personalizzata: pers,
     spazioCassetti: pers ? spazioCassetti : null, differenza: pers ? Math.round(spazioCassetti - sommaSpazi) : 0,
     altFronte: fronti[0].h0, ribasso, altFrontale: fronti[0].h,
@@ -476,14 +477,15 @@ export function spaziCassettiDiPartenza(config, c, Lm) {
  * Es. battente, modulo 500: interno 348 → fondo 331 (= 500 − 169), trasera 312 (= 500 − 188).
  */
 function _cassettoMelArmadio(pezzi, nomeModulo, Lm, altF, guida, N, cassettiera = null, interno = null, fondoMeno = 20) {
-  // CASSETTO SU MISURA (scelto nella cassettiera): scatola tagliata da noi nello spazio della cassettiera
-  const sis = cassettiera && cassettiera.sistemaCassetti ? cassettiDi(cassettiera.sistemaCassetti) : null;
+  // il sistema di cassetti della cassettiera (scelto lì, se no il primo dei ⚙ Parametri)
+  const sis = sistemaCassettiera(cassettiera);
+  // CASSETTO SU MISURA: scatola tagliata da noi nello spazio della cassettiera
   if (sis && sis.tipo === 'nostro' && interno) {
     for (const p of pezziCassettoNostro(sis, interno, altF, guida, N)) pezzi.push({ modulo: nomeModulo, ...p, materiale: 'melaminico' });
     pezzi.push({ modulo: nomeModulo, nome: `Guide per cassetto ${guida} mm (coppia)${sis.marca ? ' · ' + sis.marca : ''}`, larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: N });
     return;
   }
-  // sistema a guide comprate: quello della cassettiera, se è a sistema, altrimenti il primo a sistema dei Parametri
+  // cassetto A SISTEMA (guide e fianchi del produttore): quello scelto (o il primo a sistema)
   const sisC = sis && sis.tipo !== 'nostro' ? sis : (sistemiCassetti().find((x) => x.tipo !== 'nostro') || parametri().cassetti);
   const t = tipoCassetto(altF, parametri(), sisC);
   const fm2 = 2 * (sisC.fianchiMobile ?? 18);                      // i 2 fianchi del mobile da cucina, già dentro 53 e 72
@@ -537,12 +539,15 @@ function _pezziCassettiera(config, c, modulo, indiceModulo) {
   for (const f of G.fronti) perSlot.set(f.h0, (perSlot.get(f.h0) || 0) + 1);
   for (const [h0, q] of perSlot) _cassettoMelArmadio(pezzi, nomeModulo, modulo.larghezza, h0, G.guida, q, c, G.interno, G.P.fondoMeno);
   // cassettiera troppo poco profonda: non entra neanche la guida più corta (si vede anche nella cassettiera)
-  if (G.guidaNonEntra) pezzi.push({ modulo: nomeModulo, nome: `ATTENZIONE: la cassettiera è profonda solo ${G.profScatola} mm, non entra neanche la guida da 300`, larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: 1 });
+  if (G.guidaNonEntra) pezzi.push({ modulo: nomeModulo, nome: `ATTENZIONE: la cassettiera è profonda solo ${G.profScatola} mm, non entra neanche la guida da ${G.guidaMinima}`, larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: 1 });
   return pezzi;
 }
-/** Cassettiere con la maniglia esterna senza la sporgenza scritta (prima di esportare si avvisa). */
+/**
+ * Cassettiere con la maniglia esterna senza la sporgenza (prima di esportare si avvisa). Ora la sporgenza
+ * viene sempre dalla scheda della maniglia (o è scritta nella cassettiera): nessuna manca.
+ */
 export function cassettiereSenzaSporgenza(config) {
-  return (config.cassettiere || []).map((c, j) => ({ c, j })).filter(({ c }) => c.apertura === 'maniglia' && !(Number(c.sporgenza) > 0)).map(({ j }) => j + 1);
+  return (config.cassettiere || []).map((c, j) => ({ c, j })).filter(({ c }) => c.apertura === 'maniglia' && !(sporgenzaDiManiglia(manigliaCassettiera(config, c)) > 0) && !(Number(c.sporgenza) > 0)).map(({ j }) => j + 1);
 }
 
 /**

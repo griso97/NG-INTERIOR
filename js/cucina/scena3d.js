@@ -17,35 +17,35 @@ import {
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
   costadoCopreAnte, fronteCieco, piediniCucina, zoccoloColonnaDi, scendeAntaPensile,
   golaColonna, goleDiColonna, impostaProgettoFerramenta, spazioGola, zoccoliContinui, antePensileAngolo, antaCiaflan,
-} from './modello.js?v=20261126v';
+} from './modello.js?v=20261126w';
 import {
   MONTAGGIO_PENSILE, SP_TOP, SP_SCHIENALE, spessorePianoDi, baseAltillo, siSovrappongono, fondoPonteSopra, quoteAlte,
   dimVasca, dimPlacca, fuochiPerLarghezza, distSegmento, basePensile, cimePensili as cimeDeiPensili, quoteCostado,
   lastrePiano, ledCucina,
-} from './geometria.js?v=20261126v';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261126v';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261126v';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261126v';
+} from './geometria.js?v=20261126w';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261126w';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261126w';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261126w';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261126v').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261126w').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261126v';
-import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261126v';
-export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261126v';
-import { parametri, profiloFingerPull, spessoreTirador, lunghezzaSulBordo } from '../parametri.js?v=20261126v';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261126v';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261126v';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261126v';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261126w';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura, adattaSporgenza } from '../maniglia3d.js?v=20261126w';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261126w';
+import { parametri, profiloFingerPull, spessoreTirador, lunghezzaSulBordo } from '../parametri.js?v=20261126w';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261126w';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261126w';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261126w';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261126v';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261126w';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261126v';
+export { telaPavimento } from '../resa.js?v=20261126w';
 
 export { MONTAGGIO_PENSILE };              // altezza da terra del basso dei pensili (geometria.js)
 // Zoccolo (piedini) in base all'altezza della porta:
@@ -1241,6 +1241,7 @@ function maniglia(g, x, y, z, orizz, lung, giu = false, max = Infinity) {
       const mesh = new THREE.Mesh(r.geo, r.mat); mesh.castShadow = true; mesh.receiveShadow = true;
       if (Lcat < def.lunghezzaMm) mesh.scale.x = Lcat / def.lunghezzaMm;   // sull'anta più piccola si accorcia
       const grp = new THREE.Group(); grp.add(mesh);
+      adattaSporgenza(grp, def.sporgenzaMm);           // sporge quanto scritto nella scheda
       grp.position.set(x, y, z + 20);
       if (!orizz) grp.rotation.z = Math.PI / 2;
       else if (giu) grp.rotation.z = Math.PI;
@@ -1250,7 +1251,7 @@ function maniglia(g, x, y, z, orizz, lung, giu = false, max = Infinity) {
   }
   if (def && def.texture && def.lunghezzaMm) {
     // MANIGLIA DEL CATALOGO: modello 3D vero del suo tipo, misura e finitura reali
-    const grp = costruisciManiglia(!def.forma || def.forma === 'foto' ? 'barra' : def.forma, _finMan || def.finitura, Lcat, def.colore);
+    const grp = costruisciManiglia(!def.forma || def.forma === 'foto' ? 'barra' : def.forma, _finMan || def.finitura, Lcat, def.colore, def.sporgenzaMm);
     grp.position.set(x, y, z + 20);                    // 20 = faccia davanti dell'anta
     // verticale: il risvolto dei profili verso sinistra, o verso destra con «giu» (bordo destro dell'anta)
     if (!orizz) grp.rotation.z = giu ? -Math.PI / 2 : Math.PI / 2;
@@ -2410,7 +2411,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261126v')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261126w')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }

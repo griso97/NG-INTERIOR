@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261126v';
-import { parametri } from './parametri.js?v=20261126v';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261126v';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261126v';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261126v';
-import { sfondoDi } from './sfondi.js?v=20261126v';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261126v';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261126v';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261126w';
+import { parametri } from './parametri.js?v=20261126w';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261126w';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261126w';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261126w';
+import { sfondoDi } from './sfondi.js?v=20261126w';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261126w';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261126w';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -127,12 +127,13 @@ function aggiungiManiglia(parent, def, x, y, z, L = lunghezzaManiglia(def), rotZ
       // lunga come in distinta: sul cassetto / anta più piccola della foto si accorcia (stesso profilo)
       const mesh = new THREE.Mesh(r.geo, r.mat); if (L < def.lunghezzaMm) mesh.scale.x = L / def.lunghezzaMm;
       grp = new THREE.Group(); grp.add(mesh);
+      adattaSporgenza(grp, def.sporgenzaMm);         // sporge quanto scritto nella scheda
     }
   }
   if (!grp) {
     const catalogo = !!(def.texture && def.lunghezzaMm);
     const forma = catalogo ? (!def.forma || def.forma === 'foto' ? 'barra' : def.forma) : 'barra';
-    grp = costruisciManiglia(forma, catalogo ? def.finitura : 'inox', L, catalogo ? def.colore : null);
+    grp = costruisciManiglia(forma, catalogo ? def.finitura : 'inox', L, catalogo ? def.colore : null, catalogo ? def.sporgenzaMm : null);
   }
   grp.position.set(x, y, z);                       // z = faccia davanti dell'anta
   grp.rotation.z = rotZ;                           // verticale (il risvolto dei profili verso il bordo che apre)

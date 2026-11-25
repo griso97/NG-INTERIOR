@@ -64,6 +64,12 @@ export const PARAMETRI_DEFAULT = Object.freeze({
     angoloGiunto: 1,
     // CIAFLAN (un'anta sola in diagonale): larghezza dell'anta del 63×63 (diagonale fra due pensili da 33 = 424, − 3)
     ciaflanAnta: 421,
+    // ANTE DEI PENSILI CHE SCENDONO sotto il mobile (per aprirle da sotto): ogni voce = pensili alti «altezza»
+    // (0 = tutti i pensili) → l'anta scende di «scende» mm. Si scelgono in ogni cucina (Ante pensili)
+    anteScendono: [
+      { id: 'sporg70', altezza: 700, scende: 20 },
+      { id: 'sporg90', altezza: 900, scende: 20 },
+    ],
     alzatina: false,
     altezzaAlzatina: 100,
   },
@@ -128,7 +134,9 @@ export const PARAMETRI_DEFAULT = Object.freeze({
   cassetti: {
     id: 'syskor',
     marca: 'Syscore',     // sistema di cassetti usato (scritto nella lista accessori)
-    profondita: 500,      // mm: cassetto / guide
+    profondita: 500,      // mm: cassetto / guide (in cucina)
+    // GUIDE che si possono usare (mm): negli armadi ogni cassettiera usa la più lunga che entra nella sua profondità
+    guide: [500, 400, 350, 300],
     spessore: 16,         // mm: fondo e trasera (melaminico)
     fondoMeno: 53,        // fondo: larghezza = modulo − fondoMeno
     fondoProfondita: 480, // fondo: profondità (sempre uguale)
@@ -144,6 +152,26 @@ export const PARAMETRI_DEFAULT = Object.freeze({
 const num = (v, d) => { const n = Number(v); return Number.isFinite(n) && v !== '' && v !== null ? n : d; };
 const numVuoto = (v) => { if (v === '' || v === null || v === undefined) return null; const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
 
+/**
+ * GUIDE DEI CASSETTI: elenco di misure (mm) scritto in ⚙ Parametri («500, 400, 350, 300»), anche come testo;
+ * dalla più lunga alla più corta, senza doppioni; vuoto → quelle di partenza.
+ */
+function elencoGuide(v) {
+  // separate da virgola, punto o spazio (sul telefono la tastiera dei numeri ha solo la virgola): misure intere in mm
+  const lista = (Array.isArray(v) ? v : String(v ?? '').split(/[^0-9]+/)).map((x) => Math.round(Number(x)))
+    .filter((x) => Number.isFinite(x) && x >= 100 && x <= 1500);
+  const u = [...new Set(lista)].sort((a, b) => b - a);
+  return u.length ? u : [...PARAMETRI_DEFAULT.cassetti.guide];
+}
+/**
+ * La GUIDA per una cassettiera profonda `prof` (mm) con questo sistema di cassetti: la più lunga delle sue
+ * guide che entra. Se non entra neanche la più corta: { guida: la più corta, entra: false }.
+ */
+export function guidaPerProfondita(sis, prof) {
+  const g = (sis && Array.isArray(sis.guide) && sis.guide.length) ? sis.guide : PARAMETRI_DEFAULT.cassetti.guide;
+  const ok = g.find((x) => prof >= x);
+  return { guida: ok || g[g.length - 1], entra: ok != null, minima: g[g.length - 1], guide: g };
+}
 /** Unisce i valori salvati con quelli di partenza (un numero mancante o sbagliato → quello di partenza). */
 function completa(s) {
   // prima versione: il cassetto da 155 si chiamava «grande» e il medio era vuoto → ora è il MEDIO
@@ -166,6 +194,7 @@ function completa(s) {
     id: idUnico(c.id || (i === 0 ? 'syskor' : ''), 'c', i, idsCass),
     marca: String(c.marca ?? (i === 0 ? D.cassetti.marca : '')).trim(),
     profondita: Math.max(0, num(c.profondita, D.cassetti.profondita)),
+    guide: elencoGuide(c.guide),
     spessore: Math.max(1, num(c.spessore, D.cassetti.spessore)),
     fondoMeno: num(c.fondoMeno, D.cassetti.fondoMeno),
     fondoProfondita: Math.max(i === 0 && mancano.includes('cassetti') ? 0 : 1, num(c.fondoProfondita, D.cassetti.fondoProfondita)),
@@ -257,6 +286,15 @@ function completa(s) {
       angoloAria: Math.max(0, Math.min(50, num(k.angoloAria, num(k.ciaflanAria, d.angoloAria)))),
       angoloGiunto: Math.max(0, Math.min(20, num(k.angoloGiunto, num(k.ciaflanGiunto, d.angoloGiunto)))),
       ciaflanAnta: Math.max(100, Math.min(1200, num(k.ciaflanAnta, d.ciaflanAnta))),
+      anteScendono: (() => {
+        const ids = new Set();
+        const l = Array.isArray(k.anteScendono) ? k.anteScendono : d.anteScendono;
+        return l.filter((x) => x && typeof x === 'object').map((x, i) => ({
+          id: idUnico(x.id, 'as', i, ids),
+          altezza: Math.max(0, Math.min(3000, Math.round(num(x.altezza, 0)))),
+          scende: Math.max(0, Math.min(300, Math.round(num(x.scende, 20)))),
+        }));
+      })(),
     }; })(),
     armadi: (() => { const a = (s && s.armadi) || {}, d = D.armadi; return {
       setup: Number(a.setup) === 2 ? 2 : 1,
@@ -317,6 +355,11 @@ export function ripristinaParametri() {
 // un'altra scheda (o la copia completa) ha cambiato i parametri: si rileggono
 if (typeof window !== 'undefined') window.addEventListener('storage', (e) => { if (e.key === CHIAVE || e.key === null) _cache = null; });
 
+/** Nome di una voce «anta del pensile che scende»: «Sporgente sotto · 70 → 72» (o tutti i pensili + mm). */
+export function nomeAntaScende(v) {
+  const cm = (mm) => String(Math.round(mm) / 10).replace('.', ',');
+  return v.altezza ? `Sporgente sotto · ${cm(v.altezza)} → ${cm(v.altezza + v.scende)}` : `Sporgente sotto · tutti i pensili +${v.scende} mm`;
+}
 /** I binari degli armadi scorrevoli (almeno uno). */
 export function binariScorrevoli(p = parametri()) { return p.binari; }
 /** Il binario scelto (per id); se non c'è più, il primo dell'elenco. */

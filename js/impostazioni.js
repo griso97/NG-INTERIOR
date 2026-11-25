@@ -8,22 +8,23 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261126v';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261126v';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261126v';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261126v';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261126v';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261126v';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261126v';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261126v';
-import { agganciaTema } from './tema.js?v=20261126v';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261126v';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador } from './parametri.js?v=20261126v';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261126v';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261126v';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261126v';
-import { geometriaCassettiera } from './calcoli.js?v=20261126v';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261126v';
+} from './catalogo.js?v=20261126w';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261126w';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261126w';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261126w';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261126w';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261126w';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261126w';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261126w';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261126w';
+import { agganciaTema } from './tema.js?v=20261126w';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261126w';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261126w';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261126w';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261126w';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261126w';
+import { geometriaCassettiera } from './calcoli.js?v=20261126w';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261126w';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -172,9 +173,13 @@ function apriScheda(m) {
   const tipo = sez === 'fingerpull' ? 'fp' : sez === 'maniglie' ? 'man' : 'base';
   const info = (p ? p.info : (m && m.info)) || {};
   const camp = p && p.campioneCm ? p.campioneCm : { w: '', h: '' };
-  const man = (p && p.maniglia) || { standard: true, lunghezzaCm: '' };
+  // maniglia del programma: la sua lunghezza vera (si può cambiare e va nel 3D)
+  const man = (p && p.maniglia) || (m && !p && m.lunghezzaMm ? { standard: m.lunghezzaMm === MANIGLIA_STANDARD_CM * 10, lunghezzaCm: m.lunghezzaMm / 10 } : { standard: true, lunghezzaCm: '' });
   // spessore del tirador da togliere all'anta: quello salvato (o, per le maniglie di prima, a J / sul bordo sì)
   const togliSp = tipo === 'man' && m ? spessoreTirador(m) : 0;
+  // QUANTO SPORGE: quella scritta (scheda) e quella della forma 3D (se non si scrive niente)
+  const sporgScritta = tipo === 'man' ? (p ? Number(p.maniglia && p.maniglia.sporgenza) || '' : Number((stato.modifiche || {})[m && m.id]?.sporgenza) || '') : '';
+  const sporgForma = tipo === 'man' && m ? sporgenzaDef({ ...m, sporgenzaMm: null }) : '';
   document.getElementById('imp-modale-titolo').textContent = tr(nuovo ? 'Nuovo prodotto' : 'Modifica prodotto');
   const corpo = document.getElementById('imp-modale-corpo');
   const aiutoFoto = {
@@ -241,6 +246,11 @@ function apriScheda(m) {
         <label class="imp-vis"><input type="radio" name="f-sottrai" value="si" ${togliSp ? 'checked' : ''}> Sottrai lo spessore del tirador dall'anta</label>
         <label id="f-sottrai-box" ${togliSp ? '' : 'hidden'}>Spessore da togliere (mm) <span class="imp-obbl">*</span><input type="text" inputmode="decimal" autocomplete="off" id="f-sottrai-mm" value="${esc(togliSp || '')}"></label>
         <div class="imp-aiuto">Per i tiradores che stanno sul bordo dell'anta (a J, con la L dietro la porta, il tirador lungo): l'anta si accorcia di questo spessore dal lato dove sta la maniglia (sopra, sotto o di lato), nel 3D e in distinta.</div>
+      </fieldset>
+      <fieldset class="imp-misura">
+        <legend>Quanto sporge</legend>
+        <label>Quanto sporge dall'anta (mm)<input type="text" inputmode="decimal" autocomplete="off" id="f-sporg" value="${esc(sporgScritta)}" placeholder="${esc(sporgForma ? String(sporgForma) : 'es. 30')}"></label>
+        <div class="imp-aiuto">Dal davanti dell'anta alla parte più sporgente della maniglia.${sporgForma ? ` Vuoto = quella della forma 3D (${sporgForma} mm).` : ''} Nel 3D la maniglia sporge di questa misura; negli armadi la cassettiera va indietro di tanto; in cucina serve per la regletta d'angolo.</div>
       </fieldset>` : ''}
       <label>Nome <span class="imp-obbl">*</span><input type="text" id="f-nome" value="${esc(m ? m.nome : '')}" placeholder="${tipo === 'man' ? 'Es. Maniglia nera 160' : tipo === 'fp' ? 'Es. Rovere con gola nera' : 'Es. Rovere naturale, Giallo canarino…'}"></label>
       <div class="grid-2">
@@ -355,8 +365,27 @@ function apriScheda(m) {
       if (si && mm > 60) { errore(tr('Lo spessore va in millimetri: controlla il numero (es. 2 mm).')); return; }
       tirN = { sottrai: si, spessore: si ? mm : 0 };
     }
+    // QUANTO SPORGE (vuoto = come la forma 3D)
+    let sporgN = null;
+    if (tipo === 'man' && corpo.querySelector('#f-sporg')) {
+      const t = v('#f-sporg');
+      if (t) {
+        sporgN = Number(t.replace(',', '.'));
+        if (!(sporgN > 0) || sporgN > 200) { errore(tr('Quanto sporge va in millimetri (es. 30): controlla il numero.')); return; }
+      }
+    }
     if (!proprio) {
-      stato.modifiche = { ...(stato.modifiche || {}), [m.id]: { nome, info: infoN, ...(tirN ? { tirador: tirN } : {}) } };
+      // maniglia del programma: anche lunghezza e sporgenza scritte qui vanno nel 3D e nei calcoli
+      let lungN = null;
+      if (tipo === 'man' && m && m.texture && m.lunghezzaMm && corpo.querySelector('input[name="f-mis"]:checked')) {
+        const pers = corpo.querySelector('input[name="f-mis"]:checked').value === 'pers';
+        const lung = Number(v('#f-lung').replace(',', '.'));
+        if (pers && !(lung > 0)) { errore(tr('Scrivi la lunghezza della maniglia in cm, oppure scegli la misura standard (15 cm).')); return; }
+        if (pers && lung > 300) { errore(tr('La lunghezza va in centimetri: forse l\'hai scritta in millimetri? Es. 160 mm = 16 cm.')); return; }
+        lungN = Math.round((pers ? lung : MANIGLIA_STANDARD_CM) * 10);
+      }
+      stato.modifiche = { ...(stato.modifiche || {}), [m.id]: { nome, info: infoN, ...(tirN ? { tirador: tirN } : {}),
+        ...(lungN ? { lunghezzaMm: lungN } : {}), ...(sporgN ? { sporgenza: sporgN } : {}) } };
       await salvaERicarica(); return;
     }
     let w = 0, h = 0, manN = null;
@@ -366,7 +395,7 @@ function apriScheda(m) {
       if (pers && !(lung > 0)) { errore(tr('Scrivi la lunghezza della maniglia in cm, oppure scegli la misura standard (15 cm).')); return; }
       if (pers && lung > 150) { errore(tr('La lunghezza va in centimetri: forse l\'hai scritta in millimetri? Es. 160 mm = 16 cm.')); return; }
       manN = { standard: !pers, lunghezzaCm: pers ? lung : MANIGLIA_STANDARD_CM, rapporto: p && p.maniglia ? p.maniglia.rapporto : null, verticale: p && p.maniglia ? p.maniglia.verticale : false,
-        ...(tirN ? { sottrai: tirN.sottrai, spessoreTogli: tirN.spessore } : {}) };
+        ...(tirN ? { sottrai: tirN.sottrai, spessoreTogli: tirN.spessore } : {}), ...(sporgN ? { sporgenza: sporgN } : {}) };
     } else {
       w = Number(v('#f-w').replace(',', '.')); h = Number(v('#f-h').replace(',', '.'));
       if (!(w > 0 && h > 0)) { errore(tr('Inserisci la misura del campione in cm (larghezza e altezza).')); return; }
@@ -1040,7 +1069,7 @@ function renderParametri(S) {
   const campo = (path, et, aiuto = '', opz = {}) => {
     const v = leggi(path);
     return `<div class="par-campo-box"><label class="par-campo ${opz.largo ? 'largo' : ''}"><span class="par-et">${esc(et)}</span>
-      <span class="par-input"><input type="${opz.testo ? 'text' : 'number'}" ${opz.testo ? '' : 'inputmode="decimal" step="0.1" min="0"'} data-par="${path}" value="${v == null ? '' : esc(v)}" placeholder="${esc(opz.ph || '')}">${opz.testo ? '' : '<em>mm</em>'}</span>
+      <span class="par-input"><input type="${opz.testo ? 'text' : 'number'}" ${opz.numeri ? 'class="par-elenco"' : ''} ${opz.testo ? (opz.numeri ? 'inputmode="decimal"' : '') : 'inputmode="decimal" step="0.1" min="0"'} data-par="${path}" value="${v == null ? '' : esc(Array.isArray(v) ? v.join(', ') : v)}" placeholder="${esc(opz.ph || '')}">${opz.testo && !opz.mm ? '' : '<em>mm</em>'}</span>
       ${aiuto ? `<small>${esc(aiuto)}</small>` : ''}</label>${htmlFotoParametro(path)}</div>`;
   };
   const campoBin = (i, k, et, aiuto) => `<div class="par-campo-box"><label class="par-campo"><span class="par-et">${esc(et)}</span>
@@ -1128,7 +1157,8 @@ function renderParametri(S) {
       </div>
       <div class="par-griglia">
         ${campo(`${pc}.marca`, nostro ? 'Nome' : 'Marca', '', { testo: true, ph: nostro ? 'es. Cassetto legno 16' : 'es. Syscore' })}
-        ${campo(`${pc}.profondita`, nostro ? 'Lunghezza guide (cucina)' : 'Profondità del cassetto (guide)', nostro ? 'negli armadi si sceglie in ogni cassettiera (500, 400, 350)' : '')}
+        ${campo(`${pc}.profondita`, nostro ? 'Lunghezza guide in cucina' : 'Profondità del cassetto in cucina (guide)', 'i mobili della cucina hanno tutti la stessa profondità')}
+        ${campo(`${pc}.guide`, 'Guide che si possono usare', 'separate da virgola, es. 500, 400, 350, 300. Negli armadi ogni cassettiera usa la più lunga che entra nella sua profondità', { testo: true, numeri: true, mm: true, ph: '500, 400, 350, 300' })}
       </div>
       ${nostro ? `
       <h4 style="margin:14px 0 6px">Montaggio</h4>
@@ -1235,6 +1265,21 @@ function renderParametri(S) {
       </div>
       <div class="par-esempio" id="par-es-cern" data-no-i18n></div>
       <p class="imp-desc">Nella distinta e nell'esportazione ogni anta dei pensili ha scritto: 2 cerniere standard e a quanti mm da sopra e da sotto. Quando le due misure sono diverse (anta che scende di più: 72, 92…) c'è scritto anche se le cerniere sono a destra o a sinistra.</p>
+    </div>
+    <div class="par-gruppo">
+      <h3>Ante dei pensili che scendono</h3>
+      <p class="imp-desc">Per aprire i pensili da sotto, senza maniglia: l'anta scende sotto il mobile. Ogni voce compare come scelta in «Ante pensili» di ogni cucina; nel 3D, nel disegno e in distinta l'anta è più lunga di quanto scritto e le cerniere sotto si spostano da sole.</p>
+      ${P.cucina.anteScendono.map((v, i) => `
+      <div class="par-griglia">
+        <div class="par-campo-box"><label class="par-campo"><span class="par-et">Pensili alti</span>
+          <span class="par-input"><input type="number" inputmode="numeric" min="0" step="1" data-asc="${i}.altezza" value="${v.altezza || ''}" placeholder="—"><em>mm</em></span>
+          <small>vuoto = tutti i pensili</small></label></div>
+        <div class="par-campo-box"><label class="par-campo"><span class="par-et">L'anta scende di</span>
+          <span class="par-input"><input type="number" inputmode="numeric" min="0" step="1" data-asc="${i}.scende" value="${v.scende}"><em>mm</em></span>
+          <small data-asc-nome="${i}">${esc(nomeAntaScende(v))}</small></label></div>
+        <div class="par-campo-box" style="align-self:center"><button type="button" class="btn-ghost btn-mini" data-asc-togli="${i}">✕ Togli</button></div>
+      </div>`).join('')}
+      <button type="button" class="btn-ghost" id="par-asc-agg" style="margin-top:8px">+ Aggiungi</button>
     </div>
     <div class="par-gruppo">
       <h3>Finger-pull</h3>
@@ -1485,7 +1530,7 @@ function renderParametri(S) {
     o[ult] = inp.type === 'number' ? (inp.value === '' ? '' : Number(String(inp.value).replace(',', '.'))) : inp.value;
     salvaParametri(nuovo);
     if (parti.length === 2 && (a === 'gola' || a === 'regletta' || a === 'cassetti') && Number(o[ult]) > 0) impostato(a);
-    if (inp.type !== 'number' && ['gola', 'goleAltre', 'cassetti', 'cassettiAltri'].includes(a)) {
+    if (inp.type !== 'number' && ['nome', 'marca'].includes(ult) && ['gola', 'goleAltre', 'cassetti', 'cassettiAltri'].includes(a)) {
       // il nome nella barra delle voci segue quello che si scrive
       const tipo = a === 'gola' || a === 'goleAltre' ? 'gola' : 'cass', idx = parti.length === 2 ? 0 : Number(parti[1]) + 1;
       el.querySelectorAll(`[data-sis="${tipo}"][data-i="${idx}"]`).forEach((bt) => { bt.firstChild.textContent = `✓ ${inp.value || '—'}`; });
@@ -1514,6 +1559,25 @@ function renderParametri(S) {
     if (!b || nuovo.binari.length < 2) return;
     if (!confirm(tr(`Togliere il binario «${b.nome || '—'}»?`))) return;
     nuovo.binari.splice(i, 1); salvaParametri(nuovo); renderParametri(S);
+  }));
+  // ANTE DEI PENSILI CHE SCENDONO: altezza dei pensili (vuoto = tutti) e di quanto scende; aggiungi / togli
+  el.querySelectorAll('[data-asc]').forEach((inp) => inp.addEventListener('input', () => {
+    const nuovo = JSON.parse(JSON.stringify(parametri())), [i, k] = inp.dataset.asc.split('.');
+    const v = nuovo.cucina.anteScendono[i]; if (!v) return;
+    v[k] = inp.value === '' ? 0 : Math.round(Number(String(inp.value).replace(',', '.')) || 0);
+    const P2 = salvaParametri(nuovo), n = el.querySelector(`[data-asc-nome="${i}"]`);
+    if (n && P2.cucina.anteScendono[i]) n.textContent = tr(nomeAntaScende(P2.cucina.anteScendono[i]));
+    msg.hidden = false; clearTimeout(timer); timer = setTimeout(() => { msg.hidden = true; }, 1400);
+  }));
+  el.querySelector('#par-asc-agg')?.addEventListener('click', () => {
+    const nuovo = JSON.parse(JSON.stringify(parametri()));
+    nuovo.cucina.anteScendono.push({ id: 'as' + Date.now().toString(36), altezza: 800, scende: 20 });
+    salvaParametri(nuovo); renderParametri(S);
+  });
+  el.querySelectorAll('[data-asc-togli]').forEach((btn) => btn.addEventListener('click', () => {
+    const nuovo = JSON.parse(JSON.stringify(parametri())), i = Number(btn.dataset.ascTogli), v = nuovo.cucina.anteScendono[i];
+    if (!v || !confirm(tr(`Togliere «${nomeAntaScende(v)}»?`))) return;
+    nuovo.cucina.anteScendono.splice(i, 1); salvaParametri(nuovo); renderParametri(S);
   }));
   // SCHEDE: Cucina / Armadio a battente / Armadio scorrevole / Mobili modulari
   el.querySelectorAll('[data-scheda-btn]').forEach((b) => b.addEventListener('click', () => {

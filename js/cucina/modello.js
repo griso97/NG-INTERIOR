@@ -5,8 +5,8 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261126v';
-import { SPORGENZA_FORMA } from '../finiture-maniglia.js?v=20261126v';
+import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261126w';
+import { sporgenzaDef } from '../finiture-maniglia.js?v=20261126w';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -2353,13 +2353,10 @@ const SPORGENZA_MANIGLIE = { 'maniglia-standard': 40, 'maniglia-bordo-l-nera': 1
 export function sporgenzaManiglia(progetto, m) {
   const sc = sceltePorte(progetto, m);
   if (!sc || sc.gola || sc.push || sc.fp) return 0;
-  if (!sc.maniglia || SPORGENZA_MANIGLIE[sc.maniglia] != null) return SPORGENZA_MANIGLIE[sc.maniglia || 'maniglia-standard'];
-  const def = typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === sc.maniglia);
-  if (!def || !def.texture || !def.lunghezzaMm) return 40;
-  const L = def.lunghezzaMm, forma = def.forma && def.forma !== 'foto' && def.formaV ? def.forma : 'barra';
-  if (SPORGENZA_FORMA[forma] != null) return SPORGENZA_FORMA[forma];   // come nel 3D (finiture-maniglia.js)
-  if (forma === 'pomolo') { const D = Math.max(18, Math.min(L, 45)); return Math.ceil(20 + D * 0.25 + D * 0.275); }
-  return Math.ceil(30 + 2 * Math.max(5, Math.min(7, L * 0.04)));          // barra tonda
+  // la maniglia del catalogo: quanto scritto nella sua scheda, se no come è fatta nel 3D (finiture-maniglia.js)
+  const def = sc.maniglia && typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === sc.maniglia);
+  if (def) return sporgenzaDef(def);
+  return SPORGENZA_MANIGLIE[sc.maniglia || 'maniglia-standard'] ?? 40;   // catalogo non ancora caricato
 }
 /**
  * REGLETTA D'ANGOLO MINIMA fra due mobili (mm): quella dei ⚙ Parametri (3 cm), ma mai più stretta di
@@ -3841,11 +3838,13 @@ export function altezzaAlzatina(progetto) {
  */
 export function scendeAntaPensile(progetto, h) {
   const opt = progetto && progetto.antaPensile;
-  if (opt === 'sporg70') return Math.abs(h - 700) < 40 ? 20 : 0;
-  if (opt === 'sporg90') return Math.abs(h - 900) < 40 ? 20 : 0;
   if (opt === 'pers') { const v = Math.round(Number(progetto.antaPensileMm)); return Number.isFinite(v) && v > 0 ? Math.min(300, v) : 0; }
+  // le voci dei ⚙ Parametri → Cucina (di partenza 70 → 72 e 90 → 92; se ne aggiungono altre)
+  const v = (parametri().cucina.anteScendono || []).find((x) => x.id === opt);
+  if (v) return !v.altezza || Math.abs(h - v.altezza) < 40 ? v.scende : 0;
   return 0;
 }
+
 
 // =============================================================================
 // GOLA VERTICALE DELLE COLONNE («Cucina con gola»)

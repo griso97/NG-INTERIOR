@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261126v';
-import { htmlTendineColori } from './tendine-colori.js?v=20261126v';
-import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261126v';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261126v';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261126v';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261126w';
+import { htmlTendineColori } from './tendine-colori.js?v=20261126w';
+import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261126w';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261126w';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261126w';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -722,7 +722,7 @@ function renderCassettiere(config) {
   // scelte a PULSANTI (chiare anche sul telefono, niente tendine)
   const scelte = (k, att, opz) => `<div class="cass-scelte" data-k="${k}">${opz.map(([v, t, sub]) => `
           <button type="button" class="btn-ghost ${String(att) === String(v) ? 'attivo' : ''}" data-v="${escAttr(v)}">${t}${sub ? `<small>${sub}</small>` : ''}</button>`).join('')}</div>`;
-  const nostri = sistemiCassetti().filter((x) => x.tipo === 'nostro');
+  const sistemi = sistemiCassetti();               // tutti i sistemi di cassetti dei ⚙ Parametri (a sistema e su misura)
   const maniglie = materialiPer('maniglie');
   const tessera = (m) => (m ? `<span class="man-tessera" style="background:${sfondoSwatch(m)}"></span>` : '<span class="man-tessera man-nessuna">—</span>');
   wrap.innerHTML = casse.map((c, j) => {
@@ -756,14 +756,15 @@ function renderCassettiere(config) {
             G.differenza === 0 ? ' ✓' : G.differenza > 0 ? ` · mancano ${G.differenza} mm` : ` · ${-G.differenza} mm in più`}</p>
           <p class="hint">Ogni frontale è la misura scritta meno l'aria dei Parametri (${G.fuga} mm): es. 150 → ${150 - G.fuga}.</p>` : `
           <p class="hint">Frontali da ${G.fronti[0].h} mm.</p>`}
+          <div class="cass-et">Cassetti</div>
+          ${sistemi.length > 1 ? scelte('sistema', G.sistema.id, sistemi.map((x) => [x.id, escAttr(x.marca || '—'), x.tipo === 'nostro' ? 'su misura' : 'a sistema']))
+            : `<p class="hint" style="margin-top:0">${escAttr(nomeSistemaCassetti(sistemi[0]))}</p>`}
+          <p class="hint">Altri sistemi di cassetti (a sistema o su misura) e le loro guide si aggiungono in <a href="impostazioni.html#parametri">Impostazioni → Parametri</a> → Sistemi di cassetti.</p>
           <div class="cass-et">Guida dei cassetti</div>
           <p class="hint ${G.guidaNonEntra ? 'err' : ''}" style="margin-top:0">${G.guidaNonEntra
-            ? `La cassettiera è profonda solo ${G.profScatola} mm, non entra neanche la guida da 300.`
+            ? `La cassettiera è profonda solo ${G.profScatola} mm, non entra neanche la guida da ${G.guidaMinima}.`
             : `Guida ${G.guida} mm, scelta da sola dalla profondità della cassettiera (${G.profScatola} mm).`}</p>
-          <p class="hint">Da 500 mm in su guida 500, da 400 a 499 guida 400, sotto 400 guida 300.</p>
-          <div class="cass-et">Cassetti</div>
-          ${nostri.length ? scelte('sistema', c.sistemaCassetti || '', [['', 'A sistema'], ...nostri.map((x) => [x.id, escAttr(nomeSistemaCassetti(x))])])
-            : '<p class="hint" style="margin-top:0">A sistema. I cassetti su misura si configurano in <a href="impostazioni.html#parametri">Impostazioni → Parametri</a> → Sistemi di cassetti.</p>'}
+          <p class="hint">Guide di ${escAttr(G.sistema.marca || '—')} (mm): ${G.guide.join(', ')}. Si usa la più lunga che entra.</p>
         </div>
         <div class="cass-blocco">
           <div class="cass-tit">Maniglia dei cassetti</div>
@@ -777,11 +778,12 @@ function renderCassettiere(config) {
             <button type="button" class="mat-swatch ${def && m.id === def.id ? 'sel' : ''}" data-cman="${escAttr(m.id)}" title="${escAttr(m.nome)}">${tessera(m)}<span>${escAttr(m.nome)}</span></button>`).join('')}
           </div>
           <label style="margin-top:10px">Quanto sporge la maniglia dal frontale (mm)
-            <input type="number" class="c-sporg" value="${Number(c.sporgenza) > 0 ? c.sporgenza : ''}" placeholder="da scrivere" min="1" step="1" />
+            <input type="number" class="c-sporg" value="${G.sporgenza}" min="1" step="1" inputmode="numeric" />
           </label>
-          <p class="hint ${G.sporgenzaMancante ? 'err' : ''}">${G.sporgenzaMancante
-            ? 'Obbligatorio: senza questa misura la profondità della cassettiera e dei cassetti non si può calcolare.'
-            : 'Proposta dalla maniglia scelta, si può cambiare. La cassettiera è più corta di questa misura, così la maniglia sta davanti ai frontali.'}</p>` : ''}
+          <p class="hint"><span>${G.sporgenzaScritta
+            ? `Scritta per questa cassettiera (la scheda della maniglia dice ${sporgenzaDiManiglia(def)} mm).`
+            : 'Dalla scheda della maniglia (Impostazioni → Maniglie). Se la cambi qui vale solo per questa cassettiera.'}</span>
+            <span>La cassettiera è più corta di questa misura, così la maniglia sta davanti ai frontali.</span></p>` : ''}
           ${G.ribassati ? `
           <label style="margin-top:10px">Frontali più bassi di (mm)
             <input type="number" class="c-ribasso" value="${c.ribasso ?? cassettieraArmadio(scorrevole ? 'scorrevole' : 'battente').ribasso}" min="0" step="1" />
@@ -876,11 +878,11 @@ function attaccaEventiCassettiere(contenitore, config, onChange) {
         if (k === 'divisione') {
           if (v === 'personalizzata') { cas.divisione = 'personalizzata'; cas.altezze = spaziCassettiDiPartenza(config, cas, (config.moduli[0] && config.moduli[0].larghezza) || 1000); }
           else { delete cas.divisione; delete cas.altezze; }
-        } else if (k === 'sistema') { if (v) cas.sistemaCassetti = v; else delete cas.sistemaCassetti; }
+        } else if (k === 'sistema') { if (v && v !== sistemiCassetti()[0].id) cas.sistemaCassetti = v; else delete cas.sistemaCassetti; }   // il primo = quello di partenza
         else if (k === 'apertura') {
           cas.apertura = v;                              // incassata / maniglia / ribassati
           delete cas.maniglia;
-          if (v === 'maniglia' && !(Number(cas.sporgenza) > 0)) cas.sporgenza = sporgenzaDiManiglia(manigliaCassettiera(config, cas));
+          // la sporgenza segue la scheda della maniglia (si scrive qui solo per cambiarla in questa cassettiera)
         }
         ridisegna();
       };
@@ -890,13 +892,14 @@ function attaccaEventiCassettiere(contenitore, config, onChange) {
       b.onclick = () => {
         mostraPorte(true);
         if (b.dataset.cman) cas.manigliaId = b.dataset.cman; else { delete cas.manigliaId; delete config.manigliaCassetti; }
-        cas.sporgenza = sporgenzaDiManiglia(manigliaCassettiera(config, cas));
+        delete cas.sporgenza;                            // quella della nuova maniglia (sua scheda)
         ridisegna();
       };
     });
     const sporg = row.querySelector('.c-sporg');
     if (sporg) {
-      sporg.oninput = (e) => { const v = Math.round(Number(e.target.value) || 0); if (v > 0) cas.sporgenza = v; else delete cas.sporgenza; onChange(config); };
+      // uguale a quella della scheda (o vuota) = segue la maniglia; diversa = solo questa cassettiera
+      sporg.oninput = (e) => { const v = Math.round(Number(e.target.value) || 0); if (v > 0 && v !== sporgenzaDiManiglia(manigliaCassettiera(config, cas))) cas.sporgenza = v; else delete cas.sporgenza; onChange(config); };
       sporg.onchange = ridisegna;                      // l'avviso «obbligatorio» sparisce
     }
     row.querySelectorAll('.c-alt-i').forEach((inp) => {
