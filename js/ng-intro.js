@@ -3,7 +3,8 @@
    =============================================================================
    COSA FA
    Quando si apre la pagina iniziale copre lo schermo (nero) e in ~8,6 secondi (tempi dell'animazione:
-   con CONFIG.velocita 1.3 tutto va il 30% più veloce, ~6,6 secondi veri):
+   con CONFIG.velocita 1.3 tutto va il 30% più veloce e dopo il pavimento ancora di più, CONFIG.finale:
+   in tutto ~4,7 secondi veri, poi la pausa e la dissolvenza):
      0,0 s  NG compare come disegno 3D a linee (girato di 3/4)
      1,2 s  una lama di luce passa da sinistra a destra e lo trasforma nel logo
             d'oro vero (la faccia è il logo originale, dietro uno spessore d'oro)
@@ -44,11 +45,32 @@ const CONFIG = {
   motto: true,                 // true = mostra anche "3D DESIGN · CUSTOM FURNITURE"
   logo: 'img/logo.png',        // logo del sito (relativo alla pagina)
   ritaglioNG: [84, 16, 461, 318],   // x, y, larghezza, altezza della parte "NG" dentro logo.png
-  durata: 8.6,                 // secondi dell'animazione (a velocità 1)
-  velocita: 1.3,               // 1 = come disegnata (8,6 s); 1.3 = tutto (anche i suoni) il 30% più veloce: ~6,6 s
-  pausaFinale: 0.7,            // secondi fermi sul finale prima di sparire
+  durata: 7.6,                 // secondi dell'animazione (a velocità 1): a 7,4 la frase è tutta fuori
+  velocita: 1.3,               // 1 = come disegnata; 1.3 = tutto (anche i suoni) il 30% più veloce
+  finale: 1.6,                 // DOPO IL PAVIMENTO (cubo, STUDIO, riga, motto, frase) ancora × 1,6: una dietro l'altra
+  accelera: [3.3, 3.8],        // fra questi secondi dell'animazione si passa piano dalla prima velocità alla seconda
+  pausaFinale: 0.8,            // secondi fermi sul finale (per leggere la frase) prima di sparire
   sfumaUscita: 0.7,            // secondi della dissolvenza d'uscita
 };
+// VELOCITÀ dell'animazione al suo tempo t (×), e quanti secondi VERI ci vogliono per arrivare a ogni t
+// (tabella: serve all'animazione e ai suoni, così restano a tempo)
+const passoAnim = (t) => {
+  const [a, b] = CONFIG.accelera, k = CONFIG.finale;
+  return CONFIG.velocita * (t <= a ? 1 : t >= b ? k : 1 + (k - 1) * (t - a) / (b - a));
+};
+const TEMPI = (() => { const d = 0.005, out = [[0, 0]]; let r = 0;
+  for (let i = 1; i * d <= CONFIG.durata + 1e-9; i++) { r += d / passoAnim((i - 0.5) * d); out.push([r, i * d]); } return out; })();
+const cerca = (x, k) => {            // interpolazione nella tabella (k = 0: dai secondi veri; k = 1: dal tempo dell'animazione)
+  const ult = TEMPI[TEMPI.length - 1];
+  if (x <= 0) return 0; if (x >= ult[k]) return ult[1 - k] + (x - ult[k]) * (k ? 1 / passoAnim(CONFIG.durata) : passoAnim(CONFIG.durata));
+  let lo = 0, hi = TEMPI.length - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (TEMPI[m][k] <= x) lo = m; else hi = m; }
+  const A = TEMPI[lo], B = TEMPI[hi]; return A[1 - k] + (B[1 - k] - A[1 - k]) * (x - A[k]) / (B[k] - A[k]);
+};
+const tempoAnimazione = (vero) => cerca(vero, 0);      // secondi veri → tempo dell'animazione
+const secondiVeri = (t) => cerca(t, 1);                // tempo dell'animazione → secondi veri
+const DURATA_VERA = TEMPI[TEMPI.length - 1][0];
+
 const TESTI = {
   it: { frase: 'Dove la creatività prende vita', salta: 'Tocca per entrare', audioOn: 'Disattiva audio', audioOff: 'Attiva audio' },
   es: { frase: 'Donde la creatividad cobra vida', salta: 'Toca para entrar', audioOn: 'Desactivar audio', audioOff: 'Activar audio' },
@@ -279,7 +301,7 @@ const FORME_NG = [{"f":[[310.6,314.7],[304.9,314.4],[298.8,313.7],[292.5,312.9],
     const c = new AC();
     if (c.state !== 'running') { try { c.resume(); } catch (_) { /* niente */ } }
     const u = c.createGain(); u.gain.value = 1; u.connect(c.destination);
-    programmaSuoni(c, u, c.currentTime + 0.05, CONFIG.durata, CONFIG.velocita);
+    programmaSuoni(c, u, c.currentTime + 0.05, CONFIG.durata, secondiVeri);
     ctxAudio = c; uscitaAudio = u;
     return true;
   }
@@ -300,10 +322,10 @@ const FORME_NG = [{"f":[[310.6,314.7],[304.9,314.4],[298.8,313.7],[292.5,312.9],
   }
   function giro() {
     if (fine) return;
-    const vero = ora() - inizio, t = vero * CONFIG.velocita;      // tempo dell'animazione (più veloce del vero)
+    const vero = ora() - inizio, t = tempoAnimazione(vero);      // tempo dell'animazione (più veloce del vero)
     fotogramma(Math.min(t, CONFIG.durata));
     if (t > 1.5) el.salta.style.opacity = '1';
-    if (vero >= CONFIG.durata / CONFIG.velocita + CONFIG.pausaFinale) { chiudi(); return; }
+    if (vero >= DURATA_VERA + CONFIG.pausaFinale) { chiudi(); return; }
     idRaf = requestAnimationFrame(giro);
   }
   el.audio.addEventListener('click', (e) => {
@@ -345,8 +367,8 @@ const FORME_NG = [{"f":[[310.6,314.7],[304.9,314.4],[298.8,313.7],[292.5,312.9],
 //   3.35 clic appena accennati, senza melodia (gli spigoli del cubo)
 //   4.6  finito il cubo, il suono sfuma piano (~2,5 s); STUDIO e la frase in silenzio
 // =============================================================================
-function programmaSuoni(ctx, uscita, t0 = ctx.currentTime, durata = 8.6, velocita = 1) {
-  const T = (s) => t0 + s / velocita;            // i tempi qui sotto sono quelli dell'animazione (a velocità 1)
+function programmaSuoni(ctx, uscita, t0 = ctx.currentTime, durata = 8.6, vero = (s) => s) {
+  const T = (s) => t0 + vero(s);                 // i tempi qui sotto sono quelli dell'animazione: vero() → secondi veri
   // ---- uscita: compressore morbido + riverbero da sala grande ----
   const comp = ctx.createDynamicsCompressor();
   comp.threshold.value = -18; comp.knee.value = 18; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.4;
