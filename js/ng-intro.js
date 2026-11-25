@@ -3,8 +3,8 @@
    =============================================================================
    COSA FA
    Quando si apre la pagina iniziale copre lo schermo (nero) e in ~8,6 secondi (tempi dell'animazione:
-   con CONFIG.velocita 1.6 tutto va il 60% più veloce, e il cubo e le scritte ancora di più, CONFIG.ritmo:
-   in tutto ~3,7 secondi veri, poi la pausa e la dissolvenza: ~4,8 secondi):
+   con CONFIG.velocita 1.4 tutto va il 40% più veloce, e il cubo e le scritte ancora di più, CONFIG.ritmo:
+   in tutto ~4,2 secondi veri, poi la pausa e la dissolvenza: ~5,3 secondi):
      0,0 s  NG compare come disegno 3D a linee (girato di 3/4)
      1,2 s  una lama di luce passa da sinistra a destra e lo trasforma nel logo
             d'oro vero (la faccia è il logo originale, dietro uno spessore d'oro)
@@ -46,7 +46,7 @@ const CONFIG = {
   logo: 'img/logo.png',        // logo del sito (relativo alla pagina)
   ritaglioNG: [84, 16, 461, 318],   // x, y, larghezza, altezza della parte "NG" dentro logo.png
   durata: 7.6,                 // secondi dell'animazione (a velocità 1): a 7,4 la frase è tutta fuori
-  velocita: 1.6,               // 1 = come disegnata; 1.6 = tutto (anche i suoni) il 60% più veloce
+  velocita: 1.4,               // 1 = come disegnata; 1.4 = tutto (anche i suoni) il 40% più veloce
   // RITMO: [tempo dell'animazione, quante volte più veloce di «velocita»]; fra un punto e l'altro si passa
   // piano. Fino al pavimento ×1; dopo (cubo e scritte: STUDIO, riga, motto, frase) ×1,7, una dietro l'altra
   ritmo: [[0, 1], [3.3, 1], [3.8, 1.7]],
