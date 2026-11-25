@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261126w';
-import { htmlTendineColori } from './tendine-colori.js?v=20261126w';
-import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261126w';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261126w';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261126w';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261126x';
+import { htmlTendineColori } from './tendine-colori.js?v=20261126x';
+import { misureCostado, binarioArmadio, profonditaBinario, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261126x';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261126x';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261126x';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -162,8 +162,7 @@ export function renderPannello(contenitore, config, onChange) {
         </label>
         <label>Binario (mm)
           <select id="sc-bin">
-            <option value="75" ${(config.scorrevole?.binario ?? 75) === 75 ? 'selected' : ''}>75 (default)</option>
-            <option value="85" ${(config.scorrevole?.binario ?? 75) === 85 ? 'selected' : ''}>85</option>
+            ${(binarioArmadio(config).profondita || [75]).map((v, i) => `<option value="${v}" ${profonditaBinario(config) === v ? 'selected' : ''}>${v}${i === 0 ? ' (default)' : ''}</option>`).join('')}
           </select>
         </label>
       </div>
@@ -352,6 +351,10 @@ export function renderPannello(contenitore, config, onChange) {
   });
   bind('#sc-tipo', (e) => {
     config.scorrevole.tipoBinario = e.target.value;
+    // gli spazi del binario nuovo (⚙ Parametri → Binari): se quello di prima non c'è, il primo
+    config.scorrevole.binario = profonditaBinario(config);
+    const sel = document.getElementById('sc-bin');
+    if (sel) sel.innerHTML = (binarioArmadio(config).profondita || [75]).map((v, i) => `<option value="${v}" ${config.scorrevole.binario === v ? 'selected' : ''}>${v}${i === 0 ? ' (default)' : ''}</option>`).join('');
     onChange(config);
   }, 'change');
   bind('#sc-tirador', (e) => {
@@ -360,7 +363,7 @@ export function renderPannello(contenitore, config, onChange) {
   }, 'change');
   bind('#sc-bin', (e) => {
     const v = Number(e.target.value);
-    config.scorrevole.binario = (v === 85) ? 85 : 75;
+    config.scorrevole.binario = v > 0 ? v : (binarioArmadio(config).profondita || [75])[0];   // uno degli spazi del binario
     onChange(config);
   }, 'change');
   // Colore del binario (catalogo: Impostazioni → Binari)

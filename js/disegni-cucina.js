@@ -4,7 +4,7 @@
 //   svgGola(spazio)                → visto DI LATO: piano, profilo L, cassetti, profilo C, spazio per le dita
 //   svgRegletta(vista, spessore)   → visto DA SOPRA: l'angolo di una cucina a L con i due pezzi della regletta
 // =============================================================================
-import { svgAnteInterne } from './disegni-montaggio.js?v=20261126w';
+import { svgAnteInterne } from './disegni-montaggio.js?v=20261126x';
 const t = (s) => (typeof window !== 'undefined' && window.NGI18N ? window.NGI18N.t(s) : s);
 const C = { piano: '#2a2a2c', fianco: '#8d939b', anta: '#e8dcc0', profilo: '#4b4f55', testo: '#e6dcc6', dim: '#e8c25a', muro: '#5a5246', reg: '#e8c25a', cieco: '#cdbf9f' };
 const txt = (x, y, s, opz = '') => `<text x="${x}" y="${y}" ${/fill=/.test(opz) ? '' : `fill="${C.testo}"`} ${/font-size=/.test(opz) ? '' : 'font-size="10"'} font-family="sans-serif" ${opz}>${s}</text>`;
@@ -227,17 +227,21 @@ export function svgParametro(nome, P) {
 /**
  * MODIFICA DELLA COLONNA PER LA GOLA VERTICALE, vista DA SOPRA (sezione all'altezza delle ante), ingrandita:
  * a sinistra il profilo CENTRALE fra due colonne, a destra il profilo LATERALE fra costado e colonna.
- * Il fianco dal lato della gola si accorcia di 12 mm; fra i due pezzi restano 30 mm; le ante restano
+ * Il fianco dal lato della gola si accorcia di «accorcia» mm; fra i due pezzi restano «spazioV» mm (gola scelta); le ante restano
  * larghe come la colonna. chiaro = per la stampa (sfondo bianco).
  */
-export function svgModificaColonnaGola({ chiaro = false } = {}) {
+export function svgModificaColonnaGola({ chiaro = false, gola = null } = {}) {
+  // le misure della GOLA SCELTA (⚙ Parametri): accorciamento del fianco, spazio fra i pezzi, larghezze dei profili
+  const G = { accorcia: 12, spazioV: 30, centrale18: 66.6, centrale16: 62.6, laterale18: 48.3, laterale16: 46.3, ...(gola || {}) };
+  const fm = (x) => String(Math.round(Number(x) * 10) / 10).replace('.', ',');
+  const A = Math.min(30, Math.max(4, G.accorcia)), S = Math.min(60, Math.max(10, G.spazioV));   // disegnate (le scritte dicono le vere)
   const P = chiaro
     ? { sfondo: '#ffffff', testo: '#1a1a1a', tenue: '#555', fianco: '#c9c2b4', anta: '#efe3c6', profilo: '#2b2d31', costado: '#b9ad94', tolto: '#c0392b', dim: '#8a6a14', bordo: '#333' }
     : { sfondo: '#14110d', testo: '#e6dcc6', tenue: '#b8ad97', fianco: '#8d939b', anta: '#e8dcc0', profilo: '#d9dde2', costado: '#cdbf9f', tolto: '#ff7a66', dim: '#e8c25a', bordo: '#14110d' };
   const T = (x, y, s, o = '') => `<text x="${x}" y="${y}" ${/fill=/.test(o) ? '' : `fill="${P.testo}"`} ${/font-size=/.test(o) ? '' : 'font-size="11"'} font-family="sans-serif" ${o}>${s}</text>`;
   const R = (x, y, w, h, col, ex = '') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${col}" stroke="${P.bordo}" stroke-width="0.8" ${ex}/>`;
   const k = 2;                                   // 2 px per mm
-  const yR = 40, yF = yR + 80 * k, yC = yF - 12 * k, yA = yF + 18 * k;   // rottura, fronte originale, fronte accorciato, davanti delle ante
+  const yR = 40, yF = yR + 80 * k, yC = yF - A * k, yA = yF + 18 * k;   // rottura, fronte originale, fronte accorciato, davanti delle ante
   const quota = (x1, x2, y, et) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${P.dim}"/><line x1="${x1}" y1="${y - 5}" x2="${x1}" y2="${y + 5}" stroke="${P.dim}"/><line x1="${x2}" y1="${y - 5}" x2="${x2}" y2="${y + 5}" stroke="${P.dim}"/>` + T((x1 + x2) / 2, y - 6, et, `text-anchor="middle" fill="${P.dim}" font-size="10"`);
   const quotaV = (x, y1, y2, et, dx = 6) => `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${P.tolto}"/><line x1="${x - 4}" y1="${y1}" x2="${x + 4}" y2="${y1}" stroke="${P.tolto}"/><line x1="${x - 4}" y1="${y2}" x2="${x + 4}" y2="${y2}" stroke="${P.tolto}"/>` + T(x + dx, (y1 + y2) / 2 + 4, et, `fill="${P.tolto}" font-size="10" ${dx < 0 ? 'text-anchor="end"' : ''}`);
   const rottura = (x, w) => `<path d="M${x - 2} ${yR} l${w / 4} -5 l${w / 4} 10 l${w / 4} -10 l${w / 4 + 4} 5" fill="none" stroke="${P.tenue}" stroke-width="1"/>`;
@@ -246,13 +250,13 @@ export function svgModificaColonnaGola({ chiaro = false } = {}) {
   const out = [`<rect x="0" y="0" width="780" height="330" fill="${P.sfondo}"/>`];
   // ---------------- 1) CENTRALE: colonna | 30 | colonna ----------------
   {
-    const ox = 20, xL = ox + 110, xG = xL + 18 * k, xR = xG + 30 * k, xR2 = xR + 18 * k;   // fianco sx, spazio, fianco dx
+    const ox = 20, xL = ox + 110, xG = xL + 18 * k, xR = xG + S * k, xR2 = xR + 18 * k;   // fianco sx, spazio, fianco dx
     out.push(T(ox + 175, 20, t('Gola centrale fra due colonne'), 'text-anchor="middle" font-size="13" font-weight="bold"'));
     out.push(fiancoCorto(xL), fiancoCorto(xR));
     // profilo: inserto fra i fianchi (16 mm), piatto davanti ai fianchi accorciati, labbri di 5 mm
     // il profilo riempie i 12 mm tolti: davanti arriva dove finiva il fianco, lì si appoggia l'anta
-    out.push(R(xG, yC - 16 * k, 30 * k, 16 * k, P.profilo), R(xL - 0.3 * k, yC, (18.3 * 2 + 30) * k, 3, P.profilo),
-      R(xL - 0.3 * k, yC, 3, 12 * k, P.profilo), R(xR2 + 0.3 * k - 3, yC, 3, 12 * k, P.profilo),
+    out.push(R(xG, yC - 16 * k, S * k, 16 * k, P.profilo), R(xL - 0.3 * k, yC, (18.3 * 2 + S) * k, 3, P.profilo),
+      R(xL - 0.3 * k, yC, 3, A * k, P.profilo), R(xR2 + 0.3 * k - 3, yC, 3, A * k, P.profilo),
       R(xL - 0.3 * k, yF - 3, 5 * k, 3, P.profilo), R(xR2 + 0.3 * k - 5 * k, yF - 3, 5 * k, 3, P.profilo));
     out.push(vite(xL - 14, xG + 10, yC - 8 * k), vite(xR2 + 14, xR - 10, yC - 8 * k));
     // ante (larghe come la colonna: finiscono sul fianco esterno)
@@ -261,32 +265,32 @@ export function svgModificaColonnaGola({ chiaro = false } = {}) {
     out.push(T(xL - 6, yR + 50, t('colonna'), 'text-anchor="end"'), T(xR2 + 6, yR + 50, t('colonna')));
     out.push(T(xL + 18, yR + 62, t('fianco'), `text-anchor="middle" fill="#14110d" font-size="9" transform="rotate(-90 ${xL + 18} ${yR + 62})"`),
       T(xR + 18, yR + 62, t('fianco'), `text-anchor="middle" fill="#14110d" font-size="9" transform="rotate(-90 ${xR + 18} ${yR + 62})"`));
-    out.push(quota(xG, xR, yR + 14, '30 mm'));
-    out.push(quotaV(xL - 10, yC, yF, '−12 mm', -6), quotaV(xR2 + 10, yC, yF, '−12 mm'));
-    out.push(quota(xL, xR2, yA + 22, t('66,6 mm (fianchi 18) · 62,6 mm (fianchi 16)')));
-    out.push(T(ox + 175, yA + 44, t('Accorciare di 12 mm tutti e due i fianchi (es. 580 → 568 mm)'), `text-anchor="middle" fill="${P.tolto}" font-size="11"`));
+    out.push(quota(xG, xR, yR + 14, `${fm(G.spazioV)} mm`));
+    out.push(quotaV(xL - 10, yC, yF, `−${fm(G.accorcia)} mm`, -6), quotaV(xR2 + 10, yC, yF, `−${fm(G.accorcia)} mm`));
+    out.push(quota(xL, xR2, yA + 22, t(`${fm(G.centrale18)} mm (fianchi 18) · ${fm(G.centrale16)} mm (fianchi 16)`)));
+    out.push(T(ox + 175, yA + 44, t(`Accorciare di ${fm(G.accorcia)} mm tutti e due i fianchi (es. 580 → ${fm(580 - G.accorcia)} mm)`), `text-anchor="middle" fill="${P.tolto}" font-size="11"`));
     out.push(T(ox + 175, yA + 60, t('Il profilo si avvita ai due fianchi'), `text-anchor="middle" fill="${P.tenue}" font-size="10"`));
   }
   // ---------------- 2) LATERALE: costado | 30 | colonna ----------------
   {
-    const ox = 410, xC = ox + 92, xG = xC + 20 * k, xR = xG + 30 * k, xR2 = xR + 18 * k;
+    const ox = 410, xC = ox + 92, xG = xC + 20 * k, xR = xG + S * k, xR2 = xR + 18 * k;
     out.push(T(ox + 175, 20, t('Gola laterale fra costado e colonna'), 'text-anchor="middle" font-size="13" font-weight="bold"'));
     // costado intero, fino al davanti delle ante
     out.push(R(xC, yR, 20 * k, yA - yR, P.costado), rottura(xC, 20 * k));
     out.push(T(xC + 20, yR + 62, t('costado'), `text-anchor="middle" fill="#14110d" font-size="9" transform="rotate(-90 ${xC + 20} ${yR + 62})"`));
     out.push(fiancoCorto(xR));
     // profilo: appoggiato al costado, copre il fianco accorciato della colonna
-    out.push(R(xG, yC - 16 * k, 30 * k, 16 * k, P.profilo), R(xG, yC, (30 + 18.3) * k, 3, P.profilo),
-      R(xG, yC - 16 * k, 3, (16 + 12) * k, P.profilo), R(xR2 + 0.3 * k - 3, yC, 3, 12 * k, P.profilo),
+    out.push(R(xG, yC - 16 * k, S * k, 16 * k, P.profilo), R(xG, yC, (S + 18.3) * k, 3, P.profilo),
+      R(xG, yC - 16 * k, 3, (16 + A) * k, P.profilo), R(xR2 + 0.3 * k - 3, yC, 3, A * k, P.profilo),
       R(xR2 + 0.3 * k - 5 * k, yF - 3, 5 * k, 3, P.profilo));
     out.push(vite(xC + 4, xG + 12, yC - 8 * k), vite(xR2 + 14, xR - 10, yC - 8 * k));
     out.push(R(xR, yF, 340 + ox - xR, 18 * k, P.anta), T(340 + ox - 60, yF + 22, t('anta'), `fill="#14110d" font-size="10"`));
     out.push(T(xR2 + 6, yR + 50, t('colonna')));
     out.push(T(xR + 18, yR + 62, t('fianco'), `text-anchor="middle" fill="#14110d" font-size="9" transform="rotate(-90 ${xR + 18} ${yR + 62})"`));
-    out.push(quota(xG, xR, yR + 14, '30 mm'));
-    out.push(quotaV(xR2 + 10, yC, yF, '−12 mm'));
-    out.push(quota(xG, xR2, yA + 22, t('48,3 mm (fianchi 18) · 46,3 mm (fianchi 16)')));
-    out.push(T(ox + 175, yA + 44, t('Accorciare di 12 mm il fianco della colonna (es. 580 → 568 mm)'), `text-anchor="middle" fill="${P.tolto}" font-size="11"`));
+    out.push(quota(xG, xR, yR + 14, `${fm(G.spazioV)} mm`));
+    out.push(quotaV(xR2 + 10, yC, yF, `−${fm(G.accorcia)} mm`));
+    out.push(quota(xG, xR2, yA + 22, t(`${fm(G.laterale18)} mm (fianchi 18) · ${fm(G.laterale16)} mm (fianchi 16)`)));
+    out.push(T(ox + 175, yA + 44, t(`Accorciare di ${fm(G.accorcia)} mm il fianco della colonna (es. 580 → ${fm(580 - G.accorcia)} mm)`), `text-anchor="middle" fill="${P.tolto}" font-size="11"`));
     out.push(T(ox + 175, yA + 60, t('Uguale fra due colonne aperte dallo stesso lato: la colonna con le cerniere resta intera'), `text-anchor="middle" fill="${P.tenue}" font-size="10"`));
   }
   out.push(T(390, 320, t("vista da sopra · ingrandita · la parte tratteggiata in rosso va tolta · l'anta resta dove è sempre e si appoggia al profilo"), `text-anchor="middle" fill="${P.tenue}" font-size="10"`));

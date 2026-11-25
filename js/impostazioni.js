@@ -8,23 +8,23 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261126w';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261126w';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261126w';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261126w';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261126w';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261126w';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261126w';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261126w';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261126w';
-import { agganciaTema } from './tema.js?v=20261126w';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261126w';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261126w';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261126w';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261126w';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261126w';
-import { geometriaCassettiera } from './calcoli.js?v=20261126w';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261126w';
+} from './catalogo.js?v=20261126x';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261126x';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261126x';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261126x';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261126x';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261126x';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261126x';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261126x';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261126x';
+import { agganciaTema } from './tema.js?v=20261126x';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261126x';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261126x';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261126x';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261126x';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261126x';
+import { geometriaCassettiera } from './calcoli.js?v=20261126x';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261126x';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1087,6 +1087,9 @@ function renderParametri(S) {
         <div class="par-griglia">
           ${campoBin(i, 'larghezzaMeno', 'Larghezza anta: togli', 'larghezza esterna ÷ n° ante − questo numero (0 = anta larga come il modulo)')}
           ${campoBin(i, 'altezzaMeno', 'Altezza anta: togli', 'altezza esterna totale (fianchi + top + fondo) − questo numero')}
+          <div class="par-campo-box"><label class="par-campo"><span class="par-et">Spazio del binario (profondità)</span>
+            <span class="par-input"><input type="text" class="par-elenco" inputmode="decimal" data-bin="${i}.profondita" value="${esc((b.profondita || []).join(', '))}" placeholder="75, 85"><em>mm</em></span>
+            <small>${esc('una o più misure separate da virgola (es. 75, 85): in ogni armadio si sceglie fra queste, la prima è quella di partenza. Dentro l\'armadio resta la profondità meno questo spazio')}</small></label></div>
         </div>
         <div class="par-esempio" data-bin-es="${i}" data-no-i18n></div>
         <div class="par-figure"><figure><div data-fig-bin="${i}">${svgBinario(b, P.tiradori[0])}</div><figcaption>${esc('Schema: armadio scorrevole visto davanti')}</figcaption></figure></div>

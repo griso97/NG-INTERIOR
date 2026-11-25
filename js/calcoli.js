@@ -11,8 +11,8 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126w';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261126w';
+import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126x';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261126x';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -68,7 +68,7 @@ export function profonditaDentro(config) {
 /** Profondità dei RIPIANI: lo spazio dentro; con le ANTE INTERNE ancora indietro di «spazio anta–ripiano» (10 mm). */
 export function profonditaRipiani(config) {
   // SCORREVOLE: davanti c'è il binario (le ante scorrono lì): i ripiani arrivano fino al binario
-  if (config.tipoArmadio === 'scorrevole') return profonditaDentro(config) - (config.scorrevole?.binario ?? 75);
+  if (config.tipoArmadio === 'scorrevole') return profonditaDentro(config) - profonditaBinario(config);
   return profonditaDentro(config) - (anteInterne(config) ? parametri().anteInterne.spazioRipiano : 0);
 }
 /** MANIGLIA delle ante a battente (catalogo materiali), o null. */
@@ -133,7 +133,7 @@ export function cerniereAnta(h) {
  * B = binario (75 default, 85 opzione).
  */
 export function profonditaFiancoInterno(config) {
-  const B = config.scorrevole?.binario ?? 75;
+  const B = profonditaBinario(config);
   return profonditaCarcassa(config) - B;                 // P − sS − B (schiena dietro); P − B se la schiena sta dentro
 }
 
@@ -411,7 +411,7 @@ export function geometriaCassettiera(config, c, Lm) {
   const sporgenzaMancante = false;
   let larTF, profScatola, profRipiano;
   if (scorrevole) {
-    const Pcas = profonditaDentro(config) - (config.scorrevole?.binario ?? 75);   // dalla schiena fino al binario
+    const Pcas = profonditaDentro(config) - profonditaBinario(config);   // dalla schiena fino al binario
     larTF = Lm - 4 * sC;
     profScatola = Pcas - sC - P.ariaBinario - sporgenza;
     profRipiano = Pcas;                                   // come gli altri ripiani
@@ -597,7 +597,7 @@ export function pezziCassettieraScorrevoleModulo(config, modulo, indiceModulo) {
   const nomeModulo = `Modulo ${indiceModulo + 1}`;
   const Lm = modulo.larghezza;
   const sC = config.spessoreCarcassa;
-  const Pcas = profonditaDentro(config) - (config.scorrevole?.binario ?? 75);   // P − sS − B (davanti alla schiena)
+  const Pcas = profonditaDentro(config) - profonditaBinario(config);   // P − sS − B (davanti alla schiena)
   const Pscatola = Pcas - sC - 2;                        // 5.1
 
   modulo.cassettiere.forEach((c) => {
@@ -868,6 +868,15 @@ export function binarioArmadio(config) {
   return binarioScorrevole(config.scorrevole?.tipoBinario);
 }
 /** Il TIRADOR scelto per le ante scorrevoli (profilo a tutta altezza sui due lati; ⚙ Parametri). */
+/**
+ * SPAZIO DEL BINARIO (mm): quello scelto nell'armadio fra quelli del binario (⚙ Parametri → Binari, di
+ * partenza 75 o 85). Se il binario non ce l'ha (cambiato binario o misure), il primo del binario.
+ */
+export function profonditaBinario(config) {
+  const l = (binarioArmadio(config) || {}).profondita || [75];
+  const v = Number(config.scorrevole && config.scorrevole.binario);
+  return l.includes(v) ? v : l[0];
+}
 export function tiradorArmadio(config) {
   return tiradorScorrevole(config.scorrevole?.tirador);
 }
@@ -910,7 +919,8 @@ export function pezziAnteScorrevoliModulo(config, modulo, indiceModulo) {
   }, {
     // PROFILO VERTICALE a tutta altezza su ENTRAMBI i lati di ogni anta (al posto delle maniglie)
     modulo: `Modulo ${indiceModulo + 1}`,
-    nome: `Tirador ${tiradorArmadio(config).nome || ''} (profilo verticale anta scorrevole) · ${nomeColoreProfilo(col)}`.replace('Tirador  (', 'Tirador ('),
+    // (il nome scritto dal falegname può già cominciare con «Tirador»: non due volte)
+    nome: `${/^tirador/i.test(tiradorArmadio(config).nome || '') ? '' : 'Tirador '}${tiradorArmadio(config).nome || ''} (profilo verticale anta scorrevole) · ${nomeColoreProfilo(col)}`.replace('Tirador  (', 'Tirador ('),
     larghezza: null, altezza: Math.round(altAnta), spessore: null,
     materiale: 'accessorio', finitura: col === 'binario-nero' ? 'nero' : col, finituraNome: nomeColoreProfilo(col),
     quantita: 2 * N,
@@ -1036,8 +1046,7 @@ export function validaConfig(config) {
   if (config.tipoArmadio === 'scorrevole') {
     const s = config.scorrevole || {};
     if ((s.anteModulo || 2) < 1) errori.push('Scorrevole: almeno 1 anta per modulo.');
-    const B = s.binario ?? 75;
-    if (B !== 75 && B !== 85) errori.push('Scorrevole: binario deve essere 75 o 85.');
+    // lo spazio del binario è sempre uno di quelli del binario scelto (⚙ Parametri): niente da controllare
   }
   return errori;
 }

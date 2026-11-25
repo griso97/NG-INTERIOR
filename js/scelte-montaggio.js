@@ -9,10 +9,10 @@
 //   htmlMontaggio(v, opz)            → HTML (v = valori, vedi valoriDaParametri / valoriDaArmadio)
 //   agganciaMontaggio(root, leggi, scrivi, opz)  → collega tocchi e numeri: scrivi(patch) salva
 // =============================================================================
-import { svgStruttura, svgSchiena, svgAnteInterne } from './disegni-montaggio.js?v=20261126w';
-import { calcolaDistintaCompleta } from './calcoli.js?v=20261126w';
-import { parametri, salvaParametri } from './parametri.js?v=20261126w';
-import { binariScorrevoli } from './parametri.js?v=20261126w';
+import { svgStruttura, svgSchiena, svgAnteInterne } from './disegni-montaggio.js?v=20261126x';
+import { calcolaDistintaCompleta } from './calcoli.js?v=20261126x';
+import { parametri, salvaParametri } from './parametri.js?v=20261126x';
+import { binariScorrevoli } from './parametri.js?v=20261126x';
 
 const t = (s) => (typeof window !== 'undefined' && window.NGI18N ? window.NGI18N.t(s) : s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -92,7 +92,7 @@ function armadioDiProva(v) {
       tipoArmadio: 'scorrevole', larghezzaTotale: 1000, altezzaEsterna: 2000, profonditaEsterna: 600,
       spessoreCarcassa: 18, spessoreAnte: 18, spessoreSchiena: Number(v.spessoreSchiena) || 10,
       setupCarcassa: Number(v.setup) === 2 ? 2 : 1, schiena: { tipo: v.schiena, canale: v.canale, dentro: v.dentro },
-      scorrevole: { anteModulo: 1, binario: 75, tipoBinario: b && b.id },
+      scorrevole: { anteModulo: 1, binario: (b && b.profondita && b.profondita[0]) || 75, tipoBinario: b && b.id },
       moduli: [{ larghezza: 1000, numeroAnte: 1, antaLato: 'dx', ripiani: 3, riduzioneRipiano: 0, cassettiere: [] }],
       cassettiere: [], tamponamenti: {}, costadi: { lati: 'nessuno' }, materiali: {},
     };

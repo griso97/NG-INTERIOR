@@ -79,8 +79,9 @@ export const PARAMETRI_DEFAULT = Object.freeze({
   //    ogni falegname toglie poi quello che serve al suo binario)
   //   altezza anta   = altezza esterna totale − altezzaMeno
   //   profilo = i profili verticali sui due lati di ogni anta (si toglie alla larghezza)
+  //   profondita = spazio che prende il binario davanti (mm): si sceglie in ogni armadio fra queste (la prima di partenza)
   binari: [
-    { id: 'syscore', nome: 'Syscore', larghezzaMeno: 0, altezzaMeno: 82, maniglia: 0 },
+    { id: 'syscore', nome: 'Syscore', larghezzaMeno: 0, altezzaMeno: 82, maniglia: 0, profondita: [75, 85] },
   ],
   // TIRADORES degli armadi scorrevoli: il profilo a tutta altezza sui due lati di ogni anta (niente
   // maniglie che sporgono: le ante scorrono una dietro l'altra). Ognuno con nome, misure e forma.
@@ -156,12 +157,18 @@ const numVuoto = (v) => { if (v === '' || v === null || v === undefined) return 
  * GUIDE DEI CASSETTI: elenco di misure (mm) scritto in ⚙ Parametri («500, 400, 350, 300»), anche come testo;
  * dalla più lunga alla più corta, senza doppioni; vuoto → quelle di partenza.
  */
-function elencoGuide(v) {
-  // separate da virgola, punto o spazio (sul telefono la tastiera dei numeri ha solo la virgola): misure intere in mm
+function elencoGuide(v) { return elencoMm(v, PARAMETRI_DEFAULT.cassetti.guide, 100, 1500, true); }
+/**
+ * ELENCO DI MISURE (mm) scritto come testo «500, 400» o come lista: misure intere, senza doppioni,
+ * fra min e max; dalla più grande alla più piccola (o nell'ordine scritto); vuoto → quelle di partenza.
+ */
+function elencoMm(v, partenza, min, max, ordina = false) {
+  // separate da virgola, punto o spazio (sul telefono la tastiera dei numeri ha solo la virgola)
   const lista = (Array.isArray(v) ? v : String(v ?? '').split(/[^0-9]+/)).map((x) => Math.round(Number(x)))
-    .filter((x) => Number.isFinite(x) && x >= 100 && x <= 1500);
-  const u = [...new Set(lista)].sort((a, b) => b - a);
-  return u.length ? u : [...PARAMETRI_DEFAULT.cassetti.guide];
+    .filter((x) => Number.isFinite(x) && x >= min && x <= max);
+  const u = [...new Set(lista)];
+  if (ordina) u.sort((a, b) => b - a);
+  return u.length ? u : [...partenza];
 }
 /**
  * La GUIDA per una cassettiera profonda `prof` (mm) con questo sistema di cassetti: la più lunga delle sue
@@ -249,6 +256,7 @@ function completa(s) {
       id, nome: String(b.nome ?? '').trim(),
       larghezzaMeno: Math.max(0, num(b.larghezzaMeno, 0)),
       altezzaMeno: Math.max(0, num(b.altezzaMeno, 0)),
+      profondita: elencoMm(b.profondita, [75, 85], 20, 300),     // spazio del binario (di partenza 75, oppure 85)
       maniglia: 0,          // (dalla v4 i profili delle ante sono nel tirador)
     };
   });

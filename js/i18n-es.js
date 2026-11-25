@@ -3206,4 +3206,12 @@ window.NG_I18N_ES = {
  "Sporgente sotto": "Saliente abajo",
  "tutti i pensili +{0} mm": "todos los altos +{0} mm",
  "Togliere «{0}»?": "¿Quitar «{0}»?",
+ "Nessuna colonna arriva pronta per la gola: le colonne segnate con ⚠ vanno modificate così. Il fianco dal lato della gola si accorcia di {0} mm; fra i due pezzi restano {1} mm; le ante restano larghe come la colonna.": "Ninguna columna llega preparada para la gola: las columnas marcadas con ⚠ se modifican así. El costado del lado de la gola se acorta {0} mm; entre las dos piezas quedan {1} mm; las puertas siguen tan anchas como la columna.",
+ "Modifica delle colonne per la gola: accorciare di {0} mm il fianco dal lato della gola, {1} mm fra i pezzi": "Modificación de las columnas para la gola: acortar {0} mm el costado del lado de la gola, {1} mm entre las piezas",
+ "{0} mm (fianchi 18)": "{0} mm (costados 18)",
+ "{0} mm (fianchi 16)": "{0} mm (costados 16)",
+ "Accorciare di {0} mm tutti e due i fianchi (es. 580 → {1} mm)": "Acortar {0} mm los dos costados (ej. 580 → {1} mm)",
+ "Accorciare di {0} mm il fianco della colonna (es. 580 → {1} mm)": "Acortar {0} mm el costado de la columna (ej. 580 → {1} mm)",
+ "Spazio del binario (profondità)": "Espacio del carril (profundidad)",
+ "una o più misure separate da virgola (es. 75, 85): in ogni armadio si sceglie fra queste, la prima è quella di partenza. Dentro l'armadio resta la profondità meno questo spazio": "una o más medidas separadas por coma (ej. 75, 85): en cada armario se elige entre estas, la primera es la inicial. Dentro del armario queda la profundidad menos este espacio",
 };

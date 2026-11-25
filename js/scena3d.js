@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261126w';
-import { parametri } from './parametri.js?v=20261126w';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261126w';
-import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261126w';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261126w';
-import { sfondoDi } from './sfondi.js?v=20261126w';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261126w';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261126w';
+import { profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261126x';
+import { parametri } from './parametri.js?v=20261126x';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261126x';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261126x';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261126x';
+import { sfondoDi } from './sfondi.js?v=20261126x';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261126x';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261126x';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -781,7 +781,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
     // spostato a mano (trascinandolo a porte aperte) oppure 6 cm sotto il ripiano più alto
     const yMinB = sC + 150, yMaxB = H - sC - 40;
     const yBarra = Number.isFinite(modulo.barraY) ? Math.min(yMaxB, Math.max(yMinB, modulo.barraY)) : ySotto - 60;
-    const profUtile = scorrevole ? prof - (config.scorrevole?.binario ?? 75) : profonditaDentro(config);
+    const profUtile = scorrevole ? prof - profonditaBinario(config) : profonditaDentro(config);
     const zB = zUtile + profUtile / 2;
     const matB = materialeBarra(modulo.barra);
     const gB = new THREE.Group();
@@ -957,7 +957,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
  */
 function costruisciAnteScorrevoliGlobali(config) {
   const sA = config.spessoreAnte;
-  const B = config.scorrevole?.binario ?? 75;
+  const B = profonditaBinario(config);                    // spazio del binario (⚙ Parametri → Binari)
   const L = config.moduli.reduce((t, m) => t + (Number(m.larghezza) || 0), 0);
   const nTot = Math.max(1, config.moduli.length * (config.scorrevole?.anteModulo ?? 1));
   const larAntaSc = larghezzaAntaScorrevole(config);
@@ -1022,7 +1022,7 @@ function costruisciAnteScorrevoliGlobali(config) {
  * NON entrano nella distinta (sono componenti a parte dell'utente).
  */
 function costruisciBinariGlobali(config) {
-  const B = config.scorrevole?.binario ?? 75;
+  const B = profonditaBinario(config);                    // spazio del binario (⚙ Parametri → Binari)
   const W = config.larghezzaTotale;
   const H = config.altezzaEsterna;
   const D = config.profonditaEsterna;
