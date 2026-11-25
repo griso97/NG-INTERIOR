@@ -3,8 +3,8 @@
    =============================================================================
    COSA FA
    Quando si apre la pagina iniziale copre lo schermo (nero) e in ~8,6 secondi (tempi dell'animazione:
-   con CONFIG.velocita 1.6 tutto va il 60% più veloce e dopo il pavimento ancora di più, CONFIG.finale:
-   in tutto ~3,7 secondi veri, poi la pausa e la dissolvenza):
+   con CONFIG.velocita 1.6 tutto va il 60% più veloce, e il cubo e le scritte ancora di più, CONFIG.ritmo:
+   in tutto ~3,1 secondi veri, poi la pausa e la dissolvenza):
      0,0 s  NG compare come disegno 3D a linee (girato di 3/4)
      1,2 s  una lama di luce passa da sinistra a destra e lo trasforma nel logo
             d'oro vero (la faccia è il logo originale, dietro uno spessore d'oro)
@@ -47,16 +47,20 @@ const CONFIG = {
   ritaglioNG: [84, 16, 461, 318],   // x, y, larghezza, altezza della parte "NG" dentro logo.png
   durata: 7.6,                 // secondi dell'animazione (a velocità 1): a 7,4 la frase è tutta fuori
   velocita: 1.6,               // 1 = come disegnata; 1.6 = tutto (anche i suoni) il 60% più veloce
-  finale: 1.7,                 // DOPO IL PAVIMENTO (cubo, STUDIO, riga, motto, frase) ancora × 1,7: una dietro l'altra
-  accelera: [3.3, 3.8],        // fra questi secondi dell'animazione si passa piano dalla prima velocità alla seconda
+  // RITMO: [tempo dell'animazione, quante volte più veloce di «velocita»]; fra un punto e l'altro si passa
+  // piano. Fino al pavimento ×1; il cubo ×1,7; le SCRITTE (STUDIO, riga, motto, frase) ×3,2: escono subito
+  ritmo: [[0, 1], [3.3, 1], [3.8, 1.7], [4.2, 1.7], [4.5, 3.2]],
   pausaFinale: 0.6,            // secondi fermi sul finale (per leggere la frase) prima di sparire
   sfumaUscita: 0.5,            // secondi della dissolvenza d'uscita
 };
 // VELOCITÀ dell'animazione al suo tempo t (×), e quanti secondi VERI ci vogliono per arrivare a ogni t
 // (tabella: serve all'animazione e ai suoni, così restano a tempo)
 const passoAnim = (t) => {
-  const [a, b] = CONFIG.accelera, k = CONFIG.finale;
-  return CONFIG.velocita * (t <= a ? 1 : t >= b ? k : 1 + (k - 1) * (t - a) / (b - a));
+  const R = CONFIG.ritmo;
+  if (t >= R[R.length - 1][0]) return CONFIG.velocita * R[R.length - 1][1];
+  let i = 0; while (i < R.length - 2 && t >= R[i + 1][0]) i++;
+  const [a, ka] = R[i], [b, kb] = R[i + 1];
+  return CONFIG.velocita * (t <= a ? ka : ka + (kb - ka) * (t - a) / (b - a));
 };
 const TEMPI = (() => { const d = 0.005, out = [[0, 0]]; let r = 0;
   for (let i = 1; i * d <= CONFIG.durata + 1e-9; i++) { r += d / passoAnim((i - 0.5) * d); out.push([r, i * d]); } return out; })();
