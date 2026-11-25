@@ -11,7 +11,8 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126o';
+import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126p';
+import { SPORGENZA_FORMA } from './finiture-maniglia.js?v=20261126p';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -93,11 +94,7 @@ export function lunghezzaManigliaCassetto(def, larFronte) {
 export function sporgenzaDiManiglia(def) {
   if (!def || !def.texture || !def.lunghezzaMm) return 40;            // barra standard: 28 + 12
   const L = def.lunghezzaMm, forma = def.forma && def.forma !== 'foto' && def.formaV ? def.forma : 'barra';
-  if (forma === 'piatta') return 32;
-  if (forma === 'profilo') return 22;
-  if (forma === 'bordol') return 13;
-  if (forma === 'bordo') return 26;
-  if (forma === 'incasso') return 2;
+  if (SPORGENZA_FORMA[forma] != null) return SPORGENZA_FORMA[forma];   // come nel 3D (finiture-maniglia.js)
   if (forma === 'pomolo') { const D = Math.max(18, Math.min(L, 45)); return Math.ceil(20 + D * 0.25 + D * 0.275); }
   return Math.ceil(30 + 2 * Math.max(5, Math.min(7, L * 0.04)));      // barra tonda
 }
@@ -332,7 +329,7 @@ export function pezziAnteModulo(config, modulo, indiceModulo) {
   // le MANIGLIE che si vedono nel 3D: una per anta, con la sua lunghezza
   const def = manigliaArmadio(config);
   const maniglie = (altA) => def ? [{
-    modulo: `Modulo ${indiceModulo + 1}`, nome: `${/^maniglia/i.test(def.nome || '') ? '' : 'Maniglia '}${def.nome} · ${Math.round(lunghezzaManigliaAnta(def, config, altA))} mm`,
+    modulo: `Modulo ${indiceModulo + 1}`, nome: `${/^(maniglia|pomolo|tirador)/i.test(def.nome || '') ? '' : 'Maniglia '}${def.nome} · ${Math.round(lunghezzaManigliaAnta(def, config, altA))} mm`,
     larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', finitura: def.id, finituraNome: def.nome, quantita: N,
   }] : [];
   if (anteInterne(config)) {

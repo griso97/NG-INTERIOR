@@ -8,7 +8,7 @@
 // Assi (mm): x = lunghezza (−L/2..L/2) · y = altezza · z = sporgenza (0 = anta)
 // =============================================================================
 import * as THREE from 'three';
-import { FINITURE_MANIGLIA } from './finiture-maniglia.js?v=20261126o';
+import { FINITURE_MANIGLIA } from './finiture-maniglia.js?v=20261126p';
 
 export const FORME_MANIGLIA = [
   { id: 'foto', nome: 'La mia forma (dalla foto)', svg: '<svg viewBox="0 0 48 24"><rect x="9" y="5" width="30" height="16" rx="3" fill="none"/><circle cx="24" cy="13" r="4.5" fill="none"/><rect x="17" y="2" width="9" height="4" rx="1"/></svg>' },
@@ -19,6 +19,17 @@ export const FORME_MANIGLIA = [
   { id: 'bordo', nome: 'A bordo anta', svg: '<svg viewBox="0 0 48 24"><rect x="12" y="4" width="24" height="5"/><rect x="12" y="9" width="24" height="9" fill="none"/></svg>' },
   { id: 'pomolo', nome: 'Pomolo', svg: '<svg viewBox="0 0 48 24"><circle cx="24" cy="12" r="8"/></svg>' },
   { id: 'incasso', nome: 'Incasso (conchiglia)', svg: '<svg viewBox="0 0 48 24"><rect x="10" y="6" width="28" height="12" rx="5" fill="none"/><rect x="14" y="9" width="20" height="6" rx="3"/></svg>' },
+  { id: 'ponteC', nome: 'Ponte squadrato «a C»', svg: '<svg viewBox="0 0 48 24"><path d="M7 20 V8 Q7 5 10 5 H38 Q41 5 41 8 V20" fill="none" stroke-width="4"/></svg>' },
+  { id: 'ponteCpiatto', nome: 'Ponte piatto largo', svg: '<svg viewBox="0 0 48 24"><rect x="6" y="5" width="36" height="9" rx="1.5"/><rect x="6" y="14" width="3" height="6"/><rect x="39" y="14" width="3" height="6"/></svg>' },
+  { id: 'trapezio', nome: 'Ponte a trapezio', svg: '<svg viewBox="0 0 48 24"><path d="M6 20 L13 6 H35 L42 20" fill="none" stroke-width="3.5"/></svg>' },
+  { id: 'arco', nome: 'Ponte ad arco', svg: '<svg viewBox="0 0 48 24"><path d="M8 20 C9 2 39 2 40 20" fill="none" stroke-width="3.5"/></svg>' },
+  { id: 'ovale', nome: 'Barra ovale', svg: '<svg viewBox="0 0 48 24"><rect x="5" y="6" width="38" height="7" rx="3.5"/><line x1="12" y1="13" x2="12" y2="19"/><line x1="36" y1="13" x2="36" y2="19"/></svg>' },
+  { id: 'zigrinata', nome: 'Barra zigrinata', svg: '<svg viewBox="0 0 48 24"><rect x="5" y="6" width="38" height="7" rx="3.5" fill="none"/><path d="M14 6 l4 7 M18 6 l4 7 M22 6 l4 7 M26 6 l4 7 M30 6 l4 7 M18 13 l4 -7 M22 13 l4 -7 M26 13 l4 -7 M30 13 l4 -7" fill="none" stroke-width="1"/><line x1="12" y1="13" x2="12" y2="19"/><line x1="36" y1="13" x2="36" y2="19"/></svg>' },
+  { id: 'quadra', nome: 'Barra quadra', svg: '<svg viewBox="0 0 48 24"><rect x="5" y="6" width="38" height="6"/><rect x="11" y="12" width="3" height="7"/><rect x="34" y="12" width="3" height="7"/></svg>' },
+  { id: 'filo', nome: 'Filo piegato sottile', svg: '<svg viewBox="0 0 48 24"><path d="M8 20 V10 Q8 6 12 6 H36 Q40 6 40 10 V20" fill="none" stroke-width="2"/></svg>' },
+  { id: 'pomoloq', nome: 'Pomolo quadrato', svg: '<svg viewBox="0 0 48 24"><rect x="15" y="3" width="18" height="18" rx="4"/></svg>' },
+  { id: 'conchiglia', nome: 'Conchiglia applicata', svg: '<svg viewBox="0 0 48 24"><rect x="8" y="4" width="32" height="16" rx="3" fill="none"/><path d="M11 12 Q24 2 37 12 Z"/></svg>' },
+  { id: 'pelle', nome: 'Maniglia in pelle', svg: '<svg viewBox="0 0 48 24"><path d="M6 18 H12 Q16 6 24 6 Q32 6 36 18 H42" fill="none" stroke-width="4"/><circle cx="9" cy="18" r="1.6"/><circle cx="39" cy="18" r="1.6"/></svg>' },
 ];
 
 // i COLORI stanno in finiture-maniglia.js (li usano anche la distinta e i pannelli, senza 3D)
@@ -76,6 +87,61 @@ function piedino(x, r, h, mat) {
 }
 function box(w, h, d, x, y, z, mat) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); return m;
+}
+
+// ---- aiuti per le forme fatte a nastro, tondino, pelle… ----
+const matCuoio = new THREE.MeshStandardMaterial({ color: 0x7b4a2b, roughness: 0.72, metalness: 0, envMapIntensity: 0.35 });
+/** Profilo piano (u, v = sporgenza) estruso in altezza H (asse y), centrato in y, appoggiato a z = 0. */
+function estrusoInPianta(shape, H, bev, curve = 14) {
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: Math.max(0.5, H - 2 * bev), bevelEnabled: bev > 0, bevelThickness: bev, bevelSize: bev * 0.85, bevelSegments: 3, curveSegments: curve });
+  geo.rotateX(Math.PI / 2);                     // v → z (fuori dall'anta), estrusione → −y
+  geo.translate(0, (H - 2 * bev) / 2, bev * 0.85);
+  return geo;
+}
+/** Rettangolo con gli angoli arrotondati (centrato). */
+function rettArr(w, h, r) {
+  const s = new THREE.Shape(), x = -w / 2, y = -h / 2;
+  r = Math.min(r, w / 2 - 0.01, h / 2 - 0.01);
+  s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r);
+  s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r);
+  s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y);
+  return s;
+}
+/** Prisma con gli spigoli arrotondati, lungo l'asse 'x' o 'z' (sezione w × h). */
+function prismaArr(w, h, len, r, asse, mat) {
+  const geo = new THREE.ExtrudeGeometry(rettArr(w, h, r), { depth: len, bevelEnabled: false, curveSegments: 8 });
+  geo.translate(0, 0, -len / 2);
+  if (asse === 'x') geo.rotateY(Math.PI / 2);
+  return new THREE.Mesh(geo, mat);
+}
+/** Un quarto di cerchio nel piano xz (centro c, raggio r, da a0 ad a1). */
+function quarto(c, r, a0, a1) {
+  const pts = [];
+  for (let i = 0; i <= 8; i++) { const a = a0 + ((a1 - a0) * i) / 8; pts.push(new THREE.Vector3(c.x + r * Math.cos(a), 0, c.z + r * Math.sin(a))); }
+  return new THREE.CatmullRomCurve3(pts);
+}
+let _texZig = null;
+const _matZig = new Map(), _matDoppio = new Map();
+/** Lo stesso metallo con la ZIGRINATURA a rombi (rilievo). */
+function matZigrinato(mat) {
+  if (_matZig.has(mat)) return _matZig.get(mat);
+  if (!_texZig && typeof document !== 'undefined') {
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 64, 64); x.strokeStyle = '#000'; x.lineWidth = 7;
+    for (let k = -64; k <= 128; k += 16) {
+      x.beginPath(); x.moveTo(k, 0); x.lineTo(k + 64, 64); x.stroke();
+      x.beginPath(); x.moveTo(k + 64, 0); x.lineTo(k, 64); x.stroke();
+    }
+    _texZig = new THREE.CanvasTexture(c); _texZig.wrapS = _texZig.wrapT = THREE.RepeatWrapping; _texZig.repeat.set(10, 28);
+  }
+  const m = mat.clone(); if (_texZig) { m.bumpMap = _texZig; m.bumpScale = 3; } m.roughness = Math.min(1, mat.roughness + 0.12);
+  _matZig.set(mat, m); return m;
+}
+/** Lo stesso metallo visto dalle due facce (il guscio della conchiglia). */
+function matDoppio(mat) {
+  if (!_matDoppio.has(mat)) { const m = mat.clone(); m.side = THREE.DoubleSide; _matDoppio.set(mat, m); }
+  return _matDoppio.get(mat);
 }
 
 /**
@@ -147,6 +213,104 @@ export function costruisciManiglia(forma, finitura, L, colore = null) {
       g.add(box(c, H, sp, L / 2 - c / 2, 0, sp / 2, mat));
       g.add(box(L - 2 * c, H - 2 * c, 1, 0, 0, 0.6, matOmbra));
       g.add(box(L - 2 * c, (H - 2 * c) * 0.45, 1.2, 0, (H - 2 * c) * 0.27, 0.9, mat));   // labbro di presa
+      break;
+    }
+    case 'ponteC': case 'ponteCpiatto': {
+      // NASTRO PIEGATO A C: gambe alle due estremità, angoli arrotondati (piatto largo: fascia alta e sottile)
+      const piatto = forma === 'ponteCpiatto', a = L / 2;
+      const t = piatto ? 4 : 6, H = piatto ? 28 : 14, sp = piatto ? 26 : 30, R = piatto ? 5 : 7, r = Math.max(0.8, R - t);
+      const s = new THREE.Shape();
+      s.moveTo(-a, 0); s.lineTo(-a, sp - R); s.quadraticCurveTo(-a, sp, -a + R, sp); s.lineTo(a - R, sp);
+      s.quadraticCurveTo(a, sp, a, sp - R); s.lineTo(a, 0); s.lineTo(a - t, 0); s.lineTo(a - t, sp - t - r);
+      s.quadraticCurveTo(a - t, sp - t, a - t - r, sp - t); s.lineTo(-a + t + r, sp - t);
+      s.quadraticCurveTo(-a + t, sp - t, -a + t, sp - t - r); s.lineTo(-a + t, 0); s.closePath();
+      g.add(new THREE.Mesh(estrusoInPianta(s, H, 0.9), mat));
+      break;
+    }
+    case 'trapezio': {
+      // nastro con le gambe inclinate verso l'interno (la presa è più corta della base)
+      const a = L / 2, t = 5, H = 12, sp = 28, d = Math.min(22, L * 0.15), R = 4, r = 1, k = d / sp;
+      const s = new THREE.Shape();
+      s.moveTo(-a, 0); s.lineTo(-a + d - R * k, sp - R); s.quadraticCurveTo(-a + d, sp, -a + d + R, sp);
+      s.lineTo(a - d - R, sp); s.quadraticCurveTo(a - d, sp, a - d + R * k, sp - R); s.lineTo(a, 0);
+      s.lineTo(a - t * 1.25, 0); s.lineTo(a - d - t * 0.4 + r * k, sp - t - r); s.quadraticCurveTo(a - d - t * 0.4, sp - t, a - d - t * 0.4 - r, sp - t);
+      s.lineTo(-a + d + t * 0.4 + r, sp - t); s.quadraticCurveTo(-a + d + t * 0.4, sp - t, -a + d + t * 0.4 - r * k, sp - t - r);
+      s.lineTo(-a + t * 1.25, 0); s.closePath();
+      g.add(new THREE.Mesh(estrusoInPianta(s, H, 0.8), mat));
+      break;
+    }
+    case 'arco': {
+      // tondo Ø 10 ad arco morbido, con le rosette sull'anta
+      const sp = 30, r = 5, b = L / 2 - 6;
+      const curva = new THREE.CubicBezierCurve3(new THREE.Vector3(-b, 0, 0), new THREE.Vector3(-b * 0.95, 0, sp * 1.32), new THREE.Vector3(b * 0.95, 0, sp * 1.32), new THREE.Vector3(b, 0, 0));
+      g.add(new THREE.Mesh(new THREE.TubeGeometry(curva, 80, r, 20, false), mat));
+      for (const x of [-b, b]) { const ro = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 8, 2.5, 28), mat); ro.rotation.x = Math.PI / 2; ro.position.set(x, 0, 1.25); g.add(ro); }
+      break;
+    }
+    case 'ovale': {
+      // barra a sezione ovale (16 × 9) su due piedini
+      const sp = 26, it = Math.max(L * 0.5, L - 44);
+      const barra = new THREE.Mesh(new THREE.CapsuleGeometry(8, Math.max(4, L - 16), 10, 28), mat);
+      barra.rotation.z = Math.PI / 2; barra.scale.set(1, 1, 0.56); barra.position.z = sp + 4.5; g.add(barra);
+      for (const x of [-it / 2, it / 2]) { const pd = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 5.5, sp, 20), mat); pd.rotation.x = Math.PI / 2; pd.position.set(x, 0, sp / 2); g.add(pd); }
+      break;
+    }
+    case 'zigrinata': {
+      // tondo Ø 13: presa centrale zigrinata, capi lisci e arrotondati
+      const sp = 30, rr = 6.5, a = L / 2, it = Math.max(L * 0.5, L - 30), Lz = L * 0.62, Ls = Math.max(1, (L - 2 * rr - Lz) / 2), ac = a - rr;
+      const liscia = (len, x) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(rr, rr, len, 32), mat); m.rotation.z = Math.PI / 2; m.position.set(x, 0, sp + rr); return m; };
+      g.add(liscia(Ls, -ac + Ls / 2)); g.add(liscia(Ls, ac - Ls / 2));      // capi lisci: lunga in tutto L
+      const z = new THREE.Mesh(new THREE.CylinderGeometry(rr, rr, Lz, 48, 1), matZigrinato(mat)); z.rotation.z = Math.PI / 2; z.position.set(0, 0, sp + rr); g.add(z);
+      for (const x of [-ac, ac]) { const c = new THREE.Mesh(new THREE.SphereGeometry(rr, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat); c.rotation.z = x < 0 ? Math.PI / 2 : -Math.PI / 2; c.position.set(x, 0, sp + rr); g.add(c); }
+      for (const x of [-it / 2, it / 2]) { const pd = new THREE.Mesh(new THREE.CylinderGeometry(4.8, 5.5, sp, 20), mat); pd.rotation.x = Math.PI / 2; pd.position.set(x, 0, sp / 2); g.add(pd); }
+      break;
+    }
+    case 'quadra': {
+      // barra a sezione quadra 12 × 12 su piedini quadri
+      const sp = 26, sz = 12, it = Math.max(L * 0.5, L - 40);
+      const b = prismaArr(sz, sz, L, 1.6, 'x', mat); b.position.z = sp + sz / 2; g.add(b);
+      for (const x of [-it / 2, it / 2]) { const pd = prismaArr(10, 10, sp, 1.4, 'z', mat); pd.position.set(x, 0, sp / 2); g.add(pd); }
+      break;
+    }
+    case 'filo': {
+      // tondino Ø 6 piegato con curve morbide, rosette piccole sull'anta
+      const a = L / 2, sp = 28, R = 9, r = 3;
+      const path = new THREE.CurvePath();
+      path.add(new THREE.LineCurve3(new THREE.Vector3(-a, 0, 0), new THREE.Vector3(-a, 0, sp - R)));
+      path.add(quarto({ x: -a + R, z: sp - R }, R, Math.PI, Math.PI / 2));
+      path.add(new THREE.LineCurve3(new THREE.Vector3(-a + R, 0, sp), new THREE.Vector3(a - R, 0, sp)));
+      path.add(quarto({ x: a - R, z: sp - R }, R, Math.PI / 2, 0));
+      path.add(new THREE.LineCurve3(new THREE.Vector3(a, 0, sp - R), new THREE.Vector3(a, 0, 0)));
+      g.add(new THREE.Mesh(new THREE.TubeGeometry(path, 160, r, 14, false), mat));
+      for (const x of [-a, a]) { const ro = new THREE.Mesh(new THREE.CylinderGeometry(5, 5.5, 1.6, 24), mat); ro.rotation.x = Math.PI / 2; ro.position.set(x, 0, 0.8); g.add(ro); }
+      break;
+    }
+    case 'pomoloq': {
+      // pomolo quadrato con gli spigoli arrotondati, su un gambo quadro
+      const D = Math.max(22, Math.min(L, 40));
+      const testa = new THREE.Mesh(new THREE.ExtrudeGeometry(rettArr(D, D, 5), { depth: 12, bevelEnabled: true, bevelThickness: 3, bevelSize: 2.5, bevelSegments: 5, curveSegments: 10 }), mat);
+      testa.position.z = 14; g.add(testa);
+      const gambo = prismaArr(12, 12, 14, 2, 'z', mat); gambo.position.z = 7; g.add(gambo);
+      break;
+    }
+    case 'conchiglia': {
+      // CONCHIGLIA APPLICATA: piastra sull'anta + guscio a mezzaluna aperto sotto (si prende da sotto)
+      const H = 42, pl = 2.5;
+      g.add(new THREE.Mesh(new THREE.ExtrudeGeometry(rettArr(L, H, 6), { depth: pl, bevelEnabled: true, bevelThickness: 0.6, bevelSize: 0.6, bevelSegments: 2 }), mat));
+      const guscio = new THREE.Mesh(new THREE.SphereGeometry(10, 40, 20, 0, Math.PI, 0, Math.PI / 2), matDoppio(mat));
+      guscio.scale.set((L / 2 - 6) / 10, (H * 0.62) / 10, 1.9); guscio.position.set(0, -H * 0.18, pl); g.add(guscio);
+      break;
+    }
+    case 'pelle': {
+      // fascia di CUOIO piegata ad asola, fissata ai due capi con due viti (le viti nel colore scelto)
+      const W = 25, T = 3, sp = 26, b = L / 2;
+      const curva = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-b, 0, T / 2), new THREE.Vector3(-b + 16, 0, T / 2), new THREE.Vector3(-b + 26, 0, sp * 0.55),
+        new THREE.Vector3(-b * 0.35, 0, sp), new THREE.Vector3(b * 0.35, 0, sp), new THREE.Vector3(b - 26, 0, sp * 0.55),
+        new THREE.Vector3(b - 16, 0, T / 2), new THREE.Vector3(b, 0, T / 2)], false, 'centripetal');
+      const sez = new THREE.Shape(); sez.moveTo(-W / 2, -T / 2); sez.lineTo(W / 2, -T / 2); sez.lineTo(W / 2, T / 2); sez.lineTo(-W / 2, T / 2); sez.closePath();
+      g.add(new THREE.Mesh(new THREE.ExtrudeGeometry(sez, { steps: 120, bevelEnabled: false, extrudePath: curva }), matCuoio));
+      for (const x of [-b + 9, b - 9]) { const v = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 4.5, 2, 24), mat); v.rotation.x = Math.PI / 2; v.position.set(x, 0, T + 1); g.add(v); }
       break;
     }
     default: {   // barra tonda a ponte

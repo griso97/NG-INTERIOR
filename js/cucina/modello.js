@@ -5,7 +5,8 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261126o';
+import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261126p';
+import { SPORGENZA_FORMA } from '../finiture-maniglia.js?v=20261126p';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -2356,11 +2357,7 @@ export function sporgenzaManiglia(progetto, m) {
   const def = typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === sc.maniglia);
   if (!def || !def.texture || !def.lunghezzaMm) return 40;
   const L = def.lunghezzaMm, forma = def.forma && def.forma !== 'foto' && def.formaV ? def.forma : 'barra';
-  if (forma === 'piatta') return 32;
-  if (forma === 'profilo') return 22;
-  if (forma === 'bordol') return 13;
-  if (forma === 'bordo') return 26;
-  if (forma === 'incasso') return 2;
+  if (SPORGENZA_FORMA[forma] != null) return SPORGENZA_FORMA[forma];   // come nel 3D (finiture-maniglia.js)
   if (forma === 'pomolo') { const D = Math.max(18, Math.min(L, 45)); return Math.ceil(20 + D * 0.25 + D * 0.275); }
   return Math.ceil(30 + 2 * Math.max(5, Math.min(7, L * 0.04)));          // barra tonda
 }

@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261126o';
-import { htmlTendineColori } from './tendine-colori.js?v=20261126o';
-import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassetti, sporgenzaDiManiglia } from './calcoli.js?v=20261126o';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261126o';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261126o';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261126p';
+import { htmlTendineColori } from './tendine-colori.js?v=20261126p';
+import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassetti, sporgenzaDiManiglia } from './calcoli.js?v=20261126p';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261126p';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261126p';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -199,6 +199,8 @@ export function renderPannello(contenitore, config, onChange) {
       <div id="cass-list"></div>
       <button id="btn-cass-add" class="btn-oro" type="button" style="margin-top:8px">+ Aggiungi cassettiera</button>
       <p class="hint">Scegli in quali moduli metterla con i pulsanti "Modulo N". Battente: sez. 5BIS · Scorrevole: sez. 5 (con opzione maniglia).</p>
+      <!-- tutto quello che si sceglie per le cassettiere sta qui: colori della struttura e dei frontali, maniglie dei cassetti -->
+      <div id="cass-mat"></div>
     </section>
 
     <section>
@@ -757,7 +759,7 @@ function renderCassettiere(config) {
         </label>
         ${G.incassata ? '<p class="hint">Non sporge niente: nel frontale va fatta la fresata per incassare la maniglia.</p>' : ''}
         ${G.maniglia ? `
-        <p class="hint">Maniglia dei cassetti: ${escAttr(G.defMan ? G.defMan.nome : 'barretta di sempre')} (si cambia in Materiali → Cassettiera · Maniglie dei cassetti).</p>
+        <p class="hint">Maniglia dei cassetti: ${escAttr(G.defMan ? G.defMan.nome : 'barretta di sempre')} (si cambia qui sotto, in «Maniglie dei cassetti»).</p>
         <label>Quanto sporge la maniglia dal frontale (mm)
           <input type="number" class="c-sporg" value="${Number(c.sporgenza) > 0 ? c.sporgenza : ''}" placeholder="da scrivere" min="1" step="1" />
         </label>
@@ -810,6 +812,8 @@ function attaccaEventiCassettiere(contenitore, config, onChange) {
       config.cassettiere.push(nuova);
       renderCassettiere(config);
       attaccaEventiCassettiere(contenitore, config, onChange);
+      renderMateriali(config);                         // compaiono colori e maniglie della cassettiera
+      attaccaEventiMateriali(contenitore, config, onChange);
       onChange(config);
     };
   }
@@ -819,6 +823,8 @@ function attaccaEventiCassettiere(contenitore, config, onChange) {
       config.cassettiere.splice(j, 1);
       renderCassettiere(config);
       attaccaEventiCassettiere(contenitore, config, onChange);
+      renderMateriali(config);
+      attaccaEventiMateriali(contenitore, config, onChange);
       onChange(config);
     };
   });
@@ -1057,9 +1063,14 @@ function renderMateriali(config) {
       </details>
     `;
   });
-  // le maniglie delle ANTE vicino alle ante; quelle dei CASSETTI insieme al resto della cassettiera
-  const iCass = Math.max(0, PARTI.findIndex((p) => p.id.startsWith('cass')));
-  wrap.innerHTML = [...carte.slice(0, iCass), cardManiglie(config), ...carte.slice(iCass), cardManiglieCassetti(config)].join('');
+  // DIVISI: in «Materiali» solo l'armadio (struttura, ante, tamponamenti, costadi, maniglie delle ante);
+  // i colori e le maniglie della CASSETTIERA stanno nella sezione «Cassettiere», solo se ce n'è almeno una
+  const cass = (p) => p.id.startsWith('cass');
+  wrap.innerHTML = carte.filter((_, i) => !cass(PARTI[i])).join('') + cardManiglie(config);
+  const wc = document.getElementById('cass-mat');
+  if (wc) wc.innerHTML = (config.cassettiere || []).length ? `
+      <h4 class="cass-mat-tit">Colori e maniglie delle cassettiere</h4>
+      ${carte.filter((_, i) => cass(PARTI[i])).join('')}${cardManiglieCassetti(config)}` : '';
 }
 
 /**
@@ -1078,7 +1089,7 @@ function cardManiglieCassetti(config) {
   return `
       <details class="mat-card" data-parte="manigliaCassetti">
         <summary>
-          <span class="mat-parte">Cassettiera · Maniglie dei cassetti</span>
+          <span class="mat-parte">Maniglie dei cassetti</span>
           <span class="mat-corrente">${tessera(sel && sel !== 'incassata' && sel !== 'ribassati' && sel !== 'barretta' ? def : null)}<span>${corrNome}</span></span>
         </summary>
         ${casse.length ? `
@@ -1089,7 +1100,7 @@ function cardManiglieCassetti(config) {
             <button type="button" class="mat-swatch ${m.id === sel ? 'sel' : ''}" data-mancass="${m.id}" title="${m.nome}">
               ${tessera(m)}<span>${m.nome}</span></button>`).join('')}
         </div>
-        <p class="hint" style="margin:6px 0 0">Vale per i cassetti di tutte le cassettiere; le maniglie delle ante si scelgono a parte. Con una maniglia i cassetti sono «Maniglia esterna»: controlla nella cassettiera quanto sporge.</p>`
+        <p class="hint" style="margin:6px 0 0">Vale per i cassetti di tutte le cassettiere; le maniglie delle ante si scelgono in Materiali. Con una maniglia i cassetti sono «Maniglia esterna»: controlla qui sopra quanto sporge.</p>`
         : '<p class="hint" style="margin:6px 0 0">Aggiungi una cassettiera per scegliere le maniglie dei cassetti.</p>'}
       </details>`;
 }

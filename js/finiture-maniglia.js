@@ -17,6 +17,14 @@ export const FINITURE_MANIGLIA = [
   { id: 'rame', nome: 'Rame', colore: 0xb2704a, metal: 0.9, rough: 0.3, css: 'linear-gradient(135deg,#e2a07d,#9c5a39)' },
   { id: 'bianco', nome: 'Bianco', colore: 0xeeeeec, metal: 0.05, rough: 0.4, css: '#f1f1ef' },
 ];
+/**
+ * QUANTO SPORGE dall'anta ogni forma di maniglia (mm), come è fatta nel 3D (maniglia3d.js).
+ * Barra tonda e pomolo dipendono dalla misura: li calcola chi li usa.
+ */
+export const SPORGENZA_FORMA = {
+  piatta: 32, profilo: 22, bordol: 13, bordo: 26, incasso: 2,
+  ponteC: 32, ponteCpiatto: 28, trapezio: 30, arco: 35, ovale: 35, zigrinata: 43, quadra: 38, filo: 31, pomoloq: 29, conchiglia: 22, pelle: 31,
+};
 /** Nome del colore di una maniglia (per la distinta). */
 export function nomeFinituraManiglia(id) {
   const f = FINITURE_MANIGLIA.find((x) => x.id === id);

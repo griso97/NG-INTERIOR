@@ -15,9 +15,9 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261126o';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261126o';
-import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261126o';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261126p';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261126p';
+import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261126p';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -624,6 +624,35 @@ export const MATERIALI = [
   { id: 'maniglia-bordo-l-nera', nome: 'Maniglia profilo sul bordo, nera (L dietro la porta)', categoria: 'maniglia',
     thumb: 'materials/maniglia-bordo-l-nera.jpg', texture: 'materials/maniglia-bordo-l-nera.jpg',
     forma: 'bordol', formaV: 1, finitura: 'nero', colore: 0x1c1c1e, lunghezzaMm: 200, spessoreJ: 2 },
+  // MANIGLIE NUOVE (modelli 3D del programma, foto = il loro 3D): applicate sulla faccia dell'anta,
+  // non tolgono niente all'anta
+  { id: 'maniglia-ponte-c', nome: 'Maniglia a ponte squadrata «a C»', categoria: 'maniglia', thumb: 'materials/maniglie/ponte-c.webp', texture: 'materials/maniglie/ponte-c.webp',
+    forma: 'ponteC', formaV: 1, finitura: 'inox', colore: 0xc5c8cc, lunghezzaMm: 160, sottraiSpessore: false },
+  { id: 'maniglia-ponte-piatta', nome: 'Maniglia a ponte piatta larga', categoria: 'maniglia', thumb: 'materials/maniglie/ponte-piatto.webp', texture: 'materials/maniglie/ponte-piatto.webp',
+    forma: 'ponteCpiatto', formaV: 1, finitura: 'nero', colore: 0x1c1c1c, lunghezzaMm: 192, sottraiSpessore: false },
+  { id: 'maniglia-arco', nome: 'Maniglia ad arco', categoria: 'maniglia', thumb: 'materials/maniglie/arco.webp', texture: 'materials/maniglie/arco.webp',
+    forma: 'arco', formaV: 1, finitura: 'inox', colore: 0xc5c8cc, lunghezzaMm: 128, sottraiSpessore: false },
+  { id: 'maniglia-ovale', nome: 'Maniglia a barra ovale', categoria: 'maniglia', thumb: 'materials/maniglie/ovale.webp', texture: 'materials/maniglie/ovale.webp',
+    forma: 'ovale', formaV: 1, finitura: 'antracite', colore: 0x4a4c50, lunghezzaMm: 224, sottraiSpessore: false },
+  { id: 'maniglia-zigrinata', nome: 'Maniglia a barra zigrinata', categoria: 'maniglia', thumb: 'materials/maniglie/zigrinata.webp', texture: 'materials/maniglie/zigrinata.webp',
+    forma: 'zigrinata', formaV: 1, finitura: 'oro', colore: 0xc9a65c, lunghezzaMm: 160, sottraiSpessore: false },
+  { id: 'maniglia-quadra', nome: 'Maniglia a barra quadra', categoria: 'maniglia', thumb: 'materials/maniglie/quadra.webp', texture: 'materials/maniglie/quadra.webp',
+    forma: 'quadra', formaV: 1, finitura: 'nero', colore: 0x1c1c1c, lunghezzaMm: 256, sottraiSpessore: false },
+  { id: 'maniglia-filo', nome: 'Maniglia a filo piegato sottile', categoria: 'maniglia', thumb: 'materials/maniglie/filo.webp', texture: 'materials/maniglie/filo.webp',
+    forma: 'filo', formaV: 1, finitura: 'nero', colore: 0x1c1c1c, lunghezzaMm: 160, sottraiSpessore: false },
+  { id: 'maniglia-trapezio', nome: 'Maniglia a ponte trapezio', categoria: 'maniglia', thumb: 'materials/maniglie/trapezio.webp', texture: 'materials/maniglie/trapezio.webp',
+    forma: 'trapezio', formaV: 1, finitura: 'alluminio', colore: 0xb9bcc0, lunghezzaMm: 192, sottraiSpessore: false },
+  { id: 'maniglia-pomolo-quadrato', nome: 'Pomolo quadrato', categoria: 'maniglia', thumb: 'materials/maniglie/pomolo-quadrato.webp', texture: 'materials/maniglie/pomolo-quadrato.webp',
+    forma: 'pomoloq', formaV: 1, finitura: 'inox', colore: 0xc5c8cc, lunghezzaMm: 30, sottraiSpessore: false },
+  { id: 'maniglia-conchiglia', nome: 'Maniglia a conchiglia applicata', categoria: 'maniglia', thumb: 'materials/maniglie/conchiglia.webp', texture: 'materials/maniglie/conchiglia.webp',
+    forma: 'conchiglia', formaV: 1, finitura: 'canna', colore: 0x5d6066, lunghezzaMm: 96, sottraiSpessore: false },
+  { id: 'maniglia-pelle', nome: 'Maniglia in pelle (cuoio)', categoria: 'maniglia', thumb: 'materials/maniglie/pelle.webp', texture: 'materials/maniglie/pelle.webp',
+    forma: 'pelle', formaV: 1, finitura: 'inox', colore: 0x7b4a2b, lunghezzaMm: 120, sottraiSpessore: false },
+  // TIRADOR LUNGO verticale: profilo sul bordo dell'anta con la L dietro la porta → l'anta si accorcia di 2 mm
+  // dal lato dove sta (Impostazioni → Maniglie: «Sottrai lo spessore del tirador», si può cambiare)
+  { id: 'maniglia-tirador-lungo', nome: 'Tirador lungo verticale, nero (profilo sul bordo, L dietro la porta)', categoria: 'maniglia',
+    thumb: 'materials/maniglie/tirador-lungo.webp', texture: 'materials/maniglie/tirador-lungo.webp',
+    forma: 'bordol', formaV: 1, finitura: 'nero', colore: 0x1c1c1e, lunghezzaMm: 1200, spessoreJ: 2, sottraiSpessore: true, spessoreTirador: 2 },
   // ---- Binari degli armadi scorrevoli (grigio = quello di sempre) ----
   { id: 'binario-grigio', nome: 'Grigio', categoria: 'binario', css: 'linear-gradient(135deg,#7a7a7a,#4f4f4f)',
     colore: 0x5f5f5f, solido: true, roughness: 0.55, metalness: 0.4 },
@@ -653,7 +682,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => (p.sezione === 'legno' || p.sezione === 'fingerpull') && (p.versioneFoto || 1) < 2);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261126o');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261126p');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 2; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -791,7 +820,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261126o';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261126p';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
@@ -1093,9 +1122,9 @@ export const PARTI = [
   { id: 'ante', nome: 'Ante', applica: ['ante'] },
   { id: 'tamponamenti', nome: 'Tamponamenti', applica: ['tamponamenti'] },
   { id: 'costadi', nome: 'Costadi', applica: ['costadi'] },
-  { id: 'cassStruttura', nome: 'Cassettiera · Struttura (scatola + fascette)',
+  { id: 'cassStruttura', nome: 'Struttura della cassettiera (scatola + fascette)',
     applica: ['cassStruttura'] },
-  { id: 'cassFronti', nome: 'Cassettiera · Fronti cassetto',
+  { id: 'cassFronti', nome: 'Fronti dei cassetti',
     applica: ['cassFronti'] },
 ];
 

@@ -14,8 +14,8 @@
 // Misure in mm. Coordinate: x a destra, y in alto, origine angolo basso-sx.
 // =============================================================================
 
-import { parametri, spessoreTirador, nomeTirador } from '../parametri.js?v=20261126o';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126o';
+import { parametri, spessoreTirador, nomeTirador } from '../parametri.js?v=20261126p';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126p';
 
 export const SPESSORI_DEFAULT = { carcassa: 18, schiena: 10, ante: 18 };
 export const H_MINIMA_MODULO = 250;
@@ -282,7 +282,7 @@ export function lunghezzaManigliaModulare(def, h) {
 /** Nome in distinta: «Maniglia standard (barra) · Nero opaco · 300 mm». */
 export function nomeManigliaModulari(man, L) {
   const col = man.colore ? nomeFinituraManiglia(man.colore) : '';
-  return `${/^maniglia/i.test(man.def.nome || '') ? '' : 'Maniglia '}${man.def.nome}${col ? ` · ${col}` : ''} · ${L} mm`;
+  return `${/^(maniglia|pomolo|tirador)/i.test(man.def.nome || '') ? '' : 'Maniglia '}${man.def.nome}${col ? ` · ${col}` : ''} · ${L} mm`;
 }
 /**
  * ANTE di un modulo largo L (x da 0): N ante con 2 mm di fuga; maniglia a sinistra (manSx) o a
