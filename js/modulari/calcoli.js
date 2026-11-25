@@ -14,8 +14,8 @@
 // Misure in mm. Coordinate: x a destra, y in alto, origine angolo basso-sx.
 // =============================================================================
 
-import { parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, eTirador } from '../parametri.js?v=20261127d';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261127d';
+import { parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, eTirador } from '../parametri.js?v=20261127e';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261127e';
 
 export const SPESSORI_DEFAULT = { carcassa: 18, schiena: 10, ante: 18 };
 export const H_MINIMA_MODULO = 250;
@@ -126,7 +126,7 @@ export function layoutModuli(forma, cfg, spessori = SPESSORI_DEFAULT) {
       avvisi.push(`Modulo ${i + 1} passa sotto un cambio di pendenza del soffitto (a ${r0(spigolo)} mm da sinistra): il top segue la linea retta tra i due lati. Per sfruttare tutto lo spazio metti una divisione lì.`);
     }
     moduli.push({ indice: i, x0, x1, larghezza: L, hL, hR,
-      ante: d.ante ?? 1, lato: d.lato || 'dx', apertura: aperturaDi(d.apertura), ripiani: Math.max(0, Math.round(d.ripiani ?? 1)), spigolo,
+      ante: d.ante ?? 1, lato: d.lato || 'dx', apertura: aperturaDi(d.apertura), ripiani: Math.max(0, Math.round(d.ripiani ?? 1)), perchero: percheroDi(d.perchero), spigolo,
       maniglieAnte: maniglieAnteDi(cfg.maniglieAnte, i) });
   });
   // Spazio rimasto verso il lato basso: lo chiude un modulo finale
@@ -293,6 +293,23 @@ export function lunghezzaManigliaModulare(def, h) {
   return Math.round(Math.max(40, lunghezzaSulBordo(def, Lc, h)));
 }
 /** Nome in distinta: «Maniglia standard (barra) · Nero opaco · 300 mm». */
+/**
+ * PERCHERO (barra appendiabiti ovale 30×15, come negli armadi) di un modulo o cubo:
+ * '' = nessuno, 'alluminio' (satinato) o 'nero'. In distinta la barra lunga spazio dentro − 2 + 2 ganci.
+ */
+export const FINITURE_PERCHERO = [['', 'Nessuno'], ['alluminio', 'Alluminio satinato'], ['nero', 'Nero']];
+export const percheroDi = (v) => (v === 'alluminio' || v === 'nero' ? v : '');
+export const lunghezzaPerchero = (L, sC) => Math.round(L - 2 * sC - 2);
+/**
+ * ALTEZZA DEL PERCHERO (asse, mm dal fondo esterno del mobile), come i ripiani del 3D: 6 cm sotto il ripiano
+ * più alto, o sotto il top dal lato basso se non ci sono ripiani (sempre sotto il ripiano, sopra il fondo).
+ */
+export function altezzaPerchero(L, hL, hR, sC, ripiani) {
+  const tv = sC / Math.cos(Math.atan2(Math.abs(hR - hL), L));
+  const hBasso = Math.min(hL, hR) - tv, n = Math.max(0, Math.round(ripiani || 0));
+  const sotto = n > 0 ? sC + (n * (hBasso - 2 * sC)) / (n + 1) - sC / 2 : hBasso;
+  return Math.max(sC + 30, sotto - 60);
+}
 export function nomeManigliaModulari(man, L) {
   const col = man.colore ? nomeFinituraManiglia(man.colore) : '';
   return `${/^(maniglia|pomolo|tirador)/i.test(man.def.nome || '') ? '' : 'Maniglia '}${man.def.nome}${col ? ` · ${col}` : ''} · ${L} mm`;
@@ -448,6 +465,13 @@ export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFA
     add('Schiena trapezio', L - 2, hAlto - 2, sS, 'schiena', 1, { note: `lato basso ${r0(hBasso - 2)} mm · ${notePiano(ang)}` });
   }
   if (mod.ripiani > 0) add('Ripiano', L - 2 * sC, Pc, sC, 'carcassa', mod.ripiani);
+  // PERCHERO: la barra con la sua misura (come nel 3D) + 2 ganci
+  const per = percheroDi(mod.perchero);
+  if (per) {
+    const fin = per === 'nero' ? 'nero' : 'alluminio satinato';
+    pz.push(accessorio(mod.nome, `Perchero ${fin} (barra ovale 30×15) · ${lunghezzaPerchero(L, sC)} mm`, 1));
+    pz.push(accessorio(mod.nome, `Gancio perchero ${fin}`, 2));
+  }
 
   const N = Math.max(0, Math.round(mod.ante || 0));
   if (N > 0) {
@@ -602,7 +626,7 @@ export function distintaModulari(forma, stato) {
     cubi.forEach((c, i) => {
       if (!posizioneValida(forma, cubi, c)) errori.push(`Cubo ${i + 1}: è fuori dal vano o sopra un altro cubo.`);
       const e = lc.elementi[i];
-      elementi.push({ chiave: `c:${c.id}`, nome: `Cubo ${i + 1}${e.adattato ? ' (inclinato)' : ''}`, larghezza: c.w, hL: e.hL, hR: e.hR, ante: c.fronte === 'anta' ? 1 : 0, lato: c.lato || 'dx', apertura: aperturaDi(c.apertura), maniglieAnte: maniglieAnteDi({ c: c.maniglieAnte }, 'c'), y0: c.y, ripiani: c.ripiani || 0 });
+      elementi.push({ chiave: `c:${c.id}`, nome: `Cubo ${i + 1}${e.adattato ? ' (inclinato)' : ''}`, larghezza: c.w, hL: e.hL, hR: e.hR, ante: c.fronte === 'anta' ? 1 : 0, lato: c.lato || 'dx', apertura: aperturaDi(c.apertura), maniglieAnte: maniglieAnteDi({ c: c.maniglieAnte }, 'c'), y0: c.y, ripiani: c.ripiani || 0, perchero: percheroDi(c.perchero) });
     });
     chiusura = lc.chiusura;
   } else {

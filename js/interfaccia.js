@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261127d';
-import { htmlTendineColori } from './tendine-colori.js?v=20261127d';
-import { misureCostado, binarioArmadio, profonditaBinario, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261127d';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261127d';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261127d';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261127e';
+import { htmlTendineColori } from './tendine-colori.js?v=20261127e';
+import { misureCostado, binarioArmadio, profonditaBinario, spessoreMateriale, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261127e';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261127e';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261127e';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -1218,6 +1218,16 @@ function attaccaEventiMateriali(contenitore, config, onChange) {
         parte.applica.forEach((k) => {
           config.materiali[k] = btn.dataset.mat;
         });
+        // SPESSORE DAL MATERIALE (MDF / melaminico 16 o 19, prodotti con lo spessore scritto): i pezzi fatti con
+        // quel materiale prendono il suo spessore (misure, distinta e 3D); si può sempre cambiare a mano
+        const spM = spessoreMateriale(btn.dataset.mat);
+        if (spM) {
+          if (parte.id === 'struttura') config.spessoreCarcassa = spM;
+          else if (parte.id === 'ante') config.spessoreAnte = spM;
+          else if (parte.id === 'costadi') config.costadi = { ...(config.costadi || {}), spessore: spM };
+          const campi = { '#sp-carc': config.spessoreCarcassa, '#sp-ante': config.spessoreAnte, '#cost-sp': (config.costadi && config.costadi.spessore) || config.spessoreAnte };
+          for (const [sel, v] of Object.entries(campi)) { const inp = document.querySelector(sel); if (inp) inp.value = v; }
+        }
         if (parte.id.startsWith('cass')) mostraPorte(true);   // colori della cassettiera: porte aperte
         else if (parte.id === 'ante') mostraPorte(false);     // colore delle ante: porte chiuse
         card.open = false;

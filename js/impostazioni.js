@@ -8,23 +8,23 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261127d';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127d';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127d';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127d';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127d';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127d';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127d';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127d';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127d';
-import { agganciaTema } from './tema.js?v=20261127d';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127d';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127d';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261127d';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127d';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127d';
-import { geometriaCassettiera } from './calcoli.js?v=20261127d';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127d';
+} from './catalogo.js?v=20261127e';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127e';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127e';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127e';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127e';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127e';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127e';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127e';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127e';
+import { agganciaTema } from './tema.js?v=20261127e';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127e';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127e';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261127e';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127e';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127e';
+import { geometriaCassettiera } from './calcoli.js?v=20261127e';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127e';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1132,7 +1132,7 @@ function renderParametri(S) {
     const pc = `cassettieraArmadio.${tipo}`;
     return `
     <div class="par-gruppo">
-      <h3>Cassettiera</h3>
+      <h3>${tipo === 'battente' ? 'Cassettiera dell\'armadio a battente' : 'Cassettiera dell\'armadio scorrevole'}</h3>
       <p class="imp-desc">La cassettiera dentro l'armadio: la scatola appoggiata alla schiena, i frontali davanti, le fascette che fanno la cornice dei frontali (laterali e sotto) e il ripiano sopra che fa da top. Di partenza la maniglia è incassata (fresata nel frontale, non sporge niente). In ogni cassettiera si può scegliere la maniglia esterna (scrivendo quanto sporge) o i frontali ribassati, e le misure dei cassetti una per una.</p>
       <div class="par-griglia">
         ${tipo === 'battente'
@@ -1145,6 +1145,10 @@ function renderParametri(S) {
         ${campo(`${pc}.fuga`, 'Fuga dei frontali', 'fra un frontale e l\'altro e ai lati')}
         ${campo(`${pc}.ribasso`, 'Frontali ribassati: di quanto', 'senza maniglia: il vuoto resta sopra il frontale per la mano')}
         ${campo(`${pc}.fondoMeno`, 'Fondo del cassetto: guida meno', 'es. guida 500 − 20 = fondo 480')}
+      </div>
+      <div class="par-figure">
+        <figure><div data-fig="cassettiera-${tipo}-davanti">${svgParametro(`cassettiera-${tipo}-davanti`, P)}</div><figcaption>${esc('Vista davanti, con le ante aperte (non in scala: spessori e fughe ingranditi)')}</figcaption></figure>
+        <figure><div data-fig="cassettiera-${tipo}-fianco">${svgParametro(`cassettiera-${tipo}-fianco`, P)}</div><figcaption>${esc('Vista di fianco, tagliata a metà (non in scala)')}</figcaption></figure>
       </div>
       <div class="par-esempio" data-es-cassettiera="${tipo}" data-no-i18n style="white-space:pre-line"></div>
     </div>`;
@@ -1331,7 +1335,7 @@ function renderParametri(S) {
       <div class="par-griglia">
         ${campo('regletta.vista', 'Quanto si vede (per lato)', 'di partenza 3 × 3 cm: la parte della regletta che si vede nell\'angolo')}
         ${campo('regletta.spessoreAnta', 'Spessore dell\'anta', 'un pezzo è largo quanto si vede, l\'altro + questo spessore: sormonta il primo; i due pezzi sono spessi come l\'anta')}
-        ${campo('regletta.pannellinoProfondita', 'Pannellini dietro: profondità', 'in distinta 2 pannellini alti come la regletta, in melaminico bianco o antracite come l\'interno dei mobili (0 = niente)')}
+        ${campo('regletta.pannellinoProfondita', 'Pannellini dietro: profondità', 'in distinta 2 pannellini alti come la regletta (d\'angolo e messa a mano), in melaminico bianco o antracite come l\'interno dei mobili (0 = niente)')}
         ${campo('regletta.pannellinoSpessore', 'Pannellini dietro: spessore')}
       </div>
       <div class="par-esempio" id="par-es-reg" data-no-i18n></div>
@@ -1355,10 +1359,18 @@ function renderParametri(S) {
     </div>
     <div class="par-scheda" data-scheda="battente" ${_schedaPar === 'battente' ? '' : 'hidden'}>
       <p class="imp-desc par-scheda-desc">${esc((SCHEDE_PAR.find((x) => x[0] === 'battente') || [])[2] || '')}</p>
+    <p class="imp-desc">Struttura, schiena e ante: i valori di partenza di ogni armadio nuovo. Tocca il modo in cui lavori; nel singolo armadio li puoi sempre cambiare (Setup carcassa e Schiena).</p>
     <div class="par-gruppo">
-      <h3>Struttura e schiena</h3>
-      <p class="imp-desc">I valori di partenza di ogni armadio nuovo: tocca il modo in cui lavori. Nel singolo armadio li puoi sempre cambiare (Setup carcassa e Schiena).</p>
-      <div id="par-montaggio"></div>
+      <h3>Struttura</h3>
+      <div id="par-mont-struttura"></div>
+    </div>
+    <div class="par-gruppo">
+      <h3>Schiena</h3>
+      <div id="par-mont-schiena"></div>
+    </div>
+    <div class="par-gruppo">
+      <h3>Ante a battente</h3>
+      <div id="par-mont-ante"></div>
     </div>
     <div class="par-gruppo">
       <h3>Ante interne</h3>
@@ -1378,6 +1390,14 @@ function renderParametri(S) {
     <div class="par-gruppo">
       <h3>Struttura e schiena</h3>
       <div id="par-montaggio-sc"></div>
+    </div>
+    <div class="par-gruppo" id="par-gr-sc-struttura" hidden>
+      <h3>Struttura</h3>
+      <div id="par-mont-sc-struttura"></div>
+    </div>
+    <div class="par-gruppo" id="par-gr-sc-schiena" hidden>
+      <h3>Schiena</h3>
+      <div id="par-mont-sc-schiena"></div>
     </div>
     <div class="par-gruppo">
       <h3>Binari</h3>
@@ -1502,18 +1522,29 @@ function renderParametri(S) {
     esempi();
   }));
   // COME MONTI GLI ARMADI: schede col disegno (le stesse della configurazione guidata)
+  // un riquadro per ognuna (struttura, schiena, ante): tanti disegni, così è più chiaro
+  const SOLO = { struttura: false, schiena: false, ante: false, esempio: false, senzaTitolo: true };
   const disegnaMontaggio = () => {
-    const box = el.querySelector('#par-montaggio'); if (!box) return;
-    box.innerHTML = htmlMontaggio(valoriDaParametri(), { numeriAnte: false });
-    agganciaMontaggio(box, valoriDaParametri, scriviParametri, disegnaMontaggio);
+    const v = valoriDaParametri();
+    for (const [id, opz] of [['#par-mont-struttura', { struttura: true }], ['#par-mont-schiena', { schiena: true, esempio: true }], ['#par-mont-ante', { ante: true, numeriAnte: false }]]) {
+      const box = el.querySelector(id); if (!box) continue;
+      box.innerHTML = htmlMontaggio(v, { ...SOLO, ...opz });
+      agganciaMontaggio(box, valoriDaParametri, scriviParametri, disegnaMontaggio);
+    }
     disegnaMontaggioSc();
   };
-  // ARMADI SCORREVOLI: struttura come i battenti? Se no, le stesse domande (struttura e schiena)
+  // ARMADI SCORREVOLI: struttura come i battenti? Se no, le stesse domande (struttura e schiena, ognuna nel suo riquadro)
   const disegnaMontaggioSc = () => {
     const box = el.querySelector('#par-montaggio-sc'); if (!box) return;
-    const v = valoriScorrevoli();
-    box.innerHTML = htmlUguale(v) + (v.uguale === 'no' ? htmlMontaggio(v, { ante: false }) : '');
-    agganciaMontaggio(box, valoriScorrevoli, (p) => { scriviScorrevoli(p); segnaImpostato('scorrevoli'); mostraMancanti(); }, disegnaMontaggioSc);
+    const v = valoriScorrevoli(), scrivi = (p) => { scriviScorrevoli(p); segnaImpostato('scorrevoli'); mostraMancanti(); };
+    box.innerHTML = htmlUguale(v);
+    agganciaMontaggio(box, valoriScorrevoli, scrivi, disegnaMontaggioSc);
+    for (const [gr, id, opz] of [['#par-gr-sc-struttura', '#par-mont-sc-struttura', { struttura: true }], ['#par-gr-sc-schiena', '#par-mont-sc-schiena', { schiena: true, esempio: true }]]) {
+      const g = el.querySelector(gr), b2 = el.querySelector(id); if (!g || !b2) continue;
+      g.hidden = v.uguale !== 'no';
+      b2.innerHTML = v.uguale === 'no' ? htmlMontaggio(v, { ...SOLO, ...opz }) : '';
+      agganciaMontaggio(b2, valoriScorrevoli, scrivi, disegnaMontaggioSc);
+    }
   };
   disegnaMontaggio();
   let timer = null;

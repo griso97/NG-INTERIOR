@@ -4,7 +4,7 @@
 //   svgGola(spazio)                → visto DI LATO: piano, profilo L, cassetti, profilo C, spazio per le dita
 //   svgRegletta(vista, spessore)   → visto DA SOPRA: l'angolo di una cucina a L con i due pezzi della regletta
 // =============================================================================
-import { svgAnteInterne } from './disegni-montaggio.js?v=20261127d';
+import { svgAnteInterne } from './disegni-montaggio.js?v=20261127e';
 const t = (s) => (typeof window !== 'undefined' && window.NGI18N ? window.NGI18N.t(s) : s);
 const C = { piano: '#2a2a2c', fianco: '#8d939b', anta: '#e8dcc0', profilo: '#4b4f55', testo: '#e6dcc6', dim: '#e8c25a', muro: '#5a5246', reg: '#e8c25a', cieco: '#cdbf9f' };
 const txt = (x, y, s, opz = '') => `<text x="${x}" y="${y}" ${/fill=/.test(opz) ? '' : `fill="${C.testo}"`} ${/font-size=/.test(opz) ? '' : 'font-size="10"'} font-family="sans-serif" ${opz}>${s}</text>`;
@@ -210,8 +210,129 @@ export function svgPianoLavoro(k = {}) {
   return `<svg viewBox="0 0 290 258" width="290" height="258" role="img" aria-label="${t('Piano di lavoro: profondità e alzatina')}">${p.join('')}</svg>`;
 }
 
+/**
+ * CASSETTIERA DENTRO L'ARMADIO (battente o scorrevole), con i numeri dei ⚙ Parametri:
+ *   vista 'davanti' (ante aperte) e vista 'fianco' (sezione), numeri sui pezzi + legenda con le misure.
+ * Non in scala: spessori e fughe sono ingranditi perché si vedano. Le misure sono quelle di geometriaCassettiera.
+ */
+export function svgCassettieraArmadio(tipo = 'battente', vista = 'davanti', Pc = {}, guide = [500, 400, 350, 300]) {
+  const sc = tipo === 'scorrevole';
+  const tf = (s, ...v) => t(s).replace(/\{(\d)\}/g, (_, i) => (typeof v[Number(i)] === 'number' ? f(v[Number(i)]) : v[Number(i)]));
+  const fascia = Number(Pc.fascia) || 0, fSotto = Number(Pc.fasciaSotto) || 0, fuga = Number(Pc.fuga) || 0;
+  const aria = Number(sc ? Pc.ariaBinario : Pc.ariaDavanti) || 0, rib = Number(Pc.ribasso) || 0, fMeno = Number(Pc.fondoMeno) || 0;
+  const G0 = (guide && guide.length ? guide : [500]).map(Number).filter((x) => x > 0).sort((a, b) => b - a);
+  const COL = { str: '#cdbf9f', fronte: C.anta, fianco: C.fianco, schiena: '#6d6457', guida: '#3c3f44', cass: '#9aa0a8', buio: '#1b1712' };
+  const num = (x, y, n) => `<circle cx="${x}" cy="${y}" r="7.5" fill="${C.dim}" stroke="#14110d" stroke-width="1"/>`
+    + txt(x, y + 3.5, n, 'text-anchor="middle" fill="#14110d" font-size="10" font-weight="bold"');
+  const lin = (x1, y1, x2, y2, ex = '') => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${C.dim}" stroke-width="1" ${ex}/>`;
+  const rottura = (x, w, y) => `<path d="M${x} ${y} l${w / 3} -4 l${w / 3} 8 l${w / 3} -4" fill="none" stroke="#b8ad97" stroke-width="1"/>`;
+  const p = [], leg = [];
+  // altezze comuni (px): ripiano 70–80, scatola 80–260 (top e fondo 10), fascette sotto 260–270, fondo armadio 270–280
+  const S = 10, FG = 3, yR = 70, yS = 80, yB = 260, yC = 270;
+  const hF = (yB - yS - 4 * FG) / 3;                                       // 3 frontali con 4 fughe
+  const fronti = [0, 1, 2].map((i) => yS + FG + i * (hF + FG));           // bordo alto di ogni frontale
+  if (vista === 'davanti') {
+    const xa = 60, xb = 280;                                               // fianchi dell'armadio: xa..xa+S e xb−S..xb
+    const xi0 = xa + S, xi1 = xb - S, FL = sc ? S : 24;                    // fascette: di costa (spesse S) o di piatto (larghe 24)
+    const t0 = xi0 + FL, t1 = xi1 - FL;                                    // scatola
+    p.push(rect(xi0, 20, xi1 - xi0, yC - 20, COL.buio, 'stroke="none"'));
+    p.push(rect(xa, 20, S, yC + 10 - 20, COL.fianco), rect(xi1, 20, S, yC + 10 - 20, COL.fianco), rottura(xa, S, 20), rottura(xi1, S, 20));
+    p.push(rect(xi0, yC, xi1 - xi0, 10, COL.fianco));
+    p.push(rect(xi0, yR, xi1 - xi0, S, COL.str));                          // ripiano sopra
+    p.push(rect(xi0, yS, FL, yC - yS, COL.str), rect(t1, yS, FL, yC - yS, COL.str));   // fascette laterali
+    p.push(rect(t0, yB, t1 - t0, yC - yB, COL.str));                        // fascetta sotto davanti
+    p.push(rect(t0, yS, t1 - t0, yB - yS, '#4a443b', 'stroke="none"'));     // scatola dietro (si vede nelle fughe)
+    for (const y of fronti) {
+      p.push(rect(t0 + FG, y, t1 - t0 - 2 * FG, hF, COL.fronte));
+      p.push(`<rect x="${(t0 + t1) / 2 - 22}" y="${y + 7}" width="44" height="5" rx="1.5" fill="#3a352d"/>`);   // maniglia incassata
+    }
+    // frontale ribassato: tratteggio sul primo frontale
+    p.push(lin(t0 + FG, fronti[0] + 16, t1 - FG, fronti[0] + 16, 'stroke-dasharray="4 3"'));
+    // quota della scatola sotto il disegno
+    const yq = 296;
+    p.push(lin(t0, yq, t1, yq), lin(t0, yq - 4, t0, yq + 4), lin(t1, yq - 4, t1, yq + 4));
+    p.push(txt((t0 + t1) / 2, yq - 4, t('scatola'), `text-anchor="middle" fill="${C.dim}" font-size="9"`));
+    p.push(txt(170, 46, t('dentro l\'armadio'), 'text-anchor="middle" fill="#7d7464" font-size="9"'));
+    // numeri
+    p.push(num(xa + S / 2, 40, 1), num(xi0 + FL / 2, 226, 2), num((t0 + t1) / 2, yB + 5, 3), num((t0 + t1) / 2 + 40, fronti[1] + hF / 2, 4));
+    p.push(lin(t1 - FG, fronti[1] - FG / 2, 312, fronti[1] - FG / 2), num(318, fronti[1] - FG / 2, 5));
+    p.push(lin(xi1, yR + S / 2, 312, yR + S / 2), num(318, yR + S / 2, 6));
+    p.push(lin(t1 - FG, fronti[0] + 16, 312, fronti[0] + 16 + 4), num(318, fronti[0] + 20, 7));
+    p.push(num((t0 + t1) / 2 + 52, yq, 8));
+    leg.push(
+      t('Fianchi dell\'armadio (struttura)'),
+      sc ? tf('Fascette laterali: di costa, spesse come la struttura, profonde {0} mm, a filo dei frontali, alte fino sotto il ripiano', fascia)
+        : tf('Fascette laterali: di piatto, larghe {0} mm, a filo dei frontali, alte fino sotto il ripiano', fascia),
+      tf('Fascetta sotto davanti: larga come la scatola, profonda {0} mm, a filo dei frontali (la seconda è dietro: vedi di fianco)', fSotto),
+      tf('Frontali: larghi come la scatola − 2 × {0} mm; di partenza con la maniglia incassata (fresata nel frontale)', fuga),
+      tf('Fuga dei frontali: {0} mm, fra un frontale e l\'altro, sopra, sotto e ai lati', fuga),
+      t('Ripiano sopra (top): largo come lo spazio fra i fianchi dell\'armadio'),
+      tf('Frontali ribassati (senza maniglia): {0} mm più bassi, il vuoto resta sopra per la mano', rib),
+      sc ? t('Scatola (top, fondo e fianchi): larga modulo − 4 × struttura (fianchi dell\'armadio + fascette)')
+        : tf('Scatola (top, fondo e fianchi): larga modulo − 2 × struttura − 2 × {0} mm', fascia),
+    );
+  } else {
+    const xs = 30, xi = xs + 7;                                            // schiena e inizio dello spazio dentro
+    const xF = sc ? 250 : 262, xFr = xF - S, xSc = xFr - 1;                // davanti dei frontali, frontali, fine della scatola
+    const xA = xF + 12;                                                    // fine dell'aria: anta chiusa / binario
+    const FS = 26;                                                         // profondità fascette sotto (disegnata)
+    p.push(rect(xi, 20, xA - xi, yC - 20, COL.buio, 'stroke="none"'));
+    p.push(rect(xs, 20, 7, yC + 10 - 20, COL.schiena), rottura(xs, 7, 20));
+    p.push(rect(xi, yC, xA - xi, 10, COL.fianco));
+    if (sc) {
+      // binario con le ante scorrevoli davanti
+      p.push(rect(xA, 20, 38, yC + 10 - 20, '#2a2620', `stroke="${C.fianco}"`), rottura(xA, 38, 20));
+      p.push(rect(xA + 8, 24, 5, yC - 24, C.anta), rect(xA + 22, 24, 5, yC - 24, '#cfc3a6'));
+      p.push(txt(xA + 19, yC + 22, t('binario'), 'text-anchor="middle" fill="#b8ad97" font-size="9"'));
+    } else {
+      p.push(rect(xA, 14, 10, yC + 20 - 14, C.anta));
+      p.push(txt(xA + 5, yC + 32, t('anta chiusa'), 'text-anchor="middle" fill="#b8ad97" font-size="9"'));
+    }
+    const xRip = sc ? xA : (xF);
+    p.push(rect(xi, yR, xRip - xi, S, COL.str));                            // ripiano sopra
+    if (!sc) p.push(`<rect x="${xF}" y="${yR}" width="${xA - xF - 2}" height="${S}" fill="none" stroke="${C.dim}" stroke-width="0.8" stroke-dasharray="3 2"/>`);
+    p.push(rect(xi, yS, xSc - xi, S, COL.str), rect(xi, yB - S, xSc - xi, S, COL.str));   // top e fondo della scatola
+    p.push(rect(xi, yS + S, xSc - xi, yB - yS - 2 * S, '#b3a789'));          // fianco della scatola
+    p.push(rect(xi, yB, FS, yC - yB, COL.str), rect(xF - FS, yB, FS, yC - yB, COL.str));   // fascette sotto
+    for (const y of fronti) p.push(rect(xFr, y, S, hF, COL.fronte));
+    if (sc) p.push(`<rect x="${xF - 24}" y="${yS}" width="24" height="${yC - yS}" fill="none" stroke="${C.dim}" stroke-width="1" stroke-dasharray="4 3"/>`);
+    // cassetto (nello spazio di mezzo): guida e fondo
+    const yc0 = fronti[1] + 8, yc1 = fronti[1] + hF - 6, xc0 = xi + 40;
+    p.push(rect(xc0, yc0, xSc - 3 - xc0, yc1 - yc0, COL.cass));
+    p.push(`<rect x="${xc0}" y="${yc1}" width="${xSc - 3 - xc0}" height="3" fill="${COL.guida}"/>`);
+    p.push(txt((xc0 + xSc) / 2, yc0 + 16, t('cassetto'), 'text-anchor="middle" fill="#14110d" font-size="9"'));
+    // aria: quota fra frontali e anta / binario
+    const ya = 112;
+    p.push(lin(xF, ya, xA, ya), lin(xF, ya - 4, xF, ya + 4), lin(xA, ya - 4, xA, ya + 4));
+    p.push(lin(xA, ya, 318, ya - 30), num(320, ya - 34, 4));
+    // numeri
+    p.push(num(xs + 3.5, 40, 1), num((xi + xSc) / 2, fronti[2] + hF / 2 - 8, 2), num(xi + FS / 2, yB + 5, 3), num(xF - FS / 2, yB + 5, 3));
+    p.push(num(xc0 + 30, (yc0 + yc1) / 2 + 6, 5), num((xi + xRip) / 2, yR + S / 2, 6), num(xFr + S / 2, fronti[0] + hF / 2, 7));
+    if (sc) p.push(num(xF - 17, yS + 128, 8));
+    leg.push(
+      t('Schiena'),
+      sc ? tf('Scatola (top, fondo e fianchi): appoggiata alla schiena, profonda (spazio dentro − binario) − struttura − {0} mm (− quanto sporge la maniglia esterna)', aria)
+        : tf('Scatola (top, fondo e fianchi): appoggiata alla schiena, profonda spazio dentro − {0} mm − struttura (− quanto sporge la maniglia esterna)', aria),
+      tf('Fascette sotto: due, profonde {0} mm: una davanti a filo dei frontali, una dietro contro la schiena', fSotto),
+      sc ? tf('Aria fra frontali e binario: {0} mm (con la maniglia esterna si aggiunge quanto sporge)', aria)
+        : tf('Aria fra frontali e anta chiusa: {0} mm (con la maniglia esterna si aggiunge quanto sporge)', aria),
+      tf('Cassetto: la guida più lunga che entra nella scatola ({0}); fondo = guida − {1} mm (es. {2} → {3})', G0.join(', '), fMeno, G0[0], G0[0] - fMeno),
+      sc ? t('Ripiano sopra (top): fino al binario, come gli altri ripiani')
+        : t('Ripiano sopra (top): a filo dei frontali; con la maniglia esterna arriva fino alla maniglia (tratteggio)'),
+      t('Frontali: davanti alla scatola, spessi come la struttura'),
+    );
+    if (sc) leg.push(tf('Fascette laterali di costa (tratteggio): profonde {0} mm, a filo dei frontali', fascia));
+  }
+  const svg = `<svg viewBox="0 0 340 ${vista === 'davanti' ? 306 : 312}" width="340" height="${vista === 'davanti' ? 306 : 312}" role="img" aria-label="${t(vista === 'davanti' ? 'Cassettiera vista davanti' : 'Cassettiera vista di fianco')}">${p.join('')}</svg>`;
+  return `<div class="par-cass-fig" data-no-i18n>${svg}<ol class="par-legenda">${leg.map((x) => `<li>${x}</li>`).join('')}</ol></div>`;
+}
+
 /** Lo schema giusto per un gruppo dei ⚙ Parametri, con i numeri di adesso (P = parametri()). */
 export function svgParametro(nome, P) {
+  if (/^cassettiera-(battente|scorrevole)-(davanti|fianco)$/.test(nome)) {
+    const [, tipo, vista] = nome.split('-');
+    return svgCassettieraArmadio(tipo, vista, P.cassettieraArmadio[tipo], (P.cassetti && P.cassetti.guide) || undefined);
+  }
   if (nome === 'aria') return svgAriaAnte(P.ante);
   if (nome === 'piedini') return svgPiedini(P.cucina.piedini);
   if (nome === 'piano') return svgPianoLavoro(P.cucina);

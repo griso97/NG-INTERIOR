@@ -14,10 +14,10 @@
 import {
   altezzeCassettiDi, cassettoSopraDi, infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi, zoccoliContinui, angoliZoccolo,
-  altezzaAlzatina, antePensileAngolo, antaCiaflan, MODULI_SPECIALI, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261127d';
-import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull, spessoreTirador, nomeTirador } from '../parametri.js?v=20261127d';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261127d';
-import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261127d';
+  altezzaAlzatina, antePensileAngolo, antaCiaflan, MODULI_SPECIALI, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261127e';
+import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull, spessoreTirador, nomeTirador } from '../parametri.js?v=20261127e';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261127e';
+import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261127e';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const round = (n) => Math.round(n);
@@ -171,6 +171,11 @@ function reglettaAngolo(pz, mod, progetto, m, H, conPannello = true) {
 function nomeInterno(progetto) { return progetto.coloreInterno === 'antracite' ? 'Melaminico antracite' : 'Melaminico bianco'; }
 
 /** Nome del materiale dal catalogo (quello caricato nella pagina). */
+/** Spessore che il materiale ha di suo (MDF / melaminico 16 e 19, prodotti con lo spessore scritto); 0 = non lo dice. */
+function spessoreMateriale(id) {
+  const def = id && typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === id);
+  return def && (def.categoria === 'legno' || def.categoria === 'tinta') && Number(def.spessore) > 0 ? Number(def.spessore) : 0;
+}
 function nomeMateriale(id, altrimenti) {
   if (!id) return altrimenti;
   const def = typeof window !== 'undefined' && (window.NG_MATERIALI || []).find((x) => x.id === id);
@@ -383,7 +388,10 @@ function pezziDiModulo(progetto, m) {
     // a L come nel 3D: il lato davanti (largo come si vede) e il lato in profondità, dietro al primo
     const hR = golaSuMobile(progetto, m) ? altezzaAntaGola(H) : H, pB = round((m.latoB_mm || 30) - SP);
     pz.push({ modulo: mod, nome: `${nomeTipo(m.tipo)} · lato davanti`, larghezza: round(m.latoA_mm || 30), altezza: hR, spessore: SP, materiale: 'anta', quantita: 1 });
-    if (pB > 0) pz.push({ modulo: mod, nome: `${nomeTipo(m.tipo)} · lato in profondità (dietro al lato davanti)`, larghezza: pB, altezza: hR, spessore: SP, materiale: 'anta', quantita: 1 });
+    if (pB > 0) pz.push({ modulo: mod, nome: `${nomeTipo(m.tipo)} · lato in profondità (dietro al lato davanti)`, larghezza: pB, altezza: hR, spessore: SP, materiale: 'anta', quantita: 1, _dietro: true });
+    // dietro la regletta: 2 PANNELLINI alti come lei, in melaminico come l'interno dei mobili (⚙ Parametri → Regletta)
+    const PR = parametri().regletta;
+    if (PR.pannellinoProfondita > 0) pz.push({ modulo: mod, nome: `${nomeTipo(m.tipo)} · pannellino dietro`, larghezza: round(PR.pannellinoProfondita), altezza: hR, spessore: PR.pannellinoSpessore, materiale: 'melaminico', quantita: 2 });
   } else if (cat === 'altillo') {
     // MOBILE SOPRA FRIGO: la carcassa si ordina come i pensili; qui le ante (H − aria)
     anteModulo(pz, mod, L, H, anteDiMobile(m), m.antaLato, null, false, null, rJ);
@@ -417,8 +425,15 @@ function pezziDiModulo(progetto, m) {
   if (m.coloreFronte && cat !== 'costado') idAnte = m.coloreFronte;   // colore proprio di questo modulo
   if (idAnte === '@piano') idAnte = (progetto.encimera && progetto.encimera.materiale) || null;
   const pianoStd = cat === 'costado' && idAnte === null && ((progetto.costadiDiversi && m.colore) === '@piano' || col.costado === '@piano');
+  // pezzi nel colore delle ante fatti con un materiale che ha il suo SPESSORE (es. MDF 19): prendono quello
+  const spMat = pianoStd ? 0 : spessoreMateriale(idAnte);
   for (const p of pz) {
     p.moduloId = m.id;                                // chiave di raggruppamento univoca
+    if (spMat && p.materiale === 'anta' && p.spessore === SP && !/^Regletta angolo/.test(p.nome)) {   // la regletta d'angolo ha il suo spessore
+      if (p._dietro) p.larghezza = Math.max(1, round(p.larghezza + SP - spMat));   // regletta a L: il lato dietro toglie lo spessore vero
+      p.spessore = spMat;
+    }
+    delete p._dietro;
     if (p.materialeNome) continue;                    // già detto (es. anta vetrina da ordinare)
     p.materialeNome = p.materiale === 'melaminico' ? nomeInterno(progetto)
       : p.materiale === 'zoccolo' ? nomeMateriale(progetto.zoccoloColore || 'nero-opaco', 'Zoccolo')

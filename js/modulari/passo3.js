@@ -1,12 +1,12 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
-import { materialiPer, sfondoSwatch } from '../materiali.js?v=20261127d';
-import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261127d';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261127d';
-import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT, manigliaModulari, maniglieAnteDi } from './calcoli.js?v=20261127d';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261127d';
-import { apriDistinta } from './passo2.js?v=20261127d';
+import { materialiPer, sfondoSwatch } from '../materiali.js?v=20261127e';
+import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261127e';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261127e';
+import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT, manigliaModulari, maniglieAnteDi } from './calcoli.js?v=20261127e';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261127e';
+import { apriDistinta } from './passo2.js?v=20261127e';
 
 let FINITURE = materialiPer('legno');          // dal catalogo (si rilegge a ogni pannello)
 export { MATERIALI_DEFAULT };
@@ -40,11 +40,11 @@ function elementi() {
   if (stato.modalita === 'cubi') {
     const lc = layoutCubi(forma, stato, spessori());
     return (stato.cubi || []).map((c, i) => ({ chiave: `c:${c.id}`, nome: `Cubo ${i + 1}`, x0: c.x, y0: c.y, L: c.w,
-      hL: lc.elementi[i].hL, hR: lc.elementi[i].hR, ante: c.fronte === 'anta' ? 1 : 0, lato: c.lato, apertura: c.apertura, maniglieAnte: maniglieAnteDi({ c: c.maniglieAnte }, 'c'), ripiani: c.ripiani || 0,
+      hL: lc.elementi[i].hL, hR: lc.elementi[i].hR, ante: c.fronte === 'anta' ? 1 : 0, lato: c.lato, apertura: c.apertura, maniglieAnte: maniglieAnteDi({ c: c.maniglieAnte }, 'c'), ripiani: c.ripiani || 0, perchero: c.perchero || '',
       mat: finitureDi(stato.materiali, `c:${c.id}`) }));
   }
   return layoutModuli(forma, stato.moduli, spessori()).moduli.map((m) => ({ chiave: `m${m.indice}`, nome: `M${m.indice + 1}`,
-    x0: m.x0, y0: 0, L: m.larghezza, hL: m.hL, hR: m.hR, ante: Number(m.ante) || 0, lato: m.lato, apertura: m.apertura, maniglieAnte: m.maniglieAnte, ripiani: m.ripiani || 0,
+    x0: m.x0, y0: 0, L: m.larghezza, hL: m.hL, hR: m.hR, ante: Number(m.ante) || 0, lato: m.lato, apertura: m.apertura, maniglieAnte: m.maniglieAnte, ripiani: m.ripiani || 0, perchero: m.perchero || '',
     mat: finitureDi(stato.materiali, `m${m.indice}`) }));
 }
 /** Tutti i pezzi a cui si può dare una finitura (per la scelta "diversi"). */
@@ -180,7 +180,7 @@ function renderPannello() {
     ev.currentTarget.classList.toggle('attivo', anteSonoAperte());
   });
   P.querySelector('#p3-foto-reale').addEventListener('click', async () => {
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261127d');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261127e');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaModulari(p), tela3d: ctx.canvas, nome: 'mobile' });
   });
   P.querySelector('#p3-foto').addEventListener('click', () => {
@@ -216,7 +216,14 @@ function renderPannello() {
   P.querySelectorAll('.swatch[data-mat]').forEach((b) => b.addEventListener('click', () => {
     const parte = b.dataset.parte, id = b.dataset.mat;
     if (diversi) { M.per ||= {}; M.per[selMod] = { ...(M.per[selMod] || {}), [parte]: id }; }
-    else M[parte] = id;
+    else {
+      M[parte] = id;
+      // SPESSORE DAL MATERIALE (MDF / melaminico 16 o 19, prodotti con lo spessore scritto): struttura o ante
+      // prendono il suo spessore (distinta e 3D); si cambia sempre a mano al passo 2
+      const def = (window.NG_MATERIALI || []).find((x) => x.id === id);
+      const spM = def && (def.categoria === 'legno' || def.categoria === 'tinta') && Number(def.spessore) > 0 ? Number(def.spessore) : 0;
+      if (spM) (ctx.stato.spessori ||= {})[parte === 'struttura' ? 'carcassa' : 'ante'] = spM;
+    }
     ctx.salva(); disegna(false); renderPannello();
   }));
 }

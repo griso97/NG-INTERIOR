@@ -4,13 +4,14 @@
 import {
   layoutModuli, layoutCubi, abbondanzaDi, gradi, larghezzaUtileAuto, distintaModulari, posizioneValida,
   primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT, anteConManiglie, manigliaModulari, aperturaDi, maniglieAnteDi,
-} from './calcoli.js?v=20261127d';
+  FINITURE_PERCHERO, altezzaPerchero, percheroDi,
+} from './calcoli.js?v=20261127e';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261127d');
+const _excel = () => import('../modello-export.js?v=20261127e');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
-import { schemaTagliPNG } from './schema-tagli.js?v=20261127d';
+import { schemaTagliPNG } from './schema-tagli.js?v=20261127e';
 
 const FRONTI = [
   { v: 0, l: 'Aperto (a giorno)' },
@@ -50,6 +51,10 @@ function tutto() { ctx.salva(); renderPannello(); ridisegna(); }
 // ---------------------------------------------------------------------------
 // Pannello sinistro
 // ---------------------------------------------------------------------------
+/** PERCHERO del modulo / cubo: nessuno, alluminio satinato o nero (come negli armadi). */
+function opzPerchero(sel) {
+  return FINITURE_PERCHERO.map(([v, l]) => `<option value="${v}" ${percheroDi(sel) === v ? 'selected' : ''}>${l}</option>`).join('');
+}
 function opzFronte(sel) {
   return FRONTI.map((f) => `<option value="${f.v}" ${Number(sel) === f.v ? 'selected' : ''}>${f.l}</option>`).join('');
 }
@@ -132,6 +137,8 @@ function renderPannello() {
           return bassi.length ? `<p class="mod-prossimo" style="margin-top:-4px">Maniglia più in basso perché l'anta non arriva a ${Math.round(manigliaModulari(stato).hStd / 10)} cm: ${bassi.join(', ')}. Si alza, si abbassa o si toglie anta per anta in «Maniglia di ogni anta».</p>` : ''; })()}` : ''}
         <label>Ripiani per modulo
           <input type="number" min="0" max="10" step="1" data-k="ripiani" value="${esc(m.comune.ripiani)}"></label>
+        <label>Perchero (barra appendiabiti)
+          <select data-k="perchero">${opzPerchero(m.comune.perchero)}</select></label>
         <div class="mod-prossimo">Ogni modulo: ${fmt(lay.moduli[0]?.larghezza ?? 0)} mm.</div>`;
     } else {
       const somma = m.lista.reduce((t, x) => t + (Number(x.larghezza) || 0), 0);
@@ -145,6 +152,7 @@ function renderPannello() {
               <label>Ripiani<input type="number" min="0" max="10" step="1" data-i="${i}" data-c="ripiani" value="${esc(x.ripiani ?? 0)}"></label>
             </div>
             <label>Fronte<select data-i="${i}" data-c="ante">${opzFronte(x.ante)}</select></label>
+            <label>Perchero<select data-i="${i}" data-c="perchero">${opzPerchero(x.perchero)}</select></label>
             ${Number(x.ante) === 1 ? `<label>Apertura<select data-i="${i}" data-c="lato"><option value="dx" ${x.lato !== 'sx' ? 'selected' : ''}>a destra</option><option value="sx" ${x.lato === 'sx' ? 'selected' : ''}>a sinistra</option></select></label>` : ''}
             ${Number(x.ante) > 0 ? `<label>Maniglia<select data-i="${i}" data-c="apertura">${opzApertura(x.apertura)}</select></label>` : ''}
             ${(() => { const md = lay.moduli.find((q) => q.indice === i); const n = md ? antePushAuto(md.larghezza, md.hL, md.hR, 0, Number(md.ante), md.lato, md.apertura, md.maniglieAnte) : 0;
@@ -244,6 +252,7 @@ function renderPannello() {
         ${(() => { const i = stato.cubi.indexOf(sel), e = layoutCubi(ctx.forma, stato, s).elementi[i];
           return e ? righeManiglie('Anta del cubo', `c:${sel.id}`, sel.w, e.hL, e.hR, sel.y, 1, sel.lato, sel.apertura, maniglieAnteDi({ c: sel.maniglieAnte }, 'c')) : ''; })()}` : ''}
         <label>Ripiani<input type="number" min="0" max="10" step="1" data-s="ripiani" value="${esc(sel.ripiani || 0)}"></label>
+        <label>Perchero (barra appendiabiti)<select data-s="perchero">${opzPerchero(sel.perchero)}</select></label>
         ${stato.cubiAdatta !== false && ctx.forma.pareti.some((p) => p.tipo === 'inclinata') ? `<label class="chk"><input type="checkbox" id="cubo-adatta" ${sel.adatta !== false ? 'checked' : ''}> Questo cubo sale fino all'inclinata</label>` : ''}
         <div class="mod-azioni">
           <button type="button" class="btn-ghost" id="cubo-dup">Duplica</button>
@@ -316,7 +325,7 @@ function agganciaPannello() {
       if (diversi && !m.lista.length) {
         // Parte dalla divisione attuale, così non si riscrive tutto a mano
         const lay = layoutModuli(ctx.forma, { ...m, uguali: true }, sp());
-        m.lista = lay.moduli.map((x) => ({ larghezza: x.larghezza, ante: m.comune.ante, lato: m.comune.lato, apertura: m.comune.apertura, ripiani: m.comune.ripiani }));
+        m.lista = lay.moduli.map((x) => ({ larghezza: x.larghezza, ante: m.comune.ante, lato: m.comune.lato, apertura: m.comune.apertura, ripiani: m.comune.ripiani, perchero: m.comune.perchero || '' }));
       }
       m.uguali = !diversi; tutto();
     }));
@@ -355,7 +364,7 @@ function agganciaPannello() {
     if (add) add.addEventListener('click', () => {
       const somma = m.lista.reduce((t, x) => t + (Number(x.larghezza) || 0), 0);
       const libero = Math.max(0, Math.floor((ctx.forma.larghezza - somma) / 10) * 10);
-      m.lista.push({ larghezza: Math.min(600, libero) || 600, ante: m.comune.ante, lato: m.comune.lato, apertura: m.comune.apertura, ripiani: m.comune.ripiani });
+      m.lista.push({ larghezza: Math.min(600, libero) || 600, ante: m.comune.ante, lato: m.comune.lato, apertura: m.comune.apertura, ripiani: m.comune.ripiani, perchero: m.comune.perchero || '' });
       tutto();
     });
     return;
@@ -451,7 +460,7 @@ function renderDisegno() {
     const a = p.verso === 'lato' ? Math.PI / 2 : p.angolo || 0, dx = (Math.cos(a) * p.L) / 2, dy = (Math.sin(a) * p.L) / 2;
     return `<line x1="${p.x - dx}" y1="${Y(p.y - dy)}" x2="${p.x + dx}" y2="${Y(p.y + dy)}" stroke="var(--mod-acc)" stroke-width="${sw * 2.4}" stroke-linecap="round"/>`;
   };
-  const disegnaMobile = (x0, x1, hL, hR, ante, lato, ripiani, apertura, extra = '', perAnta = []) => {
+  const disegnaMobile = (x0, x1, hL, hR, ante, lato, ripiani, apertura, extra = '', perAnta = [], perchero = '') => {
     const L = x1 - x0;
     const top = (x) => hL + ((hR - hL) * (x - x0)) / L;
     let g = `<path d="M${x0} ${Y(0)} L${x1} ${Y(0)} L${x1} ${Y(hR)} L${x0} ${Y(hL)} Z" fill="${ante > 0 ? 'var(--oro)' : 'var(--bg)'}" fill-opacity="${ante > 0 ? 0.16 : 0.55}" stroke="var(--testo)" stroke-width="${sw * 1.6}" ${extra}/>`;
@@ -460,6 +469,11 @@ function renderDisegno() {
     for (let k = 1; k <= ripiani; k++) {
       const yk = s.carcassa + (k * (hBasso - 2 * s.carcassa)) / (ripiani + 1);
       g += `<line x1="${x0 + s.carcassa}" y1="${Y(yk)}" x2="${x1 - s.carcassa}" y2="${Y(yk)}" stroke="var(--testo-dim)" stroke-width="${sw * (ante > 0 ? 0.8 : 1.4)}" ${ante > 0 ? `stroke-dasharray="${sw * 4} ${sw * 3}"` : ''}/>`;
+    }
+    // perchero (alla stessa altezza del 3D)
+    if (percheroDi(perchero)) {
+      const yp = altezzaPerchero(L, hL, hR, s.carcassa, ripiani);
+      g += `<line x1="${x0 + s.carcassa + 2}" y1="${Y(yp)}" x2="${x1 - s.carcassa - 2}" y2="${Y(yp)}" stroke="var(--testo)" stroke-width="${sw * 2.2}" stroke-linecap="round" ${ante > 0 ? `stroke-dasharray="${sw * 5} ${sw * 3}"` : ''}/>`;
     }
     if (ante > 0) {
       for (const d of anteConManiglie(L, hL, hR, 0, ante, lato, apertura, man, perAnta)) {
@@ -500,7 +514,7 @@ function renderDisegno() {
     let catena = '';
     const qy = Y(0) + fs * 2.4;
     lay.moduli.forEach((md) => {
-      html += disegnaMobile(md.x0, md.x1, md.hL, md.hR, Number(md.ante), md.lato, md.ripiani, md.apertura, '', md.maniglieAnte);
+      html += disegnaMobile(md.x0, md.x1, md.hL, md.hR, Number(md.ante), md.lato, md.ripiani, md.apertura, '', md.maniglieAnte, md.perchero);
       const cx = (md.x0 + md.x1) / 2;
       html += `<text x="${cx}" y="${Y(Math.min(md.hL, md.hR) / 2)}" font-size="${fs * 1.05}" text-anchor="middle" dominant-baseline="central" fill="var(--testo)" font-weight="600">M${md.indice + 1}</text>`;
       catena += `<line x1="${md.x0}" y1="${qy - fs * 0.5}" x2="${md.x0}" y2="${qy + fs * 0.5}" stroke="var(--testo-dim)" stroke-width="${sw}"/>
@@ -546,6 +560,10 @@ function cuboHtml(c, e, ok, sel, s, fmt, segnoManiglia, man) {
   for (let k = 1; k <= (c.ripiani || 0); k++) {
     const yk = y0 + s.carcassa + (k * (c.h - 2 * s.carcassa)) / ((c.ripiani || 0) + 1);
     g += `<line x1="${x0 + s.carcassa}" y1="${Y(yk)}" x2="${x1 - s.carcassa}" y2="${Y(yk)}" stroke="var(--testo-dim)" stroke-width="${sw * (anta ? 0.8 : 1.4)}" ${anta ? `stroke-dasharray="${sw * 4} ${sw * 3}"` : ''}/>`;
+  }
+  if (percheroDi(c.perchero)) {                         // perchero (alla stessa altezza del 3D)
+    const yp = y0 + altezzaPerchero(c.w, e.hL, e.hR, s.carcassa, c.ripiani || 0);
+    g += `<line x1="${x0 + s.carcassa + 2}" y1="${Y(yp)}" x2="${x1 - s.carcassa - 2}" y2="${Y(yp)}" stroke="var(--testo)" stroke-width="${sw * 2.2}" stroke-linecap="round" ${anta ? `stroke-dasharray="${sw * 5} ${sw * 3}"` : ''}/>`;
   }
   if (anta) {
     g += `<path d="${pth([[x0 + 2, y0 + 2], [x1 - 2, y0 + 2], [x1 - 2, top(x1 - 2) - 2], [x0 + 2, top(x0 + 2) - 2]])}" fill="none" stroke="var(--mod-acc)" stroke-width="${sw}"/>`;
@@ -695,7 +713,7 @@ export async function apriDistinta(c) {
   if (c) ctx = c;
   if (!ctx) return;
   if (!nomiFiniture) {
-    try { const { MATERIALI } = await import('../materiali.js?v=20261127d'); nomiFiniture = new Map(MATERIALI.map((m) => [m.id, m.nome])); }
+    try { const { MATERIALI } = await import('../materiali.js?v=20261127e'); nomiFiniture = new Map(MATERIALI.map((m) => [m.id, m.nome])); }
     catch { nomiFiniture = new Map(); }
   }
   const { stato, esc, fmt } = ctx;

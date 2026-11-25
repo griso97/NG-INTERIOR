@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261127d';
-import { parametri } from './parametri.js?v=20261127d';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261127d';
-import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261127d';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261127d';
-import { sfondoDi } from './sfondi.js?v=20261127d';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261127d';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261127d';
+import { spessoreMateriale, profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261127e';
+import { parametri } from './parametri.js?v=20261127e';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261127e';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261127e';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261127e';
+import { sfondoDi } from './sfondi.js?v=20261127e';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261127e';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261127e';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -479,6 +479,7 @@ export function toccoArmadio(clientX, clientY) {
   if (!hit) return null;
   const u = hit.object.userData;
   if (u.tipo === 'ripiano') return { tipo: 'ripiano', modulo: u.modulo, indice: u.indice };
+  if (u.tipo === 'barra' && u.gruppo) return { tipo: 'perchero', modulo: u.gruppo.userData.modulo };
   const loc = gruppoArmadio.worldToLocal(hit.point.clone());
   const k = _zoneModuli.findIndex((z) => z && loc.x >= z.x0 && loc.x <= z.x1);
   return k < 0 ? null : { tipo: 'modulo', modulo: k, y: Math.round(loc.y) };
@@ -509,11 +510,21 @@ export function posizioneNuovoRipiano(modulo, yVoluto = null) {
   const [a, b] = validi.reduce((m, g) => (g[1] - g[0] > m[1] - m[0] ? g : m));
   return Math.round((a + b) / 2);
 }
-/** Contorno dorato sul ripiano selezionato (null = nessuno). */
+/** Contorno dorato sul ripiano selezionato (null = nessuno); indice 'perchero' = il perchero del modulo. */
 let _selRip = null;
 export function evidenziaRipiano(modulo, indice) {
   if (_selRip) { _selRip.parent?.remove(_selRip); _selRip.geometry.dispose(); _selRip = null; }
   if (modulo == null || !gruppoArmadio) return;
+  if (indice === 'perchero') {
+    const g = gruppoArmadio.children.find((o) => o.userData.tipo === 'perchero' && o.userData.modulo === modulo);
+    const tubo = g && g.children.find((o) => o.userData.tipo === 'barra');
+    if (!tubo) return;
+    _selRip = new THREE.LineSegments(new THREE.EdgesGeometry(tubo.geometry), new THREE.LineBasicMaterial({ color: 0xe0b450 }));
+    _selRip.scale.setScalar(1.25);
+    _selRip.raycast = () => {};
+    tubo.add(_selRip);
+    return;
+  }
   const m = gruppoArmadio.children.find((o) => o.userData.tipo === 'ripiano' && o.userData.modulo === modulo && o.userData.indice === indice);
   if (!m) return;
   _selRip = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), new THREE.LineBasicMaterial({ color: 0xe0b450 }));
@@ -1075,7 +1086,7 @@ function costruisciTamponamenti(config) {
   const W = config.larghezzaTotale;
   const H = config.altezzaEsterna;
   const D = config.profonditaEsterna;
-  const sA = config.spessoreAnte;
+  const sA = spessoreMateriale(config.materiali && config.materiali.tamponamenti) || config.spessoreAnte;   // come in distinta
   const sC = config.spessoreCarcassa;
 
   const larSx = t.sx?.attivo ? t.sx.larghezza : 0;

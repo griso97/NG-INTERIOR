@@ -5,29 +5,29 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig, cassettiereSenzaSporgenza } from './calcoli.js?v=20261127d';
+import { calcolaDistintaCompleta, validaConfig, cassettiereSenzaSporgenza } from './calcoli.js?v=20261127e';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo, fotoRealisticaArmadio,
   iniziaSpostamentoRipiano, muoviSpostamentoRipiano, fineSpostamentoRipiano,
   toccoArmadio, ripianiCorrenti, posizioneNuovoRipiano, evidenziaRipiano,
-} from './scena3d.js?v=20261127d';
-import { SFONDI_LISTA } from './sfondi.js?v=20261127d';
-import { htmlAvvisoMancanti, confermaEsportazione, htmlAvvisoSporgenza, confermaSporgenzaManiglia } from './avviso-parametri.js?v=20261127d';
-import { daImpostare } from './parametri.js?v=20261127d';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261127d';
-import { agganciaTema } from './tema.js?v=20261127d';
-import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli, applicaMontaggioTipo } from './interfaccia.js?v=20261127d';
-import { tendinePannello } from './tendine-pannello.js?v=20261127d';
-import { renderDistinta } from './distinta.js?v=20261127d';
-import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261127d';
+} from './scena3d.js?v=20261127e';
+import { SFONDI_LISTA } from './sfondi.js?v=20261127e';
+import { htmlAvvisoMancanti, confermaEsportazione, htmlAvvisoSporgenza, confermaSporgenzaManiglia } from './avviso-parametri.js?v=20261127e';
+import { daImpostare } from './parametri.js?v=20261127e';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261127e';
+import { agganciaTema } from './tema.js?v=20261127e';
+import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli, applicaMontaggioTipo } from './interfaccia.js?v=20261127e';
+import { tendinePannello } from './tendine-pannello.js?v=20261127e';
+import { renderDistinta } from './distinta.js?v=20261127e';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261127e';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('./modello-export.js?v=20261127d');
+const _excel = () => import('./modello-export.js?v=20261127e');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js?v=20261127d';
+} from './storage.js?v=20261127e';
 
 // PANNELLO ORDINATO: ogni sezione è una tendina (chiusa, si apre toccando il titolo);
 // la prima volta aperte solo Tipo armadio e Dimensioni. Poi resta come la lasci.
@@ -150,6 +150,7 @@ function aggiorna() {
   mostraAvvisi();
   aggiornaHeader();
   salvaLocale(config); // autosalvataggio in locale
+  if (typeof segnaStoria === 'function') segnaStoria();   // Ctrl+Z
   if (typeof aggiornaHintRipiani === 'function') aggiornaHintRipiani();
 }
 
@@ -197,7 +198,7 @@ function agganciaExport(distinta) {
   if (btnMod) btnMod.onclick = seCompleta(() => apriModelloExcel({ pezzi: pezziModello(), progetto: progettoNome }));
   const btnFoto = document.getElementById('btn-foto-reale');
   if (btnFoto) btnFoto.onclick = async () => {
-    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261127d');
+    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261127e');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaArmadio(p), tela3d: document.getElementById('canvas3d'), nome: 'armadio' });
   };
   const btnImg = document.getElementById('btn-img');
@@ -315,24 +316,28 @@ const fineRipiano = (e) => {
   if (!r || !config.moduli[r.modulo]) return;
   // solo un TOCCO (senza muovere): seleziono il ripiano, niente da salvare
   if (e && inizioTocco && Math.hypot(e.clientX - inizioTocco.x, e.clientY - inizioTocco.y) < 6) {
-    if (r.barraY == null) toccoRipiano(e);
+    toccoRipiano(e);             // ripiano o perchero: lo seleziono
     return;
   }
   chiudiAzioniRipiano();
   if (r.barraY != null) config.moduli[r.modulo].barraY = r.barraY;   // perchero spostato
   else config.moduli[r.modulo].ripianiY = r.ripianiY;
   salvaLocale(config);           // niente ricostruzione: la vista resta dov'è
+  segnaStoria();                 // si può annullare (Ctrl+Z)
 };
 canvas.addEventListener('pointerup', fineRipiano, true);
 // tocco su un altro punto dell'armadio (non un ripiano): incolla lì, o chiudi la selezione
 canvas.addEventListener('pointerup', (e) => {
   if (trascinoRipiano || !inizioTocco || Math.hypot(e.clientX - inizioTocco.x, e.clientY - inizioTocco.y) >= 6) return;
   const t = toccoArmadio(e.clientX, e.clientY);
+  if (t && t.tipo === 'modulo') puntoToccato = t;          // dove incollare con Ctrl+V
+  // perchero copiato: si incolla in qualsiasi modulo
+  if (t && t.tipo === 'modulo' && copiato === 'perchero' && percheroCopiato) { mostraAzioniRipiano(e, { incollaIn: t }); return; }
   // si incolla solo nello STESSO modulo da cui l'hai copiato (stessa misura di ripiano)
-  if (t && t.tipo === 'modulo' && ripianoCopiato && ripianoCopiato.modulo === t.modulo) mostraAzioniRipiano(e, { incollaIn: t });
+  if (t && t.tipo === 'modulo' && copiato === 'ripiano' && ripianoCopiato && ripianoCopiato.modulo === t.modulo) mostraAzioniRipiano(e, { incollaIn: t });
   else {
     chiudiAzioniRipiano();
-    if (t && t.tipo === 'modulo' && ripianoCopiato) flash(tt('Il ripiano copiato si incolla nello stesso modulo: tocca un punto del Modulo {0}.').replace('{0}', ripianoCopiato.modulo + 1));
+    if (t && t.tipo === 'modulo' && copiato === 'ripiano' && ripianoCopiato) flash(tt('Il ripiano copiato si incolla nello stesso modulo: tocca un punto del Modulo {0}.').replace('{0}', ripianoCopiato.modulo + 1));
   }
 });
 
@@ -340,29 +345,38 @@ canvas.addEventListener('pointerup', (e) => {
 // RIPIANI: tocca un ripiano (a porte aperte) → Elimina / Copia / Incolla.
 // Tutto finisce subito anche nella distinta (nº ripiani del modulo).
 // ---------------------------------------------------------------------------
-let ripianoSel = null;          // { modulo, indice }
+let ripianoSel = null;          // { modulo, indice } · indice 'perchero' = il perchero del modulo
 let ripianoCopiato = null;      // { modulo } (il ripiano copiato)
+let percheroCopiato = null;     // { barra } (finitura del perchero copiato)
+let copiato = null;             // l'ultima cosa copiata: 'ripiano' | 'perchero'
+let puntoToccato = null;        // l'ultimo punto toccato in un modulo (per Ctrl+V)
 const azioniRip = document.createElement('div');
 azioniRip.className = 'ripiano-azioni'; azioniRip.hidden = true;
 (misuraRip?.parentNode || canvas.parentNode).appendChild(azioniRip);
 const tt = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
 function toccoRipiano(e) {
   const t = toccoArmadio(e.clientX, e.clientY);
-  if (!t || t.tipo !== 'ripiano') { chiudiAzioniRipiano(); return; }
-  ripianoSel = { modulo: t.modulo, indice: t.indice };
-  evidenziaRipiano(t.modulo, t.indice);
+  if (!t || (t.tipo !== 'ripiano' && t.tipo !== 'perchero')) { chiudiAzioniRipiano(); return; }
+  ripianoSel = { modulo: t.modulo, indice: t.tipo === 'perchero' ? 'perchero' : t.indice };
+  evidenziaRipiano(t.modulo, ripianoSel.indice);
   mostraAzioniRipiano(e, {});
 }
 function mostraAzioniRipiano(e, { incollaIn = null }) {
   const r = canvas.getBoundingClientRect();
+  const perch = !incollaIn && ripianoSel && ripianoSel.indice === 'perchero';
   if (incollaIn) {
     ripianoSel = null; evidenziaRipiano(null);
-    azioniRip.innerHTML = `<button type="button" data-az="incolla-qui">📋 ${tt('Incolla qui')} · ${tt('Modulo')} ${incollaIn.modulo + 1}</button><button type="button" data-az="chiudi" title="${tt('Chiudi')}">✕</button>`;
+    azioniRip.innerHTML = `<button type="button" data-az="incolla-qui">📋 ${tt('Incolla qui')} · ${tt(copiato === 'perchero' ? 'Perchero' : 'Ripiano')} · ${tt('Modulo')} ${incollaIn.modulo + 1}</button><button type="button" data-az="chiudi" title="${tt('Chiudi')}">✕</button>`;
+  } else if (perch) {
+    azioniRip.innerHTML = `<span>${tt('Perchero')} · ${tt('Modulo')} ${ripianoSel.modulo + 1}</span>
+      <button type="button" data-az="elimina">🗑 ${tt('Elimina')}</button>
+      <button type="button" data-az="copia">⧉ ${tt('Copia')}</button>
+      <button type="button" data-az="chiudi" title="${tt('Chiudi')}">✕</button>`;
   } else {
     azioniRip.innerHTML = `<span>${tt('Ripiano')} · ${tt('Modulo')} ${ripianoSel.modulo + 1}</span>
       <button type="button" data-az="elimina">🗑 ${tt('Elimina')}</button>
       <button type="button" data-az="copia">⧉ ${tt('Copia')}</button>
-      ${ripianoCopiato && ripianoCopiato.modulo === ripianoSel.modulo ? `<button type="button" data-az="incolla">📋 ${tt('Incolla')}</button>` : ''}
+      ${copiato === 'ripiano' && ripianoCopiato && ripianoCopiato.modulo === ripianoSel.modulo ? `<button type="button" data-az="incolla">📋 ${tt('Incolla')}</button>` : ''}
       <button type="button" data-az="chiudi" title="${tt('Chiudi')}">✕</button>`;
   }
   azioniRip.style.left = `${Math.min(r.width - 20, Math.max(10, e.clientX - r.left))}px`;
@@ -372,11 +386,56 @@ function mostraAzioniRipiano(e, { incollaIn = null }) {
     const az = ev.target.closest('[data-az]')?.dataset.az; if (!az) return;
     ev.stopPropagation();
     if (az === 'chiudi') return chiudiAzioniRipiano();
-    if (az === 'elimina') return eliminaRipiano();
-    if (az === 'copia') { ripianoCopiato = { modulo: ripianoSel.modulo }; chiudiAzioniRipiano(); flash(tt('Ripiano copiato: tocca nello stesso modulo il punto dove incollarlo, oppure premi Incolla su un suo ripiano.')); return; }
+    if (az === 'elimina') return perch ? eliminaPerchero() : eliminaRipiano();
+    if (az === 'copia') return copiaSelezione();
     if (az === 'incolla') return incollaRipiano(ripianoSel.modulo, null);
-    if (az === 'incolla-qui') return incollaRipiano(incollaIn.modulo, incollaIn.y);
+    if (az === 'incolla-qui') return copiato === 'perchero' ? incollaPerchero(incollaIn.modulo) : incollaRipiano(incollaIn.modulo, incollaIn.y);
   };
+}
+/** COPIA il ripiano o il perchero selezionato (bottone Copia o Ctrl+C). false = niente di selezionato. */
+function copiaSelezione() {
+  const s = ripianoSel; if (!s) return false;
+  if (s.indice === 'perchero') {
+    const mod = config.moduli[s.modulo]; if (!mod || !mod.barra) return false;
+    percheroCopiato = { barra: mod.barra }; copiato = 'perchero';
+    chiudiAzioniRipiano();
+    flash(tt('Perchero copiato: tocca il modulo dove metterlo, oppure Ctrl+V.'));
+    return true;
+  }
+  ripianoCopiato = { modulo: s.modulo }; copiato = 'ripiano';
+  chiudiAzioniRipiano();
+  flash(tt('Ripiano copiato: tocca nello stesso modulo il punto dove incollarlo, oppure premi Incolla su un suo ripiano.'));
+  return true;
+}
+/** INCOLLA con Ctrl+V: nel modulo selezionato o toccato per ultimo (il ripiano solo nel suo modulo). */
+function incollaDaTastiera() {
+  if (copiato === 'perchero' && percheroCopiato) {
+    const k = ripianoSel ? ripianoSel.modulo : puntoToccato ? puntoToccato.modulo : null;
+    if (k == null || !config.moduli[k]) { flash(tt('Tocca il modulo dove mettere il perchero, poi Ctrl+V.'), true); return true; }
+    incollaPerchero(k); return true;
+  }
+  if (copiato === 'ripiano' && ripianoCopiato) {
+    const k = ripianoCopiato.modulo;
+    const y = puntoToccato && puntoToccato.modulo === k ? puntoToccato.y : null;
+    incollaRipiano(k, y); return true;
+  }
+  return false;
+}
+function incollaPerchero(k) {
+  const mod = config.moduli[k]; if (!mod || !percheroCopiato) return;
+  if (mod.barra) { chiudiAzioniRipiano(); flash(tt('Il Modulo {0} ha già il perchero.').replace('{0}', k + 1), true); return; }
+  mod.barra = percheroCopiato.barra; delete mod.barraY;              // al suo posto: 6 cm sotto il ripiano più alto
+  chiudiAzioniRipiano();
+  aggiornaTutto();
+  flash(tt('Perchero incollato (aggiunto anche alla distinta).'));
+}
+function eliminaPerchero() {
+  const s = ripianoSel; if (!s) return;
+  const mod = config.moduli[s.modulo]; if (!mod) return;
+  delete mod.barra; delete mod.barraY;
+  chiudiAzioniRipiano();
+  aggiornaTutto();
+  flash(tt('Perchero eliminato (anche dalla distinta).'));
 }
 function chiudiAzioniRipiano() {
   azioniRip.hidden = true; ripianoSel = null; evidenziaRipiano(null);
@@ -409,6 +468,57 @@ function incollaRipiano(k, yVoluto) {
   flash(tt('Ripiano incollato (aggiunto anche alla distinta).'));
 }
 canvas.addEventListener('pointercancel', fineRipiano, true);
+
+// ---------------------------------------------------------------------------
+// ANNULLA / RIFAI (Ctrl+Z · Ctrl+Y o Ctrl+Shift+Z) e COPIA / INCOLLA (Ctrl+C · Ctrl+V)
+// Una foto dell'armadio a ogni modifica; mentre si scrive un numero le modifiche di seguito sono un passo solo.
+// ---------------------------------------------------------------------------
+const passato = [], futuro = [];
+let ultimaFoto = null, tFoto = 0;
+function segnaStoria() {
+  const ora = JSON.stringify(config);
+  if (ultimaFoto === null) { ultimaFoto = ora; return; }
+  if (ora === ultimaFoto) return;
+  const t = Date.now(), ae = document.activeElement;
+  const scrivendo = ae && (ae.tagName === 'TEXTAREA' || (ae.tagName === 'INPUT' && !['checkbox', 'radio', 'button'].includes(ae.type)));
+  if (!scrivendo || t - tFoto > 800 || !passato.length) { passato.push(ultimaFoto); if (passato.length > 80) passato.shift(); }
+  futuro.length = 0;
+  ultimaFoto = ora; tFoto = t;
+}
+function applicaFoto(foto) {
+  const s = JSON.parse(foto);
+  for (const k of Object.keys(config)) delete config[k];
+  Object.assign(config, s);                 // stesso oggetto: chi lo tiene vede subito l'armadio di prima
+  ultimaFoto = foto; tFoto = 0;
+  chiudiAzioniRipiano();
+  renderPannello(pannello, config, onChange);
+  agganciaAzioniGlobali();
+  aggiorna();                               // la vista 3D resta dov'è
+}
+function annullaArmadio() {
+  if (!passato.length) { flash(tt('Niente da annullare.')); return; }
+  futuro.push(ultimaFoto); applicaFoto(passato.pop());
+  flash(tt('Annullato (Ctrl+Y per rifare).'));
+}
+function rifaiArmadio() {
+  if (!futuro.length) { flash(tt('Niente da rifare.')); return; }
+  passato.push(ultimaFoto); applicaFoto(futuro.pop());
+  flash(tt('Rifatto.'));
+}
+document.addEventListener('keydown', (e) => {
+  const t = e.target, tag = (t && t.tagName || '').toLowerCase();
+  // nei campi dove si scrive valgono annulla / copia / incolla del campo stesso
+  if (tag === 'textarea' || tag === 'select' || (t && t.isContentEditable)
+    || (tag === 'input' && !['checkbox', 'radio', 'button'].includes(t.type))) return;
+  if (document.querySelector('dialog[open], .modale:not([hidden]), .modal:not([hidden])')) return;
+  const ctrl = e.ctrlKey || e.metaKey, k = (e.key || '').toLowerCase();
+  if (!ctrl) { if (k === 'escape' && !azioniRip.hidden) chiudiAzioniRipiano(); return; }
+  if (k === 'z' && !e.shiftKey) { e.preventDefault(); annullaArmadio(); return; }
+  if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); rifaiArmadio(); return; }
+  // copia / incolla solo quando c'è qualcosa selezionato o copiato nel 3D (sennò resta il copia del testo)
+  if (k === 'c' && ripianoSel && !(window.getSelection && String(window.getSelection()))) { if (copiaSelezione()) e.preventDefault(); return; }
+  if (k === 'v' && copiato) { if (incollaDaTastiera()) e.preventDefault(); }
+});
 
 // Montaggio iniziale
 renderPannello(pannello, config, onChange);

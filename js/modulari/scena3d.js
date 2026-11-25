@@ -9,12 +9,12 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261127d';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261127d';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261127d';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261127d';
-import { anteConManiglie, manigliaModulari } from './calcoli.js?v=20261127d';
-import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from '../maniglia3d.js?v=20261127d';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261127e';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261127e';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261127e';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261127e';
+import { anteConManiglie, manigliaModulari, altezzaPerchero, lunghezzaPerchero, percheroDi } from './calcoli.js?v=20261127e';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from '../maniglia3d.js?v=20261127e';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -180,6 +180,26 @@ function mobile(e, P, sp, matS, matA) {
   for (let k = 1; k <= n; k++) {
     const yk = y0 + sC + (k * (hBasso - 2 * sC)) / (n + 1);
     prisma(rett(x0 + sC, yk - sC / 2, x1 - sC, yk + sC / 2), zC, Pc, matS);   // profondi come in distinta
+  }
+  // PERCHERO (barra ovale 30×15 + 2 ganci), lungo come in distinta, a metà profondità
+  const per = percheroDi(e.perchero);
+  if (per) {
+    const matB = per === 'nero'
+      ? new THREE.MeshStandardMaterial({ color: 0x1d1d1d, metalness: 0.45, roughness: 0.42 })
+      : new THREE.MeshStandardMaterial({ color: 0xc4c7cb, metalness: 0.85, roughness: 0.38 });
+    const Lb = lunghezzaPerchero(L, sC), yB = y0 + altezzaPerchero(L, hL, hR, sC, n), zB = zC + Pc / 2, xm = x0 + L / 2;
+    const tubo = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 28), matB);
+    tubo.scale.set(15, Lb, 7.5);
+    tubo.rotation.z = Math.PI / 2;
+    tubo.position.set(xm, yB, zB);
+    tubo.castShadow = true;
+    (padreMobile || gruppo).add(tubo);
+    for (const lato of [-1, 1]) {                                     // i 2 ganci sui fianchi
+      const g = new THREE.Mesh(new THREE.BoxGeometry(10, 44, 26), matB);
+      g.position.set(xm + lato * (L / 2 - sC - 5), yB + 4, zB);
+      g.castShadow = true;
+      (padreMobile || gruppo).add(g);
+    }
   }
   // Ante (trapezi), 2 mm di fuga come in distinta, + maniglia del catalogo (o push: niente maniglia)
   const N = Math.max(0, Math.round(e.ante || 0));

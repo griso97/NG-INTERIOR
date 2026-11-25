@@ -9,10 +9,10 @@
 //   htmlMontaggio(v, opz)            → HTML (v = valori, vedi valoriDaParametri / valoriDaArmadio)
 //   agganciaMontaggio(root, leggi, scrivi, opz)  → collega tocchi e numeri: scrivi(patch) salva
 // =============================================================================
-import { svgStruttura, svgSchiena, svgAnteInterne } from './disegni-montaggio.js?v=20261127d';
-import { calcolaDistintaCompleta } from './calcoli.js?v=20261127d';
-import { parametri, salvaParametri } from './parametri.js?v=20261127d';
-import { binariScorrevoli } from './parametri.js?v=20261127d';
+import { svgStruttura, svgSchiena, svgAnteInterne } from './disegni-montaggio.js?v=20261127e';
+import { calcolaDistintaCompleta } from './calcoli.js?v=20261127e';
+import { parametri, salvaParametri } from './parametri.js?v=20261127e';
+import { binariScorrevoli } from './parametri.js?v=20261127e';
 
 const t = (s) => (typeof window !== 'undefined' && window.NGI18N ? window.NGI18N.t(s) : s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -129,12 +129,14 @@ export function htmlMontaggio(v, opz = {}) {
   const o = { struttura: true, schiena: true, ante: true, numeriAnte: true, esempio: true, ...opz };
   if (v.tipo === 'scorrevole') o.ante = false;
   const sv = { spessore: v.spessoreSchiena, canale: v.canale, dentro: v.dentro, interne: v.ante === 'interne' };
+  // senzaTitolo: il titolo lo mette chi la mostra (es. un riquadro per ognuna nei ⚙ Parametri)
+  const tit = (x) => (o.senzaTitolo ? '' : `<h4>${esc(t(x))}</h4>`);
   let h = '';
-  if (o.struttura) h += `<div class="mont-gruppo"><h4>${esc(t('Struttura'))}</h4><p>${esc(t('Come stanno top, fondo e fianchi.'))}</p><div class="mont-schede">
+  if (o.struttura) h += `<div class="mont-gruppo">${tit('Struttura')}<p>${esc(t('Come stanno top, fondo e fianchi.'))}</p><div class="mont-schede">
     ${scheda('setup', 1, Number(v.setup) !== 2, svgStruttura(1), 'Standard (come ora)', 'Top e fondo sopra, fianchi dentro')}
     ${scheda('setup', 2, Number(v.setup) === 2, svgStruttura(2), 'Fianchi esterni', 'Fianchi interi, top e fondo dentro')}
   </div></div>`;
-  if (o.schiena) h += `<div class="mont-gruppo"><h4>${esc(t('Schiena'))}</h4><p>${esc(t('Come monti la schiena: da qui si calcolano la profondità della struttura, dei ripiani e delle cassettiere.'))}</p><div class="mont-schede">
+  if (o.schiena) h += `<div class="mont-gruppo">${tit('Schiena')}<p>${esc(t('Come monti la schiena: da qui si calcolano la profondità della struttura, dei ripiani e delle cassettiere.'))}</p><div class="mont-schede">
     ${scheda('schiena', 'dietro', v.schiena === 'dietro', svgSchiena({ ...sv, tipo: 'dietro' }), 'Avvitata dietro', 'Copre tutto il retro')}
     ${scheda('schiena', 'filo', v.schiena === 'filo', svgSchiena({ ...sv, tipo: 'filo' }), 'Incassata a filo', 'Dentro, a filo del retro dei fianchi')}
     ${scheda('schiena', 'canale', v.schiena === 'canale', svgSchiena({ ...sv, tipo: 'canale' }), 'Nel canale', 'Nel canale di fianchi, top e fondo: più grande')}
@@ -142,7 +144,7 @@ export function htmlMontaggio(v, opz = {}) {
     ${numero('spessoreSchiena', 'Spessore schiena (mm)', v.spessoreSchiena, 1)}
     ${v.schiena === 'canale' ? numero('canale', 'Profondità del canale (mm)', v.canale) + numero('dentro', 'Quanto dentro dal retro (mm)', v.dentro) : ''}
   </div></div>`;
-  if (o.ante) h += `<div class="mont-gruppo"><h4>${esc(t('Ante a battente'))}</h4><p>${esc(t('Sopra la struttura o dentro il vano, a filo.'))}</p><div class="mont-schede">
+  if (o.ante) h += `<div class="mont-gruppo">${tit('Ante a battente')}<p>${esc(t('Sopra la struttura o dentro il vano, a filo.'))}</p><div class="mont-schede">
     ${scheda('ante', 'sopra', v.ante !== 'interne', svgSchiena({ ...sv, tipo: v.schiena, interne: false }), 'Sopra la struttura (normali)', "L'anta copre il davanti")}
     ${scheda('ante', 'interne', v.ante === 'interne', svgSchiena({ ...sv, tipo: v.schiena, interne: true }), 'Interne (dentro il vano)', 'A filo della struttura')}
   </div>${o.numeriAnte && v.ante === 'interne' ? `<div class="mont-numeri">

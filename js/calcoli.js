@@ -11,8 +11,8 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261127d';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127d';
+import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261127e';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127e';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -384,6 +384,15 @@ const SP_MEL_ARM = 16;
  *   Ripiano sopra: scorrevole come gli altri ripiani (fino al binario); battente a filo dei frontali,
  *   con la maniglia fino alla maniglia.
  */
+/**
+ * SPESSORE DEL MATERIALE scelto (mm): quello che il materiale ha di suo (MDF / melaminico 16 e 19, i prodotti
+ * aggiunti con lo spessore scritto); 0 = il materiale non lo dice (vale lo spessore scritto nel progetto).
+ */
+export function spessoreMateriale(id) {
+  if (!id || typeof window === 'undefined') return 0;
+  const m = (window.NG_MATERIALI || []).find((x) => x.id === id);
+  return m && (m.categoria === 'legno' || m.categoria === 'tinta') && Number(m.spessore) > 0 ? Number(m.spessore) : 0;
+}
 /** Il SISTEMA DI CASSETTI di questa cassettiera (scelto nella cassettiera; se no il primo dei ⚙ Parametri). */
 export function sistemaCassettiera(c) {
   return c && c.sistemaCassetti ? cassettiDi(c.sistemaCassetti) : sistemiCassetti()[0];
@@ -709,6 +718,8 @@ export function pezziTamponamenti(config) {
   const cos = misureCostado(config), t0 = config.tamponamenti || {};
   const t = { ...t0, sx: cos.sx ? null : t0.sx, dx: cos.dx ? null : t0.dx };
   const pezzi = [];
+  // facce spesse come il MATERIALE dei tamponamenti, se ha il suo spessore (es. MDF 19); se no come le ante
+  const spTamp = spessoreMateriale(config.materiali && config.materiali.tamponamenti) || config.spessoreAnte;
 
   const larSx = t.sx && t.sx.attivo ? t.sx.larghezza : 0;
   const larDx = t.dx && t.dx.attivo ? t.dx.larghezza : 0;
@@ -721,7 +732,7 @@ export function pezziTamponamenti(config) {
       nome: 'Faccia tamponamento SX',
       larghezza: t.sx.larghezza,
       altezza: lunghezza,
-      spessore: config.spessoreAnte,
+      spessore: spTamp,
       materiale: 'ante',
       quantita: 1,
     });
@@ -744,7 +755,7 @@ export function pezziTamponamenti(config) {
       nome: 'Faccia tamponamento DX',
       larghezza: t.dx.larghezza,
       altezza: lunghezza,
-      spessore: config.spessoreAnte,
+      spessore: spTamp,
       materiale: 'ante',
       quantita: 1,
     });
@@ -767,7 +778,7 @@ export function pezziTamponamenti(config) {
       nome: 'Faccia tamponamento SOPRA',
       larghezza: lunghezza,
       altezza: t.sopra.larghezza,
-      spessore: config.spessoreAnte,
+      spessore: spTamp,
       materiale: 'ante',
       quantita: 1,
     });
@@ -790,7 +801,7 @@ export function pezziTamponamenti(config) {
       nome: 'Faccia tamponamento SOTTO',
       larghezza: lunghezza,
       altezza: t.sotto.larghezza,
-      spessore: config.spessoreAnte,
+      spessore: spTamp,
       materiale: 'ante',
       quantita: 1,
     });
