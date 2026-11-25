@@ -7,7 +7,7 @@
 // 'esempiomini:<id>'. La galleria mostra la sua versione al posto di quella del sito; «Torna
 // all'originale» la toglie. La «copia completa» le porta anche sugli altri dispositivi.
 // =============================================================================
-import { leggiFoto, salvaFoto, eliminaFotoTipo, chiaviCatalogo } from './catalogo.js?v=20261126n';
+import { leggiFoto, salvaFoto, eliminaFotoTipo, chiaviCatalogo } from './catalogo.js?v=20261126o';
 
 /** La versione del falegname di un esempio: { progetto, aggiornato } oppure null. */
 export async function esempioModificato(id) {

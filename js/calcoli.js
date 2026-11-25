@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126n';
+import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126o';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -75,6 +75,31 @@ export function manigliaArmadio(config) {
   const id = config && config.maniglia;
   if (!id || id === 'nessuna' || typeof window === 'undefined') return null;
   return (window.NG_MATERIALI || []).find((m) => m.id === id && m.categoria === 'maniglia') || null;
+}
+/**
+ * MANIGLIA DEI CASSETTI della cassettiera: si sceglie a parte (Materiali → Cassettiera · Maniglie),
+ * non è quella delle ante. null = la barretta di sempre (lunga metà frontale, sporge quanto scritto).
+ */
+export function manigliaCassetti(config) {
+  const id = config && config.manigliaCassetti;
+  if (!id || typeof window === 'undefined') return null;
+  return (window.NG_MATERIALI || []).find((m) => m.id === id && m.categoria === 'maniglia') || null;
+}
+/** Lunghezza della maniglia sul frontale del cassetto: quella del catalogo, mai più lunga del frontale − 8 cm. */
+export function lunghezzaManigliaCassetto(def, larFronte) {
+  return Math.round(Math.max(40, Math.min(lunghezzaManiglia(def), larFronte - 80)));
+}
+/** Quanto sporge una maniglia del catalogo davanti al frontale (mm), come è fatta nel 3D: per proporre la misura. */
+export function sporgenzaDiManiglia(def) {
+  if (!def || !def.texture || !def.lunghezzaMm) return 40;            // barra standard: 28 + 12
+  const L = def.lunghezzaMm, forma = def.forma && def.forma !== 'foto' && def.formaV ? def.forma : 'barra';
+  if (forma === 'piatta') return 32;
+  if (forma === 'profilo') return 22;
+  if (forma === 'bordol') return 13;
+  if (forma === 'bordo') return 26;
+  if (forma === 'incasso') return 2;
+  if (forma === 'pomolo') { const D = Math.max(18, Math.min(L, 45)); return Math.ceil(20 + D * 0.25 + D * 0.275); }
+  return Math.ceil(30 + 2 * Math.max(5, Math.min(7, L * 0.04)));      // barra tonda
 }
 /** Lunghezza standard della maniglia (quelle del catalogo con la loro misura; le altre 30 cm). */
 export function lunghezzaManiglia(def) { return def.texture && def.lunghezzaMm ? def.lunghezzaMm : 300; }
@@ -404,11 +429,14 @@ export function geometriaCassettiera(config, c, Lm) {
     const h0 = Math.floor((As - (N + 1) * fuga) / N);
     for (let i = 0; i < N; i++) fronti.push({ i, slot: h0 + fuga, y: fuga + (N - 1 - i) * (h0 + fuga), h0 });
   }
-  for (const f of fronti) f.h = ribassati ? Math.max(20, f.h0 - ribasso) : f.h0;
+  // maniglia dei cassetti a profilo sul bordo (scheda della maniglia: sottrai lo spessore): il frontale è più basso
+  const defMan = apertura === 'maniglia' ? manigliaCassetti(config) : null;
+  const ridMan = defMan ? spessoreTirador(defMan) : 0;
+  for (const f of fronti) f.h = ribassati ? Math.max(20, f.h0 - ribasso) : f.h0 - ridMan;
   const sommaSpazi = fronti.reduce((t, f) => t + f.slot, 0);
   return {
     scorrevole, P, sC, N, AltMax, guida: c.guida || 500, apertura, ribassati, maniglia: apertura === 'maniglia',
-    incassata: apertura === 'incassata', sporgenza, sporgenzaMancante,
+    incassata: apertura === 'incassata', sporgenza, sporgenzaMancante, defMan, ridMan,
     larTF, profScatola, profRipiano, As, fronti, personalizzata: pers,
     spazioCassetti: pers ? spazioCassetti : null, differenza: pers ? Math.round(spazioCassetti - sommaSpazi) : 0,
     altFronte: fronti[0].h0, ribasso, altFrontale: fronti[0].h,
@@ -468,7 +496,8 @@ function _pezziCassettiera(config, c, modulo, indiceModulo) {
   const pezzi = [];
   // FRONTALI (uguali o di misure diverse): uno per misura
   const nomeF = G.ribassati ? 'Cassettiera · Fronte cassetto (ribassato)'
-    : G.incassata ? 'Cassettiera · Fronte cassetto (fresata per la maniglia incassata)' : 'Cassettiera · Fronte cassetto';
+    : G.incassata ? 'Cassettiera · Fronte cassetto (fresata per la maniglia incassata)'
+      : `Cassettiera · Fronte cassetto${G.ridMan ? ` · ${nomeTirador(G.defMan)} (−${G.ridMan} mm sopra)` : ''}`;
   const perH = new Map();
   for (const f of G.fronti) { const k = `${f.h}|${f.h0}`; perH.set(k, { h: f.h, h0: f.h0, q: ((perH.get(k) || {}).q || 0) + 1 }); }
   for (const { h, q } of perH.values()) pezzi.push({ modulo: nomeModulo, nome: nomeF, larghezza: Math.round(G.larFronte), altezza: Math.round(h), spessore: sC, materiale: 'carcassa', parteMateriale: 'cassFronti', quantita: q });
@@ -481,7 +510,11 @@ function _pezziCassettiera(config, c, modulo, indiceModulo) {
   );
   const acc = (nome) => pezzi.push({ modulo: nomeModulo, nome, larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: N });
   if (G.incassata) acc('Maniglia incassata (da incassare nel frontale)');
-  else if (G.maniglia) acc(G.sporgenzaMancante ? 'Maniglia cassetto · ATTENZIONE: sporgenza da scegliere' : `Maniglia cassetto · sporge ${G.sporgenza} mm`);
+  else if (G.maniglia) {
+    // la maniglia scelta per i cassetti (come nel 3D), con la sua lunghezza sul frontale
+    const quale = G.defMan ? ` · ${G.defMan.nome} · ${lunghezzaManigliaCassetto(G.defMan, G.larFronte)} mm` : '';
+    acc(G.sporgenzaMancante ? `Maniglia cassetto${quale} · ATTENZIONE: sporgenza da scegliere` : `Maniglia cassetto${quale} · sporge ${G.sporgenza} mm`);
+  }
   // cassetto: nello spazio fra i fianchi della cassettiera; piccolo/medio/grande dallo spazio del cassetto
   const perSlot = new Map();
   for (const f of G.fronti) perSlot.set(f.h0, (perSlot.get(f.h0) || 0) + 1);

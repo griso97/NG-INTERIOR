@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261126n';
-import { htmlTendineColori } from './tendine-colori.js?v=20261126n';
-import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza } from './calcoli.js?v=20261126n';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261126n';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261126n';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261126o';
+import { htmlTendineColori } from './tendine-colori.js?v=20261126o';
+import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassetti, sporgenzaDiManiglia } from './calcoli.js?v=20261126o';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261126o';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261126o';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -757,6 +757,7 @@ function renderCassettiere(config) {
         </label>
         ${G.incassata ? '<p class="hint">Non sporge niente: nel frontale va fatta la fresata per incassare la maniglia.</p>' : ''}
         ${G.maniglia ? `
+        <p class="hint">Maniglia dei cassetti: ${escAttr(G.defMan ? G.defMan.nome : 'barretta di sempre')} (si cambia in Materiali → Cassettiera · Maniglie dei cassetti).</p>
         <label>Quanto sporge la maniglia dal frontale (mm)
           <input type="number" class="c-sporg" value="${Number(c.sporgenza) > 0 ? c.sporgenza : ''}" placeholder="da scrivere" min="1" step="1" />
         </label>
@@ -852,6 +853,8 @@ function attaccaEventiCassettiere(contenitore, config, onChange) {
     if (apertura) apertura.onchange = (e) => {
       cas.apertura = e.target.value;                   // incassata / maniglia / ribassati
       delete cas.maniglia;
+      renderMateriali(config);                         // la card «Maniglie dei cassetti» segue
+      attaccaEventiMateriali(contenitore, config, onChange);
       ridisegna();                                     // i campi cambiano con l'apertura
     };
     const sporg = row.querySelector('.c-sporg');
@@ -1028,7 +1031,7 @@ function ripartisciModuli(config, n = config.moduli.length) {
 function renderMateriali(config) {
   const wrap = document.getElementById('mat-list');
   if (!wrap) return;
-  wrap.innerHTML = PARTI.map((p) => {
+  const carte = PARTI.map((p) => {
     // Il materiale "corrente" è quello della prima chiave applicata
     const chiaveLettura = p.applica[0];
     const corrente = MATERIALI.find((m) => m.id === config.materiali[chiaveLettura])
@@ -1053,7 +1056,42 @@ function renderMateriali(config) {
         </div>
       </details>
     `;
-  }).join('') + cardManiglie(config);
+  });
+  // le maniglie delle ANTE vicino alle ante; quelle dei CASSETTI insieme al resto della cassettiera
+  const iCass = Math.max(0, PARTI.findIndex((p) => p.id.startsWith('cass')));
+  wrap.innerHTML = [...carte.slice(0, iCass), cardManiglie(config), ...carte.slice(iCass), cardManiglieCassetti(config)].join('');
+}
+
+/**
+ * MANIGLIE DEI CASSETTI (tutte le cassettiere): incassata o una maniglia del catalogo, a parte da quella delle ante.
+ * Scegliendo una maniglia i cassetti passano a «Maniglia esterna» (la sporgenza, se manca, è quella della maniglia).
+ */
+function cardManiglieCassetti(config) {
+  const casse = config.cassettiere || [];
+  const lista = materialiPer('maniglie');
+  const def = manigliaCassetti(config);
+  const aperture = new Set(casse.map((c) => (c.apertura === 'maniglia' || c.apertura === 'ribassati' ? c.apertura : 'incassata')));
+  const sel = aperture.size !== 1 ? null : aperture.has('incassata') ? 'incassata' : aperture.has('ribassati') ? 'ribassati' : (def ? def.id : 'barretta');
+  const tessera = (m) => m ? `<span class="man-tessera" style="background:${sfondoSwatch(m)}"></span>` : '<span class="man-tessera man-nessuna">—</span>';
+  const corrNome = !casse.length ? 'Nessuna cassettiera' : sel === 'incassata' ? 'Incassata (fresata nel frontale)' : sel === 'ribassati' ? 'Frontali ribassati, senza maniglia'
+    : sel === 'barretta' ? 'Barretta di sempre' : sel ? def.nome : 'Diverse per cassettiera';
+  return `
+      <details class="mat-card" data-parte="manigliaCassetti">
+        <summary>
+          <span class="mat-parte">Cassettiera · Maniglie dei cassetti</span>
+          <span class="mat-corrente">${tessera(sel && sel !== 'incassata' && sel !== 'ribassati' && sel !== 'barretta' ? def : null)}<span>${corrNome}</span></span>
+        </summary>
+        ${casse.length ? `
+        <div class="mat-grid">
+          <button type="button" class="mat-swatch ${sel === 'incassata' ? 'sel' : ''}" data-mancass="incassata" title="Incassata (fresata nel frontale)">
+            ${tessera(null)}<span>Incassata (fresata nel frontale)</span></button>
+          ${lista.map((m) => `
+            <button type="button" class="mat-swatch ${m.id === sel ? 'sel' : ''}" data-mancass="${m.id}" title="${m.nome}">
+              ${tessera(m)}<span>${m.nome}</span></button>`).join('')}
+        </div>
+        <p class="hint" style="margin:6px 0 0">Vale per i cassetti di tutte le cassettiere; le maniglie delle ante si scelgono a parte. Con una maniglia i cassetti sono «Maniglia esterna»: controlla nella cassettiera quanto sporge.</p>`
+        : '<p class="hint" style="margin:6px 0 0">Aggiungi una cassettiera per scegliere le maniglie dei cassetti.</p>'}
+      </details>`;
 }
 
 /** Colore del binario degli scorrevoli: i colori del catalogo (sezione Binari). */
@@ -1097,7 +1135,7 @@ function cardManiglie(config) {
   return `
       <details class="mat-card" data-parte="maniglia">
         <summary>
-          <span class="mat-parte">Maniglie</span>
+          <span class="mat-parte">Maniglie delle ante</span>
           <span class="mat-corrente">${tessera(corr)}<span>${corr ? corr.nome : 'Senza maniglia (ante lisce)'}</span></span>
         </summary>
         <div class="mat-grid">
@@ -1149,6 +1187,23 @@ function attaccaEventiMateriali(contenitore, config, onChange) {
       config.manigliaPosizione = btn.dataset.manpos;
       renderMateriali(config);
       attaccaEventiMateriali(contenitore, config, onChange);
+      onChange(config);
+    });
+  });
+  // MANIGLIE DEI CASSETTI: incassata o una maniglia del catalogo, per tutte le cassettiere
+  contenitore.querySelectorAll('.mat-swatch[data-mancass]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const v = btn.dataset.mancass;
+      for (const c of config.cassettiere || []) {
+        if (v === 'incassata') { c.apertura = 'incassata'; continue; }
+        c.apertura = 'maniglia';
+        if (!(Number(c.sporgenza) > 0)) c.sporgenza = sporgenzaDiManiglia((MATERIALI.find((m) => m.id === v)) || null);
+      }
+      if (v === 'incassata') delete config.manigliaCassetti; else config.manigliaCassetti = v;
+      renderMateriali(config);
+      attaccaEventiMateriali(contenitore, config, onChange);
+      renderCassettiere(config);                       // nella cassettiera: apertura e sporgenza nuove
+      attaccaEventiCassettiere(contenitore, config, onChange);
       onChange(config);
     });
   });

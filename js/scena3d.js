@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261126n';
-import { parametri } from './parametri.js?v=20261126n';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261126n';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261126n';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261126n';
-import { sfondoDi } from './sfondi.js?v=20261126n';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261126n';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261126n';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261126o';
+import { parametri } from './parametri.js?v=20261126o';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261126o';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261126o';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261126o';
+import { sfondoDi } from './sfondi.js?v=20261126o';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261126o';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261126o';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -917,6 +917,18 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
           continue;
         }
         if (!G.maniglia) continue;
+        if (G.defMan) {
+          // MANIGLIA SCELTA PER I CASSETTI (Materiali → Cassettiera · Maniglie): orizzontale, lunga come in distinta;
+          // profilo sul bordo / a J: sul bordo alto del frontale (il frontale è già più basso del suo spessore)
+          const def = G.defMan, Lc = lunghezzaManigliaCassetto(def, larFronte);
+          const dB = def.forma === 'bordol' ? 0 : ['profilo', 'bordo'].includes(def.forma) ? 17 : null;
+          const gm = new THREE.Group();
+          gm.userData.tipo = 'maniglia-cassetto';           // dentro l'armadio: si vede a porte aperte
+          gm.visible = porteAperte;
+          aggiungiManiglia(gm, def, xCentro, dB == null ? yMan : cy + f.h / 2 - dB, zFronte + sC / 2, Lc, 0);
+          gruppoArmadio.add(gm);
+          continue;
+        }
         // MANIGLIA ESTERNA: barra che sporge dal frontale quanto scritto nella cassettiera
         const sp = G.sporgenza || 25;
         const man = new THREE.Mesh(new THREE.BoxGeometry(lman, hman, sp), MAT_METALLO);
