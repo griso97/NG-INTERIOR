@@ -3,8 +3,8 @@
    =============================================================================
    COSA FA
    Quando si apre la pagina iniziale copre lo schermo (nero) e in ~8,6 secondi (tempi dell'animazione:
-   con CONFIG.velocita 1.3 tutto va il 30% più veloce e dopo il pavimento ancora di più, CONFIG.finale:
-   in tutto ~4,7 secondi veri, poi la pausa e la dissolvenza):
+   con CONFIG.velocita 1.6 tutto va il 60% più veloce e dopo il pavimento ancora di più, CONFIG.finale:
+   in tutto ~3,7 secondi veri, poi la pausa e la dissolvenza):
      0,0 s  NG compare come disegno 3D a linee (girato di 3/4)
      1,2 s  una lama di luce passa da sinistra a destra e lo trasforma nel logo
             d'oro vero (la faccia è il logo originale, dietro uno spessore d'oro)
@@ -46,11 +46,11 @@ const CONFIG = {
   logo: 'img/logo.png',        // logo del sito (relativo alla pagina)
   ritaglioNG: [84, 16, 461, 318],   // x, y, larghezza, altezza della parte "NG" dentro logo.png
   durata: 7.6,                 // secondi dell'animazione (a velocità 1): a 7,4 la frase è tutta fuori
-  velocita: 1.3,               // 1 = come disegnata; 1.3 = tutto (anche i suoni) il 30% più veloce
-  finale: 1.6,                 // DOPO IL PAVIMENTO (cubo, STUDIO, riga, motto, frase) ancora × 1,6: una dietro l'altra
+  velocita: 1.6,               // 1 = come disegnata; 1.6 = tutto (anche i suoni) il 60% più veloce
+  finale: 1.7,                 // DOPO IL PAVIMENTO (cubo, STUDIO, riga, motto, frase) ancora × 1,7: una dietro l'altra
   accelera: [3.3, 3.8],        // fra questi secondi dell'animazione si passa piano dalla prima velocità alla seconda
-  pausaFinale: 0.8,            // secondi fermi sul finale (per leggere la frase) prima di sparire
-  sfumaUscita: 0.7,            // secondi della dissolvenza d'uscita
+  pausaFinale: 0.6,            // secondi fermi sul finale (per leggere la frase) prima di sparire
+  sfumaUscita: 0.5,            // secondi della dissolvenza d'uscita
 };
 // VELOCITÀ dell'animazione al suo tempo t (×), e quanti secondi VERI ci vogliono per arrivare a ogni t
 // (tabella: serve all'animazione e ai suoni, così restano a tempo)
