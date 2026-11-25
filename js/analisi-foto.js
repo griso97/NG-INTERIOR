@@ -752,6 +752,57 @@ export function pulisciRiflessi(src, opz = {}) {
   return { canvas: c, uniforme, colore };
 }
 
+// =============================================================================
+// CAMPIONE CONTINUO: il pezzo di foto (es. un campione da 50 × 50 cm) si ripete sui pannelli
+// grandi. Perché non si vedano i quadrati:
+// 1) LUCE E COLORE UNIFORMI: ogni canale è diviso per la sua media «lenta» (sfocatura larga):
+//    spariscono le zone più chiare o più scure della foto (che ripetute fanno le fasce),
+//    le venature e il disegno restano come sono;
+// 2) BORDI RACCORDATI: il lato destro continua nel sinistro e il basso nell'alto. Prima in
+//    orizzontale, poi in verticale (spostando la foto solo in quel verso le venature dritte
+//    restano dritte), con il contrasto delle venature mantenuto anche nel raccordo.
+// Ritorna un canvas nuovo delle stesse misure.
+// =============================================================================
+export function rendiContinua(src) {
+  const W = src.width, H = src.height, N = W * H;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(src, 0, 0);
+  if (W < 32 || H < 32) return c;
+  const im = g.getImageData(0, 0, W, H), d = im.data;
+  const ch = [0, 1, 2].map((q) => { const a = new Float32Array(N); for (let i = 0; i < N; i++) a[i] = d[i * 4 + q]; return a; });
+  // 1) luce e colore uniformi
+  const r = Math.max(6, Math.round(Math.min(W, H) / 10));
+  const medie = ch.map((a) => {
+    let b = boxBlur(a, W, H, r); b = boxBlur(b, W, H, r); b = boxBlur(b, W, H, r);   // ≈ gaussiana larga
+    let m = 0; for (let i = 0; i < N; i++) m += a[i]; m /= N;
+    for (let i = 0; i < N; i++) a[i] *= Math.min(1.8, Math.max(0.55, m / Math.max(1, b[i])));
+    return m;
+  });
+  // 2) bordi raccordati: R = O·m + S·(1 − m), S = la foto spostata di metà; varianza mantenuta
+  const liscia = (t) => t * t * (3 - 2 * t);
+  const raccorda = (orizz) => {
+    const L = orizz ? W : H, B = Math.max(4, Math.round(L * 0.22));
+    const peso = new Float32Array(L);
+    for (let k = 0; k < L; k++) peso[k] = liscia(Math.min(1, Math.min(k, L - 1 - k) / B));
+    ch.forEach((a, q) => {
+      const mu = medie[q], o = new Float32Array(N);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        const j = orizz ? y * W + ((x + (W >> 1)) % W) : ((y + (H >> 1)) % H) * W + x;
+        const m = peso[orizz ? x : y], n = 1 - m;
+        o[i] = mu + (m * (a[i] - mu) + n * (a[j] - mu)) / Math.sqrt(m * m + n * n);
+      }
+      ch[q] = o;
+    });
+  };
+  raccorda(true);
+  raccorda(false);
+  for (let i = 0; i < N; i++) for (let q = 0; q < 3; q++) d[i * 4 + q] = Math.max(0, Math.min(255, Math.round(ch[q][i])));
+  g.putImageData(im, 0, 0);
+  return c;
+}
+
 /** Media mobile (box) separabile, raggio r, su un canale Float32 W×H. */
 function boxBlur(a, W, H, r) {
   const t = new Float32Array(W * H), o = new Float32Array(W * H);
@@ -943,8 +994,12 @@ export function analizzaSuperficie(raddrizzata) {
 // originale salvata, con la stessa zona scelta. Una volta sola per prodotto.
 // v2: colori veri (i riflessi tolti solo dove ci sono davvero, la luce spianata
 //     solo su grande scala) e i fianchi della porta fuori dal legno.
+// v3: CAMPIONE CONTINUO (legni, pietre, piani, pannelli, zoccoli, pavimenti): luce uniforme
+//     e bordi raccordati, così ripetuto non fa quadrati né fasce (rendiContinua).
 // =============================================================================
-export const VERSIONE_FOTO = 2;
+export const VERSIONE_FOTO = 3;
+/** Sezioni del catalogo con la foto che si RIPETE sui pezzi (campione continuo). */
+export const SEZIONI_CONTINUE = ['legno', 'encimera', 'pannello', 'zoccolo', 'pavimento'];
 function stringiLati(q, f) {
   // quad [tl, tr, br, bl]: ogni lato orizzontale accorciato di f per parte
   const L = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
@@ -956,6 +1011,8 @@ function stringiLati(q, f) {
  */
 export async function aggiornaFotoProdotto(p, leggi, salva) {
   if ((p.versioneFoto || 1) >= VERSIONE_FOTO) return false;
+  // la porta finger-pull non si ripete (e ha la gola in alto): dalla v2 non cambia niente
+  if (!SEZIONI_CONTINUE.includes(p.sezione) && (p.versioneFoto || 1) >= 2) { p.versioneFoto = VERSIONE_FOTO; return false; }
   const zona = p.analisi && (p.sezione === 'fingerpull' ? p.analisi.porta : p.analisi.main);
   const cm = p.campioneCm;
   if (!zona || zona.length !== 4 || !cm || !(cm.w > 0) || !(cm.h > 0) || (p.tinta && p.tinta.colore != null)) { p.versioneFoto = VERSIONE_FOTO; return false; }
@@ -967,7 +1024,8 @@ export async function aggiornaFotoProdotto(p, leggi, salva) {
     const asp = cm.w / cm.h;
     const OW = asp >= 1 ? 1600 : Math.max(64, Math.round(1600 * asp));
     const OH = asp >= 1 ? Math.max(64, Math.round(1600 / asp)) : 1600;
-    const c = pulisciRiflessi(raddrizza(img, stringiLati(zona, 0.013), OW, OH, 0)).canvas;
+    const pul = pulisciRiflessi(raddrizza(img, stringiLati(zona, 0.013), OW, OH, 0)).canvas;
+    const c = SEZIONI_CONTINUE.includes(p.sezione) ? rendiContinua(pul) : pul;      // ripetuto senza quadrati
     const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.92));
     if (!blob) return false;
     await salva(p.id, blob, 'foto');
