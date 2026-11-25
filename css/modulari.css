@@ -75,3 +75,11 @@
 .schema-tagli { margin: 0 0 16px; border: 1px solid var(--bordo); border-radius: 4px; overflow: hidden; background: #fff; }
 .schema-tagli img { display: block; width: 100%; height: auto; }
 .schema-tagli figcaption { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding: 8px 10px; background: var(--bg-3); font-size: 12px; color: var(--testo-dim); }
+/* MANIGLIA DI OGNI ANTA: una riga per anta (altezza, ↺, Togli / Metti) */
+.man-anta { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--bordo); }
+.man-anta-nome { grid-column: 1 / -1; font-size: 13px; color: var(--oro-chiaro); font-weight: 600; }
+.man-anta-h { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; }
+.man-anta-h input { width: 90px; margin: 0; }
+.man-anta-h em { font-style: normal; color: var(--testo-dim); white-space: nowrap; }
+.man-anta-info { font-size: 12px; color: var(--testo-dim); }
+.man-anta-btn { display: flex; gap: 6px; justify-content: flex-end; }

@@ -9,12 +9,12 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261126x';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261126x';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261126x';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261126x';
-import { anteConManiglie, manigliaModulari } from './calcoli.js?v=20261126x';
-import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from '../maniglia3d.js?v=20261126x';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261126y';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261126y';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261126y';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261126y';
+import { anteConManiglie, manigliaModulari } from './calcoli.js?v=20261126y';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from '../maniglia3d.js?v=20261126y';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -184,9 +184,9 @@ function mobile(e, P, sp, matS, matA) {
   // Ante (trapezi), 2 mm di fuga come in distinta, + maniglia del catalogo (o push: niente maniglia)
   const N = Math.max(0, Math.round(e.ante || 0));
   if (N > 0) {
-    // la stessa regola della distinta: maniglia all'altezza standard, push sulle ante che non ci arrivano
-    // (in automatico); profilo sul bordo: anta più stretta dal lato della maniglia
-    for (const d of anteConManiglie(L, hL, hR, y0, N, e.lato, e.apertura, manAttuale)) {
+    // la stessa regola della distinta: maniglia all'altezza standard (o il più vicino possibile), quella scelta
+    // anta per anta (altezza, tolta); profilo sul bordo: anta più stretta dal lato della maniglia
+    for (const d of anteConManiglie(L, hL, hR, y0, N, e.lato, e.apertura, manAttuale, e.maniglieAnte)) {
       const xa = x0 + d.xa, xb = x0 + d.xb;
       // maniglia a sinistra (sx) → cerniera a destra, e viceversa
       const sx = d.manSx;
@@ -251,7 +251,7 @@ function chiusura(ch, P, sp, matS, matA) {
   }
   const ante = ch.fronte === 'anta' ? 1 : 0;
   if (!ch.triangolare) {
-    mobile({ x0: ch.x0, y0: 0, L: ch.larghezza, hL: ch.hL, hR: ch.hR, ante, lato: ch.daSinistra ? 'dx' : 'sx', apertura: ch.apertura, ripiani: 0 }, P, sp, matS, matA);
+    mobile({ x0: ch.x0, y0: 0, L: ch.larghezza, hL: ch.hL, hR: ch.hR, ante, lato: ch.daSinistra ? 'dx' : 'sx', apertura: ch.apertura, maniglieAnte: ch.maniglieAnte, ripiani: 0 }, P, sp, matS, matA);
     return;
   }
   const sC = sp.carcassa, sS = sp.schiena, sA = sp.ante;
