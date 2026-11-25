@@ -14,8 +14,8 @@
 // Misure in mm. Coordinate: x a destra, y in alto, origine angolo basso-sx.
 // =============================================================================
 
-import { parametri } from '../parametri.js?v=20261126m';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126m';
+import { parametri, spessoreTirador, nomeTirador } from '../parametri.js?v=20261126n';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126n';
 
 export const SPESSORI_DEFAULT = { carcassa: 18, schiena: 10, ante: 18 };
 export const H_MINIMA_MODULO = 250;
@@ -250,14 +250,17 @@ const cerniereAnta = (h) => (h <= 900 ? 2 : h <= 1600 ? 3 : h <= 2000 ? 4 : h <=
 // ---------------------------------------------------------------------------
 const MANIGLIA_STANDARD = { id: 'maniglia-standard', nome: 'Maniglia standard (barra)', categoria: 'maniglia' };
 /**
- * Apertura delle ante di un modulo / cubo:
- *  'auto'   (di partenza) maniglia all'altezza standard; l'anta che non ci arriva (o parte più in alto) → push,
- *           così le maniglie sono tutte allineate, niente maniglie basse o in alto
- *  'sempre' maniglia anche sulle ante basse (scelta apposta: il più vicino possibile all'altezza standard)
- *  'push'   niente maniglia
- * ('maniglia' salvato prima di questa scelta = automatica)
+ * MANIGLIA di un modulo / cubo: dove sta (la posizione automatica si può spostare) o push:
+ *  'auto'  (di partenza) di lato, sul bordo che apre, all'altezza standard; l'anta che non ci arriva
+ *          (o parte più in alto) → push, così le maniglie sono tutte allineate
+ *  'lato'  di lato anche sulle ante basse (il più vicino possibile all'altezza standard)
+ *  'sopra' orizzontale sul bordo alto (sotto la scala segue l'inclinata), verso il lato che apre
+ *  'sotto' orizzontale sul bordo basso, verso il lato che apre
+ *  'push'  niente maniglia
+ * Il tirador che toglie spessore (scheda della maniglia) lo toglie dal bordo dove sta.
+ * (salvati prima: 'maniglia' = automatica, 'sempre' = di lato)
  */
-export const aperturaDi = (v) => (v === 'push' ? 'push' : v === 'sempre' ? 'sempre' : 'auto');
+export const aperturaDi = (v) => (['push', 'lato', 'sopra', 'sotto'].includes(v) ? v : v === 'sempre' ? 'lato' : 'auto');
 /** Maniglia scelta per il mobile: { def (catalogo), colore (id finitura o null = il suo), hStd (mm da terra) }. */
 export function manigliaModulari(stato) {
   const sc = (stato && stato.maniglia) || {};
@@ -266,12 +269,9 @@ export function manigliaModulari(stato) {
   const def = trova(sc.id || MANIGLIA_STANDARD.id) || trova(MANIGLIA_STANDARD.id) || MANIGLIA_STANDARD;
   return { def, colore: sc.colore || null, hStd: parametri().modulari.altezzaManiglia };
 }
-/** Profilo sul bordo (a J o con la L dietro): l'anta è più stretta del suo spessore, dal lato della maniglia. */
-export function riduzioneManigliaModulari(def) {
-  if (!def || !['profilo', 'bordol'].includes(def.forma)) return 0;
-  return Number(def.spessoreJ) > 0 ? Number(def.spessoreJ) : parametri().manigliaJ.spessore;
-}
-const nomeRiduzione = (def) => (def && def.forma === 'bordol' ? 'maniglia sul bordo' : 'maniglia a J');
+/** Spessore del tirador da togliere all'anta (scheda della maniglia: sottrai sì / no), dal bordo dove sta. */
+export const riduzioneManigliaModulari = (def) => spessoreTirador(def);
+const nomeRiduzione = (def) => nomeTirador(def);
 /** Distanza della maniglia dal bordo che apre (come negli armadi). */
 const bordoManiglia = (def) => (def.forma === 'bordol' ? 0 : ['profilo', 'bordo'].includes(def.forma) ? 17 : 40);
 /** Lunghezza su un'anta alta h: quella del catalogo (la standard 30 cm), mai più lunga dell'anta − 8 cm. */
@@ -314,20 +314,35 @@ export function manigliaSuAnta(man, d, yBasso, yAlto) {
 /**
  * ANTE di un modulo CON LA LORO MANIGLIA (o push), uguale per 3D, disegno e distinta.
  * x da 0 (fianco sinistro del modulo), y da terra: y0 = base del modulo, hL/hR = altezze ai due lati.
- * → [{ xa, xb, manSx, maniglia: { x, y, L } | null, rid }]  (rid = anta più stretta per il profilo sul bordo)
+ * → [{ xa, xb, manSx, dSopra, dSotto, rid, maniglia: { x, y, L, verso: 'lato'|'sopra'|'sotto', angolo } | null }]
+ *   xa..xb = larghezza dell'anta (già tolto lo spessore del tirador se è di lato), dSopra / dSotto = di quanto
+ *   scendono il bordo alto / sale il bordo basso per il tirador sopra / sotto (sull'inclinata: spessore ÷ cos α)
  */
 export function anteConManiglie(L, hL, hR, y0, N, lato, apertura, man) {
   const ap = aperturaDi(apertura);
-  const top = (x) => y0 + hL + ((hR - hL) * x) / L - 2;           // sopra dell'anta (2 mm d'aria)
+  const k = (hR - hL) / L, cosA = 1 / Math.sqrt(1 + k * k);
+  const top = (x) => y0 + hL + k * x - 2;                          // sopra dell'anta (2 mm d'aria)
   const yB = y0 + 2;
   const r = riduzioneManigliaModulari(man.def);
   return anteDelModulo(L, N, lato, 0).map((d) => {
-    if (ap === 'push') return { ...d, maniglia: null, rid: 0 };
-    const p = manigliaSuAnta(man, d, yB, top);
-    if (ap === 'auto' && !p.allineata) return { ...d, maniglia: null, rid: 0 };   // l'anta non arriva all'altezza standard
-    if (!r) return { ...d, maniglia: p, rid: 0 };
-    const dd = { ...d, xa: d.manSx ? d.xa + r : d.xa, xb: d.manSx ? d.xb : d.xb - r };
-    return { ...dd, maniglia: manigliaSuAnta(man, dd, yB, top), rid: r };
+    const vuota = { ...d, dSopra: 0, dSotto: 0, rid: 0, maniglia: null };
+    if (ap === 'push') return vuota;
+    if (ap === 'auto' || ap === 'lato') {
+      const p = manigliaSuAnta(man, d, yB, top);
+      if (ap === 'auto' && !p.allineata) return vuota;               // l'anta non arriva all'altezza standard
+      if (!r) return { ...vuota, maniglia: { ...p, verso: 'lato', angolo: 0 } };
+      const dd = { ...d, xa: d.manSx ? d.xa + r : d.xa, xb: d.manSx ? d.xb : d.xb - r };
+      return { ...vuota, ...dd, rid: r, maniglia: { ...manigliaSuAnta(man, dd, yB, top), verso: 'lato', angolo: 0 } };
+    }
+    // SOPRA / SOTTO: orizzontale lungo il bordo, verso il lato che apre (2 ante: verso il centro)
+    const dSopra = ap === 'sopra' ? r / cosA : 0, dSotto = ap === 'sotto' ? r : 0;
+    const w = d.xb - d.xa, Lm = lunghezzaManigliaModulare(man.def, w);
+    const x = d.manSx ? d.xa + 40 + Lm / 2 : d.xb - 40 - Lm / 2;
+    const dB = bordoManiglia(man.def);
+    const y = ap === 'sopra'
+      ? Math.max(yB + dSotto + 20, top(x) - dSopra - dB / cosA)
+      : Math.min(top(x) - dSopra - 20, yB + dSotto + dB);
+    return { ...vuota, dSopra, dSotto, rid: r, maniglia: { x, y, L: Lm, verso: ap, angolo: ap === 'sopra' ? Math.atan(k) : 0 } };
   });
 }
 const accessorio = (modulo, nome, quantita, extra = {}) => ({ modulo, nome, larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita, ...extra });
@@ -420,12 +435,13 @@ export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFA
     let cerniere = 0, push = 0;
     for (const d of anteConManiglie(L, hL, hR, mod.y0 || 0, N, mod.lato, mod.apertura, man)) {
       const { xa, xb } = d, la = xb - xa;
-      const a = hA(xa), b = hA(xb);
+      const a = hA(xa) - d.dSopra - d.dSotto, b = hA(xb) - d.dSopra - d.dSotto;
       const alta = Math.max(a, b), bassa = Math.min(a, b);
       // cerniere come nel 3D: dal lato opposto alla maniglia (1 anta → lato scelto; 2 ante → maniglie al centro)
       const cerDx = d.manSx;
       const latoCer = cerDx ? 'destra' : 'sinistra';
-      const suff = d.rid ? ` · ${nomeRiduzione(man.def)} (−${d.rid} mm)` : '';
+      const dove = d.maniglia ? ({ lato: 'di lato', sopra: 'sopra', sotto: 'sotto' })[d.maniglia.verso] : '';
+      const suff = d.rid ? ` · ${nomeRiduzione(man.def)} (−${d.rid} mm ${dove})` : '';
       const nome = (!inclinato
         ? (N === 1 ? `Anta (apertura ${mod.lato === 'sx' ? 'sx' : 'dx'})` : `Anta · cerniere a ${latoCer}`)
         : `Anta trapezio · cerniere a ${latoCer} (lato ${cerDx === (hR > hL) ? 'alto' : 'basso'})`) + suff;

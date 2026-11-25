@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126m';
+import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126n';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -92,13 +92,10 @@ export function lunghezzaManigliaAnta(def, config, altAnta) {
  * stretta del suo spessore (spessoreJ della maniglia, altrimenti ⚙ Parametri → maniglia a J).
  */
 export function riduzioneManigliaArmadio(config) {
-  const def = manigliaArmadio(config);
-  if (!def || !['profilo', 'bordol'].includes(def.forma)) return 0;
-  return Number(def.spessoreJ) > 0 ? Number(def.spessoreJ) : parametri().manigliaJ.spessore;
+  return spessoreTirador(manigliaArmadio(config));          // scheda della maniglia: sottrai spessore sì / no
 }
 function nomeRiduzioneManiglia(config) {
-  const def = manigliaArmadio(config);
-  return def && def.forma === 'bordol' ? 'maniglia sul bordo' : 'maniglia a J';
+  return nomeTirador(manigliaArmadio(config));
 }
 /** Cerniere per anta, dall'altezza dell'anta. */
 export function cerniereAnta(h) {

@@ -8,22 +8,22 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261126m';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261126m';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261126m';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261126m';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261126m';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261126m';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261126m';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261126m';
-import { agganciaTema } from './tema.js?v=20261126m';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261126m';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro } from './parametri.js?v=20261126m';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261126m';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261126m';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261126m';
-import { geometriaCassettiera } from './calcoli.js?v=20261126m';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261126m';
+} from './catalogo.js?v=20261126n';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261126n';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261126n';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261126n';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261126n';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261126n';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261126n';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261126n';
+import { agganciaTema } from './tema.js?v=20261126n';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261126n';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador } from './parametri.js?v=20261126n';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261126n';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261126n';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261126n';
+import { geometriaCassettiera } from './calcoli.js?v=20261126n';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261126n';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -65,6 +65,7 @@ function dettagli(m) {
   if (info.colore) r.push(esc(info.colore));
   if (m.campione) r.push(`campione ${Math.round(m.campione.wMm / 10)}×${Math.round(m.campione.hMm / 10)} cm`);
   if (m.lunghezzaMm) r.push(`lunghezza ${Math.round(m.lunghezzaMm / 10)} cm`);
+  if (m.categoria === 'maniglia' && spessoreTirador(m)) r.push(`toglie ${spessoreTirador(m)} mm all'anta`);
   if (m.viste && m.categoria === 'maniglia') r.push(`viste: ${['davanti', ...Object.keys(m.viste)].join(', ')}`);
   if (m.viste && m.categoria === 'oggetto') r.push(`foto: ${['davanti', ...['lato', 'sopra', 'dietro'].filter((v) => m.viste[v])].join(', ')}`);
   if (m.pronto) r.push('oggetto 3D pronto · Poly Haven (CC0)');
@@ -172,6 +173,8 @@ function apriScheda(m) {
   const info = (p ? p.info : (m && m.info)) || {};
   const camp = p && p.campioneCm ? p.campioneCm : { w: '', h: '' };
   const man = (p && p.maniglia) || { standard: true, lunghezzaCm: '' };
+  // spessore del tirador da togliere all'anta: quello salvato (o, per le maniglie di prima, a J / sul bordo sì)
+  const togliSp = tipo === 'man' && m ? spessoreTirador(m) : 0;
   document.getElementById('imp-modale-titolo').textContent = tr(nuovo ? 'Nuovo prodotto' : 'Modifica prodotto');
   const corpo = document.getElementById('imp-modale-corpo');
   const aiutoFoto = {
@@ -231,6 +234,13 @@ function apriScheda(m) {
         <label class="imp-vis"><input type="radio" name="f-mis" value="pers" ${man.standard === false ? 'checked' : ''}> Personalizzata</label>
         <label id="f-lung-box" ${man.standard === false ? '' : 'hidden'}>Lunghezza della maniglia (cm) <span class="imp-obbl">*</span><input type="text" inputmode="decimal" autocomplete="off" id="f-lung" value="${esc(man.standard === false ? man.lunghezzaCm : '')}"></label>
         <div class="imp-aiuto">La lunghezza è il lato lungo della maniglia. L'altezza si calcola dalla foto.</div>
+      </fieldset>
+      <fieldset class="imp-misura">
+        <legend>Spessore del tirador</legend>
+        <label class="imp-vis"><input type="radio" name="f-sottrai" value="no" ${!togliSp ? 'checked' : ''}> Non togliere niente all'anta</label>
+        <label class="imp-vis"><input type="radio" name="f-sottrai" value="si" ${togliSp ? 'checked' : ''}> Sottrai lo spessore del tirador dall'anta</label>
+        <label id="f-sottrai-box" ${togliSp ? '' : 'hidden'}>Spessore da togliere (mm) <span class="imp-obbl">*</span><input type="text" inputmode="decimal" autocomplete="off" id="f-sottrai-mm" value="${esc(togliSp || '')}"></label>
+        <div class="imp-aiuto">Per i tiradores che stanno sul bordo dell'anta (a J, con la L dietro la porta, il tirador lungo): l'anta si accorcia di questo spessore dal lato dove sta la maniglia (sopra, sotto o di lato), nel 3D e in distinta.</div>
       </fieldset>` : ''}
       <label>Nome <span class="imp-obbl">*</span><input type="text" id="f-nome" value="${esc(m ? m.nome : '')}" placeholder="${tipo === 'man' ? 'Es. Maniglia nera 160' : tipo === 'fp' ? 'Es. Rovere con gola nera' : 'Es. Rovere naturale, Giallo canarino…'}"></label>
       <div class="grid-2">
@@ -249,6 +259,9 @@ function apriScheda(m) {
   corpo.querySelector('#f-annulla').addEventListener('click', chiudi);
   corpo.querySelectorAll('input[name="f-mis"]').forEach((r) => r.addEventListener('change', () => {
     corpo.querySelector('#f-lung-box').hidden = corpo.querySelector('input[name="f-mis"]:checked').value !== 'pers';
+  }));
+  corpo.querySelectorAll('input[name="f-sottrai"]').forEach((r) => r.addEventListener('change', () => {
+    corpo.querySelector('#f-sottrai-box').hidden = corpo.querySelector('input[name="f-sottrai"]:checked').value !== 'si';
   }));
   let img = null, rit = null;
   if (proprio) {
@@ -333,8 +346,17 @@ function apriScheda(m) {
     const nome = v('#f-nome');
     const infoN = { tipo: v('#f-tipo'), spessore: v('#f-sp'), colore: v('#f-col'), note: v('#f-note') };
     if (!nome) { errore(tr('Scrivi il nome del prodotto.')); return; }
+    // TIRADOR: sottrai lo spessore dall'anta sì / no e quanti mm
+    let tirN = null;
+    if (tipo === 'man' && corpo.querySelector('input[name="f-sottrai"]:checked')) {
+      const si = corpo.querySelector('input[name="f-sottrai"]:checked').value === 'si';
+      const mm = Number(v('#f-sottrai-mm').replace(',', '.'));
+      if (si && !(mm > 0)) { errore(tr('Scrivi lo spessore del tirador da togliere all\'anta, in mm.')); return; }
+      if (si && mm > 60) { errore(tr('Lo spessore va in millimetri: controlla il numero (es. 2 mm).')); return; }
+      tirN = { sottrai: si, spessore: si ? mm : 0 };
+    }
     if (!proprio) {
-      stato.modifiche = { ...(stato.modifiche || {}), [m.id]: { nome, info: infoN } };
+      stato.modifiche = { ...(stato.modifiche || {}), [m.id]: { nome, info: infoN, ...(tirN ? { tirador: tirN } : {}) } };
       await salvaERicarica(); return;
     }
     let w = 0, h = 0, manN = null;
@@ -343,7 +365,8 @@ function apriScheda(m) {
       const lung = Number(v('#f-lung').replace(',', '.'));
       if (pers && !(lung > 0)) { errore(tr('Scrivi la lunghezza della maniglia in cm, oppure scegli la misura standard (15 cm).')); return; }
       if (pers && lung > 150) { errore(tr('La lunghezza va in centimetri: forse l\'hai scritta in millimetri? Es. 160 mm = 16 cm.')); return; }
-      manN = { standard: !pers, lunghezzaCm: pers ? lung : MANIGLIA_STANDARD_CM, rapporto: p && p.maniglia ? p.maniglia.rapporto : null, verticale: p && p.maniglia ? p.maniglia.verticale : false };
+      manN = { standard: !pers, lunghezzaCm: pers ? lung : MANIGLIA_STANDARD_CM, rapporto: p && p.maniglia ? p.maniglia.rapporto : null, verticale: p && p.maniglia ? p.maniglia.verticale : false,
+        ...(tirN ? { sottrai: tirN.sottrai, spessoreTogli: tirN.spessore } : {}) };
     } else {
       w = Number(v('#f-w').replace(',', '.')); h = Number(v('#f-h').replace(',', '.'));
       if (!(w > 0 && h > 0)) { errore(tr('Inserisci la misura del campione in cm (larghezza e altezza).')); return; }

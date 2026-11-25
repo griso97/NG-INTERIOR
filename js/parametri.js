@@ -340,6 +340,22 @@ export function sistemiGola(p = parametri()) { return [p.gola, ...p.goleAltre]; 
 export function golaSistema(id, p = parametri()) { return sistemiGola(p).find((g) => g.id === id) || p.gola; }
 /** I tiradores degli armadi scorrevoli (almeno uno) e quello scelto (se non c'è più, il primo). */
 export function tiradoriScorrevoli(p = parametri()) { return p.tiradori; }
+/**
+ * SPESSORE DEL TIRADOR DA TOGLIERE ALL'ANTA (mm), dal lato dove sta la maniglia.
+ * Si sceglie nella scheda di ogni maniglia (Impostazioni → Maniglie): «Sottrai lo spessore del
+ * tirador dall'anta: sì / no» e i mm. Maniglie salvate prima della scelta: i profili a J e sul
+ * bordo tolgono il loro spessore (quello della maniglia o ⚙ Parametri → maniglia a J), le altre niente.
+ */
+export function spessoreTirador(def, p = parametri()) {
+  if (!def || def.sottraiSpessore === false) return 0;
+  const proprio = Number(def.spessoreTirador) > 0 ? Number(def.spessoreTirador) : Number(def.spessoreJ) > 0 ? Number(def.spessoreJ) : p.manigliaJ.spessore;
+  if (def.sottraiSpessore === true) return proprio;
+  return ['profilo', 'bordol'].includes(def.forma) ? proprio : 0;
+}
+/** Come si chiama in distinta la maniglia che accorcia l'anta. */
+export function nomeTirador(def) {
+  return def && def.forma === 'bordol' ? 'maniglia sul bordo' : def && def.forma === 'profilo' ? 'maniglia a J' : 'tirador';
+}
 export function tiradorScorrevole(id, p = parametri()) { return p.tiradori.find((t) => t.id === id) || p.tiradori[0]; }
 
 /** Cassetto fatto da noi: che tipo è dal frontale (piccolo fino a piccoloFinoA, grande oltre medioFinoA). */

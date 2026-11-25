@@ -9,12 +9,12 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261126m';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261126m';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261126m';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261126m';
-import { anteConManiglie, manigliaModulari } from './calcoli.js?v=20261126m';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261126m';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261126n';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261126n';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261126n';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261126n';
+import { anteConManiglie, manigliaModulari } from './calcoli.js?v=20261126n';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261126n';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -197,8 +197,16 @@ function mobile(e, P, sp, matS, matA) {
       (padreMobile || gruppo).add(g);
       cardini.push({ g, verso: sx ? 1 : -1 });
       const rel = (pts) => pts.map(([x, y]) => [x - xh, y]);
-      prisma(rel([[xa, y0 + 2], [xb, y0 + 2], [xb, yt(xb) - 2], [xa, yt(xa) - 2]]), 0, sA, matA, true, g);
-      if (d.maniglia) aggiungiManiglia(g, x0 + d.maniglia.x - xh, d.maniglia.y, sA, d.maniglia.L, sx ? Math.PI / 2 : -Math.PI / 2);
+      // tirador sopra / sotto che toglie spessore: il bordo alto scende / quello basso sale (come in distinta)
+      const yb = y0 + 2 + d.dSotto, dS = d.dSopra;
+      prisma(rel([[xa, yb], [xb, yb], [xb, yt(xb) - 2 - dS], [xa, yt(xa) - 2 - dS]]), 0, sA, matA, true, g);
+      if (d.maniglia) {
+        // di lato: verticale, il risvolto dei profili verso il bordo che apre; sopra: lungo il bordo alto
+        // (anche inclinato), risvolto in su; sotto: lungo il bordo basso, risvolto in giù
+        const M = d.maniglia;
+        const rot = M.verso === 'lato' ? (sx ? Math.PI / 2 : -Math.PI / 2) : M.verso === 'sotto' ? Math.PI : M.angolo;
+        aggiungiManiglia(g, x0 + M.x - xh, M.y, sA, M.L, rot);
+      }
       g.rotation.y = anteAperte ? (sx ? 1 : -1) * ANGOLO_APERTA : 0;
     }
   }
