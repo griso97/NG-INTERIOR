@@ -137,11 +137,17 @@ const FORME_NG = [{"f":[[310.6,314.7],[304.9,314.4],[298.8,313.7],[292.5,312.9],
     scene.environment = pmrem.fromScene(s, 0.015).texture;
   }
   const camera = new THREE.PerspectiveCamera(30, 1, 10, 5000);
+  // MISURE DELLO SCHERMO: su iPhone (Safari) all'avvio possono non essere ancora quelle vere e non sempre arriva
+  // un «resize» dopo → il 3D restava schiacciato di lato. Si ricontrollano a ogni fotogramma (fotogramma()).
+  let misW = 0, misH = 0;
   const dimensiona = () => {
     const w = box.clientWidth || innerWidth, h = box.clientHeight || innerHeight;
+    if (!w || !h) return;
+    misW = w; misH = h;
     renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
   };
   dimensiona(); addEventListener('resize', dimensiona);
+  if (window.visualViewport) visualViewport.addEventListener('resize', dimensiona);
 
   // NG: il logo vero sulla faccia davanti, spessore d'oro dietro
   const shapes = FORME_NG.map(({ f, b }) => {
@@ -223,6 +229,7 @@ const FORME_NG = [{"f":[[310.6,314.7],[304.9,314.4],[298.8,313.7],[292.5,312.9],
   const ease = (x) => x <= 0 ? 0 : x >= 1 ? 1 : 1 - Math.pow(1 - x, 3);
   const tra = (t, a, b) => ease((t - a) / (b - a));
   function fotogramma(t) {
+    if ((box.clientWidth || innerWidth) !== misW || (box.clientHeight || innerHeight) !== misH) dimensiona();
     camera.position.set(0, 60 - 40 * tra(t, 0, 3), 2650 - 250 * tra(t, 0, 3.2)); camera.lookAt(0, -175, 0);
     perno.rotation.y = THREE.MathUtils.degToRad(-58 + 44 * tra(t, 0.2, 3.4) + 2.5 * Math.sin(t * 0.9) * tra(t, 3.4, 4.5));
     perno.rotation.x = THREE.MathUtils.degToRad(8 - 4 * tra(t, 0.2, 3.4));
@@ -284,6 +291,7 @@ const FORME_NG = [{"f":[[310.6,314.7],[304.9,314.4],[298.8,313.7],[292.5,312.9],
     box.classList.add('via');
     setTimeout(() => {
       cancelAnimationFrame(idRaf); removeEventListener('resize', dimensiona);
+      if (window.visualViewport) visualViewport.removeEventListener('resize', dimensiona);
       try { renderer.dispose(); renderer.forceContextLoss(); } catch (_) { /* niente */ }
       box.remove(); st.remove();
     }, CONFIG.sfumaUscita * 1000 + 50);
