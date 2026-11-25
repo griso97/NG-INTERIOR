@@ -3089,4 +3089,12 @@ window.NG_I18N_ES = {
  "Altezza della maniglia da terra (centro)": "Altura del tirador desde el suelo (centro)",
  "di partenza 1050 mm, come negli armadi": "de partida 1050 mm, como en los armarios",
  "Mobili modulari (sottoscala, nicchie, mansarde): spessori, abbondanza di partenza e altezza delle maniglie.": "Muebles modulares (bajo escalera, nichos, buhardillas): espesores, sobremedida de partida y altura de los tiradores.",
+ "Automatica: maniglia a {0} cm": "Automático: tirador a {0} cm",
+ "Maniglia anche se bassa": "Tirador aunque sea baja",
+ "Push perché l'anta non arriva all'altezza della maniglia: {0}. Per scegliere modulo per modulo usa «Moduli diversi».": "Push porque la puerta no llega a la altura del tirador: {0}. Para elegir módulo por módulo usa «Módulos distintos».",
+ "Qui push: l'anta non arriva all'altezza della maniglia.": "Aquí push: la puerta no llega a la altura del tirador.",
+ "Tutti automatica": "Todos automático",
+ "Automatica: maniglia all'altezza standard, push sui cubi che non ci arrivano.": "Automático: tirador a la altura estándar, push en los cubos que no llegan.",
+ "Tutte alla stessa altezza: {0} cm da terra (si cambia in Impostazioni → Parametri → Mobili modulari). Le ante che non ci arrivano sono push; al passo 2 si può cambiare modulo per modulo.": "Todos a la misma altura: {0} cm del suelo (se cambia en Ajustes → Parámetros → Muebles modulares). Las puertas que no llegan son push; en el paso 2 se puede cambiar módulo por módulo.",
+ "Tutte le maniglie dei mobili modulari stanno alla stessa altezza da terra. Le ante che non arrivano a questa altezza (o partono più in alto) sono push; nel progetto si può mettere la maniglia lo stesso, modulo per modulo.": "Todos los tiradores de los muebles modulares van a la misma altura del suelo. Las puertas que no llegan a esta altura (o empiezan más arriba) son push; en el proyecto se puede poner el tirador igualmente, módulo por módulo.",
 };

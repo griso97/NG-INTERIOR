@@ -3,14 +3,14 @@
 // =============================================================================
 import {
   layoutModuli, layoutCubi, abbondanzaDi, gradi, larghezzaUtileAuto, distintaModulari, posizioneValida,
-  primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT, anteDelModulo, manigliaSuAnta, manigliaModulari, aperturaDi,
-} from './calcoli.js?v=20261126l';
+  primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT, anteConManiglie, manigliaModulari, aperturaDi,
+} from './calcoli.js?v=20261126m';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261126l');
+const _excel = () => import('../modello-export.js?v=20261126m');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
-import { schemaTagliPNG } from './schema-tagli.js?v=20261126l';
+import { schemaTagliPNG } from './schema-tagli.js?v=20261126m';
 
 const FRONTI = [
   { v: 0, l: 'Aperto (a giorno)' },
@@ -53,10 +53,20 @@ function tutto() { ctx.salva(); renderPannello(); ridisegna(); }
 function opzFronte(sel) {
   return FRONTI.map((f) => `<option value="${f.v}" ${Number(sel) === f.v ? 'selected' : ''}>${f.l}</option>`).join('');
 }
-/** Maniglia (quella scelta al passo 3) o push (si preme e si apre, niente maniglia). */
+/**
+ * Maniglia (quella scelta al passo 3) o push. Di partenza AUTOMATICA: maniglia all'altezza standard
+ * (⚙ Parametri), push sulle ante che non ci arrivano; si può mettere la maniglia lo stesso o il push.
+ */
 function opzApertura(sel) {
-  const v = aperturaDi(sel);
-  return `<option value="maniglia" ${v === 'maniglia' ? 'selected' : ''}>Con maniglia</option><option value="push" ${v === 'push' ? 'selected' : ''}>Push (senza maniglia)</option>`;
+  const v = aperturaDi(sel), cm = Math.round(manigliaModulari(ctx.stato).hStd / 10);
+  return `<option value="auto" ${v === 'auto' ? 'selected' : ''}>Automatica: maniglia a ${cm} cm</option>`
+    + `<option value="sempre" ${v === 'sempre' ? 'selected' : ''}>Maniglia anche se bassa</option>`
+    + `<option value="push" ${v === 'push' ? 'selected' : ''}>Push (senza maniglia)</option>`;
+}
+/** Quante ante di questo modulo vanno a push in automatico (non arrivano all'altezza standard). */
+function antePushAuto(L, hL, hR, y0, ante, lato, apertura) {
+  if (aperturaDi(apertura) !== 'auto' || !(ante > 0)) return 0;
+  return anteConManiglie(L, hL, hR, y0, ante, lato, apertura, manigliaModulari(ctx.stato)).filter((d) => !d.maniglia).length;
 }
 function renderPannello() {
   const { stato, esc, fmt } = ctx;
@@ -78,7 +88,9 @@ function renderPannello() {
         ${Number(m.comune.ante) === 1 ? `<label>Apertura anta
           <select data-k="lato"><option value="dx" ${m.comune.lato !== 'sx' ? 'selected' : ''}>a destra</option><option value="sx" ${m.comune.lato === 'sx' ? 'selected' : ''}>a sinistra</option></select></label>` : ''}
         ${Number(m.comune.ante) > 0 ? `<label>Maniglia o push
-          <select data-k="apertura">${opzApertura(m.comune.apertura)}</select></label>` : ''}
+          <select data-k="apertura">${opzApertura(m.comune.apertura)}</select></label>
+        ${(() => { const bassi = lay.moduli.filter((x) => antePushAuto(x.larghezza, x.hL, x.hR, 0, Number(x.ante), x.lato, x.apertura) > 0).map((x) => `M${x.indice + 1}`);
+          return bassi.length ? `<p class="mod-prossimo" style="margin-top:-4px">Push perché l'anta non arriva all'altezza della maniglia: ${bassi.join(', ')}. Per scegliere modulo per modulo usa «Moduli diversi».</p>` : ''; })()}` : ''}
         <label>Ripiani per modulo
           <input type="number" min="0" max="10" step="1" data-k="ripiani" value="${esc(m.comune.ripiani)}"></label>
         <div class="mod-prossimo">Ogni modulo: ${fmt(lay.moduli[0]?.larghezza ?? 0)} mm.</div>`;
@@ -96,6 +108,8 @@ function renderPannello() {
             <label>Fronte<select data-i="${i}" data-c="ante">${opzFronte(x.ante)}</select></label>
             ${Number(x.ante) === 1 ? `<label>Apertura<select data-i="${i}" data-c="lato"><option value="dx" ${x.lato !== 'sx' ? 'selected' : ''}>a destra</option><option value="sx" ${x.lato === 'sx' ? 'selected' : ''}>a sinistra</option></select></label>` : ''}
             ${Number(x.ante) > 0 ? `<label>Maniglia o push<select data-i="${i}" data-c="apertura">${opzApertura(x.apertura)}</select></label>` : ''}
+            ${(() => { const md = lay.moduli.find((q) => q.indice === i); const n = md ? antePushAuto(md.larghezza, md.hL, md.hR, 0, Number(md.ante), md.lato, md.apertura) : 0;
+              return n ? `<p class="mod-prossimo" style="margin:-4px 0 0">Qui push: l'anta non arriva all'altezza della maniglia.</p>` : ''; })()}
           </div>`).join('')}
         <button type="button" class="btn-ghost" id="mod-add" style="width:100%">+ Aggiungi modulo</button>
         <div class="mod-prossimo">Somma moduli ${fmt(somma)} mm su ${fmt(ctx.forma.larghezza)} mm del vano · liberi ${fmt(ctx.forma.larghezza - somma)} mm.</div>`;
@@ -158,9 +172,11 @@ function renderPannello() {
           <button type="button" class="btn-ghost" data-tutti-fronte="aperto">Tutti aperti</button>
         </div>
         <div class="mod-azioni">
-          <button type="button" class="btn-ghost" data-tutti-apertura="maniglia">Tutti con maniglia</button>
+          <button type="button" class="btn-ghost" data-tutti-apertura="auto">Tutti automatica</button>
+          <button type="button" class="btn-ghost" data-tutti-apertura="sempre">Tutti con maniglia</button>
           <button type="button" class="btn-ghost" data-tutti-apertura="push">Tutti push</button>
         </div>
+        <p class="mod-prossimo">Automatica: maniglia all'altezza standard, push sui cubi che non ci arrivano.</p>
       </section>` : ''}
       ${sel ? `
       <section>
@@ -173,7 +189,9 @@ function renderPannello() {
         </div>
         <label>Fronte<select data-s="fronte"><option value="aperto" ${sel.fronte !== 'anta' ? 'selected' : ''}>Aperto (a giorno)</option><option value="anta" ${sel.fronte === 'anta' ? 'selected' : ''}>Con anta</option></select></label>
         ${sel.fronte === 'anta' ? `<label>Apertura<select data-s="lato"><option value="dx" ${sel.lato !== 'sx' ? 'selected' : ''}>a destra</option><option value="sx" ${sel.lato === 'sx' ? 'selected' : ''}>a sinistra</option></select></label>
-        <label>Maniglia o push<select data-s="apertura">${opzApertura(sel.apertura)}</select></label>` : ''}
+        <label>Maniglia o push<select data-s="apertura">${opzApertura(sel.apertura)}</select></label>
+        ${(() => { const i = stato.cubi.indexOf(sel), e = layoutCubi(ctx.forma, stato, s).elementi[i];
+          return e && antePushAuto(sel.w, e.hL, e.hR, sel.y, 1, sel.lato, sel.apertura) ? '<p class="mod-prossimo" style="margin-top:-4px">Qui push: l\'anta non arriva all\'altezza della maniglia.</p>' : ''; })()}` : ''}
         <label>Ripiani<input type="number" min="0" max="10" step="1" data-s="ripiani" value="${esc(sel.ripiani || 0)}"></label>
         ${stato.cubiAdatta !== false && ctx.forma.pareti.some((p) => p.tipo === 'inclinata') ? `<label class="chk"><input type="checkbox" id="cubo-adatta" ${sel.adatta !== false ? 'checked' : ''}> Questo cubo sale fino all'inclinata</label>` : ''}
         <div class="mod-azioni">
@@ -236,7 +254,7 @@ function agganciaPannello() {
       if (diversi && !m.lista.length) {
         // Parte dalla divisione attuale, così non si riscrive tutto a mano
         const lay = layoutModuli(ctx.forma, { ...m, uguali: true }, sp());
-        m.lista = lay.moduli.map((x) => ({ larghezza: x.larghezza, ante: m.comune.ante, lato: m.comune.lato, apertura: aperturaDi(m.comune.apertura), ripiani: m.comune.ripiani }));
+        m.lista = lay.moduli.map((x) => ({ larghezza: x.larghezza, ante: m.comune.ante, lato: m.comune.lato, apertura: m.comune.apertura, ripiani: m.comune.ripiani }));
       }
       m.uguali = !diversi; tutto();
     }));
@@ -271,7 +289,7 @@ function agganciaPannello() {
     if (add) add.addEventListener('click', () => {
       const somma = m.lista.reduce((t, x) => t + (Number(x.larghezza) || 0), 0);
       const libero = Math.max(0, Math.floor((ctx.forma.larghezza - somma) / 10) * 10);
-      m.lista.push({ larghezza: Math.min(600, libero) || 600, ante: m.comune.ante, lato: m.comune.lato, apertura: aperturaDi(m.comune.apertura), ripiani: m.comune.ripiani });
+      m.lista.push({ larghezza: Math.min(600, libero) || 600, ante: m.comune.ante, lato: m.comune.lato, apertura: m.comune.apertura, ripiani: m.comune.ripiani });
       tutto();
     });
     return;
@@ -307,7 +325,7 @@ function agganciaPannello() {
     if (!(w >= 100 && h >= 100)) { alert('Misura del cubo non valida (minimo 100 mm).'); return; }
     const pos = primoPostoLibero(ctx.forma, stato.cubi, w, h);
     if (!pos) { alert('Nel vano non c\'è più posto libero per un cubo di questa misura.'); return; }
-    const c = { id: nuovoId(), x: pos.x, y: pos.y, w, h, fronte: n.fronte, lato: 'dx', apertura: aperturaDi(n.apertura), ripiani: Number(n.ripiani) || 0 };
+    const c = { id: nuovoId(), x: pos.x, y: pos.y, w, h, fronte: n.fronte, lato: 'dx', apertura: n.apertura, ripiani: Number(n.ripiani) || 0 };
     stato.cubi.push(c); stato.cuboSel = c.id; tutto();
   });
   const sel = stato.cubi.find((x) => x.id === stato.cuboSel);
@@ -362,11 +380,8 @@ function renderDisegno() {
 
   // Un "mobile" generico: contorno (anche inclinato), fronte, ripiani
   const man = manigliaModulari(stato);
-  // maniglia: alla stessa altezza e lunga come nel 3D e in distinta (push: niente maniglia)
-  const segnoManiglia = (xa, xb, manSx, yBasso, yAlto) => {
-    const p = manigliaSuAnta(man, { xa, xb, manSx }, yBasso, yAlto);
-    return `<line x1="${p.x}" y1="${Y(p.y - p.L / 2)}" x2="${p.x}" y2="${Y(p.y + p.L / 2)}" stroke="var(--mod-acc)" stroke-width="${sw * 2.4}" stroke-linecap="round"/>`;
-  };
+  // ante e maniglie come nel 3D e in distinta (stessa altezza; push: niente maniglia)
+  const segnoManiglia = (p) => `<line x1="${p.x}" y1="${Y(p.y - p.L / 2)}" x2="${p.x}" y2="${Y(p.y + p.L / 2)}" stroke="var(--mod-acc)" stroke-width="${sw * 2.4}" stroke-linecap="round"/>`;
   const disegnaMobile = (x0, x1, hL, hR, ante, lato, ripiani, apertura, extra = '') => {
     const L = x1 - x0;
     const top = (x) => hL + ((hR - hL) * (x - x0)) / L;
@@ -378,10 +393,10 @@ function renderDisegno() {
       g += `<line x1="${x0 + s.carcassa}" y1="${Y(yk)}" x2="${x1 - s.carcassa}" y2="${Y(yk)}" stroke="var(--testo-dim)" stroke-width="${sw * (ante > 0 ? 0.8 : 1.4)}" ${ante > 0 ? `stroke-dasharray="${sw * 4} ${sw * 3}"` : ''}/>`;
     }
     if (ante > 0) {
-      for (const d of anteDelModulo(L, ante, lato)) {
+      for (const d of anteConManiglie(L, hL, hR, 0, ante, lato, apertura, man)) {
         const xa = x0 + d.xa, xb = x0 + d.xb;
         g += `<path d="M${xa} ${Y(2)} L${xb} ${Y(2)} L${xb} ${Y(top(xb) - 2)} L${xa} ${Y(top(xa) - 2)} Z" fill="none" stroke="var(--mod-acc)" stroke-width="${sw}"/>`;
-        if (aperturaDi(apertura) !== 'push') g += segnoManiglia(xa, xb, d.manSx, 2, (x) => top(x) - 2);
+        if (d.maniglia) g += segnoManiglia({ ...d.maniglia, x: x0 + d.maniglia.x });
       }
     }
     return g;
@@ -433,7 +448,7 @@ function renderDisegno() {
       const ok = posizioneValida(r, stato.cubi, c);
       const sel = c.id === stato.cuboSel;
       html += `<g data-cubo="${c.id}" class="cubo ${ok ? '' : 'cubo-errato'} ${sel ? 'cubo-sel' : ''}" style="cursor:grab">
-        ${cuboHtml(c, lc.elementi[i], ok, sel, s, fmt, segnoManiglia)}
+        ${cuboHtml(c, lc.elementi[i], ok, sel, s, fmt, segnoManiglia, man)}
       </g>`;
     });
     if (!stato.cubi.length) {
@@ -445,7 +460,7 @@ function renderDisegno() {
 }
 
 /** Disegno di un cubo (base a c.y); se adattato il top segue l'inclinata. */
-function cuboHtml(c, e, ok, sel, s, fmt, segnoManiglia) {
+function cuboHtml(c, e, ok, sel, s, fmt, segnoManiglia, man) {
   const { H, fs, sw } = geo;
   const Y = (y) => H - y;
   const x0 = c.x, x1 = c.x + c.w, y0 = c.y;
@@ -465,7 +480,8 @@ function cuboHtml(c, e, ok, sel, s, fmt, segnoManiglia) {
   }
   if (anta) {
     g += `<path d="${pth([[x0 + 2, y0 + 2], [x1 - 2, y0 + 2], [x1 - 2, top(x1 - 2) - 2], [x0 + 2, top(x0 + 2) - 2]])}" fill="none" stroke="var(--mod-acc)" stroke-width="${sw}"/>`;
-    if (aperturaDi(c.apertura) !== 'push') g += segnoManiglia(x0 + 2, x1 - 2, c.lato === 'sx', y0 + 2, (x) => top(x) - 2);
+    const d = anteConManiglie(c.w, e.hL, e.hR, y0, 1, c.lato, c.apertura, man)[0];
+    if (d && d.maniglia) g += segnoManiglia({ ...d.maniglia, x: x0 + d.maniglia.x });
   }
   const fsT = Math.min(fs, c.w / 6);
   g += `<text x="${(x0 + x1) / 2}" y="${Y(y0 + c.h / 2)}" font-size="${fsT}" text-anchor="middle" dominant-baseline="central" fill="var(--testo)" pointer-events="none">${fmt(c.w)}×${fmt(c.h)}</text>`;
@@ -610,7 +626,7 @@ export async function apriDistinta(c) {
   if (c) ctx = c;
   if (!ctx) return;
   if (!nomiFiniture) {
-    try { const { MATERIALI } = await import('../materiali.js?v=20261126l'); nomiFiniture = new Map(MATERIALI.map((m) => [m.id, m.nome])); }
+    try { const { MATERIALI } = await import('../materiali.js?v=20261126m'); nomiFiniture = new Map(MATERIALI.map((m) => [m.id, m.nome])); }
     catch { nomiFiniture = new Map(); }
   }
   const { stato, esc, fmt } = ctx;

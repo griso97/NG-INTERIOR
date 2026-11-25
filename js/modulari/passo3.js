@@ -1,12 +1,12 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
-import { materialiPer, sfondoSwatch } from '../materiali.js?v=20261126l';
-import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261126l';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261126l';
-import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT, manigliaModulari } from './calcoli.js?v=20261126l';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261126l';
-import { apriDistinta } from './passo2.js?v=20261126l';
+import { materialiPer, sfondoSwatch } from '../materiali.js?v=20261126m';
+import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261126m';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261126m';
+import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT, manigliaModulari } from './calcoli.js?v=20261126m';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261126m';
+import { apriDistinta } from './passo2.js?v=20261126m';
 
 let FINITURE = materialiPer('legno');          // dal catalogo (si rilegge a ogni pannello)
 export { MATERIALI_DEFAULT };
@@ -177,7 +177,7 @@ function renderPannello() {
     ev.currentTarget.classList.toggle('attivo', anteSonoAperte());
   });
   P.querySelector('#p3-foto-reale').addEventListener('click', async () => {
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261126l');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261126m');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaModulari(p), tela3d: ctx.canvas, nome: 'mobile' });
   });
   P.querySelector('#p3-foto').addEventListener('click', () => {
@@ -224,13 +224,10 @@ function htmlManiglie() {
   const { stato, esc } = ctx;
   const lista = materialiPer('maniglie');
   const man = manigliaModulari(stato), sel = man.def.id, col = man.colore || '';
-  const nAnte = stato.modalita === 'cubi' ? (stato.cubi || []).filter((c) => c.fronte === 'anta').length : elementi().filter((e) => e.ante > 0).length;
-  const nPush = stato.modalita === 'cubi' ? (stato.cubi || []).filter((c) => c.fronte === 'anta' && c.apertura === 'push').length
-    : elementi().filter((e) => e.ante > 0 && e.apertura === 'push').length;
   return `
     <section data-tendina="maniglie">
       <h3>Maniglie · ${esc(man.def.nome)}</h3>
-      <p class="mod-prossimo" style="margin-top:0">Tutte alla stessa altezza: ${Math.round(man.hStd / 10)} cm da terra (si cambia in Impostazioni → Parametri → Mobili modulari). Maniglia o push si sceglie per ogni modulo al passo 2${nPush ? ` (ora ${nPush} su ${nAnte} con il push)` : ''}.</p>
+      <p class="mod-prossimo" style="margin-top:0">Tutte alla stessa altezza: ${Math.round(man.hStd / 10)} cm da terra (si cambia in Impostazioni → Parametri → Mobili modulari). Le ante che non ci arrivano sono push; al passo 2 si può cambiare modulo per modulo.</p>
       ${lista.length ? `<div class="palette-colori">
         ${lista.map((mt) => `<button type="button" class="swatch ${mt.id === sel ? 'sel' : ''}" data-man="${esc(mt.id)}" title="${esc(mt.nome)}" aria-label="${esc(mt.nome)}"
           style="background:${sfondoSwatch(mt)}"></button>`).join('')}
