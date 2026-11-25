@@ -14,6 +14,9 @@
 // Misure in mm. Coordinate: x a destra, y in alto, origine angolo basso-sx.
 // =============================================================================
 
+import { parametri } from '../parametri.js?v=20261126l';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126l';
+
 export const SPESSORI_DEFAULT = { carcassa: 18, schiena: 10, ante: 18 };
 export const H_MINIMA_MODULO = 250;
 // Pezzi da tagliare INCLINATI: si tagliano più lunghi e si rifilano in opera.
@@ -123,7 +126,7 @@ export function layoutModuli(forma, cfg, spessori = SPESSORI_DEFAULT) {
       avvisi.push(`Modulo ${i + 1} passa sotto un cambio di pendenza del soffitto (a ${r0(spigolo)} mm da sinistra): il top segue la linea retta tra i due lati. Per sfruttare tutto lo spazio metti una divisione lì.`);
     }
     moduli.push({ indice: i, x0, x1, larghezza: L, hL, hR,
-      ante: d.ante ?? 1, lato: d.lato || 'dx', ripiani: Math.max(0, Math.round(d.ripiani ?? 1)), spigolo });
+      ante: d.ante ?? 1, lato: d.lato || 'dx', apertura: aperturaDi(d.apertura), ripiani: Math.max(0, Math.round(d.ripiani ?? 1)), spigolo });
   });
   // Spazio rimasto verso il lato basso: lo chiude un modulo finale
   // (triangolare se il soffitto scende quasi a terra).
@@ -133,7 +136,7 @@ export function layoutModuli(forma, cfg, spessori = SPESSORI_DEFAULT) {
   if (resto > 2 * sC + 20 && fronte !== 'no') {
     const xa = auto.daSinistra ? pos : 0, xb = auto.daSinistra ? W : resto;
     chiusura = geometriaChiusura({ x0: xa, x1: xb, hL: altezzaSoffitto(forma.punti, xa), hR: altezzaSoffitto(forma.punti, xb),
-      daSinistra: auto.daSinistra, fronte }, spessori);
+      daSinistra: auto.daSinistra, fronte, apertura: aperturaDi(cfg.chiusuraApertura) }, spessori);
   } else if (resto > 1 && fronte === 'no') {
     avvisi.push(`Restano ${r0(resto)} mm liberi dal lato basso: puoi chiuderli con il modulo finale (triangolare).`);
   }
@@ -236,12 +239,75 @@ function fronteInclinato(larghezza, altezza, a, e, triangolo, bassa = 0) {
 
 /** Cerniere per anta dall'altezza (stessa regola degli armadi: 2 fino a 90 cm, 3 fino a 160, 4 fino a 200, 5 fino a 240, poi 6). */
 const cerniereAnta = (h) => (h <= 900 ? 2 : h <= 1600 ? 3 : h <= 2000 ? 4 : h <= 2400 ? 5 : 6);
-/** Maniglia disegnata nel 3D su ogni anta: barra lunga il 35% del lato basso dell'anta, al massimo 220 mm. */
-export const lunghezzaManigliaModulare = (hLatoBasso) => Math.round(Math.min(220, hLatoBasso * 0.35));
+
+// ---------------------------------------------------------------------------
+// MANIGLIE: le stesse di cucina e armadi (catalogo, anche quelle aggiunte in
+// Impostazioni), una per tutto il mobile: stato.maniglia = { id, colore }.
+// Ogni modulo / cubo con le ante sceglie «maniglia» o «push» (si preme e si apre).
+// Tutte alla STESSA ALTEZZA da terra (⚙ Parametri → Mobili modulari, centro della
+// maniglia); se l'anta non ci arriva (o parte più in alto), il più vicino possibile,
+// sempre 4 cm dentro l'anta. Stessa regola per 3D, disegno e distinta.
+// ---------------------------------------------------------------------------
+const MANIGLIA_STANDARD = { id: 'maniglia-standard', nome: 'Maniglia standard (barra)', categoria: 'maniglia' };
+/** 'push' o 'maniglia' (di partenza la maniglia, come prima). */
+export const aperturaDi = (v) => (v === 'push' ? 'push' : 'maniglia');
+/** Maniglia scelta per il mobile: { def (catalogo), colore (id finitura o null = il suo), hStd (mm da terra) }. */
+export function manigliaModulari(stato) {
+  const sc = (stato && stato.maniglia) || {};
+  const cat = typeof window !== 'undefined' ? (window.NG_MATERIALI || []) : [];
+  const trova = (id) => cat.find((m) => m.id === id && m.categoria === 'maniglia');
+  const def = trova(sc.id || MANIGLIA_STANDARD.id) || trova(MANIGLIA_STANDARD.id) || MANIGLIA_STANDARD;
+  return { def, colore: sc.colore || null, hStd: parametri().modulari.altezzaManiglia };
+}
+/** Profilo sul bordo (a J o con la L dietro): l'anta è più stretta del suo spessore, dal lato della maniglia. */
+export function riduzioneManigliaModulari(def) {
+  if (!def || !['profilo', 'bordol'].includes(def.forma)) return 0;
+  return Number(def.spessoreJ) > 0 ? Number(def.spessoreJ) : parametri().manigliaJ.spessore;
+}
+const nomeRiduzione = (def) => (def && def.forma === 'bordol' ? 'maniglia sul bordo' : 'maniglia a J');
+/** Distanza della maniglia dal bordo che apre (come negli armadi). */
+const bordoManiglia = (def) => (def.forma === 'bordol' ? 0 : ['profilo', 'bordo'].includes(def.forma) ? 17 : 40);
+/** Lunghezza su un'anta alta h: quella del catalogo (la standard 30 cm), mai più lunga dell'anta − 8 cm. */
+export function lunghezzaManigliaModulare(def, h) {
+  const Lc = def.texture && def.lunghezzaMm ? def.lunghezzaMm : 300;
+  return Math.round(Math.max(40, Math.min(Lc, h - 80)));
+}
+/** Nome in distinta: «Maniglia standard (barra) · Nero opaco · 300 mm». */
+export function nomeManigliaModulari(man, L) {
+  const col = man.colore ? nomeFinituraManiglia(man.colore) : '';
+  return `${/^maniglia/i.test(man.def.nome || '') ? '' : 'Maniglia '}${man.def.nome}${col ? ` · ${col}` : ''} · ${L} mm`;
+}
+/**
+ * ANTE di un modulo largo L (x da 0): N ante con 2 mm di fuga; maniglia a sinistra (manSx) o a
+ * destra: 1 anta → dal lato scelto, 2 ante → verso il centro. rid = anta più stretta dal lato della maniglia.
+ */
+export function anteDelModulo(L, N, lato, rid = 0) {
+  const la = (L - (N + 1) * 2) / N, out = [];
+  for (let i = 0; i < N; i++) {
+    const manSx = N === 1 ? lato === 'sx' : i === 1;
+    let xa = 2 + i * (la + 2), xb = xa + la;
+    if (manSx) xa += rid; else xb -= rid;
+    out.push({ xa, xb, manSx });
+  }
+  return out;
+}
+/**
+ * Dove sta la maniglia su un'anta: d = { xa, xb, manSx } (x vere), yBasso = sotto dell'anta,
+ * yAlto(x) = sopra dell'anta in x (inclinato sotto la scala). Ritorna { x, y (centro), L }.
+ */
+export function manigliaSuAnta(man, d, yBasso, yAlto) {
+  const dB = bordoManiglia(man.def);
+  const x = d.manSx ? d.xa + dB : d.xb - dB;
+  const top = yAlto(x);
+  const L = lunghezzaManigliaModulare(man.def, top - yBasso);
+  const lo = yBasso + 40 + L / 2, hi = top - 40 - L / 2;
+  const y = hi < lo ? (yBasso + top) / 2 : Math.max(lo, Math.min(hi, man.hStd));
+  return { x, y, L };
+}
 const accessorio = (modulo, nome, quantita, extra = {}) => ({ modulo, nome, larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita, ...extra });
 
 /** Pezzi del modulo di chiusura. */
-export function pezziChiusura(ch, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFAULT) {
+export function pezziChiusura(ch, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFAULT, man = manigliaModulari(null)) {
   const a = ch.angolo;
   if (ch.fronte === 'fisso') {
     const pn = ch.pannello;
@@ -254,7 +320,7 @@ export function pezziChiusura(ch, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEF
   const ante = ch.fronte === 'anta' ? 1 : 0;
   const lato = ch.daSinistra ? 'dx' : 'sx';      // cerniere dal lato alto
   if (!ch.triangolare) {
-    return pezziModulo({ nome: 'Chiusura in fondo', larghezza: ch.larghezza, hL: ch.hL, hR: ch.hR, ante, lato, ripiani: 0 }, P, sp, abb);
+    return pezziModulo({ nome: 'Chiusura in fondo', larghezza: ch.larghezza, hL: ch.hL, hR: ch.hR, ante, lato, apertura: ch.apertura, ripiani: 0 }, P, sp, abb, man);
   }
   const sC = sp.carcassa, sS = sp.schiena, sA = sp.ante;
   const Pc = P - sA - sS;
@@ -277,11 +343,12 @@ export function pezziChiusura(ch, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEF
     const lato = ch.daSinistra ? 'sinistra' : 'destra';
     add(`Anta ${tri ? 'triangolare' : 'a trapezio'} (apertura a pressione) · cerniere sul lato alto (${lato})`, f.larghezza, f.altezza, sA, 'ante', { note: f.note, parte: 'anta', abbondanza: abb.ante, angolo: a });
     pz.push(accessorio('Chiusura triangolare', 'Cerniere per anta', cerniereAnta(m.anta.altezza)));
-    pz.push(accessorio('Chiusura triangolare', 'Apertura a pressione (push)', 1));
+    pz.push(accessorio('Chiusura triangolare', 'Push pull', 1));
+    pz.push(accessorio('Chiusura triangolare', 'Push pull · base', 1));
   }
   return pz;
 }
-export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFAULT) {
+export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFAULT, man = manigliaModulari(null)) {
   const sC = sp.carcassa, sS = sp.schiena, sA = sp.ante;
   const Pc = P - sA - sS;
   const L = mod.larghezza, hL = mod.hL, hR = mod.hR;
@@ -320,36 +387,46 @@ export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFA
 
   const N = Math.max(0, Math.round(mod.ante || 0));
   if (N > 0) {
-    const la = (L - (N + 1) * 2) / N;
+    // con la maniglia a profilo sul bordo l'anta è più stretta dal lato della maniglia (come nel 3D)
+    const push = aperturaDi(mod.apertura) === 'push';
+    const rid = push ? 0 : riduzioneManigliaModulari(man.def);
+    const suff = rid ? ` · ${nomeRiduzione(man.def)} (−${rid} mm)` : '';
     // Altezza dell'anta = altezza del modulo in quel punto − 4 (come negli armadi)
     const hA = (x) => (hL + ((hR - hL) * x) / L) - 4;
     const conta = new Map(), maniglie = new Map();
     let cerniere = 0;
-    for (let i = 0; i < N; i++) {
-      const xa = 2 + i * (la + 2), xb = xa + la;
+    for (const d of anteDelModulo(L, N, mod.lato, rid)) {
+      const { xa, xb } = d, la = xb - xa;
       const a = hA(xa), b = hA(xb);
       const alta = Math.max(a, b), bassa = Math.min(a, b);
-      // cerniere come nel 3D: 1 anta → dal lato opposto alla maniglia; più ante → la 2ª a destra, le altre a sinistra
-      const cerDx = N === 1 ? mod.lato === 'sx' : i === 1;
+      // cerniere come nel 3D: dal lato opposto alla maniglia (1 anta → lato scelto; 2 ante → maniglie al centro)
+      const cerDx = d.manSx;
       const latoCer = cerDx ? 'destra' : 'sinistra';
-      const nome = !inclinato
+      const nome = (!inclinato
         ? (N === 1 ? `Anta (apertura ${mod.lato === 'sx' ? 'sx' : 'dx'})` : `Anta · cerniere a ${latoCer}`)
-        : `Anta trapezio · cerniere a ${latoCer} (lato ${cerDx === (hR > hL) ? 'alto' : 'basso'})`;
+        : `Anta trapezio · cerniere a ${latoCer} (lato ${cerDx === (hR > hL) ? 'alto' : 'basso'})`) + suff;
       cerniere += cerniereAnta(alta);
-      const lm = lunghezzaManigliaModulare(bassa + 4);
-      maniglie.set(lm, (maniglie.get(lm) || 0) + 1);
+      if (!push) {
+        // la stessa maniglia del 3D: lunga quanto ci sta nell'anta in quel punto
+        const lm = manigliaSuAnta(man, d, 2, (x) => 2 + hA(x)).L;
+        maniglie.set(lm, (maniglie.get(lm) || 0) + 1);
+      }
       const f = inclinato ? fronteInclinato(la, alta, ang, abb.ante, false, bassa) : null;
-      const k = `${nome}|${r0(alta)}|${f ? f.note : ''}`;
-      if (!conta.has(k)) conta.set(k, { nome, alta, f, q: 0 });
+      const k = `${nome}|${r0(la)}|${r0(alta)}|${f ? f.note : ''}`;
+      if (!conta.has(k)) conta.set(k, { nome, la, alta, f, q: 0 });
       conta.get(k).q++;
     }
-    for (const { nome, alta, f, q } of conta.values()) {
+    for (const { nome, la, alta, f, q } of conta.values()) {
       if (f) add(nome, f.larghezza, f.altezza, sA, 'ante', q, { note: f.note, parte: 'anta', abbondanza: abb.ante, angolo: ang });
       else add(nome, la, alta, sA, 'ante', q);
     }
-    // ferramenta che si vede nel 3D: cerniere e maniglie
+    // ferramenta che si vede nel 3D: cerniere e maniglie (o il push: un push pull e la sua base per anta)
     pz.push(accessorio(mod.nome, 'Cerniere per anta', cerniere));
-    for (const [lm, q] of maniglie) pz.push(accessorio(mod.nome, `Maniglia a barra · ${lm} mm`, q));
+    if (push) {
+      pz.push(accessorio(mod.nome, 'Push pull', N));
+      pz.push(accessorio(mod.nome, 'Push pull · base', N));
+    }
+    for (const [lm, q] of maniglie) pz.push(accessorio(mod.nome, nomeManigliaModulari(man, lm), q));
   }
   return pz;
 }
@@ -437,7 +514,7 @@ export function layoutCubi(forma, stato, sp = SPESSORI_DEFAULT) {
       const hA = altezzaSoffitto(forma.punti, xa), hB = altezzaSoffitto(forma.punti, xb);
       const hFine = daSinistra ? hB : hA;
       if (libero && xb - xa > 2 * sp.carcassa + 20 && hFine < H_MINIMA_MODULO && Math.abs(hA - hB) >= 1) {
-        chiusura = geometriaChiusura({ x0: xa, x1: xb, hL: hA, hR: hB, daSinistra, fronte }, sp);
+        chiusura = geometriaChiusura({ x0: xa, x1: xb, hL: hA, hR: hB, daSinistra, fronte, apertura: aperturaDi(stato.cubiChiusuraApertura) }, sp);
       }
     }
   }
@@ -465,7 +542,7 @@ export function distintaModulari(forma, stato) {
     cubi.forEach((c, i) => {
       if (!posizioneValida(forma, cubi, c)) errori.push(`Cubo ${i + 1}: è fuori dal vano o sopra un altro cubo.`);
       const e = lc.elementi[i];
-      elementi.push({ chiave: `c:${c.id}`, nome: `Cubo ${i + 1}${e.adattato ? ' (inclinato)' : ''}`, larghezza: c.w, hL: e.hL, hR: e.hR, ante: c.fronte === 'anta' ? 1 : 0, lato: c.lato || 'dx', ripiani: c.ripiani || 0 });
+      elementi.push({ chiave: `c:${c.id}`, nome: `Cubo ${i + 1}${e.adattato ? ' (inclinato)' : ''}`, larghezza: c.w, hL: e.hL, hR: e.hR, ante: c.fronte === 'anta' ? 1 : 0, lato: c.lato || 'dx', apertura: aperturaDi(c.apertura), ripiani: c.ripiani || 0 });
     });
     chiusura = lc.chiusura;
   } else {
@@ -477,8 +554,9 @@ export function distintaModulari(forma, stato) {
   // ogni pezzo con la sua finitura (id): ante → finitura ante, il resto → struttura
   const conFinitura = (pz, chiave) => pz.map((p) => (p.materiale === 'accessorio' ? p : { ...p, finitura: finitureDi(stato.materiali, chiave)[p.materiale === 'ante' ? 'ante' : 'struttura'] }));
   const abb = abbondanzaDi(stato);
-  for (const e of elementi) pezzi.push(...conFinitura(pezziModulo(e, P, sp, abb), e.chiave));
-  if (chiusura) pezzi.push(...conFinitura(pezziChiusura(chiusura, P, sp, abb), 'chiusura'));
+  const man = manigliaModulari(stato);
+  for (const e of elementi) pezzi.push(...conFinitura(pezziModulo(e, P, sp, abb, man), e.chiave));
+  if (chiusura) pezzi.push(...conFinitura(pezziChiusura(chiusura, P, sp, abb, man), 'chiusura'));
   let mq = { carcassa: 0, schiena: 0, ante: 0 };
   let totale = 0;
   for (const p of pezzi) { if (!(p.materiale in mq)) continue; mq[p.materiale] += (p.larghezza * p.altezza * p.quantita) / 1e6; totale += p.quantita; }

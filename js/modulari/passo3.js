@@ -1,11 +1,12 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
-import { materialiPer } from '../materiali.js?v=20261126k';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261126k';
-import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT } from './calcoli.js?v=20261126k';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261126k';
-import { apriDistinta } from './passo2.js?v=20261126k';
+import { materialiPer, sfondoSwatch } from '../materiali.js?v=20261126l';
+import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261126l';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261126l';
+import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT, manigliaModulari } from './calcoli.js?v=20261126l';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261126l';
+import { apriDistinta } from './passo2.js?v=20261126l';
 
 let FINITURE = materialiPer('legno');          // dal catalogo (si rilegge a ogni pannello)
 export { MATERIALI_DEFAULT };
@@ -39,11 +40,11 @@ function elementi() {
   if (stato.modalita === 'cubi') {
     const lc = layoutCubi(forma, stato, spessori());
     return (stato.cubi || []).map((c, i) => ({ chiave: `c:${c.id}`, nome: `Cubo ${i + 1}`, x0: c.x, y0: c.y, L: c.w,
-      hL: lc.elementi[i].hL, hR: lc.elementi[i].hR, ante: c.fronte === 'anta' ? 1 : 0, lato: c.lato, ripiani: c.ripiani || 0,
+      hL: lc.elementi[i].hL, hR: lc.elementi[i].hR, ante: c.fronte === 'anta' ? 1 : 0, lato: c.lato, apertura: c.apertura, ripiani: c.ripiani || 0,
       mat: finitureDi(stato.materiali, `c:${c.id}`) }));
   }
   return layoutModuli(forma, stato.moduli, spessori()).moduli.map((m) => ({ chiave: `m${m.indice}`, nome: `M${m.indice + 1}`,
-    x0: m.x0, y0: 0, L: m.larghezza, hL: m.hL, hR: m.hR, ante: Number(m.ante) || 0, lato: m.lato, ripiani: m.ripiani || 0,
+    x0: m.x0, y0: 0, L: m.larghezza, hL: m.hL, hR: m.hR, ante: Number(m.ante) || 0, lato: m.lato, apertura: m.apertura, ripiani: m.ripiani || 0,
     mat: finitureDi(stato.materiali, `m${m.indice}`) }));
 }
 /** Tutti i pezzi a cui si può dare una finitura (per la scelta "diversi"). */
@@ -103,6 +104,7 @@ function disegna(reinquadra) {
     materiali: stato.materiali,
     conGradini: conScala(),
     chiusura: chiusura(),
+    maniglia: manigliaModulari(stato),
     reinquadra,
   });
 }
@@ -164,7 +166,8 @@ function renderPannello() {
         <button type="button" class="btn-ghost ${stato.cubi.every((c) => c.fronte !== 'anta') ? 'attivo' : ''}" data-tutti-fronte="aperto">Tutti aperti</button>
       </div>` : ''}
       ${palette('ante', cur.ante)}
-    </section>`;
+    </section>
+    ${htmlManiglie()}`;
   evidenziaModulo(diversi ? selMod : null);      // contorno oro sul modulo scelto
   const P = ctx.pannello;
   P.querySelectorAll('[data-vista]').forEach((b) => b.addEventListener('click', () => inquadra(b.dataset.vista)));
@@ -174,7 +177,7 @@ function renderPannello() {
     ev.currentTarget.classList.toggle('attivo', anteSonoAperte());
   });
   P.querySelector('#p3-foto-reale').addEventListener('click', async () => {
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261126k');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261126l');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaModulari(p), tela3d: ctx.canvas, nome: 'mobile' });
   });
   P.querySelector('#p3-foto').addEventListener('click', () => {
@@ -199,12 +202,47 @@ function renderPannello() {
     M.struttura = cur.struttura; M.ante = cur.ante; M.per = {};
     ctx.salva(); disegna(false); renderPannello();
   });
+  P.querySelectorAll('.swatch[data-man]').forEach((b) => b.addEventListener('click', () => {
+    stato.maniglia = { ...(stato.maniglia || {}), id: b.dataset.man };
+    ctx.salva(); disegna(false); renderPannello();
+  }));
+  P.querySelectorAll('[data-mancol]').forEach((b) => b.addEventListener('click', () => {
+    stato.maniglia = { ...(stato.maniglia || {}), colore: b.dataset.mancol || null };
+    ctx.salva(); disegna(false); renderPannello();
+  }));
   P.querySelectorAll('.swatch[data-mat]').forEach((b) => b.addEventListener('click', () => {
     const parte = b.dataset.parte, id = b.dataset.mat;
     if (diversi) { M.per ||= {}; M.per[selMod] = { ...(M.per[selMod] || {}), [parte]: id }; }
     else M[parte] = id;
     ctx.salva(); disegna(false); renderPannello();
   }));
+}
+
+// MANIGLIE (le stesse di cucina e armadi: anche quelle aggiunte in Impostazioni) e il loro colore;
+// maniglia o push si sceglie per ogni modulo al passo 2
+function htmlManiglie() {
+  const { stato, esc } = ctx;
+  const lista = materialiPer('maniglie');
+  const man = manigliaModulari(stato), sel = man.def.id, col = man.colore || '';
+  const nAnte = stato.modalita === 'cubi' ? (stato.cubi || []).filter((c) => c.fronte === 'anta').length : elementi().filter((e) => e.ante > 0).length;
+  const nPush = stato.modalita === 'cubi' ? (stato.cubi || []).filter((c) => c.fronte === 'anta' && c.apertura === 'push').length
+    : elementi().filter((e) => e.ante > 0 && e.apertura === 'push').length;
+  return `
+    <section data-tendina="maniglie">
+      <h3>Maniglie · ${esc(man.def.nome)}</h3>
+      <p class="mod-prossimo" style="margin-top:0">Tutte alla stessa altezza: ${Math.round(man.hStd / 10)} cm da terra (si cambia in Impostazioni → Parametri → Mobili modulari). Maniglia o push si sceglie per ogni modulo al passo 2${nPush ? ` (ora ${nPush} su ${nAnte} con il push)` : ''}.</p>
+      ${lista.length ? `<div class="palette-colori">
+        ${lista.map((mt) => `<button type="button" class="swatch ${mt.id === sel ? 'sel' : ''}" data-man="${esc(mt.id)}" title="${esc(mt.nome)}" aria-label="${esc(mt.nome)}"
+          style="background:${sfondoSwatch(mt)}"></button>`).join('')}
+      </div>` : ''}
+      <div class="mod-prossimo" style="margin:10px 0 6px">Colore</div>
+      <div class="palette-zoccolo">
+        <button type="button" class="swatch-zocc ${!col ? 'sel' : ''}" data-mancol="" title="Il suo colore" style="background:repeating-linear-gradient(135deg,#d9d9d9 0 6px,#8a8a8a 6px 12px)"></button>
+          <span class="et-zocc">Il suo colore</span>
+        ${FINITURE_MANIGLIA.map((f) => `<button type="button" class="swatch-zocc ${col === f.id ? 'sel' : ''}" data-mancol="${f.id}" title="${f.nome}" style="background:${f.css}"></button>
+          <span class="et-zocc">${f.nome}</span>`).join('')}
+      </div>
+    </section>`;
 }
 
 function renderRiepilogo() {

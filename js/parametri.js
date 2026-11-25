@@ -113,7 +113,8 @@ export const PARAMETRI_DEFAULT = Object.freeze({
   },
   // MOBILI MODULARI (sottoscala, nicchie, mansarde): valori di partenza di ogni progetto nuovo
   //   spessori di struttura, schiena e ante · abbondanza sul lato inclinato (si rifila in opera)
-  modulari: { carcassa: 18, schiena: 10, ante: 18, abbFianchi: 20, abbTop: 40, abbAnte: 20 },
+  //   altezzaManiglia: centro delle maniglie da terra, uguale per tutte le ante (come negli armadi)
+  modulari: { carcassa: 18, schiena: 10, ante: 18, abbFianchi: 20, abbTop: 40, abbAnte: 20, altezzaManiglia: 1050 },
   // IMPOSTAZIONI SALTATE nella configurazione guidata («lo imposto dopo»): restano a 0 e la distinta
   // avvisa che mancano. Si tolgono da qui appena il falegname le imposta in ⚙ Parametri.
   daImpostare: [],
@@ -276,6 +277,7 @@ function completa(s) {
     modulari: (() => { const m = (s && s.modulari) || {}, d = D.modulari; return {
       carcassa: Math.max(1, num(m.carcassa, d.carcassa)), schiena: Math.max(1, num(m.schiena, d.schiena)), ante: Math.max(1, num(m.ante, d.ante)),
       abbFianchi: Math.max(0, num(m.abbFianchi, d.abbFianchi)), abbTop: Math.max(0, num(m.abbTop, d.abbTop)), abbAnte: Math.max(0, num(m.abbAnte, d.abbAnte)),
+      altezzaManiglia: Math.max(0, num(m.altezzaManiglia, d.altezzaManiglia)),
     }; })(),
     cassettieraArmadio: (() => { const s0 = (s && s.cassettieraArmadio) || {}, out = {};
       for (const t of ['battente', 'scorrevole']) {

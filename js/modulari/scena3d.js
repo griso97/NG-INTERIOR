@@ -9,11 +9,12 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261126k';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261126k';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261126k';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261126k';
-import { lunghezzaManigliaModulare } from './calcoli.js?v=20261126k';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261126l';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261126l';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261126l';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261126l';
+import { anteDelModulo, manigliaSuAnta, riduzioneManigliaModulari, aperturaDi, manigliaModulari } from './calcoli.js?v=20261126l';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261126l';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -37,7 +38,9 @@ const matSel = new THREE.MeshBasicMaterial({ color: 0xd9ad3c });
 
 const matMuro = new THREE.MeshStandardMaterial({ color: 0xe9e5dc, roughness: 0.95 });
 const matMuroFondo = new THREE.MeshStandardMaterial({ color: 0xdedad1, roughness: 0.95 });
-const matMetallo = new THREE.MeshStandardMaterial({ color: 0xc9cbcf, roughness: 0.3, metalness: 0.85, envMapIntensity: 0.8 });
+// MANIGLIA del mobile (catalogo, come cucina e armadi): { def, colore, hStd } — da opz.maniglia
+let manAttuale = manigliaModulari(null);
+let ultimoAggiorna = null;          // per ridisegnare quando la maniglia dalle foto è pronta
 
 function creaAmbiente(rnd) {
   const c = document.createElement('canvas'); c.width = 32; c.height = 128;
@@ -178,14 +181,15 @@ function mobile(e, P, sp, matS, matA) {
     const yk = y0 + sC + (k * (hBasso - 2 * sC)) / (n + 1);
     prisma(rett(x0 + sC, yk - sC / 2, x1 - sC, yk + sC / 2), zC, Pc, matS);   // profondi come in distinta
   }
-  // Ante (trapezi), 2 mm di fuga come in distinta, + maniglia
+  // Ante (trapezi), 2 mm di fuga come in distinta, + maniglia del catalogo (o push: niente maniglia)
   const N = Math.max(0, Math.round(e.ante || 0));
   if (N > 0) {
-    const la = (L - (N + 1) * 2) / N;
-    for (let i = 0; i < N; i++) {
-      const xa = x0 + 2 + i * (la + 2), xb = xa + la;
+    const push = aperturaDi(e.apertura) === 'push';
+    const rid = push ? 0 : riduzioneManigliaModulari(manAttuale.def);   // profilo sul bordo: anta più stretta
+    for (const d of anteDelModulo(L, N, e.lato, rid)) {
+      const xa = x0 + d.xa, xb = x0 + d.xb;
       // maniglia a sinistra (sx) → cerniera a destra, e viceversa
-      const sx = N === 1 ? e.lato === 'sx' : i === 1;
+      const sx = d.manSx;
       const xh = sx ? xb : xa;                       // asse del cardine
       const zh = zC + Pc;                            // retro dell'anta
       const g = new THREE.Group();
@@ -194,14 +198,37 @@ function mobile(e, P, sp, matS, matA) {
       cardini.push({ g, verso: sx ? 1 : -1 });
       const rel = (pts) => pts.map(([x, y]) => [x - xh, y]);
       prisma(rel([[xa, y0 + 2], [xb, y0 + 2], [xb, yt(xb) - 2], [xa, yt(xa) - 2]]), 0, sA, matA, true, g);
-      const xm = sx ? xa + 40 : xb - 52;
-      const hDoor = Math.min(yt(xa), yt(xb)) - y0;
-      const lm = lunghezzaManigliaModulare(hDoor);                 // la stessa lunghezza della distinta
-      const ym = y0 + Math.min(hDoor * 0.55, 1000);
-      prisma(rel(rett(xm, ym - lm / 2, xm + 12, ym + lm / 2)), sA, 18, matMetallo, true, g);
+      if (!push) {
+        // stessa posizione e lunghezza della distinta (altezza standard da terra, dentro l'anta)
+        const p = manigliaSuAnta(manAttuale, { xa, xb, manSx: sx }, y0 + 2, (x) => yt(x) - 2);
+        aggiungiManiglia(g, p.x - xh, p.y, sA, p.L, sx ? Math.PI / 2 : -Math.PI / 2);
+      }
       g.rotation.y = anteAperte ? (sx ? 1 : -1) * ANGOLO_APERTA : 0;
     }
   }
+}
+
+/**
+ * Maniglia del catalogo sulla faccia davanti dell'anta (z), verticale: il risvolto dei
+ * profili verso il bordo che apre (come negli armadi). Dalle foto se c'è la sua misura.
+ */
+function aggiungiManiglia(parent, x, y, z, L, rotZ) {
+  const { def, colore } = manAttuale;
+  const catalogo = !!(def.texture && def.lunghezzaMm);
+  let grp = null;
+  if (catalogo && (def.forma === 'foto' || !def.formaV) && Math.round(L) === Math.round(def.lunghezzaMm)) {
+    const r = manigliaDaFoto(colore ? { ...def, finitura: colore } : def, () => { if (ultimoAggiorna) aggiorna(...ultimoAggiorna); });
+    if (r) { grp = new THREE.Group(); grp.add(new THREE.Mesh(r.geo, r.mat)); }
+  }
+  if (!grp) {
+    const forma = catalogo ? (!def.forma || def.forma === 'foto' ? 'barra' : def.forma) : 'barra';
+    grp = costruisciManiglia(forma, colore || (catalogo ? def.finitura : 'inox'), L, catalogo ? def.colore : null);
+  }
+  grp.position.set(x, y, z);
+  grp.rotation.z = rotZ;
+  grp.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.userData.tipo = 'maniglia-anta'; } });
+  grp.userData.maniglia = { L, y };
+  parent.add(grp);
 }
 
 /**
@@ -216,7 +243,7 @@ function chiusura(ch, P, sp, matS, matA) {
   }
   const ante = ch.fronte === 'anta' ? 1 : 0;
   if (!ch.triangolare) {
-    mobile({ x0: ch.x0, y0: 0, L: ch.larghezza, hL: ch.hL, hR: ch.hR, ante, lato: ch.daSinistra ? 'dx' : 'sx', ripiani: 0 }, P, sp, matS, matA);
+    mobile({ x0: ch.x0, y0: 0, L: ch.larghezza, hL: ch.hL, hR: ch.hR, ante, lato: ch.daSinistra ? 'dx' : 'sx', apertura: ch.apertura, ripiani: 0 }, P, sp, matS, matA);
     return;
   }
   const sC = sp.carcassa, sS = sp.schiena, sA = sp.ante;
@@ -377,6 +404,8 @@ function vano(forma, P, conGradini, matLegno) {
  */
 export function aggiorna(forma, elementi, opz) {
   if (!gruppo) return;
+  ultimoAggiorna = [forma, elementi, { ...opz, reinquadra: false }];
+  if (opz.maniglia) manAttuale = opz.maniglia;
   if (resa) resa.cambiato();
   while (gruppo.children.length) {
     const c = gruppo.children.pop();

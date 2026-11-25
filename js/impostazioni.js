@@ -8,22 +8,22 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261126k';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261126k';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261126k';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261126k';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261126k';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261126k';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261126k';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261126k';
-import { agganciaTema } from './tema.js?v=20261126k';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261126k';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro } from './parametri.js?v=20261126k';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261126k';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261126k';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261126k';
-import { geometriaCassettiera } from './calcoli.js?v=20261126k';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261126k';
+} from './catalogo.js?v=20261126l';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261126l';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261126l';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261126l';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261126l';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261126l';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261126l';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261126l';
+import { agganciaTema } from './tema.js?v=20261126l';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261126l';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro } from './parametri.js?v=20261126l';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261126l';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261126l';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261126l';
+import { geometriaCassettiera } from './calcoli.js?v=20261126l';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261126l';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1007,7 +1007,7 @@ const SCHEDE_PAR = [
   ['cucina', 'Cucina', 'Tutto quello che usa la cucina: ante, piedini, piano di lavoro, maniglia a J, gola, regletta d\'angolo e cassetti.'],
   ['battente', 'Armadio a battente', 'Armadi a battente: come monti struttura e schiena, ante interne.'],
   ['scorrevole', 'Armadio scorrevole', 'Armadi scorrevoli: struttura e schiena (uguali al battente o no), binari e tiradores.'],
-  ['modulari', 'Mobili modulari', 'Mobili modulari (sottoscala, nicchie, mansarde): spessori e abbondanza di partenza.'],
+  ['modulari', 'Mobili modulari', 'Mobili modulari (sottoscala, nicchie, mansarde): spessori, abbondanza di partenza e altezza delle maniglie.'],
 ];
 let _schedaPar = (() => { try { const v = localStorage.getItem('ng-par-scheda'); return SCHEDE_PAR.some((x) => x[0] === v) ? v : 'cucina'; } catch (_) { return 'cucina'; } })();
 function renderParametri(S) {
@@ -1336,6 +1336,13 @@ function renderParametri(S) {
         ${campo('modulari.abbFianchi', 'Fianchi')}
         ${campo('modulari.abbTop', 'Top')}
         ${campo('modulari.abbAnte', 'Ante e pannelli fissi')}
+      </div>
+    </div>
+    <div class="par-gruppo">
+      <h3>Maniglie</h3>
+      <p class="imp-desc">Tutte le maniglie dei mobili modulari stanno alla stessa altezza da terra. Se un'anta è più bassa (o parte più in alto), la maniglia va il più vicino possibile a questa altezza, sempre 4 cm dentro l'anta.</p>
+      <div class="par-griglia">
+        ${campo('modulari.altezzaManiglia', 'Altezza della maniglia da terra (centro)', 'di partenza 1050 mm, come negli armadi')}
       </div>
     </div>
     </div>
