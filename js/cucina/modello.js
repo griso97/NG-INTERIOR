@@ -5,8 +5,8 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261126q';
-import { SPORGENZA_FORMA } from '../finiture-maniglia.js?v=20261126q';
+import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261126r';
+import { SPORGENZA_FORMA } from '../finiture-maniglia.js?v=20261126r';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).

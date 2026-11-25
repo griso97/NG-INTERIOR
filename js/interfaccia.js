@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261126q';
-import { htmlTendineColori } from './tendine-colori.js?v=20261126q';
-import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassetti, sporgenzaDiManiglia } from './calcoli.js?v=20261126q';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261126q';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261126q';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261126r';
+import { htmlTendineColori } from './tendine-colori.js?v=20261126r';
+import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261126r';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261126r';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261126r';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -197,10 +197,9 @@ export function renderPannello(contenitore, config, onChange) {
     <section>
       <h3>Cassettiere</h3>
       <div id="cass-list"></div>
-      <button id="btn-cass-add" class="btn-oro" type="button" style="margin-top:8px">+ Aggiungi cassettiera</button>
-      <p class="hint">Scegli in quali moduli metterla con i pulsanti "Modulo N". Battente: sez. 5BIS · Scorrevole: sez. 5 (con opzione maniglia).</p>
-      <!-- tutto quello che si sceglie per le cassettiere sta qui: colori della struttura e dei frontali, maniglie dei cassetti -->
+      <!-- tutto quello che si sceglie per le cassettiere sta qui: misure e maniglia (nella scheda), poi i materiali -->
       <div id="cass-mat"></div>
+      <button id="btn-cass-add" class="btn-oro" type="button" style="margin-top:12px">+ Aggiungi cassettiera</button>
     </section>
 
     <section>
@@ -230,7 +229,7 @@ export function renderPannello(contenitore, config, onChange) {
     </section>
 
     <section>
-      <h3>Materiali</h3>
+      <h3>Materiali armadio</h3>
       <div id="mat-list"></div>
     </section>
 
@@ -720,73 +719,72 @@ function renderCassettiere(config) {
     wrap.innerHTML = '<p class="hint">Nessuna cassettiera. Usa il bottone qui sotto per aggiungerne una.</p>';
     return;
   }
+  // scelte a PULSANTI (chiare anche sul telefono, niente tendine)
+  const scelte = (k, att, opz) => `<div class="cass-scelte" data-k="${k}">${opz.map(([v, t, sub]) => `
+          <button type="button" class="btn-ghost ${String(att) === String(v) ? 'attivo' : ''}" data-v="${escAttr(v)}">${t}${sub ? `<small>${sub}</small>` : ''}</button>`).join('')}</div>`;
+  const nostri = sistemiCassetti().filter((x) => x.tipo === 'nostro');
+  const maniglie = materialiPer('maniglie');
+  const tessera = (m) => (m ? `<span class="man-tessera" style="background:${sfondoSwatch(m)}"></span>` : '<span class="man-tessera man-nessuna">—</span>');
   wrap.innerHTML = casse.map((c, j) => {
     const G = geometriaCassettiera(config, c, (config.moduli[0] && config.moduli[0].larghezza) || 1000);
     const moduliAttivi = Array.isArray(c.moduli) ? c.moduli : [];
+    const def = manigliaCassettiera(config, c);
     return `
       <div class="cass-row" data-j="${j}">
         <header>Cassettiera ${j + 1}
-          <button class="btn-mini m-cass-del" type="button" data-j="${j}">rimuovi</button>
+          <button class="btn-mini m-cass-del" type="button" data-j="${j}">Rimuovi</button>
         </header>
-        <div class="grid-2">
-          <label>Nº cassetti
-            <input type="number" class="c-num" value="${c.numCassetti ?? 4}" min="1" max="10" step="1" />
-          </label>
-          <label>Altezza max (mm)
-            <input type="number" class="c-alt" value="${c.altMax ?? 800}" min="100" step="1" />
-          </label>
+        <div class="cass-blocco">
+          <div class="cass-tit">Misure</div>
+          <div class="grid-2">
+            <label>Numero di cassetti
+              <input type="number" class="c-num" value="${c.numCassetti ?? 4}" min="1" max="10" step="1" />
+            </label>
+            <label>Altezza della cassettiera (mm)
+              <input type="number" class="c-alt" value="${c.altMax ?? 800}" min="100" step="1" />
+            </label>
+          </div>
+          <div class="cass-et">Misure dei cassetti</div>
+          ${scelte('divisione', G.personalizzata ? 'personalizzata' : 'uguali', [['uguali', 'Tutti uguali'], ['personalizzata', 'Ogni cassetto la sua misura']])}
+          ${G.personalizzata ? `
+          <div class="c-altezze">
+            ${G.fronti.map((f, i) => `<label>Cassetto ${i + 1}${i === 0 ? ' (in alto)' : i === G.N - 1 ? ' (in basso)' : ''} (mm)
+              <input type="number" class="c-alt-i" data-i="${i}" value="${f.slot}" min="40" step="1" />
+              <small>frontale ${f.h} mm</small></label>`).join('')}
+          </div>
+          <p class="hint ${G.differenza ? 'err' : ''}">Spazio per i cassetti: ${G.spazioCassetti} mm (cassettiera ${G.AltMax} − fascetta sotto ${G.sC} − ripiano ${G.sC} − aria ${G.fuga}) · scritto: ${G.spazioCassetti - G.differenza} mm${
+            G.differenza === 0 ? ' ✓' : G.differenza > 0 ? ` · mancano ${G.differenza} mm` : ` · ${-G.differenza} mm in più`}</p>
+          <p class="hint">Ogni frontale è la misura scritta meno l'aria dei Parametri (${G.fuga} mm): es. 150 → ${150 - G.fuga}.</p>` : `
+          <p class="hint">Frontali da ${G.fronti[0].h} mm.</p>`}
+          <div class="cass-et">Guida scorrevole</div>
+          ${scelte('guida', c.guida ?? 500, [[500, '500 mm', 'fondo 480'], [400, '400 mm', 'fondo 380'], [350, '350 mm', 'fondo 330']])}
+          <div class="cass-et">Cassetti</div>
+          ${nostri.length ? scelte('sistema', c.sistemaCassetti || '', [['', 'A sistema'], ...nostri.map((x) => [x.id, escAttr(nomeSistemaCassetti(x))])])
+            : '<p class="hint" style="margin-top:0">A sistema. I cassetti su misura si configurano in <a href="impostazioni.html#parametri">Impostazioni → Parametri</a> → Sistemi di cassetti.</p>'}
         </div>
-        <label>Guida scorrevole (mm)
-          <select class="c-guida">
-            <option value="500" ${(c.guida ?? 500) === 500 ? 'selected' : ''}>500 — fondo 480</option>
-            <option value="400" ${(c.guida ?? 500) === 400 ? 'selected' : ''}>400 — fondo 380</option>
-            <option value="350" ${(c.guida ?? 500) === 350 ? 'selected' : ''}>350 — fondo 330</option>
-          </select>
-        </label>
-        <label>Cassetti
-          <select class="c-sistema">
-            <option value="" ${!c.sistemaCassetti ? 'selected' : ''}>Cassetti a sistema (predefinito)</option>
-            ${sistemiCassetti().filter((x) => x.tipo === 'nostro').map((x) => `<option value="${escAttr(x.id)}" ${c.sistemaCassetti === x.id ? 'selected' : ''}>${escAttr(nomeSistemaCassetti(x))}</option>`).join('')}
-          </select>
-        </label>
-        ${sistemiCassetti().some((x) => x.tipo === 'nostro') ? '' : '<p class="hint">I cassetti su misura si configurano in <a href="impostazioni.html#parametri">Impostazioni → Parametri</a> → Sistemi di cassetti.</p>'}
-        <label>Apertura dei cassetti
-          <select class="c-apertura">
-            <option value="incassata" ${G.incassata ? 'selected' : ''}>Maniglia incassata (fresata nel frontale)</option>
-            <option value="maniglia" ${G.maniglia ? 'selected' : ''}>Maniglia esterna</option>
-            <option value="ribassati" ${G.ribassati ? 'selected' : ''}>Frontali ribassati, senza maniglia</option>
-          </select>
-        </label>
-        ${G.incassata ? '<p class="hint">Non sporge niente: nel frontale va fatta la fresata per incassare la maniglia.</p>' : ''}
-        ${G.maniglia ? `
-        <p class="hint">Maniglia dei cassetti: ${escAttr(G.defMan ? G.defMan.nome : 'barretta di sempre')} (si cambia qui sotto, in «Maniglie dei cassetti»).</p>
-        <label>Quanto sporge la maniglia dal frontale (mm)
-          <input type="number" class="c-sporg" value="${Number(c.sporgenza) > 0 ? c.sporgenza : ''}" placeholder="da scrivere" min="1" step="1" />
-        </label>
-        <p class="hint ${G.sporgenzaMancante ? 'err' : ''}">${G.sporgenzaMancante
-          ? 'Obbligatorio: senza questa misura la profondità della cassettiera e dei cassetti non si può calcolare.'
-          : 'La cassettiera è più corta di questa misura, così la maniglia sta davanti ai frontali.'}</p>` : ''}
-        ${G.ribassati ? `
-        <label>Frontali più bassi di (mm)
-          <input type="number" class="c-ribasso" value="${c.ribasso ?? cassettieraArmadio(scorrevole ? 'scorrevole' : 'battente').ribasso}" min="0" step="1" />
-        </label>
-        <p class="hint">Il vuoto sopra ogni frontale per prendere il cassetto con la mano. Di partenza la misura dei Parametri.</p>` : ''}
-        <label>Misure dei cassetti
-          <select class="c-divisione">
-            <option value="uguali" ${!G.personalizzata ? 'selected' : ''}>Tutti uguali</option>
-            <option value="personalizzata" ${G.personalizzata ? 'selected' : ''}>Personalizzata (ogni cassetto la sua misura)</option>
-          </select>
-        </label>
-        ${G.personalizzata ? `
-        <div class="c-altezze">
-          ${G.fronti.map((f, i) => `<label>Cassetto ${i + 1}${i === 0 ? ' (in alto)' : i === G.N - 1 ? ' (in basso)' : ''} (mm)
-            <input type="number" class="c-alt-i" data-i="${i}" value="${f.slot}" min="40" step="1" />
-            <small>frontale ${f.h} mm</small></label>`).join('')}
+        <div class="cass-blocco">
+          <div class="cass-tit">Maniglia dei cassetti</div>
+          ${scelte('apertura', G.apertura, [['incassata', 'Incassata', 'fresata nel frontale'], ['maniglia', 'Maniglia esterna'], ['ribassati', 'Senza maniglia', 'frontali ribassati']])}
+          ${G.incassata ? '<p class="hint">Non sporge niente: nel frontale va fatta la fresata per incassare la maniglia.</p>' : ''}
+          ${G.maniglia ? `
+          <div class="cass-et">Quale maniglia · ${escAttr(def ? def.nome : 'Barretta semplice')}</div>
+          <div class="mat-grid">
+            <button type="button" class="mat-swatch ${!def ? 'sel' : ''}" data-cman="" title="Barretta semplice">${tessera(null)}<span>Barretta semplice</span></button>
+            ${maniglie.map((m) => `
+            <button type="button" class="mat-swatch ${def && m.id === def.id ? 'sel' : ''}" data-cman="${escAttr(m.id)}" title="${escAttr(m.nome)}">${tessera(m)}<span>${escAttr(m.nome)}</span></button>`).join('')}
+          </div>
+          <label style="margin-top:10px">Quanto sporge la maniglia dal frontale (mm)
+            <input type="number" class="c-sporg" value="${Number(c.sporgenza) > 0 ? c.sporgenza : ''}" placeholder="da scrivere" min="1" step="1" />
+          </label>
+          <p class="hint ${G.sporgenzaMancante ? 'err' : ''}">${G.sporgenzaMancante
+            ? 'Obbligatorio: senza questa misura la profondità della cassettiera e dei cassetti non si può calcolare.'
+            : 'Proposta dalla maniglia scelta, si può cambiare. La cassettiera è più corta di questa misura, così la maniglia sta davanti ai frontali.'}</p>` : ''}
+          ${G.ribassati ? `
+          <label style="margin-top:10px">Frontali più bassi di (mm)
+            <input type="number" class="c-ribasso" value="${c.ribasso ?? cassettieraArmadio(scorrevole ? 'scorrevole' : 'battente').ribasso}" min="0" step="1" />
+          </label>
+          <p class="hint">Il vuoto sopra ogni frontale per prendere il cassetto con la mano. Di partenza la misura dei Parametri.</p>` : ''}
         </div>
-        <p class="hint ${G.differenza ? 'err' : ''}">Spazio per i cassetti: ${G.spazioCassetti} mm (cassettiera ${G.AltMax} − fascetta sotto ${G.sC} − ripiano ${G.sC} − aria ${G.fuga}) · scritto: ${G.spazioCassetti - G.differenza} mm${
-          G.differenza === 0 ? ' ✓' : G.differenza > 0 ? ` · mancano ${G.differenza} mm` : ` · ${-G.differenza} mm in più`}</p>
-        <p class="hint">Ogni frontale è la misura scritta meno l'aria dei Parametri (${G.fuga} mm): es. 150 → ${150 - G.fuga}.</p>` : `
-        <p class="hint">Frontali da ${G.fronti[0].h} mm.</p>`}
         <div class="cass-mod-sel">
           <span>Metti nei moduli:</span>
           <div class="mod-pills">
@@ -855,48 +853,50 @@ function attaccaEventiCassettiere(contenitore, config, onChange) {
     if (!cas) return;
     const num = row.querySelector('.c-num');
     const alt = row.querySelector('.c-alt');
-    const guida = row.querySelector('.c-guida');
-    const apertura = row.querySelector('.c-apertura');
     const ridisegna = () => { renderCassettiere(config); attaccaEventiCassettiere(contenitore, config, onChange); onChange(config); };
     if (num) num.oninput = (e) => {
       cas.numCassetti = Math.max(1, Math.round(Number(e.target.value) || 1));
       if (cas.divisione === 'personalizzata') cas.altezze = spaziCassettiDiPartenza(config, cas, (config.moduli[0] && config.moduli[0].larghezza) || 1000);
       onChange(config);
     };
-    if (num) num.onchange = () => { if (cas.divisione === 'personalizzata') ridisegna(); };
-    if (guida) guida.onchange = (e) => {
-      cas.guida = Number(e.target.value) || 500;
-      onChange(config);
-    };
-    const sis = row.querySelector('.c-sistema');
-    if (sis) sis.onchange = (e) => {
-      if (e.target.value) cas.sistemaCassetti = e.target.value; else delete cas.sistemaCassetti;
-      onChange(config);
-    };
+    if (num) num.onchange = ridisegna;                // frontali e altezze aggiornati
     if (alt) alt.oninput = (e) => {
       cas.altMax = Math.max(100, Math.round(Number(e.target.value) || 800));
       onChange(config);
     };
-    if (apertura) apertura.onchange = (e) => {
-      cas.apertura = e.target.value;                   // incassata / maniglia / ribassati
-      delete cas.maniglia;
-      renderMateriali(config);                         // la card «Maniglie dei cassetti» segue
-      attaccaEventiMateriali(contenitore, config, onChange);
-      ridisegna();                                     // i campi cambiano con l'apertura
-    };
+    if (alt) alt.onchange = ridisegna;
+    // SCELTE A PULSANTI: misure dei cassetti, guida, sistema di cassetti, maniglia (apertura)
+    row.querySelectorAll('.cass-scelte[data-k] button').forEach((b) => {
+      b.onclick = () => {
+        const k = b.closest('.cass-scelte').dataset.k, v = b.dataset.v;
+        mostraPorte(true);
+        if (k === 'divisione') {
+          if (v === 'personalizzata') { cas.divisione = 'personalizzata'; cas.altezze = spaziCassettiDiPartenza(config, cas, (config.moduli[0] && config.moduli[0].larghezza) || 1000); }
+          else { delete cas.divisione; delete cas.altezze; }
+        } else if (k === 'guida') cas.guida = Number(v) || 500;
+        else if (k === 'sistema') { if (v) cas.sistemaCassetti = v; else delete cas.sistemaCassetti; }
+        else if (k === 'apertura') {
+          cas.apertura = v;                              // incassata / maniglia / ribassati
+          delete cas.maniglia;
+          if (v === 'maniglia' && !(Number(cas.sporgenza) > 0)) cas.sporgenza = sporgenzaDiManiglia(manigliaCassettiera(config, cas));
+        }
+        ridisegna();
+      };
+    });
+    // QUALE MANIGLIA (solo questa cassettiera): la sporgenza è quella della maniglia, poi si può cambiare
+    row.querySelectorAll('.mat-swatch[data-cman]').forEach((b) => {
+      b.onclick = () => {
+        mostraPorte(true);
+        if (b.dataset.cman) cas.manigliaId = b.dataset.cman; else { delete cas.manigliaId; delete config.manigliaCassetti; }
+        cas.sporgenza = sporgenzaDiManiglia(manigliaCassettiera(config, cas));
+        ridisegna();
+      };
+    });
     const sporg = row.querySelector('.c-sporg');
     if (sporg) {
       sporg.oninput = (e) => { const v = Math.round(Number(e.target.value) || 0); if (v > 0) cas.sporgenza = v; else delete cas.sporgenza; onChange(config); };
       sporg.onchange = ridisegna;                      // l'avviso «obbligatorio» sparisce
     }
-    const div = row.querySelector('.c-divisione');
-    if (div) div.onchange = (e) => {
-      if (e.target.value === 'personalizzata') {
-        cas.divisione = 'personalizzata';
-        cas.altezze = spaziCassettiDiPartenza(config, cas, (config.moduli[0] && config.moduli[0].larghezza) || 1000);
-      } else { delete cas.divisione; delete cas.altezze; }
-      ridisegna();
-    };
     row.querySelectorAll('.c-alt-i').forEach((inp) => {
       inp.oninput = (e) => {
         const i = Number(inp.dataset.i), v = Math.round(Number(e.target.value) || 0);
@@ -1090,41 +1090,10 @@ function renderMateriali(config) {
   wrap.innerHTML = carte.filter((_, i) => !cass(PARTI[i])).join('') + cardManiglie(config);
   const wc = document.getElementById('cass-mat');
   if (wc) wc.innerHTML = (config.cassettiere || []).length ? `
-      <h4 class="cass-mat-tit">Colori e maniglie delle cassettiere</h4>
-      ${carte.filter((_, i) => cass(PARTI[i])).join('')}${cardManiglieCassetti(config)}` : '';
+      <h4 class="cass-mat-tit">Materiali della cassettiera</h4>
+      ${carte.filter((_, i) => cass(PARTI[i])).join('')}` : '';
 }
 
-/**
- * MANIGLIE DEI CASSETTI (tutte le cassettiere): incassata o una maniglia del catalogo, a parte da quella delle ante.
- * Scegliendo una maniglia i cassetti passano a «Maniglia esterna» (la sporgenza, se manca, è quella della maniglia).
- */
-function cardManiglieCassetti(config) {
-  const casse = config.cassettiere || [];
-  const lista = materialiPer('maniglie');
-  const def = manigliaCassetti(config);
-  const aperture = new Set(casse.map((c) => (c.apertura === 'maniglia' || c.apertura === 'ribassati' ? c.apertura : 'incassata')));
-  const sel = aperture.size !== 1 ? null : aperture.has('incassata') ? 'incassata' : aperture.has('ribassati') ? 'ribassati' : (def ? def.id : 'barretta');
-  const tessera = (m) => m ? `<span class="man-tessera" style="background:${sfondoSwatch(m)}"></span>` : '<span class="man-tessera man-nessuna">—</span>';
-  const corrNome = !casse.length ? 'Nessuna cassettiera' : sel === 'incassata' ? 'Incassata (fresata nel frontale)' : sel === 'ribassati' ? 'Frontali ribassati, senza maniglia'
-    : sel === 'barretta' ? 'Barretta di sempre' : sel ? def.nome : 'Diverse per cassettiera';
-  return `
-      <details class="mat-card" data-parte="manigliaCassetti">
-        <summary>
-          <span class="mat-parte">Maniglie dei cassetti</span>
-          <span class="mat-corrente">${tessera(sel && sel !== 'incassata' && sel !== 'ribassati' && sel !== 'barretta' ? def : null)}<span>${corrNome}</span></span>
-        </summary>
-        ${casse.length ? `
-        <div class="mat-grid">
-          <button type="button" class="mat-swatch ${sel === 'incassata' ? 'sel' : ''}" data-mancass="incassata" title="Incassata (fresata nel frontale)">
-            ${tessera(null)}<span>Incassata (fresata nel frontale)</span></button>
-          ${lista.map((m) => `
-            <button type="button" class="mat-swatch ${m.id === sel ? 'sel' : ''}" data-mancass="${m.id}" title="${m.nome}">
-              ${tessera(m)}<span>${m.nome}</span></button>`).join('')}
-        </div>
-        <p class="hint" style="margin:6px 0 0">Vale per i cassetti di tutte le cassettiere; le maniglie delle ante si scelgono in Materiali. Con una maniglia i cassetti sono «Maniglia esterna»: controlla qui sopra quanto sporge.</p>`
-        : '<p class="hint" style="margin:6px 0 0">Aggiungi una cassettiera per scegliere le maniglie dei cassetti.</p>'}
-      </details>`;
-}
 
 /** Colore del binario degli scorrevoli: i colori del catalogo (sezione Binari). */
 function coloriBinario(config) {
@@ -1219,24 +1188,6 @@ function attaccaEventiMateriali(contenitore, config, onChange) {
       config.manigliaPosizione = btn.dataset.manpos;
       renderMateriali(config);
       attaccaEventiMateriali(contenitore, config, onChange);
-      onChange(config);
-    });
-  });
-  // MANIGLIE DEI CASSETTI: incassata o una maniglia del catalogo, per tutte le cassettiere
-  contenitore.querySelectorAll('.mat-swatch[data-mancass]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const v = btn.dataset.mancass;
-      mostraPorte(true);                               // i cassetti stanno dentro: porte aperte per vederli
-      for (const c of config.cassettiere || []) {
-        if (v === 'incassata') { c.apertura = 'incassata'; continue; }
-        c.apertura = 'maniglia';
-        if (!(Number(c.sporgenza) > 0)) c.sporgenza = sporgenzaDiManiglia((MATERIALI.find((m) => m.id === v)) || null);
-      }
-      if (v === 'incassata') delete config.manigliaCassetti; else config.manigliaCassetti = v;
-      renderMateriali(config);
-      attaccaEventiMateriali(contenitore, config, onChange);
-      renderCassettiere(config);                       // nella cassettiera: apertura e sporgenza nuove
-      attaccaEventiCassettiere(contenitore, config, onChange);
       onChange(config);
     });
   });

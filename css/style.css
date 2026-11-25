@@ -780,3 +780,29 @@ button.distinta-tab:hover { border-color: var(--oro, #c9a94a); }
 
 /* Armadi: colori e maniglie della cassettiera, dentro la sezione «Cassettiere» */
 .cass-mat-tit { margin: 18px 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--oro); }
+
+/* Armadi: scheda della cassettiera divisa in blocchi chiari (Misure · Maniglia dei cassetti), scelte a pulsanti */
+.cass-blocco { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--bordo); }
+.cass-row header + .cass-blocco { margin-top: 4px; padding-top: 0; border-top: 0; }
+.cass-tit { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--oro-chiaro); margin-bottom: 10px; }
+.cass-et { font-size: 12px; color: var(--testo-dim); margin: 12px 0 6px; }
+.cass-scelte { display: flex; flex-wrap: wrap; gap: 6px; }
+.cass-scelte .btn-ghost {
+  flex: 1 1 0; min-width: 88px; padding: 10px 8px; text-transform: none; letter-spacing: 0;
+  font-size: 13px; line-height: 1.25; color: var(--testo); border-color: var(--bordo); text-align: center;
+}
+.cass-scelte .btn-ghost small { display: block; font-size: 11px; color: var(--testo-dim); margin-top: 2px; }
+.cass-scelte .btn-ghost.attivo { border-color: var(--oro-chiaro); color: var(--oro-chiaro); background: rgba(201, 169, 74, .08); }
+.cass-scelte .btn-ghost.attivo small { color: var(--oro); }
+.cass-row .mat-grid { margin-top: 4px; }
+
+/* tendine del pannello degli armadi: scure come i campi (niente tendine bianche del telefono) */
+.pannello select {
+  display: block; width: 100%; margin-top: 4px; padding: 9px 10px;
+  background: var(--bg-3); border: 1px solid var(--bordo); color: var(--testo);
+  font: inherit; font-size: 13px; border-radius: 2px; -webkit-appearance: none; appearance: none;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23c9a94a' stroke-width='1.6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
+.pannello select:focus { border-color: var(--oro); outline: none; }

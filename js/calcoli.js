@@ -11,8 +11,8 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126q';
-import { SPORGENZA_FORMA } from './finiture-maniglia.js?v=20261126q';
+import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126r';
+import { SPORGENZA_FORMA } from './finiture-maniglia.js?v=20261126r';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -83,6 +83,12 @@ export function manigliaArmadio(config) {
  */
 export function manigliaCassetti(config) {
   const id = config && config.manigliaCassetti;
+  if (!id || typeof window === 'undefined') return null;
+  return (window.NG_MATERIALI || []).find((m) => m.id === id && m.categoria === 'maniglia') || null;
+}
+/** La maniglia di QUESTA cassettiera (scelta nella sua scheda); se non c'è, quella scelta prima per tutte. */
+export function manigliaCassettiera(config, c) {
+  const id = (c && c.manigliaId) || (config && config.manigliaCassetti);
   if (!id || typeof window === 'undefined') return null;
   return (window.NG_MATERIALI || []).find((m) => m.id === id && m.categoria === 'maniglia') || null;
 }
@@ -427,7 +433,7 @@ export function geometriaCassettiera(config, c, Lm) {
     for (let i = 0; i < N; i++) fronti.push({ i, slot: h0 + fuga, y: fuga + (N - 1 - i) * (h0 + fuga), h0 });
   }
   // maniglia dei cassetti a profilo sul bordo (scheda della maniglia: sottrai lo spessore): il frontale è più basso
-  const defMan = apertura === 'maniglia' ? manigliaCassetti(config) : null;
+  const defMan = apertura === 'maniglia' ? manigliaCassettiera(config, c) : null;
   const ridMan = defMan ? spessoreTirador(defMan) : 0;
   for (const f of fronti) f.h = ribassati ? Math.max(20, f.h0 - ribasso) : f.h0 - ridMan;
   const sommaSpazi = fronti.reduce((t, f) => t + f.slot, 0);
