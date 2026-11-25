@@ -3240,4 +3240,9 @@ window.NG_I18N_ES = {
  "in distinta 2 pannellini alti come la regletta, in melaminico bianco o antracite come l'interno dei mobili (0 = niente)": "en el despiece 2 panelitos altos como la regleta, en melamina blanca o antracita como el interior de los muebles (0 = ninguno)",
  "un pezzo è largo quanto si vede, l'altro + questo spessore: sormonta il primo; i due pezzi sono spessi come l'anta": "una pieza es ancha como lo que se ve, la otra + este espesor: monta sobre la primera; las dos piezas tienen el espesor de la puerta",
  "Regletta angolo": "Regleta de esquina",
+ "MDF e melaminico": "MDF y melamina",
+ "MDF bianco 16 mm": "MDF blanco 16 mm",
+ "MDF bianco 19 mm": "MDF blanco 19 mm",
+ "Melaminico bianco 16 mm": "Melamina blanca 16 mm",
+ "Melaminico bianco 19 mm": "Melamina blanca 19 mm",
 };

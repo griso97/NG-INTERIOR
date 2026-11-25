@@ -7,6 +7,7 @@ export const GRUPPI_COLORI = [
   { id: 'legni', nome: 'Legni' },
   { id: 'mate', nome: 'Mate (opachi)' },
   { id: 'luxe', nome: 'Luxe (lucidi)' },
+  { id: 'pannelli', nome: 'MDF e melaminico' },
   { id: 'fingerpull', nome: 'Finger-pull' },
   { id: 'encimera', nome: 'Encimere' },
   { id: 'altri', nome: 'Altri' },
@@ -16,6 +17,7 @@ export function gruppoColore(m) {
   if (!m) return 'altri';
   if (m.categoria === 'encimera') return 'encimera';
   if (m.gola || (m.proprio && m.sezione === 'fingerpull')) return 'fingerpull';
+  if (m.pannello) return 'pannelli';                       // MDF e melaminico bianchi (16 / 19 mm)
   const n = String(m.nome || '').toLowerCase();
   if (m.lucido || /\b(lucido|lucida|luxe|brillo|gloss|lacado brillo)\b/.test(n)) return 'luxe';
   if (/^sm\s/.test(n) || /\b(opaco|opaca|mate|matte|supermate|supermatt)\b/.test(n) || m.categoria === 'tinta') return 'mate';
