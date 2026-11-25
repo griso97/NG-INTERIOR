@@ -1,5 +1,5 @@
 // =============================================================================
-// LOGO per le immagini esportate — NG INTERIOR
+// LOGO per le immagini esportate — NG STUDIO
 // =============================================================================
 // Carica il logo una volta e lo sovrappone in basso a destra all'immagine
 // del rendering prima del salvataggio.
@@ -10,7 +10,7 @@ let logoPronto = false;
 logoImg.onload = () => { logoPronto = true; };
 logoImg.onerror = () => { logoPronto = false; };
 // Percorso relativo alla PAGINA (cucina.html / configuratore.html sono in root)
-logoImg.src = 'img/logo.webp';             // WebP: 1/5 del PNG, stessa trasparenza
+logoImg.src = 'img/logo-studio.webp';      // NG STUDIO (WebP: 1/4 del PNG, stessa trasparenza)
 
 /** Il logo è stato caricato? */
 export function logoCaricato() { return logoPronto; }
@@ -94,7 +94,7 @@ export function salvaImmagineCanvas(canvas, nomeFile, tipo = 'image/png', qualit
     try {
       const file = new File([blob], nomeFile, { type: blob.type || tipo });
       if (navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file], title: 'NG Interior' })
+        navigator.share({ files: [file], title: 'NG Studio' })
           .catch((err) => { if (!err || err.name !== 'AbortError') mostraOverlay(dataURL, nomeFile, blob); });
         return true;
       }

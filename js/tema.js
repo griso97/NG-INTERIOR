@@ -1,5 +1,5 @@
 // =============================================================================
-// TEMA chiaro / scuro — NG INTERIOR
+// TEMA chiaro / scuro — NG STUDIO
 // =============================================================================
 // Default: scuro (identità del brand: nero + oro). La modalità chiara schiarisce
 // le superfici dei contenuti mantenendo header e accenti oro.

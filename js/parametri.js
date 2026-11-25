@@ -49,6 +49,8 @@ export const PARAMETRI_DEFAULT = Object.freeze({
     piedini: 0,
     // ZOCCOLO: in distinta ogni pezzo è più lungo di questo margine (per tagliarlo sul posto); il 3D no
     margineZoccolo: 100,
+    // ZOCCOLO: lunghezza massima di un pezzo (le barre da 4 m): un tratto più lungo va in più pezzi da giuntare
+    zoccoloMax: 4000,
     // PIANO DI LAVORO: profondità (mm, dal muro: si appoggia al muro come i mobili; di serie 625 = 25 davanti
     // alle ante dei mobili da 600); sui lati niente sporgenza. Alzatina sul muro sì/no e altezza
     profonditaPiano: 625,
@@ -243,6 +245,7 @@ function completa(s) {
     cucina: (() => { const k = (s && s.cucina) || {}, d = D.cucina; return {
       piedini: [100, 150].includes(Number(k.piedini)) ? Number(k.piedini) : 0,
       margineZoccolo: Math.max(0, Math.min(500, num(k.margineZoccolo, d.margineZoccolo))),
+      zoccoloMax: Math.max(1000, Math.min(6000, num(k.zoccoloMax, d.zoccoloMax))),
       profonditaPiano: Math.max(500, Math.min(1200, num(k.profonditaPiano, d.profonditaPiano))),
       alzatina: k.alzatina === true,
       altezzaAlzatina: Math.max(20, Math.min(600, num(k.altezzaAlzatina, d.altezzaAlzatina))),

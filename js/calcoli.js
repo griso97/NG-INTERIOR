@@ -1,5 +1,5 @@
 // =============================================================================
-// MOTORE DISTINTA DI TAGLIO - NG INTERIOR
+// MOTORE DISTINTA DI TAGLIO - NG STUDIO
 // =============================================================================
 // Modulo PURO e INDIPENDENTE dalla grafica 3D.
 // Contiene SOLO le formule per calcolare le misure di ogni pezzo.
@@ -11,7 +11,7 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126i';
+import { binarioScorrevole, tiradorScorrevole, parametri, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126k';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.

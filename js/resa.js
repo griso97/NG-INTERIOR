@@ -1,5 +1,5 @@
 // =============================================================================
-// RESA REALISTICA IN TEMPO REALE — NG INTERIOR (cucina, armadi, modulari)
+// RESA REALISTICA IN TEMPO REALE — NG STUDIO (cucina, armadi, modulari)
 // =============================================================================
 // Niente immagine che "si sviluppa": la vista che si gira col dito è già
 // quella bella. Sopra il disegno normale (colori dei materiali invariati,
@@ -14,8 +14,8 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261126i';
-import { pianoComeFoto } from './materiali.js?v=20261126i';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261126k';
+import { pianoComeFoto } from './materiali.js?v=20261126k';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 

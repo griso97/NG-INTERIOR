@@ -1,5 +1,5 @@
 // =============================================================================
-// TENDINE DEI COLORI — NG INTERIOR: in ogni tavolozza del sito i colori sono divisi per
+// TENDINE DEI COLORI — NG STUDIO: in ogni tavolozza del sito i colori sono divisi per
 // sottocategoria (Legni, Mate, Luxe, Finger-pull, Encimere), ognuna una tendina
 // che si apre con un tocco. Vale anche per i colori aggiunti in Impostazioni.
 // =============================================================================

@@ -14,10 +14,10 @@
 import {
   altezzeCassettiDi, cassettoSopraDi, infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi, zoccoliContinui, angoliZoccolo,
-  altezzaAlzatina, antePensileAngolo, antaCiaflan, MODULI_SPECIALI, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261126i';
-import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull } from '../parametri.js?v=20261126i';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126i';
-import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261126i';
+  altezzaAlzatina, antePensileAngolo, antaCiaflan, MODULI_SPECIALI, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261126k';
+import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull } from '../parametri.js?v=20261126k';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126k';
+import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261126k';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -492,11 +492,20 @@ export function calcolaDistintaCucina(progetto) {
   // ZOCCOLO CONTINUO: un pezzo per ogni tratto, lungo quanto nel 3D (stesso calcolo: zoccoliContinui) + il
   // MARGINE dei ⚙ Parametri (di partenza 10 cm, per tagliarlo sul posto); copre anche reglette e
   // lavastoviglie, e negli angoli arriva fino allo zoccolo dell'altra fila
-  const trattiZoccolo = zoccoliContinui(progetto), margineZ = parametri().cucina.margineZoccolo;
+  // PEZZO PIÙ LUNGO (⚙ Parametri, di partenza 4 m): un tratto più lungo va in più pezzi da giuntare: pezzi interi
+  // più l'ultimo che resta, ognuno con il suo margine
+  const trattiZoccolo = zoccoliContinui(progetto), Kz = parametri().cucina, margineZ = Kz.margineZoccolo;
+  const utileZ = Math.max(500, Kz.zoccoloMax - margineZ);            // quanto zoccolo «vero» sta in un pezzo
   for (const T of trattiZoccolo) {
     if (T.lunghezza < 1) continue;
-    raw.push({ nome: 'Zoccolo (frontale)' + (margineZ ? ` · con ${String(margineZ / 10).replace('.', ',')} cm di margine` : ''), larghezza: T.lunghezza + margineZ, altezza: Math.round(T.zocc), spessore: SP, materiale: 'zoccolo',
-      materialeNome: nomeMateriale(progetto.zoccoloColore || 'nero-opaco', 'Zoccolo'), quantita: 1 });
+    const n = Math.ceil(T.lunghezza / utileZ);
+    const nome = 'Zoccolo (frontale)' + (margineZ ? ` · con ${String(margineZ / 10).replace('.', ',')} cm di margine` : '')
+      + (n > 1 ? ` · tratto di ${String(Math.round(T.lunghezza / 10) / 100).replace('.', ',')} m in ${n} pezzi da giuntare` : '');
+    for (let i = 0; i < n; i++) {
+      const parte = i < n - 1 ? utileZ : T.lunghezza - utileZ * (n - 1);
+      raw.push({ nome, larghezza: Math.round(parte + margineZ), altezza: Math.round(T.zocc), spessore: SP, materiale: 'zoccolo',
+        materialeNome: nomeMateriale(progetto.zoccoloColore || 'nero-opaco', 'Zoccolo'), quantita: 1 });
+    }
   }
   // CIERRE A TECHO: fasce a filo del fronte dei mobili + pezzi che rientrano (negli angoli una passa + spessore)
   const ct = progetto.cierreTecho;

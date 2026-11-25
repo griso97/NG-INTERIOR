@@ -1,5 +1,5 @@
 // =============================================================================
-// SCONTORNO CON L'IA — NG INTERIOR
+// SCONTORNO CON L'IA — NG STUDIO
 // Toglie lo sfondo da QUALSIASI foto (anche ambientata: stanza, mensole, oggetti
 // attorno), come i siti professionali, tutto dentro il sito e gratis:
 //  - COMPUTER: modello ISNet "general use" (DIS, licenza Apache-2.0, xuebinqin/DIS), lavora a
@@ -14,7 +14,7 @@
 
 const VENDOR = new URL('../vendor/', import.meta.url).href;
 const ORT_DIR = `${VENDOR}onnxruntime-web/1.31.1/`;
-import { togliRiflesso } from './riflesso.js?v=20261126i';
+import { togliRiflesso } from './riflesso.js?v=20261126k';
 const UA = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
 const TELEFONO = /iPhone|iPad|iPod|Android|Mobile/i.test(UA)
   || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && /Macintosh/.test(UA))   // iPad "da computer"

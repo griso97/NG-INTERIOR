@@ -1,5 +1,5 @@
 // =============================================================================
-// COLLEZIONE MODERNA — NG INTERIOR
+// COLLEZIONE MODERNA — NG STUDIO
 // Oggetti d'arredo per cucine di livello, modellati qui (nostri, nessuna licenza):
 // fruttiere, vasi, rami d'ulivo, taglieri, libri, olio e aceto, barattoli, sgabelli.
 // Misure vere in mm; materiali: ceramica opaca, marmo, noce, rovere, ottone, vetro,
@@ -7,7 +7,7 @@
 // Assi: x larghezza, y altezza (0 = appoggio), z profondità (+ = davanti).
 // =============================================================================
 import * as THREE from 'three';
-import { coloreLampada } from './colori-lampade.js?v=20261126i';
+import { coloreLampada } from './colori-lampade.js?v=20261126k';
 
 const qui = (p) => new URL(p, import.meta.url).href;
 
@@ -239,7 +239,7 @@ async function frutto(id) {
       if (id.startsWith('lib:')) {
         // un modello della LIBRERIA (es. il pane), intero, alla scala chiesta: "lib:<id>@<scala>"
         const [nome, sc] = id.slice(4).split('@');
-        const { caricaGLB } = await import('./carica-glb.js?v=20261126i');
+        const { caricaGLB } = await import('./carica-glb.js?v=20261126k');
         const gl = await caricaGLB(qui(`../oggetti/libreria/${nome}.glb`));
         gl.scene.updateMatrixWorld(true);
         const g0 = new THREE.Group();
@@ -251,7 +251,7 @@ async function frutto(id) {
         return [g];
       }
       // file unico compresso (geometria meshopt, texture WebP 512): pochi KB invece di 0,5-2,4 MB
-      const { caricaGLB } = await import('./carica-glb.js?v=20261126i');
+      const { caricaGLB } = await import('./carica-glb.js?v=20261126k');
       const gl = await caricaGLB(qui(`../oggetti/moderni/frutta/${id}.glb`));
       gl.scene.updateMatrixWorld(true);
       const pezzi = [];

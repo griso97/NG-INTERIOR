@@ -1,5 +1,5 @@
 // =============================================================================
-// OGGETTI 3D PRONTI — NG INTERIOR
+// OGGETTI 3D PRONTI — NG STUDIO
 // Vasi, piante, frutta, stoviglie, luci, decorazioni, sedie… già fatti in 3D da
 // professionisti, dalla libreria Poly Haven: licenza CC0 (liberi anche per uso
 // commerciale) e collegamento gratuito anche per uso commerciale. Poly Haven chiede

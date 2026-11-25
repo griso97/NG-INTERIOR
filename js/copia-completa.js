@@ -1,5 +1,5 @@
 // =============================================================================
-// COPIA COMPLETA — NG INTERIOR
+// COPIA COMPLETA — NG STUDIO
 // Tutto quello che c'è su QUESTO dispositivo in un file solo, per portarlo su un
 // altro (es. dal computer al telefono): progetti aperti (cucina, ponte, armadi,
 // modulari), catalogo (colori, maniglie, oggetti aggiunti, con le loro foto),

@@ -37,7 +37,7 @@ function csvEscape(v) {
   return s;
 }
 
-import { trovaMateriale } from './materiali.js?v=20261126i';
+import { trovaMateriale } from './materiali.js?v=20261126k';
 const T = (s) => (typeof s === 'string' && window.NGI18N ? window.NGI18N.t(s) : s);   // lingua (i18n.js)
 
 export function nomeMaterialeCsv(pezzo, config) {
@@ -87,7 +87,7 @@ export async function esportaPDF(distinta, config, meta = {}) {
   // Intestazione
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('NG INTERIOR — Distinta di taglio', marginX, y);
+  doc.text('NG STUDIO — Distinta di taglio', marginX, y);
   y += 8;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);

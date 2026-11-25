@@ -1,5 +1,5 @@
 // =============================================================================
-// VISTA 3D - NG INTERIOR
+// VISTA 3D - NG STUDIO
 // =============================================================================
 // Rendering dell'armadio con Three.js. Separato dalla logica di calcolo:
 // qui si disegna soltanto, le misure arrivano già pronte dal config.
@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261126i';
-import { parametri } from './parametri.js?v=20261126i';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261126i';
-import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261126i';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261126i';
-import { sfondoDi } from './sfondi.js?v=20261126i';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261126i';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261126i';
+import { profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261126k';
+import { parametri } from './parametri.js?v=20261126k';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261126k';
+import { costruisciManiglia, manigliaDaFoto } from './maniglia3d.js?v=20261126k';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261126k';
+import { sfondoDi } from './sfondi.js?v=20261126k';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261126k';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261126k';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta

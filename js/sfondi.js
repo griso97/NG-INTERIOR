@@ -1,5 +1,5 @@
 // =============================================================================
-// SFONDI della vista 3D (cucina + armadi) — NG INTERIOR
+// SFONDI della vista 3D (cucina + armadi) — NG STUDIO
 // =============================================================================
 // Solo estetica del fondale/pavimento: NON cambia luci né riflessi, quindi la
 // resa realistica resta identica con qualsiasi sfondo.

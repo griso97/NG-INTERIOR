@@ -5,7 +5,7 @@
 // completa. Sopra la distinta compare l'avviso con cosa manca; esportando si chiede
 // «Vuoi esportarla comunque?». Quando il falegname le imposta in ⚙ Parametri l'avviso sparisce.
 // =============================================================================
-import { GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261126i';
+import { GRUPPI_DA_IMPOSTARE } from './parametri.js?v=20261126k';
 
 const t = (s) => (typeof window !== 'undefined' && window.NGI18N ? window.NGI18N.t(s) : s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -58,6 +58,34 @@ export function confermaEsportazione(lista) {
       <div>${esc(t('Manca l\'impostazione di:'))}</div>${elenco(lista)}
       <div>${esc(t('Questi valori sono a 0, quindi alcune misure non sono giuste. Vuoi esportarla comunque?'))}</div>
       <div class="riga"><button type="button" class="no">${esc(t('No'))}</button><button type="button" class="si">${esc(t('Sì, esporta'))}</button></div>
+    </div>`;
+    const fine = (v) => { ov.remove(); ok(v); };
+    ov.querySelector('.no').addEventListener('click', () => fine(false));
+    ov.querySelector('.si').addEventListener('click', () => fine(true));
+    ov.addEventListener('click', (e) => { if (e.target === ov) fine(false); });
+    document.body.appendChild(ov);
+  });
+}
+
+/**
+ * Prima di esportare la cucina: le misure del PIANO DI LAVORO da controllare. Ogni materiale (encimera) ha le sue
+ * lastre: un piano più lungo della lastra va giuntato. `piani` = [{ nome, larghezza, altezza, spessore, quantita,
+ * materialeNome }]. Ritorna una Promise: true = esporta.
+ */
+export function confermaPianoLavoro(piani) {
+  if (!piani || !piani.length || typeof document === 'undefined') return Promise.resolve(true);
+  stile();
+  const mis = (p) => `${p.larghezza} × ${p.altezza} × ${p.spessore} mm${p.quantita > 1 ? ` × ${p.quantita}` : ''}${p.materialeNome ? ` · ${p.materialeNome}` : ''}`;
+  return new Promise((ok) => {
+    const ov = document.createElement('div');
+    ov.className = 'conferma-esporta';
+    // data-no-i18n: i testi sono già tradotti qui (il traduttore della pagina rifarebbe «largo» → «ancho»)
+    ov.innerHTML = `<div class="box" role="dialog" aria-modal="true" data-no-i18n>
+      <h3>⚠ ${esc(t('Controlla il piano di lavoro'))}</h3>
+      <div>${esc(t('Nella distinta ci sono questi piani di lavoro (lunghezza × profondità × spessore):'))}</div>
+      <ul>${piani.map((p) => `<li>${esc(t('Piano di lavoro'))} ${esc(mis(p))}</li>`).join('')}</ul>
+      <div>${esc(t('Ogni materiale ha le sue misure di lastra: controlla che il piano scelto esista in queste misure e che non sia più lungo della lastra vera. Se è più lungo, va giuntato: decidi tu dove.'))}</div>
+      <div class="riga"><button type="button" class="no">${esc(t('Annulla'))}</button><button type="button" class="si">${esc(t('Ho controllato, esporta'))}</button></div>
     </div>`;
     const fine = (v) => { ov.remove(); ok(v); };
     ov.querySelector('.no').addEventListener('click', () => fine(false));

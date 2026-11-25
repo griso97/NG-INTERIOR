@@ -1,5 +1,5 @@
 // =============================================================================
-// BOZZA DELLA SCHEDA OGGETTO — NG INTERIOR
+// BOZZA DELLA SCHEDA OGGETTO — NG STUDIO
 // Le foto già scontornate (e quella in lavorazione) restano salvate sul telefono
 // mentre la scheda è aperta: se il telefono ricarica la pagina (iPhone lo fa quando
 // la memoria finisce) le foto non si perdono e la scheda si riapre da sola.

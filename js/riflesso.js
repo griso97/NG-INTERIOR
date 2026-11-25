@@ -1,5 +1,5 @@
 // =============================================================================
-// RIFLESSO SUL PAVIMENTO — NG INTERIOR
+// RIFLESSO SUL PAVIMENTO — NG STUDIO
 // Nelle foto prodotto su un piano lucido sotto l'oggetto c'è il suo RIFLESSO: lo
 // specchio dell'oggetto, capovolto, sbiadito e più chiaro. Lo scontorno a volte lo
 // prende come parte dell'oggetto (l'oggetto viene più alto e il 3D sbagliato).
