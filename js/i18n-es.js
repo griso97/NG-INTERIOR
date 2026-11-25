@@ -3234,4 +3234,10 @@ window.NG_I18N_ES = {
  "Chiusura": "Cierre",
  "Tutti con maniglia": "Todos con tirador",
  "Maniglia all'altezza standard; sui cubi più bassi il più vicino possibile. Nel cubo selezionato si alza, si abbassa o si toglie.": "Tirador a la altura estándar; en los cubos más bajos lo más cerca posible. En el cubo seleccionado se sube, se baja o se quita.",
+ "pannellino dietro": "panelito detrás",
+ "Pannellini dietro: profondità": "Panelitos detrás: profundidad",
+ "Pannellini dietro: spessore": "Panelitos detrás: espesor",
+ "in distinta 2 pannellini alti come la regletta, in melaminico bianco o antracite come l'interno dei mobili (0 = niente)": "en el despiece 2 panelitos altos como la regleta, en melamina blanca o antracita como el interior de los muebles (0 = ninguno)",
+ "un pezzo è largo quanto si vede, l'altro + questo spessore: sormonta il primo; i due pezzi sono spessi come l'anta": "una pieza es ancha como lo que se ve, la otra + este espesor: monta sobre la primera; las dos piezas tienen el espesor de la puerta",
+ "Regletta angolo": "Regleta de esquina",
 };

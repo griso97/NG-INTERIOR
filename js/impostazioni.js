@@ -8,23 +8,23 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261126y';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261126y';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261126y';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261126y';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261126y';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261126y';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261126y';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261126y';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261126y';
-import { agganciaTema } from './tema.js?v=20261126y';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261126y';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261126y';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261126y';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261126y';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261126y';
-import { geometriaCassettiera } from './calcoli.js?v=20261126y';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261126y';
+} from './catalogo.js?v=20261126z';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261126z';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261126z';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261126z';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261126z';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261126z';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261126z';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261126z';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261126z';
+import { agganciaTema } from './tema.js?v=20261126z';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261126z';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261126z';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261126z';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261126z';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261126z';
+import { geometriaCassettiera } from './calcoli.js?v=20261126z';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261126z';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1328,7 +1328,9 @@ function renderParametri(S) {
       <h3>Regletta d'angolo</h3>
       <div class="par-griglia">
         ${campo('regletta.vista', 'Quanto si vede (per lato)', 'di partenza 3 × 3 cm: la parte della regletta che si vede nell\'angolo')}
-        ${campo('regletta.spessoreAnta', 'Spessore dell\'anta', 'un pezzo è largo quanto si vede, l\'altro + questo spessore: sormonta il primo')}
+        ${campo('regletta.spessoreAnta', 'Spessore dell\'anta', 'un pezzo è largo quanto si vede, l\'altro + questo spessore: sormonta il primo; i due pezzi sono spessi come l\'anta')}
+        ${campo('regletta.pannellinoProfondita', 'Pannellini dietro: profondità', 'in distinta 2 pannellini alti come la regletta, in melaminico bianco o antracite come l\'interno dei mobili (0 = niente)')}
+        ${campo('regletta.pannellinoSpessore', 'Pannellini dietro: spessore')}
       </div>
       <div class="par-esempio" id="par-es-reg" data-no-i18n></div>
       ${fig('regletta', 'Schema: l\'angolo visto da sopra', [['img/guida/regletta-angolo.jpg', 'Come si vede nel 3D del programma']])}

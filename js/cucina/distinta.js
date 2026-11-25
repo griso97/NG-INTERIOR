@@ -14,13 +14,12 @@
 import {
   altezzeCassettiDi, cassettoSopraDi, infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi, zoccoliContinui, angoliZoccolo,
-  altezzaAlzatina, antePensileAngolo, antaCiaflan, MODULI_SPECIALI, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261126y';
-import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull, spessoreTirador, nomeTirador } from '../parametri.js?v=20261126y';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126y';
-import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261126y';
+  altezzaAlzatina, antePensileAngolo, antaCiaflan, MODULI_SPECIALI, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261126z';
+import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull, spessoreTirador, nomeTirador } from '../parametri.js?v=20261126z';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126z';
+import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261126z';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
-const THK_REG = 20;   // spessore regletta d'angolo (mm)
 const round = (n) => Math.round(n);
 let _progDist = null;                    // la cucina della distinta in calcolo (piedini scelti)
 const GRIGLIA_FORNO = 45, H_FORNO_INCASSO = 595;   // come nel 3D (scena3d.js)
@@ -160,9 +159,12 @@ function reglettaAngolo(pz, mod, progetto, m, H, conPannello = true) {
   const P = parametri().regletta, ra = progetto.reglettaAngolo || {};
   const spess = ra.spessore != null ? Number(ra.spessore) : P.spessoreAnta;
   const vis = fc ? fc.regletta : (info.gap != null && info.gap > 0) ? Math.max(spess || 18, info.gap) : (ra.base || P.vista);
-  // i due pezzi della L: uno largo quanto si vede, l'altro + lo spessore dell'anta (sormonta il primo)
-  pz.push({ modulo: mod, nome: 'Regletta angolo (pezzo corto)', larghezza: round(vis), altezza: hF, spessore: THK_REG, materiale: 'anta', quantita: 1 });
-  pz.push({ modulo: mod, nome: `Regletta angolo (pezzo lungo, + spessore anta ${round(spess)})`, larghezza: round(vis + spess), altezza: hF, spessore: THK_REG, materiale: 'anta', quantita: 1 });
+  // i due pezzi della L: uno largo quanto si vede, l'altro + lo spessore dell'anta (sormonta il primo);
+  // spessi come le ANTE
+  pz.push({ modulo: mod, nome: 'Regletta angolo (pezzo corto)', larghezza: round(vis), altezza: hF, spessore: round(spess || SP), materiale: 'anta', quantita: 1 });
+  pz.push({ modulo: mod, nome: `Regletta angolo (pezzo lungo, + spessore anta ${round(spess)})`, larghezza: round(vis + spess), altezza: hF, spessore: round(spess || SP), materiale: 'anta', quantita: 1 });
+  // dietro la regletta: 2 PANNELLINI alti come lei, in melaminico come l'interno dei mobili (bianco / antracite)
+  if (P.pannellinoProfondita > 0) pz.push({ modulo: mod, nome: 'Regletta angolo · pannellino dietro', larghezza: round(P.pannellinoProfondita), altezza: hF, spessore: P.pannellinoSpessore, materiale: 'melaminico', quantita: 2 });
 }
 
 /** Melaminico dell'INTERNO degli armadi (scelto nel 3D): bianco o antracite. */

@@ -40,9 +40,13 @@ export const PARAMETRI_DEFAULT = Object.freeze({
   goleAltre: [],
   // REGLETTA D'ANGOLO (cucina): quanto se ne vede (3 × 3 cm) e lo spessore dell'anta. I due pezzi:
   // uno largo quanto si vede (30) e l'altro + lo spessore dell'anta (30 + 18 = 48), che sormonta il primo
+  //   i due pezzi sono spessi come le ANTE; dietro, 2 PANNELLINI in melaminico (bianco o antracite come
+  //   l'interno dei mobili) alti come la regletta e profondi «pannellinoProfondita»
   regletta: {
     vista: 30,
     spessoreAnta: 18,
+    pannellinoProfondita: 30,
+    pannellinoSpessore: 16,
   },
   // CUCINA: piedini di partenza di ogni cucina nuova (0 = automatico: bassi da 70 → 15 cm, da 80 → 10 cm)
   cucina: {
@@ -278,6 +282,8 @@ function completa(s) {
     regletta: {
       vista: Math.max(mancano.includes('regletta') ? 0 : 5, num(((s && s.regletta) || {}).vista, D.regletta.vista)),
       spessoreAnta: Math.max(0, num(((s && s.regletta) || {}).spessoreAnta, D.regletta.spessoreAnta)),
+      pannellinoProfondita: Math.max(0, num(((s && s.regletta) || {}).pannellinoProfondita, D.regletta.pannellinoProfondita)),
+      pannellinoSpessore: Math.max(1, num(((s && s.regletta) || {}).pannellinoSpessore, D.regletta.pannellinoSpessore)),
     },
     binari: binari.length ? binari : D.binari.map((b) => ({ ...b })),
     cucina: (() => { const k = (s && s.cucina) || {}, d = D.cucina; return {
