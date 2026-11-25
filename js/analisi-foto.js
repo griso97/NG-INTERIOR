@@ -1005,6 +1005,21 @@ function stringiLati(q, f) {
   const L = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
   return [L(q[0], q[1], f), L(q[0], q[1], 1 - f), L(q[3], q[2], 1 - f), L(q[3], q[2], f)];
 }
+/** La foto salvata del prodotto resa continua (quando non c'è la foto originale). */
+async function continuaFotoSalvata(p, leggi, salva) {
+  const foto = await leggi(p.id, 'foto');
+  if (!foto) return false;
+  const url = URL.createObjectURL(foto);
+  try {
+    const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
+    const c = rendiContinua(img);
+    const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.92));
+    if (!blob) return false;
+    await salva(p.id, blob, 'foto');
+    p.colore = coloreMedio(c);
+    return true;
+  } finally { URL.revokeObjectURL(url); }
+}
 /**
  * p: prodotto del catalogo; leggi(id, tipo) → Blob; salva(id, blob, tipo).
  * Ritorna true se la foto è stata rifatta (p viene aggiornato: colore, versioneFoto).
@@ -1015,9 +1030,14 @@ export async function aggiornaFotoProdotto(p, leggi, salva) {
   if (!SEZIONI_CONTINUE.includes(p.sezione) && (p.versioneFoto || 1) >= 2) { p.versioneFoto = VERSIONE_FOTO; return false; }
   const zona = p.analisi && (p.sezione === 'fingerpull' ? p.analisi.porta : p.analisi.main);
   const cm = p.campioneCm;
-  if (!zona || zona.length !== 4 || !cm || !(cm.w > 0) || !(cm.h > 0) || (p.tinta && p.tinta.colore != null)) { p.versioneFoto = VERSIONE_FOTO; return false; }
-  const orig = await leggi(p.id, 'orig');
-  if (!orig) { p.versioneFoto = VERSIONE_FOTO; return false; }
+  if (p.tinta && p.tinta.colore != null) { p.versioneFoto = VERSIONE_FOTO; return false; }
+  const orig = zona && zona.length === 4 && cm && cm.w > 0 && cm.h > 0 ? await leggi(p.id, 'orig') : null;
+  if (!orig) {
+    // senza la foto originale (prodotti salvati prima): si rende continua la foto già salvata
+    const ok = SEZIONI_CONTINUE.includes(p.sezione) ? await continuaFotoSalvata(p, leggi, salva) : false;
+    p.versioneFoto = VERSIONE_FOTO;
+    return ok;
+  }
   const url = URL.createObjectURL(orig);
   try {
     const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
