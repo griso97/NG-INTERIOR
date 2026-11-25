@@ -5,11 +5,16 @@
 // armadio su un'altra postazione o archiviarlo.
 // =============================================================================
 
-const CHIAVE = 'ng-interior-configuratore-v1';
+// ARMADIO A BATTENTE e ARMADIO SCORREVOLE sono due lavori separati, ognuno salvato a parte
+// (prima stavano nello stesso posto: cambiando il colore di uno cambiava anche l'altro).
+const CHIAVE = 'ng-interior-configuratore-v1';                       // armadio a battente (la chiave di sempre)
+const CHIAVE_SCORREVOLE = 'ng-interior-configuratore-scorrevole-v1';  // armadio scorrevole
+export const chiaveArmadio = (tipo) => (tipo === 'scorrevole' ? CHIAVE_SCORREVOLE : CHIAVE);
+const leggi = (k) => { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : null; } catch (_) { return null; } };
 
 export function salvaLocale(config) {
   try {
-    localStorage.setItem(CHIAVE, JSON.stringify(config));
+    localStorage.setItem(chiaveArmadio(config && config.tipoArmadio), JSON.stringify(config));
     return true;
   } catch (e) {
     console.error('Salvataggio locale fallito', e);
@@ -17,10 +22,23 @@ export function salvaLocale(config) {
   }
 }
 
-export function caricaLocale() {
+/** L'armadio in lavorazione di QUESTO tipo ('battente' | 'scorrevole'), o null. */
+export function caricaLocale(tipo = 'battente') {
   try {
-    const raw = localStorage.getItem(CHIAVE);
-    return raw ? JSON.parse(raw) : null;
+    const comune = leggi(CHIAVE);
+    if (tipo === 'scorrevole') {
+      const s = leggi(CHIAVE_SCORREVOLE);
+      if (s) return s;
+      // prima stavano insieme: se l'ultimo lavoro era uno scorrevole, è il suo (si sposta nel suo posto)
+      if (comune && comune.tipoArmadio === 'scorrevole') { localStorage.setItem(CHIAVE_SCORREVOLE, JSON.stringify(comune)); return comune; }
+      return null;
+    }
+    // battente: se nel posto comune c'era uno scorrevole, va nel suo posto e il battente riparte da capo
+    if (comune && comune.tipoArmadio === 'scorrevole') {
+      if (!leggi(CHIAVE_SCORREVOLE)) localStorage.setItem(CHIAVE_SCORREVOLE, JSON.stringify(comune));
+      return null;
+    }
+    return comune;
   } catch (e) {
     console.error('Caricamento locale fallito', e);
     return null;

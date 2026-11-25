@@ -12,12 +12,13 @@
 const TIPI = {
   cucina: { chiave: 'ng-cucina-progetto-v1', pagina: 'cucina.html?tipo=normale', nome: 'Cucina', ico: '🍳' },
   cucinaPonte: { chiave: 'ng-cucina-ponte-v1', pagina: 'cucina.html?tipo=ponte', nome: 'Cucina a ponte', ico: '🌉' },
-  armadio: { chiave: 'ng-interior-configuratore-v1', pagina: 'configuratore.html', nome: 'Armadio', ico: '🚪' },
+  armadio: { chiave: 'ng-interior-configuratore-v1', pagina: 'configuratore.html?tipo=battente', nome: 'Armadio a battente', ico: '🚪' },
+  armadioScorrevole: { chiave: 'ng-interior-configuratore-scorrevole-v1', pagina: 'configuratore.html?tipo=scorrevole', nome: 'Armadio scorrevole', ico: '🚪' },
   modulari: { chiave: 'ng-modulari-v1', pagina: 'modulari.html', nome: 'Mobili modulari', ico: '🧩' },
 };
 const _tipoCucinaUrl = new URLSearchParams(location.search).get('tipo');
 const tipoPagina = /cucina\.html/.test(location.pathname) ? (_tipoCucinaUrl === 'ponte' ? 'cucinaPonte' : _tipoCucinaUrl === 'normale' ? 'cucina' : null)
-  : /configuratore\.html/.test(location.pathname) ? 'armadio'
+  : /configuratore\.html/.test(location.pathname) ? (new URLSearchParams(location.search).get('tipo') === 'scorrevole' ? 'armadioScorrevole' : 'armadio')
   : /modulari\.html/.test(location.pathname) ? 'modulari' : null;
 const CHIAVE_CORRENTE = (tipo) => `ng-prev-corrente-${tipo}`;
 const t = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
@@ -44,9 +45,11 @@ async function dbTx(modo, fn) {
     tx.onerror = () => ko(tx.error);
   });
 }
-export const elencoPreventivi = async () => ((await dbTx('readonly', (st) => st.getAll())) || [])
+// i preventivi di armadio salvati prima della separazione: se sono scorrevoli, sono «Armadio scorrevole»
+const normale = (p) => (p && p.tipo === 'armadio' && p.dati && p.dati.tipoArmadio === 'scorrevole' ? { ...p, tipo: 'armadioScorrevole' } : p);
+export const elencoPreventivi = async () => ((await dbTx('readonly', (st) => st.getAll())) || []).map(normale)
   .sort((a, b) => (b.aggiornato || 0) - (a.aggiornato || 0));
-export const leggiPreventivo = (id) => dbTx('readonly', (st) => st.get(id));
+export const leggiPreventivo = async (id) => normale(await dbTx('readonly', (st) => st.get(id)));
 const scriviPreventivo = (p) => dbTx('readwrite', (st) => st.put(p));
 const togliPreventivo = (id) => dbTx('readwrite', (st) => st.delete(id));
 const nuovoId = () => `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;

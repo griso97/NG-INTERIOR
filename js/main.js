@@ -5,29 +5,29 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig, cassettiereSenzaSporgenza } from './calcoli.js?v=20261127a';
+import { calcolaDistintaCompleta, validaConfig, cassettiereSenzaSporgenza } from './calcoli.js?v=20261127b';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo, fotoRealisticaArmadio,
   iniziaSpostamentoRipiano, muoviSpostamentoRipiano, fineSpostamentoRipiano,
   toccoArmadio, ripianiCorrenti, posizioneNuovoRipiano, evidenziaRipiano,
-} from './scena3d.js?v=20261127a';
-import { SFONDI_LISTA } from './sfondi.js?v=20261127a';
-import { htmlAvvisoMancanti, confermaEsportazione, htmlAvvisoSporgenza, confermaSporgenzaManiglia } from './avviso-parametri.js?v=20261127a';
-import { daImpostare } from './parametri.js?v=20261127a';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261127a';
-import { agganciaTema } from './tema.js?v=20261127a';
-import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli, applicaMontaggioTipo } from './interfaccia.js?v=20261127a';
-import { tendinePannello } from './tendine-pannello.js?v=20261127a';
-import { renderDistinta } from './distinta.js?v=20261127a';
-import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261127a';
+} from './scena3d.js?v=20261127b';
+import { SFONDI_LISTA } from './sfondi.js?v=20261127b';
+import { htmlAvvisoMancanti, confermaEsportazione, htmlAvvisoSporgenza, confermaSporgenzaManiglia } from './avviso-parametri.js?v=20261127b';
+import { daImpostare } from './parametri.js?v=20261127b';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261127b';
+import { agganciaTema } from './tema.js?v=20261127b';
+import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli, applicaMontaggioTipo } from './interfaccia.js?v=20261127b';
+import { tendinePannello } from './tendine-pannello.js?v=20261127b';
+import { renderDistinta } from './distinta.js?v=20261127b';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261127b';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('./modello-export.js?v=20261127a');
+const _excel = () => import('./modello-export.js?v=20261127b');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js?v=20261127a';
+} from './storage.js?v=20261127b';
 
 // PANNELLO ORDINATO: ogni sezione è una tendina (chiusa, si apre toccando il titolo);
 // la prima volta aperte solo Tipo armadio e Dimensioni. Poi resta come la lasci.
@@ -36,18 +36,15 @@ function renderPannello(cont, cfg, cb) {
   tendinePannello(cont, 'armadio', { aperte: [] });          // all'apertura tutte chiuse
 }
 
-// Config iniziale: ultima salvata, oppure default
-let config = adattaModuli(caricaLocale() || configDefault());   // moduli sempre larghi quanto il totale
-
-// Se nella URL c'è ?tipo=battente o ?tipo=scorrevole, lo applica subito.
-// Serve per entrare dal menu "scegli.html" già sul tipo giusto.
-try {
-  const tipo = new URLSearchParams(location.search).get('tipo');
-  if ((tipo === 'battente' || tipo === 'scorrevole') && config.tipoArmadio !== tipo) {
-    config.tipoArmadio = tipo;
-    applicaMontaggioTipo(config);      // struttura e schiena di quel tipo (⚙ Parametri → Armadi)
-  }
-} catch (_) { /* no-op */ }
+// TIPO DELLA PAGINA: ?tipo=scorrevole = armadio scorrevole, altrimenti a battente. Ognuno ha il suo
+// lavoro salvato a parte (colori, misure… di uno non cambiano l'altro).
+const TIPO_PAGINA = (() => { try { return new URLSearchParams(location.search).get('tipo') === 'scorrevole' ? 'scorrevole' : 'battente'; } catch (_) { return 'battente'; } })();
+// Config iniziale: l'ultima salvata di questo tipo, oppure quella di partenza
+let config = adattaModuli(caricaLocale(TIPO_PAGINA) || configDefault());   // moduli sempre larghi quanto il totale
+if (config.tipoArmadio !== TIPO_PAGINA) {
+  config.tipoArmadio = TIPO_PAGINA;
+  applicaMontaggioTipo(config);        // struttura e schiena di quel tipo (⚙ Parametri → Armadi)
+}
 
 const canvas = document.getElementById('canvas3d');
 const pannello = document.getElementById('pannello');
@@ -200,7 +197,7 @@ function agganciaExport(distinta) {
   if (btnMod) btnMod.onclick = seCompleta(() => apriModelloExcel({ pezzi: pezziModello(), progetto: progettoNome }));
   const btnFoto = document.getElementById('btn-foto-reale');
   if (btnFoto) btnFoto.onclick = async () => {
-    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261127a');
+    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261127b');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaArmadio(p), tela3d: document.getElementById('canvas3d'), nome: 'armadio' });
   };
   const btnImg = document.getElementById('btn-img');
@@ -224,6 +221,12 @@ function agganciaAzioniGlobali() {
     try {
       const nuova = await importaJSONFile(f);
       config = { ...configDefault(), ...nuova };
+      // un armadio dell'altro tipo va nella sua pagina (battente / scorrevole sono lavori separati)
+      if ((config.tipoArmadio === 'scorrevole' ? 'scorrevole' : 'battente') !== TIPO_PAGINA) {
+        salvaLocale(config);
+        location.href = `configuratore.html?tipo=${config.tipoArmadio === 'scorrevole' ? 'scorrevole' : 'battente'}`;
+        return;
+      }
       renderPannello(pannello, config, onChange);
       agganciaAzioniGlobali();
       aggiorna();

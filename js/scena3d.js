@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261127a';
-import { parametri } from './parametri.js?v=20261127a';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261127a';
-import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261127a';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261127a';
-import { sfondoDi } from './sfondi.js?v=20261127a';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261127a';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261127a';
+import { profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261127b';
+import { parametri } from './parametri.js?v=20261127b';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261127b';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261127b';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261127b';
+import { sfondoDi } from './sfondi.js?v=20261127b';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261127b';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261127b';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -582,15 +582,26 @@ export function aggiornaScena(config) {
   if (luceOmbre && !bbA.isEmpty()) inquadraOmbre(renderer, luceOmbre, bbA, new THREE.Vector3(0.55, 1.3, 1));
   riflessiLucidi();
 
-  // Inquadratura 3/4 fissa, adatta alle dimensioni del mobile
+  // INQUADRATURA: 3/4 adatta al mobile SOLO la prima volta. Dopo la vista resta dove l'ha messa
+  // chi lavora (cambiando un colore, una maniglia… non si gira più); se cambiano le misure
+  // dell'armadio la vista si sposta con il suo centro, con lo stesso angolo e la stessa distanza.
   const W = config.larghezzaTotale;
   const H = config.altezzaEsterna + yOffset;
   const D = config.profonditaEsterna;
-  controls.target.set(W / 2, H / 2, D / 2);
-  const distMax = Math.max(W, H);
-  camera.position.set(W / 2 + distMax * 1.1, H * 0.75, D + distMax * 1.6);
+  const centro = new THREE.Vector3(W / 2, H / 2, D / 2);
+  if (!_vistaArmadio) {
+    controls.target.copy(centro);
+    const distMax = Math.max(W, H);
+    camera.position.set(W / 2 + distMax * 1.1, H * 0.75, D + distMax * 1.6);
+  } else if (centro.distanceTo(_vistaArmadio) > 1) {
+    const off = camera.position.clone().sub(controls.target);
+    controls.target.add(centro.clone().sub(_vistaArmadio));
+    camera.position.copy(controls.target).add(off);
+  }
+  _vistaArmadio = centro;
   controls.update();
 }
+let _vistaArmadio = null;        // centro dell'armadio all'ultima inquadratura (null = mai inquadrato)
 
 /**
  * Crea un box 3D con nome, posizione (centro) e dimensioni date.

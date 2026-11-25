@@ -1,12 +1,12 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
-import { materialiPer, sfondoSwatch } from '../materiali.js?v=20261127a';
-import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261127a';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261127a';
-import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT, manigliaModulari, maniglieAnteDi } from './calcoli.js?v=20261127a';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261127a';
-import { apriDistinta } from './passo2.js?v=20261127a';
+import { materialiPer, sfondoSwatch } from '../materiali.js?v=20261127b';
+import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261127b';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261127b';
+import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT, manigliaModulari, maniglieAnteDi } from './calcoli.js?v=20261127b';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261127b';
+import { apriDistinta } from './passo2.js?v=20261127b';
 
 let FINITURE = materialiPer('legno');          // dal catalogo (si rilegge a ogni pannello)
 export { MATERIALI_DEFAULT };
@@ -84,6 +84,7 @@ function scegliModulo(chiave) {
   renderPannello();              // contorno oro sul modulo + i colori del pannello sono i suoi
 }
 
+let _giaInquadrato = false;
 export function renderPasso3(c) {
   ctx = c;
   const { stato } = ctx;
@@ -91,7 +92,9 @@ export function renderPasso3(c) {
   monta(ctx.canvas);
   ascoltaTocchi(ctx.canvas);
   attivaRendering(true);
-  disegna(true);       // all'ingresso nel 3D inquadro sempre (lo schermo può essere cambiato)
+  // la prima volta si inquadra; tornando al 3D la vista resta dove l'aveva lasciata chi lavora
+  // (se cambiano le misure del vano si inquadra da solo: scena3d)
+  disegna(!_giaInquadrato); _giaInquadrato = true;
   renderPannello();
   renderRiepilogo();
 }
@@ -177,7 +180,7 @@ function renderPannello() {
     ev.currentTarget.classList.toggle('attivo', anteSonoAperte());
   });
   P.querySelector('#p3-foto-reale').addEventListener('click', async () => {
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261127a');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261127b');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaModulari(p), tela3d: ctx.canvas, nome: 'mobile' });
   });
   P.querySelector('#p3-foto').addEventListener('click', () => {
