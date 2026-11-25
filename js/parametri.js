@@ -352,6 +352,23 @@ export function spessoreTirador(def, p = parametri()) {
   if (def.sottraiSpessore === true) return proprio;
   return ['profilo', 'bordol'].includes(def.forma) ? proprio : 0;
 }
+/**
+ * TIRADOR: profilo che corre lungo il bordo dell'anta o del frontale (sul bordo con la L, a J, a bordo)
+ * o maniglia che toglie il suo spessore all'anta (scheda della maniglia: sottrai sì).
+ */
+export function eTirador(def) {
+  if (!def) return false;
+  const forma = def.texture && def.lunghezzaMm && def.formaV ? def.forma : null;
+  return ['bordol', 'profilo', 'bordo'].includes(forma) || spessoreTirador(def) > 0;
+}
+/**
+ * Lunghezza della maniglia su un bordo lungo `lato` (mm), uguale per 3D e distinta:
+ * il TIRADOR più lungo del bordo diventa lungo come il bordo (cassetto da 800 → tirador da 800);
+ * le altre maniglie restano 4 cm dentro ai bordi.
+ */
+export function lunghezzaSulBordo(def, L, lato) {
+  return Math.min(L, eTirador(def) ? lato : lato - 80);
+}
 /** Come si chiama in distinta la maniglia che accorcia l'anta. */
 export function nomeTirador(def) {
   return def && def.forma === 'bordol' ? 'maniglia sul bordo' : def && def.forma === 'profilo' ? 'maniglia a J' : 'tirador';

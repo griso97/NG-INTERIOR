@@ -14,8 +14,8 @@
 // Misure in mm. Coordinate: x a destra, y in alto, origine angolo basso-sx.
 // =============================================================================
 
-import { parametri, spessoreTirador, nomeTirador } from '../parametri.js?v=20261126t';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126t';
+import { parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, eTirador } from '../parametri.js?v=20261126u';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126u';
 
 export const SPESSORI_DEFAULT = { carcassa: 18, schiena: 10, ante: 18 };
 export const H_MINIMA_MODULO = 250;
@@ -274,10 +274,13 @@ export const riduzioneManigliaModulari = (def) => spessoreTirador(def);
 const nomeRiduzione = (def) => nomeTirador(def);
 /** Distanza della maniglia dal bordo che apre (come negli armadi). */
 const bordoManiglia = (def) => (def.forma === 'bordol' ? 0 : ['profilo', 'bordo'].includes(def.forma) ? 17 : 40);
-/** Lunghezza su un'anta alta h: quella del catalogo (la standard 30 cm), mai più lunga dell'anta − 8 cm. */
+/**
+ * Lunghezza su un bordo lungo h: quella del catalogo (la standard 30 cm), mai più lunga del bordo − 8 cm;
+ * il TIRADOR (profilo sul bordo) più lungo del bordo è lungo come il bordo.
+ */
 export function lunghezzaManigliaModulare(def, h) {
   const Lc = def.texture && def.lunghezzaMm ? def.lunghezzaMm : 300;
-  return Math.round(Math.max(40, Math.min(Lc, h - 80)));
+  return Math.round(Math.max(40, lunghezzaSulBordo(def, Lc, h)));
 }
 /** Nome in distinta: «Maniglia standard (barra) · Nero opaco · 300 mm». */
 export function nomeManigliaModulari(man, L) {
@@ -307,9 +310,12 @@ export function manigliaSuAnta(man, d, yBasso, yAlto) {
   const x = d.manSx ? d.xa + dB : d.xb - dB;
   const top = yAlto(x);
   const L = lunghezzaManigliaModulare(man.def, top - yBasso);
-  const lo = yBasso + 40 + L / 2, hi = top - 40 - L / 2;
+  const m = Math.min(40, Math.max(0, (top - yBasso - L) / 2));     // 4 cm dai bordi; il tirador lungo come l'anta arriva ai bordi
+  const lo = yBasso + m + L / 2, hi = top - m - L / 2;
   const y = hi < lo ? (yBasso + top) / 2 : Math.max(lo, Math.min(hi, man.hStd));
-  return { x, y, L, allineata: hi >= lo && Math.abs(y - man.hStd) < 0.5 };
+  // allineata: al centro dell'altezza standard; il tirador lungo basta che la copra
+  const allineata = hi >= lo && (Math.abs(y - man.hStd) < 0.5 || (eTirador(man.def) && Math.abs(y - man.hStd) <= L / 2));
+  return { x, y, L, allineata };
 }
 /**
  * ANTE di un modulo CON LA LORO MANIGLIA (o push), uguale per 3D, disegno e distinta.
@@ -337,7 +343,8 @@ export function anteConManiglie(L, hL, hR, y0, N, lato, apertura, man) {
     // SOPRA / SOTTO: orizzontale lungo il bordo, verso il lato che apre (2 ante: verso il centro)
     const dSopra = ap === 'sopra' ? r / cosA : 0, dSotto = ap === 'sotto' ? r : 0;
     const w = d.xb - d.xa, Lm = lunghezzaManigliaModulare(man.def, w);
-    const x = d.manSx ? d.xa + 40 + Lm / 2 : d.xb - 40 - Lm / 2;
+    const mm = Math.min(40, Math.max(0, (w - Lm) / 2));             // il tirador largo come l'anta arriva ai bordi
+    const x = d.manSx ? d.xa + mm + Lm / 2 : d.xb - mm - Lm / 2;
     const dB = bordoManiglia(man.def);
     const y = ap === 'sopra'
       ? Math.max(yB + dSotto + 20, top(x) - dSopra - dB / cosA)

@@ -11,8 +11,8 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126t';
-import { SPORGENZA_FORMA } from './finiture-maniglia.js?v=20261126t';
+import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126u';
+import { SPORGENZA_FORMA } from './finiture-maniglia.js?v=20261126u';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -92,9 +92,12 @@ export function manigliaCassettiera(config, c) {
   if (!id || typeof window === 'undefined') return null;
   return (window.NG_MATERIALI || []).find((m) => m.id === id && m.categoria === 'maniglia') || null;
 }
-/** Lunghezza della maniglia sul frontale del cassetto: quella del catalogo, mai più lunga del frontale − 8 cm. */
+/**
+ * Lunghezza della maniglia sul frontale del cassetto: quella del catalogo, mai più lunga del frontale − 8 cm;
+ * il TIRADOR (profilo sul bordo) più lungo del frontale è largo come il frontale (cassetto da 800 → 800).
+ */
 export function lunghezzaManigliaCassetto(def, larFronte) {
-  return Math.round(Math.max(40, Math.min(lunghezzaManiglia(def), larFronte - 80)));
+  return Math.round(Math.max(40, lunghezzaSulBordo(def, lunghezzaManiglia(def), larFronte)));
 }
 /** Quanto sporge una maniglia del catalogo davanti al frontale (mm), come è fatta nel 3D: per proporre la misura. */
 export function sporgenzaDiManiglia(def) {
@@ -112,8 +115,8 @@ export function lunghezzaManiglia(def) { return def.texture && def.lunghezzaMm ?
  */
 export function lunghezzaManigliaAnta(def, config, altAnta) {
   const scelta = config && config.manigliaLunghezza;
-  const L = scelta === 'anta' ? altAnta - 80 : Number(scelta) > 0 ? Number(scelta) : lunghezzaManiglia(def);
-  return Math.max(40, Math.min(L, altAnta - 80));
+  const L = scelta === 'anta' ? altAnta : Number(scelta) > 0 ? Number(scelta) : lunghezzaManiglia(def);
+  return Math.max(40, lunghezzaSulBordo(def, L, altAnta));          // il tirador fino al bordo, le altre 4 cm dentro
 }
 /**
  * MANIGLIA A PROFILO SUL BORDO (a J o «sul bordo»): sta sul bordo che apre, quindi l'anta è più

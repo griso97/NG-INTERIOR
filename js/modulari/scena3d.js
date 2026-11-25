@@ -9,12 +9,12 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261126t';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261126t';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261126t';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261126t';
-import { anteConManiglie, manigliaModulari } from './calcoli.js?v=20261126t';
-import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261126t';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261126u';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261126u';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261126u';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261126u';
+import { anteConManiglie, manigliaModulari } from './calcoli.js?v=20261126u';
+import { costruisciManiglia, manigliaDaFoto } from '../maniglia3d.js?v=20261126u';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -220,9 +220,12 @@ function aggiungiManiglia(parent, x, y, z, L, rotZ) {
   const { def, colore } = manAttuale;
   const catalogo = !!(def.texture && def.lunghezzaMm);
   let grp = null;
-  if (catalogo && (def.forma === 'foto' || !def.formaV) && Math.round(L) === Math.round(def.lunghezzaMm)) {
+  if (catalogo && (def.forma === 'foto' || !def.formaV) && L <= def.lunghezzaMm + 0.5) {
     const r = manigliaDaFoto(colore ? { ...def, finitura: colore } : def, () => { if (ultimoAggiorna) aggiorna(...ultimoAggiorna); });
-    if (r) { grp = new THREE.Group(); grp.add(new THREE.Mesh(r.geo, r.mat)); }
+    if (r) {
+      const mesh = new THREE.Mesh(r.geo, r.mat); if (L < def.lunghezzaMm) mesh.scale.x = L / def.lunghezzaMm;   // lunga come in distinta
+      grp = new THREE.Group(); grp.add(mesh);
+    }
   }
   if (!grp) {
     const forma = catalogo ? (!def.forma || def.forma === 'foto' ? 'barra' : def.forma) : 'barra';
