@@ -467,8 +467,10 @@ table.distinta td.qta {
   list-style: none;
   cursor: pointer;
   padding: 10px 12px;
-  display: flex;
-  justify-content: space-between;
+  /* DUE COLONNE FISSE: a sinistra la parte, a destra quadratino + nome del materiale. Il quadratino
+     parte sempre dallo stesso punto in tutte le righe (telefono e computer); il nome va a capo se serve */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 48%);
   align-items: center;
   gap: 10px;
 }
@@ -481,10 +483,13 @@ table.distinta td.qta {
 }
 .mat-corrente {
   display: flex; align-items: center; gap: 8px;
+  min-width: 0;
   color: var(--oro-chiaro);
   font-size: 12px;
 }
+.mat-corrente > span:last-child { min-width: 0; line-height: 1.3; overflow-wrap: anywhere; }
 .mat-corrente img {
+  flex: 0 0 28px;
   width: 28px; height: 28px;
   object-fit: cover;
   border: 1px solid var(--oro-scuro);

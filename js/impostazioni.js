@@ -8,22 +8,22 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261126r';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261126r';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261126r';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261126r';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261126r';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261126r';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261126r';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261126r';
-import { agganciaTema } from './tema.js?v=20261126r';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261126r';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador } from './parametri.js?v=20261126r';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261126r';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261126r';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261126r';
-import { geometriaCassettiera } from './calcoli.js?v=20261126r';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261126r';
+} from './catalogo.js?v=20261126s';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261126s';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261126s';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261126s';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261126s';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261126s';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO } from './analisi-foto.js?v=20261126s';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261126s';
+import { agganciaTema } from './tema.js?v=20261126s';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261126s';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador } from './parametri.js?v=20261126s';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261126s';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261126s';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261126s';
+import { geometriaCassettiera } from './calcoli.js?v=20261126s';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261126s';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);

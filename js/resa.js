@@ -14,8 +14,8 @@
 // =============================================================================
 
 import * as THREE from 'three';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261126r';
-import { pianoComeFoto } from './materiali.js?v=20261126r';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261126s';
+import { pianoComeFoto } from './materiali.js?v=20261126s';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
