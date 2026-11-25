@@ -11,8 +11,8 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126u';
-import { SPORGENZA_FORMA } from './finiture-maniglia.js?v=20261126u';
+import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261126v';
+import { SPORGENZA_FORMA } from './finiture-maniglia.js?v=20261126v';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -390,6 +390,13 @@ const SP_MEL_ARM = 16;
  *   Ripiano sopra: scorrevole come gli altri ripiani (fino al binario); battente a filo dei frontali,
  *   con la maniglia fino alla maniglia.
  */
+/**
+ * GUIDA DEI CASSETTI: AUTOMATICA dalla profondità della cassettiera (la scatola), non si sceglie
+ * (un cassetto da 500 in una cassettiera da 400 non esiste e sbaglierebbe tutti i tagli):
+ * da 500 mm in su → guida 500 · da 400 a 499 → guida 400 · sotto 400 → guida 300.
+ */
+export const GUIDE_CASSETTI = [500, 400, 300];
+export function guidaCassetti(profScatola) { return GUIDE_CASSETTI.find((g) => profScatola >= g) || GUIDE_CASSETTI[GUIDE_CASSETTI.length - 1]; }
 export function geometriaCassettiera(config, c, Lm) {
   const scorrevole = config.tipoArmadio === 'scorrevole';
   const P = cassettieraArmadio(scorrevole ? 'scorrevole' : 'battente');
@@ -441,7 +448,8 @@ export function geometriaCassettiera(config, c, Lm) {
   for (const f of fronti) f.h = ribassati ? Math.max(20, f.h0 - ribasso) : f.h0 - ridMan;
   const sommaSpazi = fronti.reduce((t, f) => t + f.slot, 0);
   return {
-    scorrevole, P, sC, N, AltMax, guida: c.guida || 500, apertura, ribassati, maniglia: apertura === 'maniglia',
+    scorrevole, P, sC, N, AltMax, apertura,
+    guida: guidaCassetti(profScatola), guidaNonEntra: profScatola < GUIDE_CASSETTI[GUIDE_CASSETTI.length - 1], ribassati, maniglia: apertura === 'maniglia',
     incassata: apertura === 'incassata', sporgenza, sporgenzaMancante, defMan, ridMan,
     larTF, profScatola, profRipiano, As, fronti, personalizzata: pers,
     spazioCassetti: pers ? spazioCassetti : null, differenza: pers ? Math.round(spazioCassetti - sommaSpazi) : 0,
@@ -487,6 +495,9 @@ function _cassettoMelArmadio(pezzi, nomeModulo, Lm, altF, guida, N, cassettiera 
   pezzi.push({ modulo: nomeModulo, nome: `Cassetto · trasera ${t.tipo}`,
     larghezza: Math.round(larTrasera), altezza: t.trasera,
     spessore: SP_MEL_ARM, materiale: 'melaminico', quantita: N });
+  // il cassetto da ordinare: guida scelta dalla profondità della cassettiera
+  pezzi.push({ modulo: nomeModulo, nome: `Cassetti${sisC.marca ? ' ' + sisC.marca : ''} guida ${guida} mm · ${t.tipo}`,
+    larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: N });
 }
 
 /**
@@ -525,6 +536,8 @@ function _pezziCassettiera(config, c, modulo, indiceModulo) {
   const perSlot = new Map();
   for (const f of G.fronti) perSlot.set(f.h0, (perSlot.get(f.h0) || 0) + 1);
   for (const [h0, q] of perSlot) _cassettoMelArmadio(pezzi, nomeModulo, modulo.larghezza, h0, G.guida, q, c, G.interno, G.P.fondoMeno);
+  // cassettiera troppo poco profonda: non entra neanche la guida più corta (si vede anche nella cassettiera)
+  if (G.guidaNonEntra) pezzi.push({ modulo: nomeModulo, nome: `ATTENZIONE: la cassettiera è profonda solo ${G.profScatola} mm, non entra neanche la guida da 300`, larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: 1 });
   return pezzi;
 }
 /** Cassettiere con la maniglia esterna senza la sporgenza scritta (prima di esportare si avvisa). */

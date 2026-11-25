@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261126u';
-import { htmlTendineColori } from './tendine-colori.js?v=20261126u';
-import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261126u';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261126u';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261126u';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261126v';
+import { htmlTendineColori } from './tendine-colori.js?v=20261126v';
+import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261126v';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261126v';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261126v';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -756,8 +756,11 @@ function renderCassettiere(config) {
             G.differenza === 0 ? ' ✓' : G.differenza > 0 ? ` · mancano ${G.differenza} mm` : ` · ${-G.differenza} mm in più`}</p>
           <p class="hint">Ogni frontale è la misura scritta meno l'aria dei Parametri (${G.fuga} mm): es. 150 → ${150 - G.fuga}.</p>` : `
           <p class="hint">Frontali da ${G.fronti[0].h} mm.</p>`}
-          <div class="cass-et">Guida scorrevole</div>
-          ${scelte('guida', c.guida ?? 500, [[500, '500 mm', 'fondo 480'], [400, '400 mm', 'fondo 380'], [350, '350 mm', 'fondo 330']])}
+          <div class="cass-et">Guida dei cassetti</div>
+          <p class="hint ${G.guidaNonEntra ? 'err' : ''}" style="margin-top:0">${G.guidaNonEntra
+            ? `La cassettiera è profonda solo ${G.profScatola} mm, non entra neanche la guida da 300.`
+            : `Guida ${G.guida} mm, scelta da sola dalla profondità della cassettiera (${G.profScatola} mm).`}</p>
+          <p class="hint">Da 500 mm in su guida 500, da 400 a 499 guida 400, sotto 400 guida 300.</p>
           <div class="cass-et">Cassetti</div>
           ${nostri.length ? scelte('sistema', c.sistemaCassetti || '', [['', 'A sistema'], ...nostri.map((x) => [x.id, escAttr(nomeSistemaCassetti(x))])])
             : '<p class="hint" style="margin-top:0">A sistema. I cassetti su misura si configurano in <a href="impostazioni.html#parametri">Impostazioni → Parametri</a> → Sistemi di cassetti.</p>'}
@@ -824,7 +827,7 @@ function attaccaEventiCassettiere(contenitore, config, onChange) {
   const btnAdd = contenitore.querySelector('#btn-cass-add');
   if (btnAdd) {
     btnAdd.onclick = () => {
-      const base = { numCassetti: 4, altMax: 800, guida: 500,
+      const base = { numCassetti: 4, altMax: 800,
         moduli: config.moduli.map((_, i) => i) }; // di default in tutti
       const nuova = { ...base, apertura: 'incassata' };            // di partenza la maniglia incassata
       config.cassettiere.push(nuova);
@@ -865,7 +868,7 @@ function attaccaEventiCassettiere(contenitore, config, onChange) {
       onChange(config);
     };
     if (alt) alt.onchange = ridisegna;
-    // SCELTE A PULSANTI: misure dei cassetti, guida, sistema di cassetti, maniglia (apertura)
+    // SCELTE A PULSANTI: misure dei cassetti, sistema di cassetti, maniglia (apertura); la guida è automatica
     row.querySelectorAll('.cass-scelte[data-k] button').forEach((b) => {
       b.onclick = () => {
         const k = b.closest('.cass-scelte').dataset.k, v = b.dataset.v;
@@ -873,8 +876,7 @@ function attaccaEventiCassettiere(contenitore, config, onChange) {
         if (k === 'divisione') {
           if (v === 'personalizzata') { cas.divisione = 'personalizzata'; cas.altezze = spaziCassettiDiPartenza(config, cas, (config.moduli[0] && config.moduli[0].larghezza) || 1000); }
           else { delete cas.divisione; delete cas.altezze; }
-        } else if (k === 'guida') cas.guida = Number(v) || 500;
-        else if (k === 'sistema') { if (v) cas.sistemaCassetti = v; else delete cas.sistemaCassetti; }
+        } else if (k === 'sistema') { if (v) cas.sistemaCassetti = v; else delete cas.sistemaCassetti; }
         else if (k === 'apertura') {
           cas.apertura = v;                              // incassata / maniglia / ribassati
           delete cas.maniglia;

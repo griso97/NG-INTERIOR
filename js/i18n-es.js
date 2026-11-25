@@ -3174,4 +3174,11 @@ window.NG_I18N_ES = {
  "Quale maniglia": "Qué tirador",
  "Barretta semplice": "Barrita simple",
  "Proposta dalla maniglia scelta, si può cambiare. La cassettiera è più corta di questa misura, così la maniglia sta davanti ai frontali.": "Propuesta por el tirador elegido, se puede cambiar. La cajonera es más corta esta medida, así el tirador queda delante de los frentes.",
+ "Guida dei cassetti": "Guía de los cajones",
+ "Guida {0} mm, scelta da sola dalla profondità della cassettiera ({1} mm).": "Guía {0} mm, elegida automáticamente según la profundidad de la cajonera ({1} mm).",
+ "La cassettiera è profonda solo {0} mm, non entra neanche la guida da 300.": "La cajonera solo tiene {0} mm de profundidad, no cabe ni la guía de 300.",
+ "Da 500 mm in su guida 500, da 400 a 499 guida 400, sotto 400 guida 300.": "Desde 500 mm guía 500, de 400 a 499 guía 400, por debajo de 400 guía 300.",
+ "Cassetti guida {0} mm": "Cajones guía {0} mm",
+ "Cassetti {0} guida {1} mm": "Cajones {0} guía {1} mm",
+ "ATTENZIONE: la cassettiera è profonda solo {0} mm, non entra neanche la guida da 300": "ATENCIÓN: la cajonera solo tiene {0} mm de profundidad, no cabe ni la guía de 300",
 };
