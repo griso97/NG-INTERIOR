@@ -5,29 +5,29 @@
 // Qui dentro non ci sono formule: solo "chi chiama chi".
 // =============================================================================
 
-import { calcolaDistintaCompleta, validaConfig, cassettiereSenzaSporgenza } from './calcoli.js?v=20261126p';
+import { calcolaDistintaCompleta, validaConfig, cassettiereSenzaSporgenza } from './calcoli.js?v=20261126q';
 import {
   inizializzaScena, aggiornaScena, impostaApertura, forzaResize, esportaImmagine, impostaSfondo, fotoRealisticaArmadio,
   iniziaSpostamentoRipiano, muoviSpostamentoRipiano, fineSpostamentoRipiano,
   toccoArmadio, ripianiCorrenti, posizioneNuovoRipiano, evidenziaRipiano,
-} from './scena3d.js?v=20261126p';
-import { SFONDI_LISTA } from './sfondi.js?v=20261126p';
-import { htmlAvvisoMancanti, confermaEsportazione, htmlAvvisoSporgenza, confermaSporgenzaManiglia } from './avviso-parametri.js?v=20261126p';
-import { daImpostare } from './parametri.js?v=20261126p';
-import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261126p';
-import { agganciaTema } from './tema.js?v=20261126p';
-import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli, applicaMontaggioTipo } from './interfaccia.js?v=20261126p';
-import { tendinePannello } from './tendine-pannello.js?v=20261126p';
-import { renderDistinta } from './distinta.js?v=20261126p';
-import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261126p';
+} from './scena3d.js?v=20261126q';
+import { SFONDI_LISTA } from './sfondi.js?v=20261126q';
+import { htmlAvvisoMancanti, confermaEsportazione, htmlAvvisoSporgenza, confermaSporgenzaManiglia } from './avviso-parametri.js?v=20261126q';
+import { daImpostare } from './parametri.js?v=20261126q';
+import { PAVIMENTI, GRUPPI_PAVIMENTI } from './pavimenti-dati.js?v=20261126q';
+import { agganciaTema } from './tema.js?v=20261126q';
+import { renderPannello as disegnaPannelloArmadio, configDefault, adattaModuli, applicaMontaggioTipo } from './interfaccia.js?v=20261126q';
+import { tendinePannello } from './tendine-pannello.js?v=20261126q';
+import { renderDistinta } from './distinta.js?v=20261126q';
+import { esportaCSV, esportaPDF, nomeMaterialeCsv } from './esportazione.js?v=20261126q';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('./modello-export.js?v=20261126p');
+const _excel = () => import('./modello-export.js?v=20261126q');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
 import {
   salvaLocale, caricaLocale, esportaJSON, importaJSONFile,
-} from './storage.js?v=20261126p';
+} from './storage.js?v=20261126q';
 
 // PANNELLO ORDINATO: ogni sezione è una tendina (chiusa, si apre toccando il titolo);
 // la prima volta aperte solo Tipo armadio e Dimensioni. Poi resta come la lasci.
@@ -200,7 +200,7 @@ function agganciaExport(distinta) {
   if (btnMod) btnMod.onclick = seCompleta(() => apriModelloExcel({ pezzi: pezziModello(), progetto: progettoNome }));
   const btnFoto = document.getElementById('btn-foto-reale');
   if (btnFoto) btnFoto.onclick = async () => {
-    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261126p');
+    const { apriFotoRealistica } = await import('./foto-dialogo.js?v=20261126q');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaArmadio(p), tela3d: document.getElementById('canvas3d'), nome: 'armadio' });
   };
   const btnImg = document.getElementById('btn-img');
@@ -253,6 +253,7 @@ btnToggleAnte.addEventListener('change', (e) => {
 });
 if (btnFabApri) {
   btnFabApri.addEventListener('click', () => {
+    delete document.body.dataset.portePerCassettiera;   // porte aperte a mano: l'aiuto dei ripiani torna
     const nuovo = !btnToggleAnte.checked;
     btnToggleAnte.checked = nuovo;
     impostaApertura(nuovo);
@@ -267,7 +268,8 @@ const misuraRip = document.getElementById('ripiano-misura');
 function aggiornaHintRipiani() {
   if (!hintRip) return;
   const conRipiani = (config.moduli || []).some((m) => m.ripiani > 0 || m.barra);
-  hintRip.hidden = !(btnToggleAnte.checked && conRipiani);
+  // porte aperte da sole per far vedere la cassettiera: l'aiuto dei ripiani la coprirebbe
+  hintRip.hidden = !(btnToggleAnte.checked && conRipiani) || document.body.dataset.portePerCassettiera === '1';
 }
 btnToggleAnte.addEventListener('change', aggiornaHintRipiani);
 btnToggleAnte.addEventListener('change', () => { if (!btnToggleAnte.checked) chiudiAzioniRipiano(); });

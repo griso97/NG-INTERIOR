@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261126p';
-import { htmlTendineColori } from './tendine-colori.js?v=20261126p';
-import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassetti, sporgenzaDiManiglia } from './calcoli.js?v=20261126p';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261126p';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261126p';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261126q';
+import { htmlTendineColori } from './tendine-colori.js?v=20261126q';
+import { misureCostado, binarioArmadio, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassetti, sporgenzaDiManiglia } from './calcoli.js?v=20261126q';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261126q';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261126q';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -800,7 +800,27 @@ function renderCassettiere(config) {
   }).join('');
 }
 
+/**
+ * Apre o chiude le porte nel 3D, come il tasto «Apri porte». La cassettiera sta DENTRO l'armadio:
+ * a porte chiuse non si vede, quindi quando si cambia qualcosa della cassettiera le porte si aprono
+ * da sole (e si vede il cambio); quando si cambiano le ante o le loro maniglie si chiudono.
+ */
+function mostraPorte(aperte) {
+  const t = document.getElementById('toggle-ante');
+  if (aperte) document.body.dataset.portePerCassettiera = '1';   // l'aiuto dei ripiani coprirebbe la cassettiera
+  else delete document.body.dataset.portePerCassettiera;
+  if (!t || t.checked === aperte) return;
+  t.checked = aperte;
+  t.dispatchEvent(new Event('change'));
+}
+
 function attaccaEventiCassettiere(contenitore, config, onChange) {
+  // qualsiasi cosa si cambi in una cassettiera: porte aperte, così la si vede (una volta sola per pagina)
+  const lista = contenitore.querySelector('#cass-list');
+  if (lista && !lista.dataset.portePronte) {
+    lista.dataset.portePronte = '1';
+    for (const ev of ['input', 'change']) lista.addEventListener(ev, () => mostraPorte(true));
+  }
   const scorrevole = config.tipoArmadio === 'scorrevole';
   config.cassettiere = config.cassettiere || [];
   const btnAdd = contenitore.querySelector('#btn-cass-add');
@@ -810,6 +830,7 @@ function attaccaEventiCassettiere(contenitore, config, onChange) {
         moduli: config.moduli.map((_, i) => i) }; // di default in tutti
       const nuova = { ...base, apertura: 'incassata' };            // di partenza la maniglia incassata
       config.cassettiere.push(nuova);
+      mostraPorte(true);                               // la cassettiera nuova si vede subito
       renderCassettiere(config);
       attaccaEventiCassettiere(contenitore, config, onChange);
       renderMateriali(config);                         // compaiono colori e maniglie della cassettiera
@@ -1205,6 +1226,7 @@ function attaccaEventiMateriali(contenitore, config, onChange) {
   contenitore.querySelectorAll('.mat-swatch[data-mancass]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const v = btn.dataset.mancass;
+      mostraPorte(true);                               // i cassetti stanno dentro: porte aperte per vederli
       for (const c of config.cassettiere || []) {
         if (v === 'incassata') { c.apertura = 'incassata'; continue; }
         c.apertura = 'maniglia';
@@ -1221,6 +1243,7 @@ function attaccaEventiMateriali(contenitore, config, onChange) {
   contenitore.querySelectorAll('.mat-swatch[data-man]').forEach((btn) => {
     btn.addEventListener('click', () => {
       config.maniglia = btn.dataset.man === 'nessuna' ? null : btn.dataset.man;
+      mostraPorte(false);                              // maniglie delle ANTE: porte chiuse per vederle
       renderMateriali(config);
       attaccaEventiMateriali(contenitore, config, onChange);
       onChange(config);
@@ -1236,6 +1259,8 @@ function attaccaEventiMateriali(contenitore, config, onChange) {
         parte.applica.forEach((k) => {
           config.materiali[k] = btn.dataset.mat;
         });
+        if (parte.id.startsWith('cass')) mostraPorte(true);   // colori della cassettiera: porte aperte
+        else if (parte.id === 'ante') mostraPorte(false);     // colore delle ante: porte chiuse
         card.open = false;
         renderMateriali(config);
         attaccaEventiMateriali(contenitore, config, onChange);

@@ -14,10 +14,10 @@
 import {
   altezzeCassettiDi, cassettoSopraDi, infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi, zoccoliContinui, angoliZoccolo,
-  altezzaAlzatina, antePensileAngolo, antaCiaflan, MODULI_SPECIALI, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261126p';
-import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull, spessoreTirador, nomeTirador } from '../parametri.js?v=20261126p';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126p';
-import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261126p';
+  altezzaAlzatina, antePensileAngolo, antaCiaflan, MODULI_SPECIALI, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261126q';
+import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull, spessoreTirador, nomeTirador } from '../parametri.js?v=20261126q';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126q';
+import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261126q';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
