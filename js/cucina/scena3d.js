@@ -17,35 +17,35 @@ import {
   moduliDiParete, PROFONDITA_BASE, PROFONDITA_PENSILE, infoAngoloCieco, SPESSORE_ANTA, fasceCierreTecho, rettangoloSoffitto,
   costadoCopreAnte, fronteCieco, piediniCucina, zoccoloColonnaDi, scendeAntaPensile,
   golaColonna, goleDiColonna, impostaProgettoFerramenta, spazioGola, zoccoliContinui, antePensileAngolo, antaCiaflan,
-} from './modello.js?v=20261126s';
+} from './modello.js?v=20261126t';
 import {
   MONTAGGIO_PENSILE, SP_TOP, SP_SCHIENALE, spessorePianoDi, baseAltillo, siSovrappongono, fondoPonteSopra, quoteAlte,
   dimVasca, dimPlacca, fuochiPerLarghezza, distSegmento, basePensile, cimePensili as cimeDeiPensili, quoteCostado,
   lastrePiano, ledCucina,
-} from './geometria.js?v=20261126s';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261126s';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261126s';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261126s';
+} from './geometria.js?v=20261126t';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261126t';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261126t';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261126t';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261126s').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261126t').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261126s';
-import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261126s';
-export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261126s';
-import { parametri, profiloFingerPull, spessoreTirador } from '../parametri.js?v=20261126s';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261126s';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261126s';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261126s';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261126t';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura } from '../maniglia3d.js?v=20261126t';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261126t';
+import { parametri, profiloFingerPull, spessoreTirador } from '../parametri.js?v=20261126t';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261126t';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261126t';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261126t';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261126s';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261126t';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261126s';
+export { telaPavimento } from '../resa.js?v=20261126t';
 
 export { MONTAGGIO_PENSILE };              // altezza da terra del basso dei pensili (geometria.js)
 // Zoccolo (piedini) in base all'altezza della porta:
@@ -2408,7 +2408,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261126s')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261126t')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }

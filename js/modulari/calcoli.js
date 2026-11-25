@@ -14,8 +14,8 @@
 // Misure in mm. Coordinate: x a destra, y in alto, origine angolo basso-sx.
 // =============================================================================
 
-import { parametri, spessoreTirador, nomeTirador } from '../parametri.js?v=20261126s';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126s';
+import { parametri, spessoreTirador, nomeTirador } from '../parametri.js?v=20261126t';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126t';
 
 export const SPESSORI_DEFAULT = { carcassa: 18, schiena: 10, ante: 18 };
 export const H_MINIMA_MODULO = 250;

@@ -292,24 +292,35 @@
     b.querySelector('button').addEventListener('click', function () { ricarica(nuova); });
     document.body.appendChild(b);
   }
-  function controllaVersione() {
+  /** Si sta scrivendo o c'è una finestra aperta? Allora non ricarico da solo. */
+  function inLavoro() {
+    var a = document.activeElement;
+    if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== 'button') return true;
+    var modali = document.querySelectorAll('dialog[open], .modale:not([hidden]), [role="dialog"]:not([hidden])');
+    for (var i = 0; i < modali.length; i++) if (modali[i].offsetParent !== null) return true;
+    return false;
+  }
+  function controllaVersione(alRitorno) {
     versioneOnline(function (nuova) {
       var tentata = '';
       try { tentata = sessionStorage.getItem('ng-agg') || ''; } catch (e) { /* niente */ }
-      // Appena aperta: ricarico subito (una volta sola per versione, niente giri infiniti)
-      if (Date.now() - avvioMs < 6000 && tentata !== nuova) {
+      // Appena aperta, o quando si TORNA sul sito (il lavoro è già salvato a ogni modifica):
+      // ricarico subito, una volta sola per versione (niente giri infiniti)
+      if ((alRitorno || Date.now() - avvioMs < 6000) && tentata !== nuova && !inLavoro()) {
         try { sessionStorage.setItem('ng-agg', nuova); } catch (e) { /* niente */ }
         ricarica(nuova);
       } else {
-        // Pagina già in uso: non interrompo il lavoro, propongo l'aggiornamento
+        // Si sta lavorando: non interrompo, propongo l'aggiornamento
         avvisoAggiorna(nuova);
       }
     });
   }
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible') controllaVersione();
+    if (document.visibilityState === 'visible') controllaVersione(true);
   });
-  window.addEventListener('pageshow', function (e) { if (e.persisted) controllaVersione(); });
+  window.addEventListener('pageshow', function (e) { if (e.persisted) controllaVersione(true); });
+  // pagina aperta a lungo: ogni 5 minuti controllo se c'è una versione nuova (solo l'avviso)
+  setInterval(function () { if (document.visibilityState === 'visible') controllaVersione(false); }, 5 * 60 * 1000);
 
   function pronto() { montaSelettore(); avvia(); controllaVersione(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', pronto);
