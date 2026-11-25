@@ -9,9 +9,9 @@
 // («lo imposto dopo»): restano a 0, la distinta avvisa che mancano e alla fine c'è il promemoria.
 // Alla fine: 'ng-configurato' = 1 e si va al programma.
 // =============================================================================
-import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261126h';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261126h';
-import { svgGola, svgRegletta, svgParametro } from './disegni-cucina.js?v=20261126h';
+import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261126i';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261126i';
+import { svgGola, svgRegletta, svgParametro } from './disegni-cucina.js?v=20261126i';
 
 const $ = (id) => document.getElementById(id);
 const t = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);

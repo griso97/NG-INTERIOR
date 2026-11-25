@@ -14,10 +14,10 @@
 import {
   altezzeCassettiDi, cassettoSopraDi, infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi, zoccoliContinui, angoliZoccolo,
-  altezzaAlzatina, antePensileAngolo, antaCiaflan, MODULI_SPECIALI, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261126h';
-import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull } from '../parametri.js?v=20261126h';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126h';
-import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261126h';
+  altezzaAlzatina, antePensileAngolo, antaCiaflan, MODULI_SPECIALI, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261126i';
+import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull } from '../parametri.js?v=20261126i';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261126i';
+import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261126i';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const THK_REG = 20;   // spessore regletta d'angolo (mm)
@@ -446,12 +446,13 @@ function gruppoPezzo(p) {
 }
 
 // Gruppi dei MODULI da ordinare (costadi, reglette e pannelli no: li facciamo noi).
-const ORDINE_MODULI = ['Colonne', 'Moduli alti', 'Moduli bassi', 'Elettrodomestici'];
+// GLI ELETTRODOMESTICI (frigo, lavastoviglie, lavatrice) NON vanno in distinta: li compra il cliente. Restano
+// solo i pezzi che facciamo noi intorno (l'anta della lavastoviglie integrata, lo zoccolo davanti).
+const ORDINE_MODULI = ['Colonne', 'Moduli alti', 'Moduli bassi'];
 function gruppoModulo(cat) {
   if (cat === 'colonna') return 'Colonne';
   if (cat === 'pensile' || cat === 'altillo') return 'Moduli alti';
   if (cat === 'base') return 'Moduli bassi';
-  if (cat === 'lavastoviglie' || cat === 'lavatrice' || cat === 'frigo') return 'Elettrodomestici';
   return null;
 }
 
