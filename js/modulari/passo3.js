@@ -1,12 +1,12 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
-import { materialiPer, sfondoSwatch } from '../materiali.js?v=20261127h';
-import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261127h';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261127h';
-import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT, manigliaModulari, maniglieAnteDi } from './calcoli.js?v=20261127h';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261127h';
-import { apriDistinta } from './passo2.js?v=20261127h';
+import { materialiPer, sfondoSwatch } from '../materiali.js?v=20261127i';
+import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261127i';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261127i';
+import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT, manigliaModulari, maniglieAnteDi } from './calcoli.js?v=20261127i';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261127i';
+import { apriDistinta } from './passo2.js?v=20261127i';
 
 let FINITURE = materialiPer('legno');          // dal catalogo (si rilegge a ogni pannello)
 export { MATERIALI_DEFAULT };
@@ -109,7 +109,7 @@ function disegna(reinquadra) {
     chiusura: chiusura(),
     maniglia: manigliaModulari(stato),
     // costadi e zoccolo della parete a moduli (stesse misure della distinta)
-    ...(stato.modalita === 'cubi' ? {} : (() => { const l = layoutModuli(forma, stato.moduli, spessori()); return { costadi: l.costadi, zoccolo: l.zoccolo }; })()),
+    ...(stato.modalita === 'cubi' ? {} : (() => { const l = layoutModuli(forma, stato.moduli, spessori()); return { costadi: l.costadi, zoccolo: l.zoccolo, piedi: l.piedi, sottoModuli: l.moduli.map((m) => ({ x0: m.x0, L: m.larghezza })) }; })()),
     reinquadra,
   });
 }
@@ -182,7 +182,7 @@ function renderPannello() {
     ev.currentTarget.classList.toggle('attivo', anteSonoAperte());
   });
   P.querySelector('#p3-foto-reale').addEventListener('click', async () => {
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261127h');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261127i');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaModulari(p), tela3d: ctx.canvas, nome: 'mobile' });
   });
   P.querySelector('#p3-foto').addEventListener('click', () => {

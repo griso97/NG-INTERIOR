@@ -11,8 +11,8 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261127h';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127h';
+import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto, piediniDi } from './parametri.js?v=20261127i';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127i';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -855,6 +855,38 @@ export function pezziTamponamenti(config) {
  *   Spessore   = spessore ante (o quello scelto), materiale «costadi» (di partenza come le ante)
  * Il costado sta FUORI dalla larghezza dei moduli: la larghezza totale diventa L + i costadi.
  */
+/** Piedini e zoccolo di questo armadio (la sua scelta, o quella dei ⚙ Parametri del suo tipo). */
+export const piediniArmadio = (config) => piediniDi(config.piedini, config.tipoArmadio === 'scorrevole' ? 'scorrevole' : 'battente');
+/**
+ * ZOCCOLO dell'armadio (null = niente): davanti, da terra, a filo del fronte (o rientrato come nei ⚙ Parametri).
+ * Automatico: largo quanto l'armadio fuori (moduli + tamponamenti laterali; dove c'è il costado si ferma
+ * contro il costado, che con i piedini arriva fino a terra) e alto quanto i piedini; personalizzato: le sue misure,
+ * centrato. x0 in mm dal fianco sinistro del primo modulo.
+ */
+export function zoccoloArmadio(config) {
+  const pd = piediniArmadio(config);
+  if (!pd.zoccolo) return null;
+  const cos = misureCostado(config), t = config.tamponamenti || {};
+  const a = cos.sx ? 0 : -(t.sx && t.sx.attivo ? t.sx.larghezza : 0);
+  const b = config.larghezzaTotale + (cos.dx ? 0 : (t.dx && t.dx.attivo ? t.dx.larghezza : 0));
+  const L = pd.zoccolo.L || (b - a);
+  return { larghezza: L, altezza: pd.zoccolo.H, x0: (a + b) / 2 - L / 2, rientro: pd.zoccolo.rientro, auto: pd.zoccolo.auto,
+    spessore: config.spessoreAnte, piedini: pd.h };
+}
+/** PIEDINI (sotto ogni modulo 4, 6 se è più largo di 1 m) e ZOCCOLO dell'armadio: come nel 3D. */
+export function pezziPiediniZoccolo(config) {
+  const pd = piediniArmadio(config), pezzi = [];
+  if (!pd.si) return pezzi;
+  const nP = (config.moduli || []).reduce((t, m) => t + (m.larghezza > 1000 ? 6 : 4), 0);
+  pezzi.push({ modulo: 'Piedini e zoccolo', nome: `Piedini regolabili da ${pd.h} mm`, larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: nP });
+  const z = zoccoloArmadio(config);
+  if (z) {
+    pezzi.push({ modulo: 'Piedini e zoccolo', nome: `Zoccolo (frontale)${z.auto ? '' : ' · misure personalizzate'}${z.rientro ? ` · rientrato ${z.rientro} mm` : ''}`,
+      larghezza: z.larghezza, altezza: z.altezza, spessore: z.spessore, materiale: 'ante', quantita: 1 });
+    pezzi.push({ modulo: 'Piedini e zoccolo', nome: 'Clip per zoccolo', larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: (config.moduli || []).length * 2 });
+  }
+  return pezzi;
+}
 export function misureCostado(config) {
   const c = config.costadi || {};
   const lati = c.lati || 'nessuno';
@@ -869,9 +901,10 @@ export function misureCostado(config) {
     dx: lati === 'dx' || lati === 'entrambi',
     spessore: c.spessore > 0 ? c.spessore : config.spessoreAnte,
     sporgenza, top, battente, sopra, sotto,
+    piedi: piediniArmadio(config).h,               // con i piedini il costado arriva fino a terra
     // con le ANTE INTERNE davanti non c'è l'anta: la struttura arriva già fino davanti
     profondita: top + (tipoSchiena(config) === 'dietro' ? config.spessoreSchiena : 0) + (battente && !anteInterne(config) ? config.spessoreAnte : 0) + sporgenza,
-    altezza: config.altezzaEsterna + sopra + sotto,
+    altezza: config.altezzaEsterna + sopra + sotto + piediniArmadio(config).h,
   };
 }
 
@@ -988,6 +1021,7 @@ export function calcolaDistintaCompleta(config) {
   pezzi.push(...pezziCassettiereArmadio(config));
   pezzi.push(...pezziTamponamenti(config));
   pezzi.push(...pezziCostadi(config));
+  pezzi.push(...pezziPiediniZoccolo(config));
   // REGOLA GLOBALE: tutte le misure arrotondate PER DIFETTO (floor).
   // Vale per ogni pezzo della distinta, per non mai dare misure "più grandi
   // del reale" che potrebbero far sprecare materiale.

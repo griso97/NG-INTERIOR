@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261127h';
-import { htmlTendineColori } from './tendine-colori.js?v=20261127h';
-import { misureCostado, binarioArmadio, profonditaBinario, spessoreMateriale, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261127h';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261127h';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261127h';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261127i';
+import { htmlTendineColori } from './tendine-colori.js?v=20261127i';
+import { misureCostado, piediniArmadio, zoccoloArmadio, binarioArmadio, profonditaBinario, spessoreMateriale, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261127i';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261127i';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261127i';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -228,6 +228,11 @@ export function renderPannello(contenitore, config, onChange) {
     </section>
 
     <section>
+      <h3>Piedini e zoccolo</h3>
+      <div id="piedini-box">${htmlPiedini(config)}</div>
+    </section>
+
+    <section>
       <h3>Materiali armadio</h3>
       <div id="mat-list"></div>
     </section>
@@ -411,6 +416,7 @@ export function renderPannello(contenitore, config, onChange) {
 
   // COSTADI: lati, spessore, sporgenza. Sul lato con il costado il tamponamento laterale non serve
   // (l'armadio non è incassato da quella parte): si spegne
+  attaccaEventiPiedini(contenitore, config, onChange);
   contenitore.querySelectorAll('input[name="costadi"]').forEach((r) => r.addEventListener('change', (e) => {
     config.costadi.lati = e.target.value;
     const m = misureCostado(config);
@@ -1283,3 +1289,56 @@ function toNum(v, min) {
   return Math.max(min, Math.floor(n));
 }
 function attr(s) { return (s || '').replace(/"/g, '&quot;'); }
+
+
+// ---------------------------------------------------------------------------
+// PIEDINI E ZOCCOLO dell'armadio (battente e scorrevole): piedini sì / no con l'altezza; con i piedini lo
+// zoccolo sì / no, automatico (largo quanto l'armadio fuori, alto quanto i piedini) o con le misure scelte.
+// Di partenza quelli dei ⚙ Parametri; l'armadio si alza dei piedini (distinta e 3D con le stesse misure).
+// ---------------------------------------------------------------------------
+const ALTEZZE_PIEDINI = [30, 40, 50, 100, 150, 200];
+function htmlPiedini(config) {
+  const pd = piediniArmadio(config), z = zoccoloArmadio(config);
+  // le misure automatiche (anche quando sono scelte quelle personalizzate)
+  const zA = pd.zoccolo ? zoccoloArmadio({ ...config, piedini: { ...(config.piedini || {}), si: true, altezza: pd.h, zoccolo: { ...((config.piedini || {}).zoccolo || {}), si: true, auto: true } } }) : null;
+  const radio = (name, v, on, testo) => `<label class="radio"><input type="radio" name="${name}" value="${v}" ${on ? 'checked' : ''} /><span>${testo}</span></label>`;
+  return `
+    <div class="radio-row">${radio('pd-si', 'no', !pd.si, 'Senza piedini')}${radio('pd-si', 'si', pd.si, 'Con i piedini')}</div>
+    ${pd.si ? `
+    <label>Altezza dei piedini (mm)<input type="number" id="pd-h" value="${pd.h}" min="1" step="1" /></label>
+    <div class="radio-row" style="flex-wrap:wrap;gap:6px;margin-top:4px">${ALTEZZE_PIEDINI.map((h) => `<button type="button" class="btn-mini ${pd.h === h ? 'attivo' : ''}" data-pdh="${h}">${h / 10} cm</button>`).join('')}</div>
+    <div class="radio-row" style="margin-top:10px">${radio('pd-zoc', 'no', !pd.zoccolo, 'Senza zoccolo')}${radio('pd-zoc', 'si', !!pd.zoccolo, 'Con lo zoccolo')}</div>
+    ${pd.zoccolo ? `
+    <div class="radio-row" style="flex-wrap:wrap">${radio('pd-zauto', 'auto', pd.zoccolo.auto, `Misure automatiche (${Math.round(zA.larghezza)} × ${Math.round(zA.altezza)})`)}${radio('pd-zauto', 'pers', !pd.zoccolo.auto, 'Misure personalizzate')}</div>
+    ${!pd.zoccolo.auto ? `<div class="grid-2">
+      <label>Larghezza zoccolo (mm)<input type="number" id="zoc-L" value="${Math.round(z.larghezza)}" min="50" step="1" /></label>
+      <label>Altezza zoccolo (mm)<input type="number" id="zoc-H" value="${Math.round(z.altezza)}" min="10" step="1" /></label>
+    </div>` : ''}` : ''}
+    <p class="hint">L'armadio si alza di ${pd.h} mm: altezza totale ${Math.round(config.altezzaEsterna + pd.h)} mm. Automatico = largo quanto l'armadio fuori (con i tamponamenti laterali; i costadi arrivano fino a terra) e alto quanto i piedini.</p>` : ''}`;
+}
+function attaccaEventiPiedini(contenitore, config, onChange) {
+  const box = contenitore.querySelector('#piedini-box');
+  if (!box) return;
+  // la scelta diventa di questo armadio (prima valevano i ⚙ Parametri)
+  const scrivi = (f) => {
+    const P = parametri().piedini[config.tipoArmadio === 'scorrevole' ? 'scorrevole' : 'battente'];
+    const c = config.piedini || {}, zc = c.zoccolo || {};
+    const o = { si: c.si != null ? !!c.si : !!P.si, altezza: c.altezza ?? P.altezza,
+      zoccolo: { si: zc.si != null ? !!zc.si : !!P.zoccolo, auto: zc.auto !== false, larghezza: zc.larghezza ?? null, altezza: zc.altezza ?? null } };
+    f(o);
+    config.piedini = o;
+    box.innerHTML = htmlPiedini(config);
+    attaccaEventiPiedini(contenitore, config, onChange);
+    onChange(config);
+  };
+  box.querySelectorAll('input[name="pd-si"]').forEach((r) => r.addEventListener('change', (e) => scrivi((o) => { o.si = e.target.value === 'si'; })));
+  box.querySelectorAll('input[name="pd-zoc"]').forEach((r) => r.addEventListener('change', (e) => scrivi((o) => { o.zoccolo.si = e.target.value === 'si'; })));
+  box.querySelectorAll('input[name="pd-zauto"]').forEach((r) => r.addEventListener('change', (e) => scrivi((o) => {
+    o.zoccolo.auto = e.target.value === 'auto';
+    if (!o.zoccolo.auto) { const z = zoccoloArmadio(config); o.zoccolo.larghezza = o.zoccolo.larghezza || Math.round(z.larghezza); o.zoccolo.altezza = o.zoccolo.altezza || Math.round(z.altezza); }
+  })));
+  box.querySelectorAll('[data-pdh]').forEach((b) => b.addEventListener('click', () => scrivi((o) => { o.altezza = Number(b.dataset.pdh); })));
+  box.querySelector('#pd-h')?.addEventListener('change', (e) => { const v = Math.round(Number(e.target.value)); if (v > 0) scrivi((o) => { o.altezza = v; }); });
+  box.querySelector('#zoc-L')?.addEventListener('change', (e) => { const v = Math.round(Number(e.target.value)); if (v >= 50) scrivi((o) => { o.zoccolo.larghezza = v; }); });
+  box.querySelector('#zoc-H')?.addEventListener('change', (e) => { const v = Math.round(Number(e.target.value)); if (v >= 10) scrivi((o) => { o.zoccolo.altezza = v; }); });
+}

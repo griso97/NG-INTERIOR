@@ -121,6 +121,14 @@ export const PARAMETRI_DEFAULT = Object.freeze({
   //   sporgenza si scrive nella cassettiera (senza, l'esportazione avvisa)
   //   frontali: fuga fra uno e l'altro e ai lati · «ribasso» = quanto più bassi con i frontali ribassati (senza maniglia)
   //   fondo del cassetto = guida − fondoMeno
+  // PIEDINI E ZOCCOLO di partenza di ogni armadio / mobile nuovo (nel singolo progetto si cambia):
+  //   si = piedini (1 sì · 0 no), altezza dei piedini, zoccolo (1 sì · 0 no, solo con i piedini),
+  //   rientro = quanto lo zoccolo sta indietro rispetto al fronte (0 = a filo)
+  piedini: {
+    battente:   { si: 0, altezza: 100, zoccolo: 1, rientro: 0 },
+    scorrevole: { si: 0, altezza: 100, zoccolo: 1, rientro: 0 },
+    modulari:   { si: 0, altezza: 100, zoccolo: 1, rientro: 50 },
+  },
   cassettieraArmadio: {
     battente:   { fascia: 40, fasciaSotto: 40, ariaDavanti: 2, fuga: 2, ribasso: 30, fondoMeno: 20, pannellino: 30, pannellinoSi: 1, profTaglio: 50 },
     scorrevole: { fascia: 50, fasciaSotto: 50, ariaBinario: 2, fuga: 2, ribasso: 30, fondoMeno: 20, vista: 18, pannellino: 30, pannellinoSi: 1 },
@@ -334,6 +342,12 @@ function completa(s) {
       abbFianchi: Math.max(0, num(m.abbFianchi, d.abbFianchi)), abbTop: Math.max(0, num(m.abbTop, d.abbTop)), abbAnte: Math.max(0, num(m.abbAnte, d.abbAnte)),
       altezzaManiglia: Math.max(0, num(m.altezzaManiglia, d.altezzaManiglia)),
     }; })(),
+    piedini: (() => { const s0 = (s && s.piedini) || {}, out = {};
+      for (const t of ['battente', 'scorrevole', 'modulari']) {
+        const a = s0[t] || {}, d = D.piedini[t]; out[t] = {};
+        for (const k of Object.keys(d)) out[t][k] = Math.max(0, num(a[k], d[k]));
+      }
+      return out; })(),
     cassettieraArmadio: (() => { const s0 = (s && s.cassettieraArmadio) || {}, out = {};
       for (const t of ['battente', 'scorrevole']) {
         const a = s0[t] || {}, d = D.cassettieraArmadio[t]; out[t] = {};
@@ -390,6 +404,22 @@ export function sistemiCassetti(p = parametri()) { return [p.cassetti, ...p.cass
 /** Il sistema di cassetti scelto (per id); se non c'è più, quello di partenza. */
 /** FINGER-PULL con il profilo: di quanti mm si accorcia l'anta (0 = fresato, anta intera). */
 export function profiloFingerPull(p = parametri()) { return p.fingerPull.tipo === 'profilo' && p.fingerPull.profilo > 0 ? p.fingerPull.profilo : 0; }
+/**
+ * PIEDINI E ZOCCOLO di un progetto: la scelta del progetto (o = { si, altezza, zoccolo: { si, auto, larghezza,
+ * altezza } }), e dove manca quella dei ⚙ Parametri (dove = 'battente' | 'scorrevole' | 'modulari').
+ * → { si, h (altezza piedini, 0 = niente), zoccolo: null | { auto, L (larghezza o null = automatica), H, rientro } }
+ */
+export function piediniDi(o, dove, p = parametri()) {
+  const P = p.piedini[dove] || p.piedini.battente, c = o || {};
+  const si = c.si != null ? !!c.si : !!P.si;
+  const h = si ? Math.max(1, Math.round(Number(c.altezza ?? P.altezza) || 100)) : 0;
+  const zc = c.zoccolo || {};
+  const zSi = si && (zc.si != null ? !!zc.si : !!P.zoccolo);
+  if (!zSi) return { si, h, zoccolo: null };
+  const auto = zc.auto !== false;
+  return { si, h, zoccolo: { auto, L: auto ? null : Math.max(50, Math.round(Number(zc.larghezza) || 0)) || null,
+    H: auto ? h : Math.max(10, Math.round(Number(zc.altezza) || h)), rientro: P.rientro } };
+}
 /** Misure della cassettiera dentro l'armadio ('battente' | 'scorrevole'). */
 export function cassettieraArmadio(tipo, p = parametri()) { return p.cassettieraArmadio[tipo === 'scorrevole' ? 'scorrevole' : 'battente']; }
 /** Nome nelle tendine: «Syskor (a sistema)», «Cassetto legno 16 (su misura)». */

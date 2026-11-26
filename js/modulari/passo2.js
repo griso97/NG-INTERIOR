@@ -5,14 +5,14 @@ import {
   layoutModuli, layoutCubi, abbondanzaDi, gradi, larghezzaUtileAuto, distintaModulari, posizioneValida,
   primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT, anteConManiglie, manigliaModulari, aperturaDi, maniglieAnteDi,
   FINITURE_PERCHERO, altezzaPerchero, percheroDi, cassettiDelPezzo, cassettiDi0,
-} from './calcoli.js?v=20261127h';
-import { sistemiCassetti, nomeSistemaCassetti } from '../parametri.js?v=20261127h';
+} from './calcoli.js?v=20261127i';
+import { sistemiCassetti, nomeSistemaCassetti, parametri, piediniDi } from '../parametri.js?v=20261127i';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261127h');
+const _excel = () => import('../modello-export.js?v=20261127i');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
-import { schemaTagliPNG } from './schema-tagli.js?v=20261127h';
+import { schemaTagliPNG } from './schema-tagli.js?v=20261127i';
 
 const FRONTI = [
   { v: 0, l: 'Aperto (a giorno)' },
@@ -94,6 +94,20 @@ function htmlPezzi(dove, o) {
         ? 'Sopra i pezzi c\'è il resto fino al soffitto: il suo fronte, i ripiani e il perchero sono quelli scelti qui sopra. Tutti i fronti restano a filo.'
         : 'Ora è un pezzo solo, da terra al soffitto. Per dividerlo aggiungi i pezzi sotto (es. ante fino a 1 m, un cassetto da 30 cm, sopra ante fino al soffitto).'}</p>
     </div>`;
+}
+/** PIEDINI E ZOCCOLO dei moduli: piedini sì / no con l'altezza; con i piedini zoccolo sì / no, automatico o su misura. */
+function htmlPiediniMod(m, lay) {
+  const { esc } = ctx;
+  const pd = piediniDi(m.piedini || (m.zoccolo && m.zoccolo.si != null ? { si: !!m.zoccolo.si, altezza: m.zoccolo.h, zoccolo: { si: true } } : null), 'modulari');
+  const z = lay.zoccolo;
+  const radio = (name, v, on, testo) => `<label class="radio"><input type="radio" name="${name}" value="${v}" ${on ? 'checked' : ''}> ${testo}</label>`;
+  return `${radio('mpd-si', 'no', !pd.si, 'Senza piedini')}${radio('mpd-si', 'si', pd.si, 'Con i piedini')}
+    ${pd.si ? `<label>Altezza dei piedini (mm)<input type="number" min="1" step="1" id="mpd-h" value="${esc(pd.h)}"></label>
+    <div class="chips-misura">${[30, 40, 50, 100, 150, 200].map((h) => `<button type="button" class="btn-mini ${pd.h === h ? 'attivo' : ''}" data-mpdh="${h}">${h / 10} cm</button>`).join('')}</div>
+    ${radio('mpd-zoc', 'no', !pd.zoccolo, 'Senza zoccolo')}${radio('mpd-zoc', 'si', !!pd.zoccolo, 'Con lo zoccolo')}
+    ${pd.zoccolo && z ? `${radio('mpd-zauto', 'auto', pd.zoccolo.auto, `Misure automatiche (${Math.round(lay.moduli.length ? Math.max(...lay.moduli.map((x) => x.x1)) - Math.min(...lay.moduli.map((x) => x.x0)) : 0)} × ${pd.h})`)}${radio('mpd-zauto', 'pers', !pd.zoccolo.auto, 'Misure personalizzate')}
+      ${!pd.zoccolo.auto ? `<div class="grid-2"><label>Larghezza zoccolo<input type="number" min="50" step="1" id="mzoc-L" value="${Math.round(z.x1 - z.x0)}"></label>
+        <label>Altezza zoccolo<input type="number" min="10" step="1" id="mzoc-H" value="${Math.round(z.h)}"></label></div>` : ''}` : ''}` : ''}`;
 }
 /** Dove sta la divisione: 'c' = moduli uguali (comune), altrimenti il modulo della lista. */
 const oggettoPezzi = (dove) => (dove === 'c' ? ctx.stato.moduli.comune : ctx.stato.moduli.lista[+dove]);
@@ -226,15 +240,11 @@ function renderPannello() {
           : `<label>Maniglia (chiusura)<select id="mod-chiusura-apertura">${opzApertura(m.chiusuraApertura)}</select></label>`) : ''}` : ''}
       </section>
       <section>
-        <h3>Zoccolo e costadi</h3>
-        <label class="chk"><input type="checkbox" id="mod-zoc" ${m.zoccolo && m.zoccolo.si ? 'checked' : ''}> Zoccolo sotto i moduli</label>
-        ${m.zoccolo && m.zoccolo.si ? `<div class="grid-2">
-          <label>Altezza zoccolo<input type="number" min="30" step="5" data-zoc="h" value="${esc(m.zoccolo.h ?? 100)}"></label>
-          <label>Arretrato<input type="number" min="0" step="5" data-zoc="arretrato" value="${esc(m.zoccolo.arretrato ?? 50)}"></label>
-        </div>` : ''}
+        <h3>Piedini, zoccolo e costadi</h3>
+        ${htmlPiediniMod(m, lay)}
         <label class="chk"><input type="checkbox" data-cos="sx" ${m.costadi && m.costadi.sx ? 'checked' : ''}> Costado a sinistra</label>
         <label class="chk"><input type="checkbox" data-cos="dx" ${m.costadi && m.costadi.dx ? 'checked' : ''}> Costado a destra</label>
-        <p class="mod-prossimo" style="margin-top:4px">Il costado va da terra al soffitto, profondo quanto il mobile (a filo delle ante) e spesso come le ante; i moduli si stringono per lasciargli posto. Lo zoccolo è arretrato e alza tutti i moduli.</p>
+        <p class="mod-prossimo" style="margin-top:4px">Il costado va da terra al soffitto, profondo quanto il mobile (a filo delle ante) e spesso come le ante; i moduli si stringono per lasciargli posto. I piedini alzano tutti i moduli.</p>
       </section>
       ${lay.moduli.some((x) => (x.pezzi || [x]).some((p) => cassettiDi0(p))) ? `
       <section>
@@ -443,12 +453,25 @@ function agganciaPannello() {
         pezzi: (m.comune.pezzi || []).map((p) => ({ ...p })) });
       tutto();
     });
-    // ZOCCOLO e COSTADI
-    P.querySelector('#mod-zoc')?.addEventListener('change', (e) => { m.zoccolo = { h: 100, arretrato: 50, ...(m.zoccolo || {}), si: e.target.checked }; tutto(); });
-    P.querySelectorAll('input[data-zoc]').forEach((inp) => inp.addEventListener('change', () => {
-      const n = Math.round(numero(inp.value)); if (!(n >= 0)) return;
-      m.zoccolo = { ...(m.zoccolo || {}), [inp.dataset.zoc]: inp.dataset.zoc === 'h' ? Math.max(30, n) : n }; tutto();
-    }));
+    // PIEDINI e ZOCCOLO (la scelta diventa del progetto; prima valevano i ⚙ Parametri) e COSTADI
+    const scriviPd = (f) => {
+      const Pp = parametri().piedini.modulari, c = m.piedini || {}, zc = c.zoccolo || {};
+      const vecchio = !m.piedini && m.zoccolo && m.zoccolo.si != null ? m.zoccolo : null;     // zoccolo della prima versione
+      const o = { si: c.si != null ? !!c.si : vecchio ? !!vecchio.si : !!Pp.si, altezza: c.altezza ?? (vecchio && vecchio.h) ?? Pp.altezza,
+        zoccolo: { si: zc.si != null ? !!zc.si : vecchio ? true : !!Pp.zoccolo, auto: zc.auto !== false, larghezza: zc.larghezza ?? null, altezza: zc.altezza ?? null } };
+      f(o); m.piedini = o; delete m.zoccolo; tutto();
+    };
+    P.querySelectorAll('input[name="mpd-si"]').forEach((r) => r.addEventListener('change', (e) => scriviPd((o) => { o.si = e.target.value === 'si'; })));
+    P.querySelectorAll('input[name="mpd-zoc"]').forEach((r) => r.addEventListener('change', (e) => scriviPd((o) => { o.zoccolo.si = e.target.value === 'si'; })));
+    P.querySelectorAll('input[name="mpd-zauto"]').forEach((r) => r.addEventListener('change', (e) => scriviPd((o) => {
+      o.zoccolo.auto = e.target.value === 'auto';
+      const z = layoutModuli(ctx.forma, m, sp()).zoccolo;
+      if (!o.zoccolo.auto && z) { o.zoccolo.larghezza = o.zoccolo.larghezza || Math.round(z.x1 - z.x0); o.zoccolo.altezza = o.zoccolo.altezza || Math.round(z.h); }
+    })));
+    P.querySelectorAll('[data-mpdh]').forEach((b) => b.addEventListener('click', () => scriviPd((o) => { o.altezza = Number(b.dataset.mpdh); })));
+    P.querySelector('#mpd-h')?.addEventListener('change', (e) => { const v = Math.round(numero(e.target.value)); if (v > 0) scriviPd((o) => { o.altezza = v; }); });
+    P.querySelector('#mzoc-L')?.addEventListener('change', (e) => { const v = Math.round(numero(e.target.value)); if (v >= 50) scriviPd((o) => { o.zoccolo.larghezza = v; }); });
+    P.querySelector('#mzoc-H')?.addEventListener('change', (e) => { const v = Math.round(numero(e.target.value)); if (v >= 10) scriviPd((o) => { o.zoccolo.altezza = v; }); });
     P.querySelectorAll('input[data-cos]').forEach((inp) => inp.addEventListener('change', () => { m.costadi = { ...(m.costadi || {}), [inp.dataset.cos]: inp.checked }; tutto(); }));
     // SISTEMA DEI CASSETTI (⚙ Parametri)
     P.querySelector('#mod-sis-cass')?.addEventListener('change', (e) => { stato.sistemaCassetti = e.target.value; tutto(); });
@@ -844,7 +867,7 @@ export async function apriDistinta(c) {
   if (c) ctx = c;
   if (!ctx) return;
   if (!nomiFiniture) {
-    try { const { MATERIALI } = await import('../materiali.js?v=20261127h'); nomiFiniture = new Map(MATERIALI.map((m) => [m.id, m.nome])); }
+    try { const { MATERIALI } = await import('../materiali.js?v=20261127i'); nomiFiniture = new Map(MATERIALI.map((m) => [m.id, m.nome])); }
     catch { nomiFiniture = new Map(); }
   }
   const { stato, esc, fmt } = ctx;

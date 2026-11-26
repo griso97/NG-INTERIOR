@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { spessoreMateriale, profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261127h';
-import { parametri } from './parametri.js?v=20261127h';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261127h';
-import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261127h';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261127h';
-import { sfondoDi } from './sfondi.js?v=20261127h';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261127h';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261127h';
+import { spessoreMateriale, piediniArmadio, zoccoloArmadio, profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261127i';
+import { parametri } from './parametri.js?v=20261127i';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261127i';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261127i';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261127i';
+import { sfondoDi } from './sfondi.js?v=20261127i';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261127i';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261127i';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -570,10 +570,29 @@ export function aggiornaScena(config) {
   costruisciCostadi(config);
 
   // Se c'è il tamp sotto, alzo tutto il mobile così il tamp resta sopra il
-  // pavimento virtuale e si vede.
+  // pavimento virtuale e si vede. Con i PIEDINI si alza anche di quanto sono alti.
   const tampSotto = config.tamponamenti?.sotto;
-  const yOffset = tampSotto?.attivo ? tampSotto.larghezza : 0;
+  const hPiedi = piediniArmadio(config).h;
+  const yOffset = (tampSotto?.attivo ? tampSotto.larghezza : 0) + hPiedi;
   gruppoArmadio.position.y = yOffset;
+  // ZOCCOLO davanti, da terra (stesse misure della distinta) e i piedini sotto ogni modulo
+  const zoc = zoccoloArmadio(config);
+  if (zoc) {
+    const D = config.profonditaEsterna;
+    aggiungiBox(zoc.larghezza, zoc.altezza, zoc.spessore, zoc.x0 + zoc.larghezza / 2, -yOffset + zoc.altezza / 2, D - zoc.rientro - zoc.spessore / 2, matDi(config, 'ante'), 'zoccolo');
+  }
+  if (hPiedi) {
+    const matP = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.6 });
+    let xp = 0;
+    for (const m of config.moduli) {
+      for (const fx of [60, m.larghezza - 60]) for (const fz of [80, prof - 80]) {
+        const pd = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, hPiedi, 16), matP);
+        pd.position.set(xp + fx, -yOffset + hPiedi / 2, fz);
+        gruppoArmadio.add(pd);
+      }
+      xp += m.larghezza;
+    }
+  }
 
   uvInScala(gruppoArmadio);       // prodotti del catalogo: foto in scala vera
   // OMBRE: tutto l'armadio fa e riceve ombra; muro dietro e luce inquadrati sull'armadio
@@ -1073,7 +1092,7 @@ function costruisciCostadi(config) {
   const c = misureCostado(config);
   if (!c.sx && !c.dx) return;
   const W = config.larghezzaTotale, H = config.altezzaEsterna;
-  const yC = (H + c.sopra - c.sotto) / 2;
+  const yC = (H + c.sopra - c.sotto - c.piedi) / 2;          // con i piedini fino a terra
   if (c.sx) aggiungiBox(c.spessore, c.altezza, c.profondita, -c.spessore / 2, yC, c.profondita / 2, matDi(config, 'costadi'), 'costado');
   if (c.dx) aggiungiBox(c.spessore, c.altezza, c.profondita, W + c.spessore / 2, yC, c.profondita / 2, matDi(config, 'costadi'), 'costado');
 }

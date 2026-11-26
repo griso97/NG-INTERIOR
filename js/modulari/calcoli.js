@@ -14,9 +14,9 @@
 // Misure in mm. Coordinate: x a destra, y in alto, origine angolo basso-sx.
 // =============================================================================
 
-import { parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, eTirador, guidaPerProfondita, cassettiDi, sistemiCassetti, cassettieraArmadio, profiloFingerPull } from '../parametri.js?v=20261127h';
-import { pezziCassettoInterno } from '../calcoli.js?v=20261127h';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261127h';
+import { parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, eTirador, guidaPerProfondita, cassettiDi, sistemiCassetti, cassettieraArmadio, profiloFingerPull, piediniDi } from '../parametri.js?v=20261127i';
+import { pezziCassettoInterno } from '../calcoli.js?v=20261127i';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261127i';
 
 export const SPESSORI_DEFAULT = { carcassa: 18, schiena: 10, ante: 18 };
 export const H_MINIMA_MODULO = 250;
@@ -108,8 +108,10 @@ export function layoutModuli(forma, cfg, spessori = SPESSORI_DEFAULT) {
   const usata = cfg.larghezzaUsata > 0 ? Math.min(cfg.larghezzaUsata, W) : auto.utile;
   // ZOCCOLO (moduli alzati di h, zoccolo arretrato davanti) e COSTADI a vista sui lati (spessi come le ante,
   // da terra fino al soffitto, profondi quanto il mobile): i moduli si stringono per farli stare
-  const zoc = cfg.zoccolo && cfg.zoccolo.si ? { h: Math.max(30, Math.round(Number(cfg.zoccolo.h) || 100)), arretrato: Math.max(0, Math.round(Number(cfg.zoccolo.arretrato ?? 50))) } : null;
-  const hZ = zoc ? zoc.h : 0;
+  // PIEDINI (alzano i moduli) e ZOCCOLO (con i piedini: automatico = largo quanto i moduli e alto quanto i
+  // piedini, o con le sue misure): la scelta del progetto o quella dei ⚙ Parametri (Mobili modulari)
+  const pd = piediniDi(cfg.piedini || (cfg.zoccolo && cfg.zoccolo.si != null ? { si: !!cfg.zoccolo.si, altezza: cfg.zoccolo.h, zoccolo: { si: true } } : null), 'modulari');
+  const hZ = pd.h;
   const cs = cfg.costadi || {}, sAc = spessori.ante;
   const tSx = cs.sx ? sAc : 0, tDx = cs.dx ? sAc : 0;
   const tStart = auto.daSinistra ? tSx : tDx, tEnd = auto.daSinistra ? tDx : tSx;
@@ -181,7 +183,11 @@ export function layoutModuli(forma, cfg, spessori = SPESSORI_DEFAULT) {
   if (tStart) costado(auto.daSinistra ? 'sx' : 'dx', auto.daSinistra ? 0 : W - tStart, auto.daSinistra ? tStart : W);
   if (tEnd && moduli.length) { costado(auto.daSinistra ? 'dx' : 'sx', auto.daSinistra ? pos : W - pos - tEnd, auto.daSinistra ? pos + tEnd : W - pos); pos += tEnd; }
   // ZOCCOLO sotto tutti i moduli (fra i costadi)
-  const zoccolo = zoc && moduli.length ? { ...zoc, x0: Math.min(...moduli.map((m) => m.x0)), x1: Math.max(...moduli.map((m) => m.x1)) } : null;
+  let zoccolo = null;
+  if (pd.zoccolo && moduli.length) {
+    const a = Math.min(...moduli.map((m) => m.x0)), b = Math.max(...moduli.map((m) => m.x1)), L = pd.zoccolo.L || (b - a);
+    zoccolo = { x0: (a + b) / 2 - L / 2, x1: (a + b) / 2 + L / 2, h: pd.zoccolo.H, arretrato: pd.zoccolo.rientro, auto: pd.zoccolo.auto };
+  }
   // Spazio rimasto verso il lato basso: lo chiude un modulo finale
   // (triangolare se il soffitto scende quasi a terra).
   const resto = W - pos;
@@ -194,8 +200,8 @@ export function layoutModuli(forma, cfg, spessori = SPESSORI_DEFAULT) {
   } else if (resto > 1 && fronte === 'no') {
     avvisi.push(`Restano ${r0(resto)} mm liberi dal lato basso: puoi chiuderli con il modulo finale (triangolare).`);
   }
-  if (zoccolo && chiusura) avvisi.push('La chiusura in fondo resta appoggiata a terra: lo zoccolo è solo sotto i moduli.');
-  return { moduli, usata, resto, daSinistra: auto.daSinistra, chiusura, costadi, zoccolo, fineModuli, errori, avvisi };
+  if (hZ && chiusura) avvisi.push('La chiusura in fondo resta appoggiata a terra: piedini e zoccolo sono solo sotto i moduli.');
+  return { moduli, usata, resto, daSinistra: auto.daSinistra, chiusura, costadi, zoccolo, piedi: hZ, fineModuli, errori, avvisi };
 }
 
 // ---------------------------------------------------------------------------
@@ -742,8 +748,8 @@ export function abbondanzaDi(stato) {
 /**
  * COSTADI e ZOCCOLO della parete a moduli (stesse misure del 3D):
  *   costado: profondo quanto il mobile (P, a filo delle ante), alto dal pavimento al soffitto, spesso come le ante;
- *   zoccolo: davanti, arretrato, lungo quanto i moduli (+ il margine dei ⚙ Parametri della cucina, in più pezzi se
- *   più lungo del pezzo massimo), alto quanto lo zoccolo; piedini e clip sotto ogni modulo.
+ *   zoccolo: davanti, rientrato come nei ⚙ Parametri, lungo quanto i moduli (o quanto scelto; in più pezzi se più
+ *   lungo del pezzo massimo), alto quanto i piedini (o quanto scelto); piedini sotto ogni modulo, clip.
  */
 export function pezziCostadiZoccolo(lay, P, sp, stato) {
   const out = [], mods = lay.moduli || [];
@@ -752,18 +758,19 @@ export function pezziCostadiZoccolo(lay, P, sp, stato) {
     const vicino = mods.reduce((b, m) => (Math.abs((m.x0 + m.x1) / 2 - (c.x0 + c.x1) / 2) < Math.abs((b.x0 + b.x1) / 2 - (c.x0 + c.x1) / 2) ? m : b), mods[0] || { indice: 0, x0: 0, x1: 0 });
     out.push({ modulo: 'Costadi', nome: `Costado ${c.lato === 'sx' ? 'sinistro' : 'destro'} (a vista, da terra)`, larghezza: r0(P), altezza: r0(c.h), spessore: sp.ante, materiale: 'ante', quantita: 1, finitura: finAnte(`m${vicino.indice}`) });
   }
+  if (lay.piedi) out.push(accessorio('Piedini e zoccolo', `Piedini regolabili da ${lay.piedi} mm`, mods.reduce((t, m) => t + (m.larghezza > 1000 ? 6 : 4), 0)));
   const z = lay.zoccolo;
   if (z) {
-    const K = parametri().cucina, margine = K.margineZoccolo, utile = Math.max(500, K.zoccoloMax - margine);
+    // largo esattamente quanto i moduli (automatico) o quanto scelto; più lungo del pezzo massimo → più pezzi
+    const K = parametri().cucina, margine = 0, utile = Math.max(500, K.zoccoloMax);
     const L = z.x1 - z.x0, n = Math.ceil(L / utile);
-    const nome = 'Zoccolo (frontale)' + (margine ? ` · con ${String(margine / 10).replace('.', ',')} cm di margine` : '')
-      + (n > 1 ? ` · ${String(Math.round(L / 10) / 100).replace('.', ',')} m in ${n} pezzi da giuntare` : '') + ` · arretrato ${z.arretrato} mm`;
+    const nome = 'Zoccolo (frontale)' + (z.auto ? '' : ' · misure personalizzate') + (margine ? ` · con ${String(margine / 10).replace('.', ',')} cm di margine` : '')
+      + (n > 1 ? ` · ${String(Math.round(L / 10) / 100).replace('.', ',')} m in ${n} pezzi da giuntare` : '') + (z.arretrato ? ` · rientrato ${z.arretrato} mm` : '');
     for (let i = 0; i < n; i++) {
       const parte = i < n - 1 ? utile : L - utile * (n - 1);
-      out.push({ modulo: 'Zoccolo', nome, larghezza: r0(parte + margine), altezza: z.h, spessore: sp.ante, materiale: 'ante', quantita: 1, finitura: finAnte('m0') });
+      out.push({ modulo: 'Piedini e zoccolo', nome, larghezza: r0(parte + margine), altezza: z.h, spessore: sp.ante, materiale: 'ante', quantita: 1, finitura: finAnte('m0') });
     }
-    out.push(accessorio('Zoccolo', `Piedini regolabili per zoccolo da ${z.h} mm`, mods.reduce((t, m) => t + (m.larghezza > 1000 ? 6 : 4), 0)));
-    out.push(accessorio('Zoccolo', 'Clip per zoccolo', mods.length * 2));
+    out.push(accessorio('Piedini e zoccolo', 'Clip per zoccolo', mods.length * 2));
   }
   return out;
 }

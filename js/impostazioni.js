@@ -8,23 +8,23 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261127h';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127h';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127h';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127h';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127h';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127h';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127h';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127h';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127h';
-import { agganciaTema } from './tema.js?v=20261127h';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127h';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127h';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261127h';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127h';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127h';
-import { geometriaCassettiera } from './calcoli.js?v=20261127h';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127h';
+} from './catalogo.js?v=20261127i';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127i';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127i';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127i';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127i';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127i';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127i';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127i';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127i';
+import { agganciaTema } from './tema.js?v=20261127i';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127i';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127i';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261127i';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127i';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127i';
+import { geometriaCassettiera } from './calcoli.js?v=20261127i';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127i';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1158,6 +1158,22 @@ function renderParametri(S) {
       <div class="par-esempio" data-es-cassettiera="${tipo}" data-no-i18n style="white-space:pre-line"></div>
     </div>`;
   };
+  // PIEDINI E ZOCCOLO di partenza (armadio a battente, scorrevole, mobili modulari)
+  const gruppoPiedini = (dove) => {
+    const Q = P.piedini[dove];
+    const bott = (campoP, v, tit, sotto) => `<button type="button" class="par-scelta ${Number(Q[campoP]) === v ? 'sel' : ''}" data-pied="${dove}|${campoP}|${v}"><b>${esc(tit)}</b><small>${esc(sotto)}</small></button>`;
+    return `
+    <div class="par-gruppo">
+      <h3>Piedini e zoccolo</h3>
+      <p class="imp-desc">Di partenza in ogni progetto nuovo: nel singolo armadio o mobile si cambiano. Con i piedini il mobile si alza di quanto sono alti. Lo zoccolo (solo con i piedini) è automatico, largo quanto il mobile fuori e alto quanto i piedini, oppure con le misure scelte nel progetto.</p>
+      <div class="par-scelte">${bott('si', 0, 'Senza piedini', 'appoggiato a terra')}${bott('si', 1, 'Con i piedini', 'regolabili, sotto ogni modulo')}</div>
+      <div class="par-scelte" style="margin-top:8px">${bott('zoccolo', 1, 'Con lo zoccolo', 'davanti, quando ci sono i piedini')}${bott('zoccolo', 0, 'Senza zoccolo', 'i piedini restano a vista')}</div>
+      <div class="par-griglia" style="margin-top:10px">
+        ${campo(`piedini.${dove}.altezza`, 'Altezza dei piedini', 'es. 30, 40, 50 (piedini nascosti), 100, 150, 200')}
+        ${campo(`piedini.${dove}.rientro`, 'Zoccolo: rientro dal fronte', '0 = a filo del fronte')}
+      </div>
+    </div>`;
+  };
   const gruppoCassetti = (dove = 'cucina') => {
     const C = listaCass[_selCass] || P.cassetti, nostro = C.tipo === 'nostro';
     return `
@@ -1389,6 +1405,7 @@ function renderParametri(S) {
     </div>
     ${gruppoCassettiera('battente')}
     ${gruppoCassetti('battente')}
+    ${gruppoPiedini('battente')}
     </div>
     <div class="par-scheda" data-scheda="scorrevole" ${_schedaPar === 'scorrevole' ? '' : 'hidden'}>
       <p class="imp-desc par-scheda-desc">${esc((SCHEDE_PAR.find((x) => x[0] === 'scorrevole') || [])[2] || '')}</p>
@@ -1418,6 +1435,7 @@ function renderParametri(S) {
     </div>
     ${gruppoCassettiera('scorrevole')}
     ${gruppoCassetti('scorrevole')}
+    ${gruppoPiedini('scorrevole')}
     </div>
     <div class="par-scheda" data-scheda="modulari" ${_schedaPar === 'modulari' ? '' : 'hidden'}>
       <p class="imp-desc par-scheda-desc">${esc((SCHEDE_PAR.find((x) => x[0] === 'modulari') || [])[2] || '')}</p>
@@ -1445,6 +1463,7 @@ function renderParametri(S) {
         ${campo('modulari.altezzaManiglia', 'Altezza della maniglia da terra (centro)', 'di partenza 1050 mm, come negli armadi')}
       </div>
     </div>
+    ${gruppoPiedini('modulari')}
     </div>
     <div class="par-azioni">
       <a class="btn-ghost" href="./benvenuto.html" style="display:inline-block;text-decoration:none;padding:9px 14px">▶ Rifai la configurazione guidata</a>
@@ -1514,6 +1533,13 @@ function renderParametri(S) {
   };
   esempi();
   agganciaFotoParametri(el);
+  // piedini e zoccolo di partenza: sì / no
+  el.querySelectorAll('[data-pied]').forEach((b) => b.addEventListener('click', () => {
+    const [dove, campoP, v] = b.dataset.pied.split('|');
+    const nuovo = JSON.parse(JSON.stringify(parametri())); nuovo.piedini[dove][campoP] = Number(v);
+    salvaParametri(nuovo);
+    el.querySelectorAll(`[data-pied^="${dove}|${campoP}|"]`).forEach((x) => x.classList.toggle('sel', x.dataset.pied === b.dataset.pied));
+  }));
   // cassettiere degli armadi: pannellino per fissare le fascette di piatto, sì / no
   el.querySelectorAll('[data-cass-pann]').forEach((b) => b.addEventListener('click', () => {
     const [tipo, v] = b.dataset.cassPann.split('|');

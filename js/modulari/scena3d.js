@@ -9,12 +9,12 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261127h';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261127h';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261127h';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261127h';
-import { anteConManiglie, manigliaModulari, altezzaPerchero, lunghezzaPerchero, percheroDi, cassettiDelPezzo, cassettiDi0, guidaCassettiModulari } from './calcoli.js?v=20261127h';
-import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from '../maniglia3d.js?v=20261127h';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261127i';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261127i';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261127i';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261127i';
+import { anteConManiglie, manigliaModulari, altezzaPerchero, lunghezzaPerchero, percheroDi, cassettiDelPezzo, cassettiDi0, guidaCassettiModulari } from './calcoli.js?v=20261127i';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from '../maniglia3d.js?v=20261127i';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -524,6 +524,20 @@ export function aggiorna(forma, elementi, opz) {
   const fin0 = fin({ mat: null });
   for (const c of opz.costadi || []) {
     nelGruppo(null, null, () => prisma(rett(c.x0, 0, c.x1, c.h), 0, opz.P, mat(fin0.ante)));
+  }
+  // PIEDINI sotto ogni modulo (4, 6 se più largo di 1 m: come in distinta)
+  if (opz.piedi) {
+    const matP = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.6 });
+    const zA = opz.spessori.schiena + 80, zB = opz.P - opz.spessori.ante - 80;
+    nelGruppo(null, null, () => {
+      for (const m of opz.sottoModuli || []) {
+        const xs = m.L > 1000 ? [m.x0 + 60, m.x0 + m.L / 2, m.x0 + m.L - 60] : [m.x0 + 60, m.x0 + m.L - 60];
+        for (const x of xs) for (const z of [zA, zB]) {
+          const p = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, opz.piedi, 16), matP);
+          p.position.set(x, opz.piedi / 2, z); (padreMobile || gruppo).add(p);
+        }
+      }
+    });
   }
   if (opz.zoccolo) {
     const z = opz.zoccolo, sA = opz.spessori.ante;
