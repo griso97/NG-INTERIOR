@@ -6,7 +6,7 @@
 // parametro in localStorage 'ng-parametri-foto' → la «copia completa» le porta anche sugli altri.
 // Il pulsante «Rimetti i valori di partenza» cambia solo i numeri: le foto restano.
 // =============================================================================
-import { leggiFoto, salvaFoto, eliminaFotoTipo } from './catalogo.js?v=20261127k';
+import { leggiFoto, salvaFoto, eliminaFotoTipo } from './catalogo.js?v=20261127l';
 
 const CHIAVE = 'ng-parametri-foto';
 const TIPO = 'parfoto';
@@ -55,6 +55,27 @@ export function htmlFotoParametro(chiave) {
     <span class="par-foto-lista"></span>
     <label class="par-foto-agg">📷 <span>+ Foto</span><input type="file" accept="image/*" multiple hidden></label>
   </div>`;
+}
+
+/**
+ * FOTO DI UNA VOCE intera (un binario, un tirador, una gola, un sistema di cassetti…): chiave «voce:<tipo>:<id>»,
+ * così resta sua anche se la lista cambia ordine. testo = cosa c'è scritto accanto (es. «Foto del tirador»).
+ */
+export function htmlFotoVoce(tipo, id, testo) {
+  return `<div class="par-voce-foto"><span class="par-voce-foto-et">${esc(t(testo))}</span>${htmlFotoParametro(`voce:${tipo}:${id}`)}</div>`;
+}
+/** Miniatura della voce scelta (la prima foto), da mettere accanto a una tendina; si riempie con riempiMiniature. */
+export function htmlMiniaturaVoce(tipo, id) {
+  return `<span class="par-mini" data-mini="${esc(`voce:${tipo}:${id}`)}"></span>`;
+}
+export function riempiMiniature(root) {
+  root.querySelectorAll('[data-mini]').forEach(async (el) => {
+    const chiave = el.dataset.mini, ids = fotoDi(chiave);
+    if (!ids.length) { el.innerHTML = ''; return; }
+    const u = await urlDi(ids[0]);
+    el.innerHTML = u ? `<button type="button" class="par-foto-min" title="${esc(t('Apri la foto'))}"><img src="${u}" alt=""></button>` : '';
+    el.querySelector('button')?.addEventListener('click', () => apriVisore(chiave, 0, () => riempiMiniature(root)));
+  });
 }
 
 const _url = new Map();          // id → objectURL (una volta sola per pagina)

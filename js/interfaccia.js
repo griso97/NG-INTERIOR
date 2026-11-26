@@ -6,11 +6,12 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261127k';
-import { htmlTendineColori } from './tendine-colori.js?v=20261127k';
-import { misureCostado, piediniArmadio, zoccoloArmadio, binarioArmadio, profonditaBinario, spessoreMateriale, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261127k';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261127k';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261127k';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261127l';
+import { htmlTendineColori } from './tendine-colori.js?v=20261127l';
+import { misureCostado, piediniArmadio, zoccoloArmadio, binarioArmadio, profonditaBinario, spessoreMateriale, tiradorArmadio, larghezzaAntaScorrevole, larghezzaPortaScorrevole, numeroAnteScorrevoli, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261127l';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261127l';
+import { htmlMiniaturaVoce, riempiMiniature } from './parametri-foto.js?v=20261127l';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261127l';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -72,9 +73,9 @@ function formulaScorrevole(config) {
   const b = binarioArmadio(config);
   const n = (x) => String(Math.round(x * 10) / 10).replace('.', ',');
   const t = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);    // il <code> non passa dalla traduzione automatica
-  const tg = tiradorArmadio(config).togli;
-  const meno = (b.larghezzaMeno > 0 ? ` − ${n(b.larghezzaMeno)}` : '') + (tg > 0 ? ` − ${n(tg)}` : '');
-  return `Formula ante: larghezza = <code>${t(`L ÷ n° ante${meno}`)}</code> = <strong>${n(Math.floor(larghezzaAntaScorrevole(config)))} mm</strong>, altezza = <code>H − ${n(b.altezzaMeno)}</code> (H = altezza esterna totale).`;
+  const tl = tiradorArmadio(config).lato || 0, N = numeroAnteScorrevoli(config);
+  const meno = b.larghezzaMeno > 0 ? ` − ${n(b.larghezzaMeno)}` : '';
+  return `${t('Porta finita')}: <code>${t(`L ÷ ${N} ante${meno}`)}</code> = <strong>${n(Math.floor(larghezzaPortaScorrevole(config)))} mm</strong> · ${t('anta da tagliare')}: <code>${t(`porta − 2 × ${n(tl)} (tirador per lato)`)}</code> = <strong>${n(Math.floor(larghezzaAntaScorrevole(config)))} mm</strong> · ${t('altezza')} <code>H − ${n(b.altezzaMeno)}</code> (H = ${t('altezza esterna totale')}).`;
 }
 function aggiornaFormulaScorrevole(config) {
   const el = document.getElementById('sc-formula');
@@ -146,19 +147,19 @@ export function renderPannello(contenitore, config, onChange) {
     <section id="sez-scorrevole" ${config.tipoArmadio === 'scorrevole' ? '' : 'style="display:none"'}>
       <h3>Scorrevole</h3>
       <label>Tipo di binario
-        <select id="sc-tipo">
+        <span class="sel-con-foto"><select id="sc-tipo">
           ${binariScorrevoli().map((b) => `<option value="${escAttr(b.id)}" ${b.id === binarioArmadio(config).id ? 'selected' : ''}>${escAttr(b.nome || '—')}</option>`).join('')}
-        </select>
+        </select>${htmlMiniaturaVoce('binario', binarioArmadio(config).id)}</span>
       </label>
       <label>Tirador (profilo sui lati delle ante)
-        <select id="sc-tirador">
+        <span class="sel-con-foto"><select id="sc-tirador">
           ${tiradoriScorrevoli().map((x) => `<option value="${escAttr(x.id)}" ${x.id === tiradorArmadio(config).id ? 'selected' : ''}>${escAttr(x.nome || '—')}</option>`).join('')}
-        </select>
+        </select>${htmlMiniaturaVoce('tirador', tiradorArmadio(config).id)}</span>
       </label>
       <p class="hint" style="margin-bottom:10px">I dati di ogni binario e di ogni tirador (quanto togliere alle ante) si cambiano in <a href="impostazioni.html#parametri">⚙ Impostazioni → Parametri</a>.</p>
       <div class="grid-2">
-        <label>Nº ante per modulo
-          <input type="number" id="sc-n" value="${config.scorrevole?.anteModulo ?? 1}" min="1" max="4" step="1" />
+        <label>Nº ante (in tutto)
+          <input type="number" id="sc-n" value="${numeroAnteScorrevoli(config)}" min="1" max="12" step="1" />
         </label>
         <label>Binario (mm)
           <select id="sc-bin">
@@ -168,7 +169,7 @@ export function renderPannello(contenitore, config, onChange) {
       </div>
       <div id="sc-colore-bin">${coloriBinario(config)}</div>
       <div id="sc-colore-prof">${coloriProfilo(config)}</div>
-      <p class="hint">Di partenza 1 anta per modulo, larga come il modulo (es. armadio 1000 a 2 moduli → ante da 500): quanto togliere lo decide ogni binario in ⚙ Parametri. Ogni anta ha il profilo verticale a tutta altezza sui due lati (le maniglie non servono). Il binario non entra nella distinta (è a parte).</p>
+      <p class="hint">La porta è larga quanto l'armadio diviso il n° di ante (es. armadio 2000 con 2 ante → porte da 1000). L'anta da tagliare è la porta meno il tirador da tutti e due i lati (es. tirador da 25 → 1000 − 50 = 950). Quanto togliere per lato e la parte visibile del tirador si scrivono in ⚙ Parametri → Tiradores. Il binario non entra nella distinta (è a parte).</p>
       <p class="hint" id="sc-formula">${formulaScorrevole(config)}</p>
     </section>
 
@@ -351,8 +352,10 @@ export function renderPannello(contenitore, config, onChange) {
 
   // Parametri scorrevole
   bind('#sc-n', (e) => {
-    config.scorrevole.anteModulo = Math.max(1, Math.round(Number(e.target.value) || 1));
+    // n° di ante di TUTTO l'armadio (la porta è larga l'armadio ÷ n° ante)
+    config.scorrevole.nAnte = Math.max(1, Math.min(12, Math.round(Number(e.target.value) || 1)));
     onChange(config);
+    aggiornaFormulaScorrevole(config);
   });
   bind('#sc-tipo', (e) => {
     config.scorrevole.tipoBinario = e.target.value;
@@ -360,10 +363,12 @@ export function renderPannello(contenitore, config, onChange) {
     config.scorrevole.binario = profonditaBinario(config);
     const sel = document.getElementById('sc-bin');
     if (sel) sel.innerHTML = (binarioArmadio(config).profondita || [75]).map((v, i) => `<option value="${v}" ${config.scorrevole.binario === v ? 'selected' : ''}>${v}${i === 0 ? ' (default)' : ''}</option>`).join('');
+    fotoScelta(e.target, 'binario', binarioArmadio(config).id);
     onChange(config);
   }, 'change');
   bind('#sc-tirador', (e) => {
     config.scorrevole.tirador = e.target.value;
+    fotoScelta(e.target, 'tirador', tiradorArmadio(config).id);
     onChange(config);
   }, 'change');
   bind('#sc-bin', (e) => {
@@ -417,6 +422,7 @@ export function renderPannello(contenitore, config, onChange) {
   // COSTADI: lati, spessore, sporgenza. Sul lato con il costado il tamponamento laterale non serve
   // (l'armadio non è incassato da quella parte): si spegne
   attaccaEventiPiedini(contenitore, config, onChange);
+  riempiMiniature(contenitore);          // foto del binario e del tirador scelti (⚙ Parametri)
   contenitore.querySelectorAll('input[name="costadi"]').forEach((r) => r.addEventListener('change', (e) => {
     config.costadi.lati = e.target.value;
     const m = misureCostado(config);
@@ -1353,4 +1359,12 @@ function attaccaEventiPiedini(contenitore, config, onChange) {
   box.querySelector('#zoc-lat-dx')?.addEventListener('change', (e) => scrivi((o) => { o.zoccolo.latDx = e.target.checked; }));
   box.querySelector('#zoc-L')?.addEventListener('change', (e) => { const v = Math.round(Number(e.target.value)); if (v >= 50) scrivi((o) => { o.zoccolo.larghezza = v; }); });
   box.querySelector('#zoc-H')?.addEventListener('change', (e) => { const v = Math.round(Number(e.target.value)); if (v >= 10) scrivi((o) => { o.zoccolo.altezza = v; }); });
+}
+
+/** Accanto a una tendina dei Parametri: la foto della voce scelta (se ne ha una). */
+function fotoScelta(select, tipo, id) {
+  const box = select.parentElement && select.parentElement.querySelector('.par-mini');
+  if (!box) return;
+  box.dataset.mini = `voce:${tipo}:${id}`;
+  riempiMiniature(box.parentElement);
 }

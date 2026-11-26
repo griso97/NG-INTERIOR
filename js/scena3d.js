@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { spessoreMateriale, piediniArmadio, zoccoloArmadio, profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261127k';
-import { parametri } from './parametri.js?v=20261127k';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261127k';
-import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261127k';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261127k';
-import { sfondoDi } from './sfondi.js?v=20261127k';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261127k';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261127k';
+import { spessoreMateriale, piediniArmadio, zoccoloArmadio, profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, larghezzaPortaScorrevole, numeroAnteScorrevoli, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261127l';
+import { parametri } from './parametri.js?v=20261127l';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261127l';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261127l';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261127l';
+import { sfondoDi } from './sfondi.js?v=20261127l';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261127l';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261127l';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -1003,8 +1003,9 @@ function costruisciAnteScorrevoliGlobali(config) {
   const sA = config.spessoreAnte;
   const B = profonditaBinario(config);                    // spazio del binario (⚙ Parametri → Binari)
   const L = config.moduli.reduce((t, m) => t + (Number(m.larghezza) || 0), 0);
-  const nTot = Math.max(1, config.moduli.length * (config.scorrevole?.anteModulo ?? 1));
-  const larAntaSc = larghezzaAntaScorrevole(config);
+  const nTot = numeroAnteScorrevoli(config);
+  const larAntaSc = larghezzaAntaScorrevole(config);          // il pannello (come in distinta)
+  const larPorta = larghezzaPortaScorrevole(config);          // la porta finita, con i tiradores
   const altAntaSc = altezzaAntaScorrevole(config);
   const zAvanti = config.profonditaEsterna - sA / 2 - 2;
   const zDietro = config.profonditaEsterna - sA - sA / 2 - 4;
@@ -1019,9 +1020,10 @@ function costruisciAnteScorrevoliGlobali(config) {
   // TIRADOR scelto (⚙ Parametri): faccia vista, sporgenza e forma; lungo come l'anta (come in distinta)
   const tir = tiradorArmadio(config);
   const profili = (pivot, w, h) => {
-    const PW = tir.larghezza, SP = tir.sporgenza;
+    // il tirador esce dal bordo dell'anta di quanto si toglie per lato; davanti se ne vede «larghezza»
+    const PW = Math.max(tir.larghezza, (tir.lato || 0) + 2), SP = tir.sporgenza, fuori = tir.lato || 0;
     for (const lato of [-1, 1]) {
-      const x = lato * (w / 2 - PW / 2 + 2);
+      const x = lato * (w / 2 + fuori - PW / 2 + (fuori ? 0 : 2));
       const metti = (geo, px, pz, rotY = 0) => {
         const pr = new THREE.Mesh(geo, matProf);
         pr.position.set(px, 0, pz); pr.rotation.y = rotY;
@@ -1054,10 +1056,10 @@ function costruisciAnteScorrevoliGlobali(config) {
     gruppoArmadio.add(pivot);
   };
   // distribuite su tutta la larghezza (la prima a sinistra, l'ultima a destra), alternate avanti/dietro
-  const passo = nTot > 1 ? (L - larAntaSc) / (nTot - 1) : 0;
+  const passo = nTot > 1 ? (L - larPorta) / (nTot - 1) : 0;
   for (let k = 0; k < nTot; k++) {
     const avanti = k % 2 === 0;
-    creaAnta(larAntaSc / 2 + k * passo, avanti ? zAvanti : zDietro, avanti && k < nTot - 1 ? passo : 0);
+    creaAnta(larPorta / 2 + k * passo, avanti ? zAvanti : zDietro, avanti && k < nTot - 1 ? passo : 0);
   }
 }
 

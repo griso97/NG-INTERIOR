@@ -9,9 +9,9 @@
 // («lo imposto dopo»): restano a 0, la distinta avvisa che mancano e alla fine c'è il promemoria.
 // Alla fine: 'ng-configurato' = 1 e si va al programma.
 // =============================================================================
-import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261127k';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127k';
-import { svgGola, svgRegletta, svgParametro } from './disegni-cucina.js?v=20261127k';
+import { parametri, salvaParametri, PARAMETRI_DEFAULT, GRUPPI_DA_IMPOSTARE, daImpostare, saltaImpostazione, segnaImpostato } from './parametri.js?v=20261127l';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127l';
+import { svgGola, svgRegletta, svgParametro } from './disegni-cucina.js?v=20261127l';
 
 const $ = (id) => document.getElementById(id);
 const t = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -52,7 +52,7 @@ const PASSI = [
       <label>${esc(t('Nome del binario'))}<input type="text" data-bin="nome" value="${esc(b.nome)}"></label>
       <label>${esc(t('Larghezza anta: togli (mm)'))}<input type="number" inputmode="decimal" step="0.5" min="0" data-bin="larghezzaMeno" value="${esc(b.larghezzaMeno)}"><small>${esc(t('larghezza esterna ÷ n° ante − questo numero (0 = anta larga come il modulo)'))}</small></label>
       <label>${esc(t('Altezza anta: togli (mm)'))}<input type="number" inputmode="decimal" step="0.5" min="0" data-bin="altezzaMeno" value="${esc(b.altezzaMeno)}"><small>${esc(t('altezza esterna totale − questo numero'))}</small></label>
-      <label>${esc(t('Profili delle ante (tirador): togli (mm)'))}<input type="number" inputmode="decimal" step="0.5" min="0" data-tir="togli" value="${esc(parametri().tiradori[0].togli)}"><small>${esc(t('in più, alla larghezza di ogni anta, per i profili verticali sui due lati'))}</small></label>
+      <label>${esc(t('Tirador delle ante: da togliere per lato (mm)'))}<input type="number" inputmode="decimal" step="0.5" min="0" data-tir="lato" value="${esc(parametri().tiradori[0].lato || 0)}"><small>${esc(t("l'anta è larga porta − 2 × questo (il tirador c'è da tutti e due i lati)"))}</small></label>
     </div>
     <div class="box">${figura('binario', 'Schema: armadio scorrevole visto davanti')}</div>
     <div class="box" id="es-bin"></div>`;
@@ -229,7 +229,7 @@ function agganciaSalta() {
 function esempioBinario() {
   const el = $('es-bin'); if (!el) return;
   const b = parametri().binari[0];
-  el.textContent = t(`Esempio: armadio 1000 × 2500 a 2 moduli (1 anta per modulo) → anta ${Math.floor(500 - b.larghezzaMeno - parametri().tiradori[0].togli)} × ${Math.floor(2500 - b.altezzaMeno)} mm`);
+  el.textContent = t(`Esempio: armadio 1000 × 2500 a 2 moduli (1 anta per modulo) → anta ${Math.floor(500 - b.larghezzaMeno - 2 * (parametri().tiradori[0].lato || 0))} × ${Math.floor(2500 - b.altezzaMeno)} mm`);
 }
 function agganciaCampi(root) {
   root.querySelectorAll('[data-par]').forEach((inp) => inp.addEventListener('change', () => {

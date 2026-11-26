@@ -11,8 +11,8 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto, piediniDi } from './parametri.js?v=20261127k';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127k';
+import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto, piediniDi } from './parametri.js?v=20261127l';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127l';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -962,13 +962,21 @@ export function tiradorArmadio(config) {
 export function manigliaTuttaAltezza(config) {
   return !!config.maniglia && config.manigliaLunghezza === 'anta';
 }
+/** N° di ANTE SCORREVOLI in tutto (scelto nell'armadio; prima era per modulo: moduli × ante per modulo). */
 export function numeroAnteScorrevoli(config) {
-  return Math.max(1, (config.moduli || []).length * (config.scorrevole?.anteModulo ?? 1));
+  const n = Math.round(Number(config.scorrevole && config.scorrevole.nAnte));
+  return n >= 1 ? n : Math.max(1, (config.moduli || []).length * (config.scorrevole?.anteModulo ?? 1));
 }
-export function larghezzaAntaScorrevole(config) {
+/** PORTA FINITA (con i tiradores sui due lati): larghezza dell'armadio ÷ n° ante − «larghezza meno» del binario. */
+export function larghezzaPortaScorrevole(config) {
   const b = binarioArmadio(config);
   const Lest = (config.moduli || []).reduce((t, m) => t + (Number(m.larghezza) || 0), 0);
-  return Lest / numeroAnteScorrevoli(config) - b.larghezzaMeno - tiradorArmadio(config).togli;
+  // al millimetro, per difetto (3 ante su 2000 → 666): la stessa misura nel 3D e nella distinta
+  return Math.floor(Lest / numeroAnteScorrevoli(config) - b.larghezzaMeno + 1e-6);
+}
+/** ANTA da tagliare (il pannello): la porta finita − il tirador da tutti e due i lati (⚙ Parametri → Tiradores). */
+export function larghezzaAntaScorrevole(config) {
+  return larghezzaPortaScorrevole(config) - 2 * (tiradorArmadio(config).lato || 0);
 }
 export function altezzaAntaScorrevole(config) {
   return config.altezzaEsterna - binarioArmadio(config).altezzaMeno;
@@ -981,14 +989,17 @@ function nomeColoreProfilo(id) {
   if (m) return m.nome;
   return { 'binario-bianco': 'Bianco', 'binario-nero': 'Nero', 'binario-grigio': 'Grigio' }[id] || id;
 }
-export function pezziAnteScorrevoliModulo(config, modulo, indiceModulo) {
-  const N = config.scorrevole?.anteModulo ?? 1;
+/** ANTE SCORREVOLI di tutto l'armadio (non per modulo): il pannello da tagliare, la porta finita, i tiradores. */
+export function pezziAnteScorrevoli(config) {
+  const N = numeroAnteScorrevoli(config);
   const larAnta = larghezzaAntaScorrevole(config);
   const altAnta = altezzaAntaScorrevole(config);
   const col = coloreProfiloScorrevole(config);
+  const lato = tiradorArmadio(config).lato || 0;
+  const modulo = 'Ante scorrevoli';
   return [{
-    modulo: `Modulo ${indiceModulo + 1}`,
-    nome: N === 1 ? 'Anta scorrevole' : `Anta scorrevole (×${N})`,
+    modulo,
+    nome: `Anta scorrevole · porta finita ${larghezzaPortaScorrevole(config)} mm con i tiradores${lato ? ` (−${String(lato).replace('.', ',')} mm per lato)` : ''}`,
     larghezza: larAnta,
     altezza: altAnta,
     spessore: config.spessoreAnte,
@@ -996,7 +1007,7 @@ export function pezziAnteScorrevoliModulo(config, modulo, indiceModulo) {
     quantita: N,
   }, {
     // PROFILO VERTICALE a tutta altezza su ENTRAMBI i lati di ogni anta (al posto delle maniglie)
-    modulo: `Modulo ${indiceModulo + 1}`,
+    modulo,
     // (il nome scritto dal falegname può già cominciare con «Tirador»: non due volte)
     nome: `${/^tirador/i.test(tiradorArmadio(config).nome || '') ? '' : 'Tirador '}${tiradorArmadio(config).nome || ''} (profilo verticale anta scorrevole) · ${nomeColoreProfilo(col)}`.replace('Tirador  (', 'Tirador ('),
     larghezza: null, altezza: Math.round(altAnta), spessore: null,
@@ -1020,12 +1031,10 @@ export function calcolaDistintaCompleta(config) {
     pezzi.push(...pezziSchienaModulo(config, m, i));
     pezzi.push(...pezziRipianiModulo(config, m, i));
     pezzi.push(...pezziBarraModulo(config, m, i));
-    if (battente) {
-      pezzi.push(...pezziAnteModulo(config, m, i));
-    } else {
-      pezzi.push(...pezziAnteScorrevoliModulo(config, m, i));
-    }
+    if (battente) pezzi.push(...pezziAnteModulo(config, m, i));
   });
+  // ante scorrevoli: per tutto l'armadio (il n° di ante non dipende dai moduli)
+  if (!battente) pezzi.push(...pezziAnteScorrevoli(config));
   // Cassettiere: ora sono globali (config.cassettiere), con moduli[] = indici
   pezzi.push(...pezziCassettiereArmadio(config));
   pezzi.push(...pezziTamponamenti(config));

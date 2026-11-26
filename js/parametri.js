@@ -78,7 +78,7 @@ export const PARAMETRI_DEFAULT = Object.freeze({
     altezzaAlzatina: 100,
   },
   // BINARI degli armadi scorrevoli: ognuno con i suoi numeri per calcolare le ante.
-  //   larghezza anta = larghezza esterna ÷ n° ante − larghezzaMeno − profilo
+  //   porta (finita, con i tiradores) = larghezza esterna ÷ n° ante − larghezzaMeno; anta (pannello) = porta − 2 × tirador per lato
   //   (di partenza: l'anta è larga come il modulo, es. armadio 1000 a 2 moduli → 500;
   //    ogni falegname toglie poi quello che serve al suo binario)
   //   altezza anta   = altezza esterna totale − altezzaMeno
@@ -92,7 +92,7 @@ export const PARAMETRI_DEFAULT = Object.freeze({
   //   togli = mm tolti alla larghezza di ogni anta per i profili · larghezza = faccia che si vede
   //   sporgenza = quanto esce davanti e dietro l'anta · forma = come si vede nel 3D
   tiradori: [
-    { id: 'syskor', nome: 'Syskor', togli: 0, larghezza: 22, sporgenza: 4, forma: 'avvolgente' },
+    { id: 'syskor', nome: 'Syskor', lato: 0, togli: 0, larghezza: 22, sporgenza: 4, forma: 'avvolgente' },
   ],
   // ANTE INTERNE degli armadi a battente (l'anta sta DENTRO il vano, a filo della struttura):
   //   anta larga = (modulo − 2 fianchi − aria × (n° ante + 1)) ÷ n° ante
@@ -257,7 +257,10 @@ function completa(s) {
   const compTirador = (t, i) => ({
     id: idUnico(t.id || (i === 0 ? 'syskor' : ''), 't', i, idsTir),
     nome: String(t.nome ?? '').trim(),
-    togli: Math.max(0, num(t.togli, 0)),
+    // DA TOGLIERE PER LATO: l'anta (pannello) è larga porta − 2 × lato. Prima c'era un solo numero «togli» per
+    // tutti e due i lati: diventa metà per lato
+    lato: t.lato != null && t.lato !== '' ? Math.max(0, num(t.lato, 0)) : Math.max(0, num(t.togli, 0)) / 2,
+    togli: 0,
     larghezza: Math.max(5, Math.min(120, num(t.larghezza, 22))),
     sporgenza: Math.max(0, Math.min(40, num(t.sporgenza, 4))),
     forma: FORME_TIRADOR.includes(t.forma) ? t.forma : 'avvolgente',
@@ -537,7 +540,7 @@ export function saltaImpostazione(gruppo) {
   if (!n.daImpostare.includes(gruppo)) n.daImpostare.push(gruppo);
   if (gruppo === 'gola') n.gola.spazio = 0;
   if (gruppo === 'regletta') { n.regletta.vista = 0; n.regletta.spessoreAnta = 0; }
-  if (gruppo === 'binario' && n.binari[0]) { Object.assign(n.binari[0], { larghezzaMeno: 0, altezzaMeno: 0, maniglia: 0 }); if (n.tiradori[0]) n.tiradori[0].togli = 0; }
+  if (gruppo === 'binario' && n.binari[0]) { Object.assign(n.binari[0], { larghezzaMeno: 0, altezzaMeno: 0, maniglia: 0 }); if (n.tiradori[0]) { n.tiradori[0].togli = 0; n.tiradori[0].lato = 0; } }
   if (gruppo === 'cassetti') Object.assign(n.cassetti, { fondoMeno: 0, fondoProfondita: 0, traseraMeno: 0, piccoloTrasera: 0, medioTrasera: null, grandeTrasera: null });
   return salvaParametri(n);
 }

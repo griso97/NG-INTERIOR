@@ -8,23 +8,23 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261127k';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127k';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127k';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127k';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127k';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127k';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127k';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127k';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127k';
-import { agganciaTema } from './tema.js?v=20261127k';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127k';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127k';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261127k';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127k';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127k';
-import { geometriaCassettiera } from './calcoli.js?v=20261127k';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127k';
+} from './catalogo.js?v=20261127l';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127l';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127l';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127l';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127l';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127l';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127l';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127l';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127l';
+import { agganciaTema } from './tema.js?v=20261127l';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127l';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127l';
+import { htmlFotoParametro, agganciaFotoParametri, htmlFotoVoce } from './parametri-foto.js?v=20261127l';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127l';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127l';
+import { geometriaCassettiera } from './calcoli.js?v=20261127l';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127l';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -98,6 +98,7 @@ function render() {
             <span class="par-input"><input type="text" data-bin="${i}.nome" value="${esc(b.nome)}" placeholder="es. Syscore"></span></label>
           ${n > 1 ? `<button type="button" class="btn-ghost btn-mini" data-bin-togli="${i}">✕ Togli</button>` : ''}
         </div>
+        ${htmlFotoVoce('binario', b.id, 'Foto del binario')}
         <div class="par-griglia">
           ${campoBin(i, 'larghezzaMeno', 'Larghezza anta: togli', '(larghezza esterna − 2 fianchi) ÷ n° ante − questo numero')}
           ${campoBin(i, 'altezzaMeno', 'Altezza anta: togli', 'altezza esterna totale (fianchi + top + fondo) − questo numero')}
@@ -1086,6 +1087,7 @@ function renderParametri(S) {
             <span class="par-input"><input type="text" data-bin="${i}.nome" value="${esc(b.nome)}" placeholder="es. Syscore"></span></label>
           ${n > 1 ? `<button type="button" class="btn-ghost btn-mini" data-bin-togli="${i}">✕ Togli</button>` : ''}
         </div>
+        ${htmlFotoVoce('binario', b.id, 'Foto del binario')}
         <div class="par-griglia">
           ${campoBin(i, 'larghezzaMeno', 'Larghezza anta: togli', 'larghezza esterna ÷ n° ante − questo numero (0 = anta larga come il modulo)')}
           ${campoBin(i, 'altezzaMeno', 'Altezza anta: togli', 'altezza esterna totale (fianchi + top + fondo) − questo numero')}
@@ -1115,9 +1117,10 @@ function renderParametri(S) {
             <span class="par-input"><input type="text" data-tir="${i}.nome" value="${esc(x.nome)}" placeholder="es. Syskor"></span></label>
           ${n > 1 ? `<button type="button" class="btn-ghost btn-mini" data-tir-togli="${i}">✕ Togli</button>` : ''}
         </div>
+        ${htmlFotoVoce('tirador', x.id, 'Foto del tirador')}
         <div class="par-griglia">
-          ${[['togli', 'Larghezza anta: togli', 'in più, alla larghezza di ogni anta, per i profili sui due lati'],
-             ['larghezza', 'Faccia che si vede', 'larghezza del profilo vista davanti (nel 3D)'],
+          ${[['lato', 'Da togliere per lato', "l'anta è larga porta − 2 × questo (il tirador c'è da tutti e due i lati)"],
+             ['larghezza', 'Parte visibile', 'quanto si vede del tirador davanti (nel 3D)'],
              ['sporgenza', 'Sporgenza', "quanto esce davanti all'anta (nel 3D)"]].map(([k, et, aiuto]) => `<div class="par-campo-box"><label class="par-campo"><span class="par-et">${esc(et)}</span>
             <span class="par-input"><input type="number" inputmode="decimal" step="0.1" min="0" data-tir="${i}.${k}" value="${esc(x[k])}"><em>mm</em></span>
             <small>${esc(aiuto)}</small></label></div>`).join('')}
@@ -1184,6 +1187,7 @@ function renderParametri(S) {
       <h3>Sistemi di cassetti</h3>
       <p class="imp-desc">Una voce per ogni sistema di cassetti: a sistema (Syskor, Blum, Novatec…) oppure su misura, costruiti in laboratorio, ciascuno con le proprie misure. In cucina si sceglie per tutta la cucina o per la singola cassettiera; negli armadi in ogni cassettiera. Di partenza si usa il cassetto a sistema.</p>
       ${barraSistemi('cass', listaCass.map((c) => c.marca), _selCass)}
+      ${htmlFotoVoce('cassetti', (listaCass[_selCass] || {}).id || `c${_selCass}`, 'Foto di questo sistema di cassetti')}
       <div class="par-scelte" style="margin-bottom:12px">
         ${scelta2('cass-tipo', 'comprato', !nostro, 'Cassetto a sistema', 'guide e fianchi del produttore; in distinta fondo e trasera')}
         ${scelta2('cass-tipo', 'nostro', nostro, 'Cassetto su misura', 'scatola costruita in laboratorio; in distinta fianchi, trasera, davanti interno e fondo')}
@@ -1311,7 +1315,8 @@ function renderParametri(S) {
           <span class="par-input"><input type="number" inputmode="numeric" min="0" step="1" data-asc="${i}.scende" value="${v.scende}"><em>mm</em></span>
           <small data-asc-nome="${i}">${esc(nomeAntaScende(v))}</small></label></div>
         <div class="par-campo-box" style="align-self:center"><button type="button" class="btn-ghost btn-mini" data-asc-togli="${i}">✕ Togli</button></div>
-      </div>`).join('')}
+      </div>
+      ${htmlFotoVoce('anteScendono', v.id || `asc${i}`, 'Foto')}`).join('')}
       <button type="button" class="btn-ghost" id="par-asc-agg" style="margin-top:8px">+ Aggiungi</button>
     </div>
     <div class="par-gruppo">
@@ -1337,6 +1342,7 @@ function renderParametri(S) {
       <h3>Gola in alluminio</h3>
       <p class="imp-desc">Una voce per ogni marca o modello di gola che usi, con le sue misure. In cucina scegli quale usare (di partenza quella predefinita).</p>
       ${barraSistemi('gola', listaGole.map((g) => g.nome), _selGola)}
+      ${htmlFotoVoce('gola', (listaGole[_selGola] || {}).id || `g${_selGola}`, 'Foto di questa gola')}
       <div class="par-griglia">
         ${campo(`${pg}.nome`, 'Nome (marca / modello)', '', { testo: true, ph: 'es. Syskor' })}
         ${campo(`${pg}.spazio`, 'Spazio per le dita', "tolti in alto all'anta, sopra il primo cassetto e fra un cassetto e l'altro")}
@@ -1495,7 +1501,7 @@ function renderParametri(S) {
     const tL = f(600 - c.traseraMeno), tipi = [[c.piccoloTrasera, 'piccolo'], [c.medioTrasera, 'medio'], [c.grandeTrasera, 'grande']].filter(([h]) => h);
     Q.binari.forEach((b, i) => {
       const box = el.querySelector(`[data-bin-es="${i}"]`); if (!box) return;
-      const w = Math.floor(1000 / 2 - b.larghezzaMeno - Q.tiradori[0].togli), h = Math.floor(2500 - b.altezzaMeno);
+      const w = Math.floor(1000 / 2 - b.larghezzaMeno - 2 * (Q.tiradori[0].lato || 0)), h = Math.floor(2500 - b.altezzaMeno);
       box.textContent = tr(`Esempio: armadio 1000 × 2500 a 2 moduli (1 anta per modulo) → anta ${w} × ${h} mm`);
     });
     el.querySelectorAll('[data-fig]').forEach((d) => { d.innerHTML = svgParametro(d.dataset.fig, Q); });
@@ -1721,7 +1727,7 @@ function renderParametri(S) {
     if (!nuovo.tiradori[i]) return;
     nuovo.tiradori[i][k] = inp.type === 'number' ? (inp.value === '' ? 0 : Number(String(inp.value).replace(',', '.'))) : inp.value;
     salvaParametri(nuovo); esempi();
-    if (Number(i) === 0 && k === 'togli') impostato('binario');
+    if (Number(i) === 0 && (k === 'lato' || k === 'togli')) impostato('binario');
     msg.hidden = false; clearTimeout(timer); timer = setTimeout(() => { msg.hidden = true; }, 1400);
   }));
   el.querySelector('#par-tir-agg').addEventListener('click', () => {
