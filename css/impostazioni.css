@@ -202,3 +202,10 @@
 /* foto di una voce intera (binario, tirador, gola, sistema di cassetti…) */
 .par-voce-foto { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 12px; }
 .par-voce-foto-et { font-size: 12px; color: var(--testo-dim, #b8ad97); }
+/* righe facoltative chiuse (es. aspetto del tirador nel 3D) */
+.par-facoltativo { margin-top: 10px; border-top: 1px solid var(--bordo, #3a3326); }
+.par-facoltativo > summary { cursor: pointer; padding: 10px 0 4px; font-size: 13px; color: var(--testo-dim, #a99f8a); list-style: none; }
+.par-facoltativo > summary::-webkit-details-marker { display: none; }
+.par-facoltativo > summary::before { content: '▸'; display: inline-block; width: 14px; color: var(--oro, #c9a94a); }
+.par-facoltativo[open] > summary::before { content: '▾'; }
+.par-facoltativo .par-nota { margin: 2px 0 8px; font-size: 12px; color: var(--testo-dim, #a99f8a); }

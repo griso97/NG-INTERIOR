@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { spessoreMateriale, piediniArmadio, zoccoloArmadio, profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, larghezzaPortaScorrevole, numeroAnteScorrevoli, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261127l';
-import { parametri } from './parametri.js?v=20261127l';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261127l';
-import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261127l';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261127l';
-import { sfondoDi } from './sfondi.js?v=20261127l';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261127l';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261127l';
+import { spessoreMateriale, piediniArmadio, zoccoloArmadio, profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, larghezzaPortaScorrevole, numeroAnteScorrevoli, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261127m';
+import { parametri } from './parametri.js?v=20261127m';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261127m';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261127m';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261127m';
+import { sfondoDi } from './sfondi.js?v=20261127m';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261127m';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261127m';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -1020,10 +1020,11 @@ function costruisciAnteScorrevoliGlobali(config) {
   // TIRADOR scelto (⚙ Parametri): faccia vista, sporgenza e forma; lungo come l'anta (come in distinta)
   const tir = tiradorArmadio(config);
   const profili = (pivot, w, h) => {
-    // il tirador esce dal bordo dell'anta di quanto si toglie per lato; davanti se ne vede «larghezza»
-    const PW = Math.max(tir.larghezza, (tir.lato || 0) + 2), SP = tir.sporgenza, fuori = tir.lato || 0;
+    // il tirador è largo quanto si toglie per lato e sta fuori dal bordo dell'anta: anta + 2 × tirador = porta finita
+    // (con 0 = niente da togliere: si disegna sul bordo dell'anta, largo come prima)
+    const fuori = tir.lato || 0, PW = fuori || tir.larghezza, SP = tir.sporgenza;
     for (const lato of [-1, 1]) {
-      const x = lato * (w / 2 + fuori - PW / 2 + (fuori ? 0 : 2));
+      const x = lato * (w / 2 + fuori - PW / 2);                 // con 0: sul bordo dell'anta, senza uscire
       const metti = (geo, px, pz, rotY = 0) => {
         const pr = new THREE.Mesh(geo, matProf);
         pr.position.set(px, 0, pz); pr.rotation.y = rotY;

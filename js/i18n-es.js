@@ -3424,4 +3424,11 @@ window.NG_I18N_ES = {
  "Foto del tirador": "Foto del tirador",
  "Foto di questo sistema di cassetti": "Foto de este sistema de cajones",
  "Foto di questa gola": "Foto de este perfil gola",
+ "La porta è larga quanto l'armadio diviso il n° di ante (es. armadio 2000 con 2 ante → porte da 1000). L'anta da tagliare è la porta meno il tirador da tutti e due i lati (es. tirador da 21 → 1000 − 42 = 958). La larghezza del tirador per lato si scrive in ⚙ Parametri → Tiradores. Il binario non entra nella distinta (è a parte).": "La puerta es tan ancha como el armario dividido entre el nº de puertas (ej. armario 2000 con 2 puertas → puertas de 1000). La puerta a cortar es la puerta menos el perfil de los dos lados (ej. perfil de 21 → 1000 − 42 = 958). El ancho del perfil por lado se escribe en ⚙ Parámetros → Tiradores. El carril no entra en el despiece (va aparte).",
+ "Larghezza del tirador (per lato)": "Ancho del perfil (por lado)",
+ "la parte che si vede davanti, su ogni lato dell'anta. Si toglie all'anta da tutti e due i lati: anta = porta − 2 × questo (es. porta 1000, tirador 21 → anta 958)": "la parte que se ve de frente, en cada lado de la puerta. Se resta a la puerta de los dos lados: puerta a cortar = puerta − 2 × esto (ej. puerta 1000, perfil 21 → 958)",
+ "Tirador delle ante: larghezza per lato (mm)": "Perfil de las puertas: ancho por lado (mm)",
+ "Aspetto nel 3D (facoltativo)": "Aspecto en el 3D (opcional)",
+ "Solo per il disegno 3D: non cambiano le misure della distinta.": "Solo para el dibujo 3D: no cambian las medidas del despiece.",
+ "quanto esce davanti all'anta": "cuánto sobresale delante de la puerta",
 };

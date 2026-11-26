@@ -8,23 +8,23 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261127l';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127l';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127l';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127l';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127l';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127l';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127l';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127l';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127l';
-import { agganciaTema } from './tema.js?v=20261127l';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127l';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127l';
-import { htmlFotoParametro, agganciaFotoParametri, htmlFotoVoce } from './parametri-foto.js?v=20261127l';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127l';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127l';
-import { geometriaCassettiera } from './calcoli.js?v=20261127l';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127l';
+} from './catalogo.js?v=20261127m';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127m';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127m';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127m';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127m';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127m';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127m';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127m';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127m';
+import { agganciaTema } from './tema.js?v=20261127m';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127m';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127m';
+import { htmlFotoParametro, agganciaFotoParametri, htmlFotoVoce } from './parametri-foto.js?v=20261127m';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127m';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127m';
+import { geometriaCassettiera } from './calcoli.js?v=20261127m';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127m';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1119,14 +1119,21 @@ function renderParametri(S) {
         </div>
         ${htmlFotoVoce('tirador', x.id, 'Foto del tirador')}
         <div class="par-griglia">
-          ${[['lato', 'Da togliere per lato', "l'anta è larga porta − 2 × questo (il tirador c'è da tutti e due i lati)"],
-             ['larghezza', 'Parte visibile', 'quanto si vede del tirador davanti (nel 3D)'],
-             ['sporgenza', 'Sporgenza', "quanto esce davanti all'anta (nel 3D)"]].map(([k, et, aiuto]) => `<div class="par-campo-box"><label class="par-campo"><span class="par-et">${esc(et)}</span>
+          ${[['lato', 'Larghezza del tirador (per lato)', "la parte che si vede davanti, su ogni lato dell'anta. Si toglie all'anta da tutti e due i lati: anta = porta − 2 × questo (es. porta 1000, tirador 21 → anta 958)"]].map(([k, et, aiuto]) => `<div class="par-campo-box"><label class="par-campo"><span class="par-et">${esc(et)}</span>
             <span class="par-input"><input type="number" inputmode="decimal" step="0.1" min="0" data-tir="${i}.${k}" value="${esc(x[k])}"><em>mm</em></span>
             <small>${esc(aiuto)}</small></label></div>`).join('')}
-          <div class="par-campo-box"><label class="par-campo"><span class="par-et">Forma</span>
-            <span class="par-input"><select data-tir="${i}.forma">${FORME_TIR.map(([v, t2]) => `<option value="${v}" ${x.forma === v ? 'selected' : ''}>${esc(t2)}</option>`).join('')}</select></span></label></div>
         </div>
+        <details class="par-facoltativo">
+          <summary>${esc('Aspetto nel 3D (facoltativo)')}</summary>
+          <p class="par-nota">${esc('Solo per il disegno 3D: non cambiano le misure della distinta.')}</p>
+          <div class="par-griglia">
+            <div class="par-campo-box"><label class="par-campo"><span class="par-et">${esc('Sporgenza')}</span>
+              <span class="par-input"><input type="number" inputmode="decimal" step="0.1" min="0" data-tir="${i}.sporgenza" value="${esc(x.sporgenza)}"><em>mm</em></span>
+              <small>${esc("quanto esce davanti all'anta")}</small></label></div>
+            <div class="par-campo-box"><label class="par-campo"><span class="par-et">${esc('Forma')}</span>
+              <span class="par-input"><select data-tir="${i}.forma">${FORME_TIR.map(([v, t2]) => `<option value="${v}" ${x.forma === v ? 'selected' : ''}>${esc(t2)}</option>`).join('')}</select></span></label></div>
+          </div>
+        </details>
       </div>`;
   // SISTEMI DI CASSETTI: comprati (scatola già fatta) o fatti da noi; lo stesso gruppo in Cucina e negli Armadi
   const scelta2 = (attr, val, on, tit, sotto) => `<button type="button" class="par-scelta ${on ? 'sel' : ''}" data-${attr}="${val}"><b>${esc(tit)}</b><small>${esc(sotto)}</small></button>`;

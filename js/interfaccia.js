@@ -6,12 +6,12 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261127l';
-import { htmlTendineColori } from './tendine-colori.js?v=20261127l';
-import { misureCostado, piediniArmadio, zoccoloArmadio, binarioArmadio, profonditaBinario, spessoreMateriale, tiradorArmadio, larghezzaAntaScorrevole, larghezzaPortaScorrevole, numeroAnteScorrevoli, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261127l';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261127l';
-import { htmlMiniaturaVoce, riempiMiniature } from './parametri-foto.js?v=20261127l';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261127l';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261127m';
+import { htmlTendineColori } from './tendine-colori.js?v=20261127m';
+import { misureCostado, piediniArmadio, zoccoloArmadio, binarioArmadio, profonditaBinario, spessoreMateriale, tiradorArmadio, larghezzaAntaScorrevole, larghezzaPortaScorrevole, numeroAnteScorrevoli, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261127m';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261127m';
+import { htmlMiniaturaVoce, riempiMiniature } from './parametri-foto.js?v=20261127m';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261127m';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -169,7 +169,7 @@ export function renderPannello(contenitore, config, onChange) {
       </div>
       <div id="sc-colore-bin">${coloriBinario(config)}</div>
       <div id="sc-colore-prof">${coloriProfilo(config)}</div>
-      <p class="hint">La porta è larga quanto l'armadio diviso il n° di ante (es. armadio 2000 con 2 ante → porte da 1000). L'anta da tagliare è la porta meno il tirador da tutti e due i lati (es. tirador da 25 → 1000 − 50 = 950). Quanto togliere per lato e la parte visibile del tirador si scrivono in ⚙ Parametri → Tiradores. Il binario non entra nella distinta (è a parte).</p>
+      <p class="hint">La porta è larga quanto l'armadio diviso il n° di ante (es. armadio 2000 con 2 ante → porte da 1000). L'anta da tagliare è la porta meno il tirador da tutti e due i lati (es. tirador da 21 → 1000 − 42 = 958). La larghezza del tirador per lato si scrive in ⚙ Parametri → Tiradores. Il binario non entra nella distinta (è a parte).</p>
       <p class="hint" id="sc-formula">${formulaScorrevole(config)}</p>
     </section>
 

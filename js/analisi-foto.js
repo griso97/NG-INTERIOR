@@ -753,7 +753,7 @@ export function pulisciRiflessi(src, opz = {}) {
 }
 
 // CAMPIONE CONTINUO: in foto-continua.js (lo usa anche il caricamento dei materiali del sito)
-import { rendiContinua, boxBlur } from './foto-continua.js?v=20261127l';
+import { rendiContinua, boxBlur } from './foto-continua.js?v=20261127m';
 export { rendiContinua };
 
 
