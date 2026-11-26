@@ -14,10 +14,11 @@
 //   2) Aggiungere una riga qui sotto
 // =============================================================================
 
+import { rendiContinua } from './foto-continua.js?v=20261127k';
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261127j';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261127j';
-import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261127j';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261127k';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261127k';
+import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261127k';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -43,42 +44,42 @@ export const MATERIALI = [
   // ---- Legni batch 1 ----
   { id: 'noce-panarea-yoku', nome: 'Noce Panarea Yoku', categoria: 'legno',
     thumb: 'materials/noce-panarea-yoku-thumb.jpg',
-    texture: 'materials/noce-panarea-yoku-c.jpg', colore: 0x8e6a3e },
+    texture: 'materials/noce-panarea-yoku.jpg', colore: 0x8e6a3e },
   { id: 'roble-colorado', nome: 'Roble Colorado', categoria: 'legno',
     thumb: 'materials/roble-colorado-thumb.jpg',
-    texture: 'materials/roble-colorado-c.jpg', colore: 0x9c8c7a },
+    texture: 'materials/roble-colorado.jpg', colore: 0x9c8c7a },
   { id: 'roble-azabache', nome: 'Roble Azabache', categoria: 'legno',
     thumb: 'materials/roble-azabache-thumb.jpg',
-    texture: 'materials/roble-azabache-c.jpg', colore: 0x2a2a28 },
+    texture: 'materials/roble-azabache.jpg', colore: 0x2a2a28 },
   { id: 'roble-denver', nome: 'Roble Denver', categoria: 'legno',
     thumb: 'materials/roble-denver-v2-thumb.jpg',
-    texture: 'materials/roble-denver-v2-c.jpg', colore: 0xb89a74 },   // ombra del telefono tolta
+    texture: 'materials/roble-denver-v2.jpg', colore: 0xb89a74 },   // ombra del telefono tolta
   { id: 'roble-hercules-19', nome: 'Roble Hercules 19', categoria: 'legno',
     thumb: 'materials/roble-hercules-19-thumb.jpg',
-    texture: 'materials/roble-hercules-19-c.jpg', colore: 0xc0a07a },
+    texture: 'materials/roble-hercules-19.jpg', colore: 0xc0a07a },
   { id: 'roble-hera', nome: 'Roble Hera', categoria: 'legno',
     thumb: 'materials/roble-hera-thumb.jpg',
-    texture: 'materials/roble-hera-c.jpg', colore: 0xd6c3a6 },
+    texture: 'materials/roble-hera.jpg', colore: 0xd6c3a6 },
   { id: 'nogal-slow', nome: 'Nogal Slow', categoria: 'legno',
     thumb: 'materials/nogal-slow-thumb.jpg',
-    texture: 'materials/nogal-slow-c.jpg', colore: 0x9c7a56 },
+    texture: 'materials/nogal-slow.jpg', colore: 0x9c7a56 },
   { id: 'roble-amazona', nome: 'Roble Amazona', categoria: 'legno',
     thumb: 'materials/roble-amazona-thumb.jpg',
-    texture: 'materials/roble-amazona-c.jpg', colore: 0xc2a580 },
+    texture: 'materials/roble-amazona.jpg', colore: 0xc2a580 },
   // ---- Legni batch 2 ----
   { id: 'noce-caldo', nome: 'Noce Caldo', categoria: 'legno',
     thumb: 'materials/noce-caldo-thumb.jpg',
-    texture: 'materials/noce-caldo-c.jpg', colore: 0x7a5236,
+    texture: 'materials/noce-caldo.jpg', colore: 0x7a5236,
     nota: 'nome provvisorio' },
   { id: 'roble-palma-19', nome: 'Roble Palma 19', categoria: 'legno',
     thumb: 'materials/roble-palma-19-thumb.jpg',
-    texture: 'materials/roble-palma-19-c.jpg', colore: 0x5c4634 },
+    texture: 'materials/roble-palma-19.jpg', colore: 0x5c4634 },
   { id: 'roble-aurora', nome: 'Roble Aurora', categoria: 'legno',
     thumb: 'materials/roble-aurora-thumb.jpg',
-    texture: 'materials/roble-aurora-c.jpg', colore: 0xd0c3a9 },
+    texture: 'materials/roble-aurora.jpg', colore: 0xd0c3a9 },
   { id: 'rovere-nodoso', nome: 'Rovere Nodoso', categoria: 'legno',
     thumb: 'materials/rovere-nodoso-thumb.jpg',
-    texture: 'materials/rovere-nodoso-c.jpg', colore: 0xa0804c,
+    texture: 'materials/rovere-nodoso.jpg', colore: 0xa0804c,
     nota: 'nome provvisorio' },
   // ---- TAVOLE INTERE (foto ufficiali, alta qualità): ogni foto è il PANNELLO intero (lato lungo
   //      2750 mm; l'altro lato dalla proporzione della foto, così niente è stirato né schiacciato).
@@ -86,80 +87,80 @@ export const MATERIALI = [
   //      tavola, alla misura vera (tavola: true → vedi uvInScala e getMaterialeTHREE) ----
   { id: 'aok-01', nome: 'AOK 01', categoria: 'legno',
     thumb: 'materials/aok-01-v2-thumb.jpg',
-    texture: 'materials/aok-01-v2-c.jpg', colore: 0xcdc2b3,
+    texture: 'materials/aok-01-v2.jpg', colore: 0xcdc2b3,
     campione: { wMm: 1373, hMm: 2750 }, tavola: true, nota: 'Alvic Syncron Anniversary Oak 01 (tavola intera)' },
   { id: 'aok-02', nome: 'AOK 02', categoria: 'legno',
     thumb: 'materials/aok-02-thumb.jpg',
-    texture: 'materials/aok-02-c.jpg', colore: 0xbca389,
+    texture: 'materials/aok-02.jpg', colore: 0xbca389,
     campione: { wMm: 1377, hMm: 2750 }, tavola: true, nota: 'Alvic Syncron Anniversary Oak 02 (tavola intera)' },
   { id: 'aok-03', nome: 'AOK 03', categoria: 'legno',
     thumb: 'materials/aok-03-thumb.jpg',
-    texture: 'materials/aok-03-c.jpg', colore: 0x8b7161,
+    texture: 'materials/aok-03.jpg', colore: 0x8b7161,
     campione: { wMm: 1369, hMm: 2750 }, tavola: true, nota: 'Alvic Syncron Anniversary Oak 03 (tavola intera)' },
   { id: 'syncron-noce-01', nome: 'Syncron Noce 01', categoria: 'legno',
     thumb: 'materials/syncron-noce-01-v2-thumb.jpg',
-    texture: 'materials/syncron-noce-01-v2-c.jpg', colore: 0xac907a,
+    texture: 'materials/syncron-noce-01-v2.jpg', colore: 0xac907a,
     campione: { wMm: 1269, hMm: 2750 }, tavola: true, nota: 'Alvic Syncron Nocce 01 (tavola intera)' },
   { id: 'syncron-noce-03', nome: 'Syncron Noce 03', categoria: 'legno',
     thumb: 'materials/syncron-noce-03-thumb.jpg',
-    texture: 'materials/syncron-noce-03-c.jpg', colore: 0x755c49,
+    texture: 'materials/syncron-noce-03.jpg', colore: 0x755c49,
     campione: { wMm: 1269, hMm: 2750 }, tavola: true, nota: 'Alvic Syncron Nocce 03 (tavola intera)' },
   { id: 'lakeland-oak-03', nome: 'Lakeland Oak 03', categoria: 'legno',
     thumb: 'materials/lakeland-oak-03-thumb.jpg',
-    texture: 'materials/lakeland-oak-03-c.jpg', colore: 0x956e4f,
+    texture: 'materials/lakeland-oak-03.jpg', colore: 0x956e4f,
     campione: { wMm: 1537, hMm: 2750 }, tavola: true, nota: 'Alvic Lakeland Oak 03 (tavola intera)' },
   { id: 'ice-cream-01', nome: 'Ice Cream 01', categoria: 'legno',
     thumb: 'materials/ice-cream-01-thumb.jpg',
-    texture: 'materials/ice-cream-01-c.jpg', colore: 0xdfdad5,
+    texture: 'materials/ice-cream-01.jpg', colore: 0xdfdad5,
     campione: { wMm: 1342, hMm: 2750 }, tavola: true, nota: 'Alvic Ice Cream 01 (tavola intera)' },
   { id: 'ice-cream-04', nome: 'Ice Cream 04', categoria: 'legno',
     thumb: 'materials/ice-cream-04-thumb.jpg',
-    texture: 'materials/ice-cream-04-c.jpg', colore: 0x615c5a,
+    texture: 'materials/ice-cream-04.jpg', colore: 0x615c5a,
     campione: { wMm: 1342, hMm: 2750 }, tavola: true, nota: 'Alvic Ice Cream 04 (tavola intera)' },
   { id: 'rosales-01', nome: 'Rosales 01', categoria: 'legno',
     thumb: 'materials/rosales-01-thumb.jpg',
-    texture: 'materials/rosales-01-c.jpg', colore: 0xa97f5f,
+    texture: 'materials/rosales-01.jpg', colore: 0xa97f5f,
     campione: { wMm: 1323, hMm: 2750 }, tavola: true, nota: 'Alvic Rosales 01 (tavola intera)' },
   { id: 'rosales-chiaro', nome: 'Rosales (chiaro)', categoria: 'legno',
     thumb: 'materials/rosales-chiaro-thumb.jpg',
-    texture: 'materials/rosales-chiaro-c.jpg', colore: 0xe1d0c1,
+    texture: 'materials/rosales-chiaro.jpg', colore: 0xe1d0c1,
     campione: { wMm: 1323, hMm: 2750 }, tavola: true, nota: 'Alvic Rosales chiaro: numero da confermare (tavola intera)' },
   { id: 'rosales-03', nome: 'Rosales 03', categoria: 'legno',
     thumb: 'materials/rosales-03-thumb.jpg',
-    texture: 'materials/rosales-03-c.jpg', colore: 0x604c38,
+    texture: 'materials/rosales-03.jpg', colore: 0x604c38,
     campione: { wMm: 1375, hMm: 2750 }, tavola: true, nota: 'Alvic Rosales 03 (tavola intera)' },
   { id: 'rosales-04', nome: 'Rosales 04', categoria: 'legno',
     thumb: 'materials/rosales-04-thumb.jpg',
-    texture: 'materials/rosales-04-c.jpg', colore: 0xa78a6d,
+    texture: 'materials/rosales-04.jpg', colore: 0xa78a6d,
     campione: { wMm: 1312, hMm: 2750 }, tavola: true, nota: 'Alvic Rosales 04 (tavola intera)' },
   { id: 'roble-muratti-04', nome: 'Roble Muratti 04', categoria: 'legno',
     thumb: 'materials/roble-muratti-04-thumb.jpg',
-    texture: 'materials/roble-muratti-04-c.jpg', colore: 0xe8e7e3,
+    texture: 'materials/roble-muratti-04.jpg', colore: 0xe8e7e3,
     campione: { wMm: 1396, hMm: 2750 }, tavola: true, nota: 'Alvic Roble Muratti 04 (tavola intera)' },
   { id: 'roble-muratti-grigio', nome: 'Roble Muratti (grigio)', categoria: 'legno',
     thumb: 'materials/roble-muratti-grigio-thumb.jpg',
-    texture: 'materials/roble-muratti-grigio-c.jpg', colore: 0x817874,
+    texture: 'materials/roble-muratti-grigio.jpg', colore: 0x817874,
     campione: { wMm: 1456, hMm: 2750 }, tavola: true, nota: 'Alvic Roble Muratti grigio: numero da confermare (tavola intera)' },
   { id: 'marmol-versilia', nome: 'Mármol Versilia', categoria: 'legno',
     thumb: 'materials/marmol-versilia-thumb.jpg',
-    texture: 'materials/marmol-versilia-c.jpg', colore: 0xf5f5f3,
+    texture: 'materials/marmol-versilia.jpg', colore: 0xf5f5f3,
     campione: { wMm: 1358, hMm: 2750 }, tavola: true, nota: 'Alvic Mármol Versilia (tavola intera)' },
   { id: 'porcelain-01-gold', nome: 'Porcelain 01 Gold', categoria: 'legno',
     thumb: 'materials/porcelain-01-gold-thumb.jpg',
-    texture: 'materials/porcelain-01-gold-c.jpg', colore: 0xc4b9b0,
+    texture: 'materials/porcelain-01-gold.jpg', colore: 0xc4b9b0,
     campione: { wMm: 2750, hMm: 1702 }, tavola: true, nota: 'Alvic Porcelain 01 Gold (tavola intera, misura dalla proporzione della foto)' },
   { id: 'porcelain-03-silver', nome: 'Porcelain 03 Silver', categoria: 'legno',
     thumb: 'materials/porcelain-03-silver-thumb.jpg',
-    texture: 'materials/porcelain-03-silver-c.jpg', colore: 0x686866,
+    texture: 'materials/porcelain-03-silver.jpg', colore: 0x686866,
     campione: { wMm: 2750, hMm: 1702 }, tavola: true, nota: 'Alvic Porcelain 03 Silver (tavola intera, misura dalla proporzione della foto)' },
   // ---- Alvic Zenit marmi (la foto è la tavola intera 1240 × 2750 mm) ----
   { id: 'sm-nuvola-01', nome: 'SM Nuvola 01', categoria: 'legno',
     thumb: 'materials/sm-nuvola-01-thumb.jpg',
-    texture: 'materials/sm-nuvola-01-c.jpg', colore: 0xf0ece2,
+    texture: 'materials/sm-nuvola-01.jpg', colore: 0xf0ece2,
     campione: { wMm: 1240, hMm: 2750 }, marmo: true, nota: 'Alvic Zenit Nuvola 01 Supermate' },
   { id: 'sm-nuvola-03', nome: 'SM Nuvola 03', categoria: 'legno',
     thumb: 'materials/sm-nuvola-03-thumb.jpg',
-    texture: 'materials/sm-nuvola-03-c.jpg', colore: 0xe9ebeb,
+    texture: 'materials/sm-nuvola-03.jpg', colore: 0xe9ebeb,
     campione: { wMm: 1240, hMm: 2750 }, marmo: true, nota: 'Alvic Zenit Nuvola 03 Supermate' },
   // ---- Tinte solide (matte e lucide) ----
   // COLORI ALVIC dalle foto dei campioni (il colore è quello della foto, identico):
@@ -335,7 +336,7 @@ export const MATERIALI = [
   // stessa foto del pannello Mármol Versilia (la tavola intera, identica): il lato lungo corre lungo il piano
   { id: 'r3-supra-marmol-versilia', nome: 'R3 Supra Mármol Versilia Alvic', categoria: 'encimera',
     thumb: 'materials/marmol-versilia-thumb.jpg',
-    texture: 'materials/marmol-versilia-c.jpg', colore: 0xf5f5f3,
+    texture: 'materials/marmol-versilia.jpg', colore: 0xf5f5f3,
     campione: { wMm: 1358, hMm: 2750 }, tavola: true, ruota: true, spessore: 38 },
   { id: 'r3-supra-picasso-03', nome: 'R3 Supra Picasso 03 Alvic', categoria: 'encimera',
     thumb: 'materials/r3-supra-picasso-03-thumb.jpg',
@@ -692,7 +693,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => ['legno', 'fingerpull', 'encimera', 'pannello', 'zoccolo', 'pavimento'].includes(p.sezione) && (p.versioneFoto || 1) < 3);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261127j');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261127k');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 3; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -837,7 +838,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261127j';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261127k';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
@@ -1538,6 +1539,13 @@ export function getMaterialeTHREE(id, onPronto) {
   if (!cacheTex.has(id)) {
     loader.load(def.texture, (tex0) => {
       let tex = tex0;
+      // CAMPIONE CONTINUO, fatto dal sito a ogni caricamento: i legni e i colori del sito (foto di un
+      // campione) con luce e colore uniformi e bordi raccordati, così ripetuti sulle ante grandi non
+      // fanno quadrati né fasce. (I prodotti aggiunti dal falegname sono già fatti così quando si
+      // caricano; le tavole intere restano esattamente come la foto.)
+      if (!def.proprio && !def.tavola && (def.categoria === 'legno' || def.categoria === 'tinta') && tex0.image) {
+        try { const t2 = new THREE.CanvasTexture(rendiContinua(tex0.image)); tex0.dispose(); tex = t2; } catch (_) { /* resta la foto */ }
+      }
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.wrapS = THREE.RepeatWrapping;
       tex.wrapT = THREE.RepeatWrapping;
