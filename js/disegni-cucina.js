@@ -4,7 +4,7 @@
 //   svgGola(spazio)                → visto DI LATO: piano, profilo L, cassetti, profilo C, spazio per le dita
 //   svgRegletta(vista, spessore)   → visto DA SOPRA: l'angolo di una cucina a L con i due pezzi della regletta
 // =============================================================================
-import { svgAnteInterne } from './disegni-montaggio.js?v=20261127f';
+import { svgAnteInterne } from './disegni-montaggio.js?v=20261127g';
 const t = (s) => (typeof window !== 'undefined' && window.NGI18N ? window.NGI18N.t(s) : s);
 const C = { piano: '#2a2a2c', fianco: '#8d939b', anta: '#e8dcc0', profilo: '#4b4f55', testo: '#e6dcc6', dim: '#e8c25a', muro: '#5a5246', reg: '#e8c25a', cieco: '#cdbf9f' };
 const txt = (x, y, s, opz = '') => `<text x="${x}" y="${y}" ${/fill=/.test(opz) ? '' : `fill="${C.testo}"`} ${/font-size=/.test(opz) ? '' : 'font-size="10"'} font-family="sans-serif" ${opz}>${s}</text>`;
@@ -224,7 +224,7 @@ export function svgCassettieraArmadio(tipo = 'battente', vista = 'davanti', Pc =
   // fascette laterali: di piatto se più larghe dello spessore della struttura (qui 18) → pannellino a L dietro
   const larVista = sc ? (Number(Pc.vista) || 0) : fascia, piatto = larVista > 18, pann = Number(Pc.pannellino) || 0;
   const profTaglio = sc ? fascia : (Number(Pc.profTaglio) || 50);          // fascette di taglio: profonde così
-  const conL = piatto && pann > 0;
+  const conL = piatto && Number(Pc.pannellinoSi) !== 0 && pann > 0;
   const COL = { str: '#cdbf9f', fronte: C.anta, fianco: C.fianco, schiena: '#6d6457', guida: '#3c3f44', cass: '#9aa0a8', buio: '#1b1712' };
   const num = (x, y, n) => `<circle cx="${x}" cy="${y}" r="7.5" fill="${C.dim}" stroke="#14110d" stroke-width="1"/>`
     + txt(x, y + 3.5, n, 'text-anchor="middle" fill="#14110d" font-size="10" font-weight="bold"');

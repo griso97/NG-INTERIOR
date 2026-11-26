@@ -11,8 +11,8 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261127f';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127f';
+import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261127g';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127g';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -422,7 +422,7 @@ export function geometriaCassettiera(config, c, Lm) {
   //   larghe davanti quanto lo spessore → DI TAGLIO (si vede solo il bordo), niente altro;
   //   più larghe dello spessore → DI PIATTO, e dietro ognuna un PANNELLINO a L (alto come lei, profondo
   //   «pannellino»: ⚙ Parametri) per fissarla. Battente: larghe «fascia» (di partenza 40, di piatto; di taglio
-  //   profonde «profTaglio»); scorrevole: «vista» (0 = di taglio, profonde «fascia»).
+  //   profonde «profTaglio»); scorrevole: «vista» (di taglio profonde «fascia»). Pannellino: Sì / No nei Parametri.
   let fasciaVista, fasciaProf;
   if (scorrevole) {
     const v = Number(P.vista) || 0;
@@ -430,7 +430,7 @@ export function geometriaCassettiera(config, c, Lm) {
   } else if (P.fascia > sC) { fasciaVista = P.fascia; fasciaProf = sC; }
   else { fasciaVista = sC; fasciaProf = Number(P.profTaglio) > 0 ? Number(P.profTaglio) : 50; }   // di taglio
   const diPiatto = fasciaVista > sC;
-  const pannellinoL = diPiatto && Number(P.pannellino) > 0 ? Number(P.pannellino) : 0;
+  const pannellinoL = diPiatto && Number(P.pannellinoSi) !== 0 && Number(P.pannellino) > 0 ? Number(P.pannellino) : 0;
   let larTF, profScatola, profRipiano;
   if (scorrevole) {
     const Pcas = profonditaDentro(config) - profonditaBinario(config);   // dalla schiena fino al binario

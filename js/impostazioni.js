@@ -8,23 +8,23 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261127f';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127f';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127f';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127f';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127f';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127f';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127f';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127f';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127f';
-import { agganciaTema } from './tema.js?v=20261127f';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127f';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127f';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261127f';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127f';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127f';
-import { geometriaCassettiera } from './calcoli.js?v=20261127f';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127f';
+} from './catalogo.js?v=20261127g';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127g';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127g';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127g';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127g';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127g';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127g';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127g';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127g';
+import { agganciaTema } from './tema.js?v=20261127g';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127g';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127g';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261127g';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127g';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127g';
+import { geometriaCassettiera } from './calcoli.js?v=20261127g';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127g';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1135,12 +1135,8 @@ function renderParametri(S) {
       <h3>${tipo === 'battente' ? 'Cassettiera dell\'armadio a battente' : 'Cassettiera dell\'armadio scorrevole'}</h3>
       <p class="imp-desc">La cassettiera dentro l'armadio: la scatola appoggiata alla schiena, i frontali davanti, le fascette che fanno la cornice dei frontali (laterali e sotto) e il ripiano sopra che fa da top. Di partenza la maniglia è incassata (fresata nel frontale, non sporge niente). In ogni cassettiera si può scegliere la maniglia esterna (scrivendo quanto sporge) o i frontali ribassati, e le misure dei cassetti una per una.</p>
       <div class="par-griglia">
-        ${tipo === 'battente'
-          ? campo(`${pc}.fascia`, 'Fascette laterali: larghezza', 'vista davanti, una per lato, a filo dei frontali; fino allo spessore della struttura vanno di taglio, più larghe di piatto con il pannellino a L dietro')
-            + campo(`${pc}.profTaglio`, 'Fascette laterali di taglio: profondità', 'quando sono di taglio: larghe come la struttura, a filo dei frontali')
-          : campo(`${pc}.vista`, 'Fascette laterali: larghezza vista davanti', '0 = di taglio (si vede solo lo spessore della struttura); più larghe dello spessore vanno di piatto, con il pannellino a L dietro')
-            + campo(`${pc}.fascia`, 'Fascette laterali di taglio: profondità', 'quando sono di taglio: larghe come la struttura, a filo dei frontali')}
-        ${campo(`${pc}.pannellino`, 'Pannellino a L dietro le fascette: profondità', 'solo con le fascette di piatto (più larghe dello spessore): uno per lato, alto come la fascetta, per fissarla (0 = niente)')}
+        ${campo(`${pc}.${tipo === 'battente' ? 'fascia' : 'vista'}`, 'Fascette laterali (regletta): larghezza vista davanti', 'una per lato, a filo dei frontali. Larga quanto lo spessore della struttura (es. 18): va di taglio e si fa solo lei. Più larga (es. 30, 40, 60): va di piatto e si fissa con il pannellino qui sotto')}
+        ${campo(`${pc}.${tipo === 'battente' ? 'profTaglio' : 'fascia'}`, 'Fascette di taglio: profondità', 'solo quando la fascetta è larga quanto lo spessore')}
         ${campo(`${pc}.fasciaSotto`, 'Fascette sotto: profondità', 'due: una davanti a filo dei frontali, una dietro')}
         ${tipo === 'battente'
           ? campo(`${pc}.ariaDavanti`, 'Aria fra frontali e anta chiusa', 'con la maniglia esterna si aggiunge quanto sporge')
@@ -1149,6 +1145,12 @@ function renderParametri(S) {
         ${campo(`${pc}.ribasso`, 'Frontali ribassati: di quanto', 'senza maniglia: il vuoto resta sopra il frontale per la mano')}
         ${campo(`${pc}.fondoMeno`, 'Fondo del cassetto: guida meno', 'es. guida 500 − 20 = fondo 480')}
       </div>
+      ${(() => { const si = Number(P.cassettieraArmadio[tipo].pannellinoSi) !== 0; return `
+      <p class="imp-desc" style="margin:14px 0 6px"><b>${esc('Pannellino per fissare le fascette di piatto')}</b></p>
+      <div class="par-scelte">${[[1, 'Sì, in automatico', 'In distinta e nel 3D: un pannellino per lato, alto come la fascetta, che fa la L'], [0, 'No', 'Le fascette le fisso in un altro modo']].map(([v, tit, sotto]) => `<button type="button" class="par-scelta ${(v === 1) === si ? 'sel' : ''}" data-cass-pann="${tipo}|${v}"><b>${esc(tit)}</b><small>${esc(sotto)}</small></button>`).join('')}</div>
+      <div class="par-griglia" style="margin-top:10px" data-cass-pann-prof="${tipo}" ${si ? '' : 'hidden'}>
+        ${campo(`${pc}.pannellino`, 'Pannellino: profondità', 'di partenza 30 mm, come per la regletta della cucina')}
+      </div>`; })()}
       <div class="par-figure">
         <figure><div data-fig="cassettiera-${tipo}-davanti">${svgParametro(`cassettiera-${tipo}-davanti`, P)}</div><figcaption>${esc('Vista davanti, con le ante aperte (non in scala: spessori e fughe ingranditi)')}</figcaption></figure>
         <figure><div data-fig="cassettiera-${tipo}-fianco">${svgParametro(`cassettiera-${tipo}-fianco`, P)}</div><figcaption>${esc('Vista di fianco, tagliata a metà (non in scala)')}</figcaption></figure>
@@ -1512,6 +1514,15 @@ function renderParametri(S) {
   };
   esempi();
   agganciaFotoParametri(el);
+  // cassettiere degli armadi: pannellino per fissare le fascette di piatto, sì / no
+  el.querySelectorAll('[data-cass-pann]').forEach((b) => b.addEventListener('click', () => {
+    const [tipo, v] = b.dataset.cassPann.split('|');
+    const nuovo = JSON.parse(JSON.stringify(parametri())); nuovo.cassettieraArmadio[tipo].pannellinoSi = Number(v);
+    salvaParametri(nuovo);
+    el.querySelectorAll(`[data-cass-pann^="${tipo}|"]`).forEach((x) => x.classList.toggle('sel', x.dataset.cassPann === b.dataset.cassPann));
+    el.querySelectorAll(`[data-cass-pann-prof="${tipo}"]`).forEach((x) => { x.hidden = !Number(v); });
+    esempi();
+  }));
   // alzatina sì / no
   el.querySelectorAll('[data-alzpar]').forEach((b) => b.addEventListener('click', () => {
     const nuovo = JSON.parse(JSON.stringify(parametri())); nuovo.cucina.alzatina = b.dataset.alzpar === 'si';

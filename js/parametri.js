@@ -113,16 +113,17 @@ export const PARAMETRI_DEFAULT = Object.freeze({
   },
   // CASSETTIERA DENTRO GLI ARMADI (mm): scatola, fascette che fanno la cornice dei frontali, ripiano sopra (top)
   //   battente:   fascette laterali larghe «fascia» (di piatto; fino allo spessore di taglio, profonde «profTaglio»); scatola = spazio dentro − ariaDavanti − sporgenza maniglia − struttura
-  //   scorrevole: fascette laterali di taglio profonde «fascia», o di piatto larghe «vista» (0 = di taglio);
+  //   scorrevole: fascette laterali larghe «vista» (fino allo spessore di taglio, profonde «fascia»);
   //               scatola = fino al binario − struttura − ariaBinario − sporgenza maniglia
-  //   pannellino: fascette di piatto (più larghe dello spessore) → dietro ognuna un pannellino a L, profondo così
+  //   pannellino: fascette di piatto (più larghe dello spessore) → dietro ognuna un pannellino a L, profondo così,
+  //               se «pannellinoSi» (1 = sì, in automatico · 0 = no, si fissano in un altro modo)
   //   di partenza MANIGLIA INCASSATA (fresata nel frontale): non sporge niente; con la maniglia esterna la
   //   sporgenza si scrive nella cassettiera (senza, l'esportazione avvisa)
   //   frontali: fuga fra uno e l'altro e ai lati · «ribasso» = quanto più bassi con i frontali ribassati (senza maniglia)
   //   fondo del cassetto = guida − fondoMeno
   cassettieraArmadio: {
-    battente:   { fascia: 40, fasciaSotto: 40, ariaDavanti: 2, fuga: 2, ribasso: 30, fondoMeno: 20, pannellino: 30, profTaglio: 50 },
-    scorrevole: { fascia: 50, fasciaSotto: 50, ariaBinario: 2, fuga: 2, ribasso: 30, fondoMeno: 20, vista: 0, pannellino: 30 },
+    battente:   { fascia: 40, fasciaSotto: 40, ariaDavanti: 2, fuga: 2, ribasso: 30, fondoMeno: 20, pannellino: 30, pannellinoSi: 1, profTaglio: 50 },
+    scorrevole: { fascia: 50, fasciaSotto: 50, ariaBinario: 2, fuga: 2, ribasso: 30, fondoMeno: 20, vista: 18, pannellino: 30, pannellinoSi: 1 },
   },
   // MOBILI MODULARI (sottoscala, nicchie, mansarde): valori di partenza di ogni progetto nuovo
   //   spessori di struttura, schiena e ante · abbondanza sul lato inclinato (si rifila in opera)
