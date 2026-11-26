@@ -14,8 +14,9 @@
 // Misure in mm. Coordinate: x a destra, y in alto, origine angolo basso-sx.
 // =============================================================================
 
-import { parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, eTirador } from '../parametri.js?v=20261127g';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261127g';
+import { parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, eTirador, guidaPerProfondita, cassettiDi, sistemiCassetti, cassettieraArmadio, profiloFingerPull } from '../parametri.js?v=20261127h';
+import { pezziCassettoInterno } from '../calcoli.js?v=20261127h';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261127h';
 
 export const SPESSORI_DEFAULT = { carcassa: 18, schiena: 10, ante: 18 };
 export const H_MINIMA_MODULO = 250;
@@ -88,6 +89,14 @@ export function larghezzaUtileAuto(forma) {
   return { daSinistra, utile: Math.floor(Math.min(utile, W) / 10) * 10 };
 }
 
+/** Quanti cassetti ha un modulo / pezzo (0 = niente cassetti: ante o aperto). */
+export const cassettiDi0 = (d) => Math.max(0, Math.min(8, Math.round(Number(d && d.cassetti) || 0)));
+/** Nome del pezzo k (dal basso) su n: sotto / centro / sopra, oppure «pezzo 2». */
+export function nomePezzo(k, n) {
+  if (n === 2) return k === 0 ? 'sotto' : 'sopra';
+  if (n === 3) return ['sotto', 'centro', 'sopra'][k];
+  return k === n - 1 ? 'sopra' : `pezzo ${k + 1} dal basso`;
+}
 /**
  * Posiziona i moduli. cfg = { uguali, numero, larghezzaUsata|null, comune:{...}, lista:[{larghezza,ante,lato,ripiani}] }
  * Ritorna { moduli:[{indice,x0,x1,larghezza,hL,hR,ante,lato,ripiani,spigolo}], usata, daSinistra, errori, avvisi }
@@ -97,27 +106,34 @@ export function layoutModuli(forma, cfg, spessori = SPESSORI_DEFAULT) {
   const W = forma.larghezza;
   const auto = larghezzaUtileAuto(forma);
   const usata = cfg.larghezzaUsata > 0 ? Math.min(cfg.larghezzaUsata, W) : auto.utile;
+  // ZOCCOLO (moduli alzati di h, zoccolo arretrato davanti) e COSTADI a vista sui lati (spessi come le ante,
+  // da terra fino al soffitto, profondi quanto il mobile): i moduli si stringono per farli stare
+  const zoc = cfg.zoccolo && cfg.zoccolo.si ? { h: Math.max(30, Math.round(Number(cfg.zoccolo.h) || 100)), arretrato: Math.max(0, Math.round(Number(cfg.zoccolo.arretrato ?? 50))) } : null;
+  const hZ = zoc ? zoc.h : 0;
+  const cs = cfg.costadi || {}, sAc = spessori.ante;
+  const tSx = cs.sx ? sAc : 0, tDx = cs.dx ? sAc : 0;
+  const tStart = auto.daSinistra ? tSx : tDx, tEnd = auto.daSinistra ? tDx : tSx;
   let defs;
   if (cfg.uguali) {
     const n = Math.max(1, Math.min(20, Math.round(cfg.numero || 1)));
-    const l = Math.floor(usata / n);
+    const l = Math.floor((usata - tStart - tEnd) / n);
     defs = Array.from({ length: n }, () => ({ ...cfg.comune, larghezza: l }));
   } else {
     defs = (cfg.lista || []).map((m) => ({ ...m }));
-    const somma = defs.reduce((s, m) => s + (Number(m.larghezza) || 0), 0);
-    if (somma > W + 0.5) errori.push(`La somma dei moduli (${r0(somma)} mm) supera la larghezza del vano (${r0(W)} mm).`);
+    const somma = defs.reduce((s, m) => s + (Number(m.larghezza) || 0), 0) + tStart + tEnd;
+    if (somma > W + 0.5) errori.push(`La somma dei moduli${tStart + tEnd ? ' e dei costadi' : ''} (${r0(somma)} mm) supera la larghezza del vano (${r0(W)} mm).`);
   }
   const sC = spessori.carcassa;
   const spigoli = spigoliSoffitto(forma.punti, W);
   const moduli = [];
-  let pos = 0;
+  let pos = tStart;
   defs.forEach((d, i) => {
     const L = Number(d.larghezza) || 0;
     if (L < 2 * sC + 60) { errori.push(`Modulo ${i + 1}: larghezza troppo piccola (${r0(L)} mm).`); return; }
     const x0 = auto.daSinistra ? pos : W - pos - L;
     const x1 = x0 + L;
     pos += L;
-    const hL = altezzaSoffitto(forma.punti, x0), hR = altezzaSoffitto(forma.punti, x1);
+    const hL = altezzaSoffitto(forma.punti, x0) - hZ, hR = altezzaSoffitto(forma.punti, x1) - hZ;   // sopra lo zoccolo
     const hMin = Math.min(hL, hR);
     if (hMin < 2 * sC + 60) errori.push(`Modulo ${i + 1}: dal lato basso è alto solo ${r0(hMin)} mm, troppo poco. Riduci la larghezza occupata o il numero di moduli.`);
     else if (hMin < H_MINIMA_MODULO) avvisi.push(`Modulo ${i + 1}: dal lato basso è alto solo ${r0(hMin)} mm. Si può fare, ma è molto basso: valuta di stringerlo o di chiudere quella zona.`);
@@ -125,10 +141,47 @@ export function layoutModuli(forma, cfg, spessori = SPESSORI_DEFAULT) {
     if (spigolo != null) {
       avvisi.push(`Modulo ${i + 1} passa sotto un cambio di pendenza del soffitto (a ${r0(spigolo)} mm da sinistra): il top segue la linea retta tra i due lati. Per sfruttare tutto lo spazio metti una divisione lì.`);
     }
-    moduli.push({ indice: i, x0, x1, larghezza: L, hL, hR,
-      ante: d.ante ?? 1, lato: d.lato || 'dx', apertura: aperturaDi(d.apertura), ripiani: Math.max(0, Math.round(d.ripiani ?? 1)), perchero: percheroDi(d.perchero), spigolo,
-      maniglieAnte: maniglieAnteDi(cfg.maniglieAnte, i) });
+    const mod = { indice: i, x0, x1, larghezza: L, hL, hR, y0: hZ,
+      ante: d.ante ?? 1, cassetti: cassettiDi0(d), lato: d.lato || 'dx', apertura: aperturaDi(d.apertura), ripiani: Math.max(0, Math.round(d.ripiani ?? 1)), perchero: percheroDi(d.perchero), spigolo,
+      maniglieAnte: maniglieAnteDi(cfg.maniglieAnte, i) };
+    if (mod.cassetti) mod.ante = 0;
+    // DIVISIONE IN ALTEZZA: pezzi sotto (dal basso) + il pezzo di sopra (quello del modulo) fino al soffitto
+    const sotto = Array.isArray(d.pezzi) ? d.pezzi.filter((p) => p && Number(p.h) > 0) : [];
+    if (sotto.length) {
+      const pezzi = [];
+      let y = 0;
+      sotto.forEach((p, k) => {
+        const h = Math.round(Number(p.h)), nc = cassettiDi0(p);
+        pezzi.push({ k, y0: y, hL: h, hR: h, ante: nc ? 0 : Math.max(0, Math.min(2, Math.round(Number(p.ante) || 0))), cassetti: nc,
+          lato: p.lato || 'dx', apertura: mod.apertura, ripiani: nc ? 0 : Math.max(0, Math.round(Number(p.ripiani) || 0)), perchero: nc ? '' : percheroDi(p.perchero),
+          maniglieAnte: maniglieAnteDi(cfg.maniglieAnte, `${i}:${k}`) });
+        if (h < 2 * sC + 60) errori.push(`Modulo ${i + 1}: il pezzo ${k + 1} dal basso è alto solo ${r0(h)} mm, troppo poco.`);
+        y += h;
+      });
+      const hRestoMin = Math.min(hL, hR) - y;
+      if (hRestoMin < 2 * sC + 60) errori.push(`Modulo ${i + 1}: i pezzi sotto arrivano a ${r0(y)} mm, sopra resta troppo poco (dal lato basso ${r0(Math.max(0, hRestoMin))} mm).`);
+      pezzi.push({ k: sotto.length, y0: y, hL: hL - y, hR: hR - y, ante: mod.ante, cassetti: mod.cassetti, lato: mod.lato, apertura: mod.apertura,
+        ripiani: mod.cassetti ? 0 : mod.ripiani, perchero: mod.cassetti ? '' : mod.perchero, maniglieAnte: mod.maniglieAnte, sopra: true });
+      pezzi.forEach((p, k) => { p.nome = nomePezzo(k, pezzi.length); });
+      mod.pezzi = pezzi;
+    }
+    // i cassetti vanno solo in un pezzo dritto (sotto l'inclinata no)
+    for (const p of mod.pezzi || [mod]) {
+      if (p.cassetti && Math.abs(p.hL - p.hR) >= 0.5) {
+        errori.push(`Modulo ${i + 1}: i cassetti vanno in un pezzo dritto; ${mod.pezzi ? 'il pezzo di sopra' : 'questo modulo'} segue l'inclinata. Dividi il modulo in altezza e metti i cassetti in un pezzo sotto.`);
+        p.cassetti = 0;
+      }
+    }
+    moduli.push(mod);
   });
+  // COSTADI: all'inizio (prima dei moduli) e alla fine (dopo l'ultimo modulo)
+  const costadi = [];
+  const costado = (lato, xa, xb) => costadi.push({ lato, x0: xa, x1: xb, h: Math.min(altezzaSoffitto(forma.punti, xa), altezzaSoffitto(forma.punti, xb)) });
+  const fineModuli = pos;
+  if (tStart) costado(auto.daSinistra ? 'sx' : 'dx', auto.daSinistra ? 0 : W - tStart, auto.daSinistra ? tStart : W);
+  if (tEnd && moduli.length) { costado(auto.daSinistra ? 'dx' : 'sx', auto.daSinistra ? pos : W - pos - tEnd, auto.daSinistra ? pos + tEnd : W - pos); pos += tEnd; }
+  // ZOCCOLO sotto tutti i moduli (fra i costadi)
+  const zoccolo = zoc && moduli.length ? { ...zoc, x0: Math.min(...moduli.map((m) => m.x0)), x1: Math.max(...moduli.map((m) => m.x1)) } : null;
   // Spazio rimasto verso il lato basso: lo chiude un modulo finale
   // (triangolare se il soffitto scende quasi a terra).
   const resto = W - pos;
@@ -141,7 +194,8 @@ export function layoutModuli(forma, cfg, spessori = SPESSORI_DEFAULT) {
   } else if (resto > 1 && fronte === 'no') {
     avvisi.push(`Restano ${r0(resto)} mm liberi dal lato basso: puoi chiuderli con il modulo finale (triangolare).`);
   }
-  return { moduli, usata, resto, daSinistra: auto.daSinistra, chiusura, errori, avvisi };
+  if (zoccolo && chiusura) avvisi.push('La chiusura in fondo resta appoggiata a terra: lo zoccolo è solo sotto i moduli.');
+  return { moduli, usata, resto, daSinistra: auto.daSinistra, chiusura, costadi, zoccolo, fineModuli, errori, avvisi };
 }
 
 // ---------------------------------------------------------------------------
@@ -261,7 +315,13 @@ const MANIGLIA_STANDARD = { id: 'maniglia-standard', nome: 'Maniglia standard (b
  * Il tirador che toglie spessore (scheda della maniglia) lo toglie dal bordo dove sta.
  * (salvati prima: 'maniglia' = automatica, 'sempre' = di lato)
  */
-export const aperturaDi = (v) => (['push', 'lato', 'sopra', 'sotto'].includes(v) ? v : v === 'sempre' ? 'lato' : 'auto');
+export const aperturaDi = (v) => (['push', 'lato', 'sopra', 'sotto', 'fingerpull'].includes(v) ? v : v === 'sempre' ? 'lato' : 'auto');
+/**
+ * FINGERPULL (⚙ Parametri, come la cucina): presa senza maniglia. Fresato = la presa si fresa nel bordo (le misure
+ * non cambiano); profilo = un profilo di alluminio largo «profilo» mm al posto del bordo (l'anta / il frontale è
+ * più piccolo di tanto). Sulle ante è sul bordo che apre (verticale), sui cassetti sul bordo alto.
+ */
+export const fingerpullModulari = () => { const P = profiloFingerPull(); return P ? { tipo: 'profilo', P } : { tipo: 'fresato', P: 0 }; };
 /**
  * MANIGLIA DI OGNI ANTA (scelta anta per anta): [{ h: centro da terra in mm (vuoto = l'altezza standard),
  * via: true = senza maniglia (push), via: false = con maniglia anche se il modulo è push }], per indice d'anta
@@ -364,6 +424,12 @@ export function anteConManiglie(L, hL, hR, y0, N, lato, apertura, man, perAnta =
     if (pa.via === true) return vuota;
     const ap = ap0 === 'push' && pa.via === false ? 'auto' : ap0;
     if (ap === 'push') return vuota;
+    if (ap === 'fingerpull') {
+      // presa sul bordo che apre: fresata, o il profilo (l'anta più stretta di tanto da quel lato)
+      const F = fingerpullModulari();
+      if (!F.P) return { ...vuota, fp: 'fresato' };
+      return { ...vuota, xa: d.manSx ? d.xa + F.P : d.xa, xb: d.manSx ? d.xb : d.xb - F.P, rid: F.P, fp: 'profilo' };
+    }
     if (ap === 'auto' || ap === 'lato') {
       // DI LATO: all'altezza standard (o a quella scelta per questa anta); se l'anta non ci arriva,
       // il più vicino possibile (dentro l'anta). Mai più push da sola: si toglie anta per anta.
@@ -384,6 +450,35 @@ export function anteConManiglie(L, hL, hR, y0, N, lato, apertura, man, perAnta =
       : Math.min(top(x) - dSopra - 20, yB + dSotto + dB);
     return { ...vuota, dSopra, dSotto, rid: r, maniglia: { x, y, L: Lm, verso: ap, angolo: ap === 'sopra' ? Math.atan(k) : 0 } };
   });
+}
+/**
+ * CASSETTI di un pezzo dritto largo L e alto h (base y0): frontali a filo delle ante (2 mm d'aria sopra e
+ * sotto come le ante, 4 mm fra un frontale e l'altro), maniglia orizzontale al centro vicino al bordo alto
+ * (sotto se scelto «sotto»), push = niente maniglia. Tirador che toglie spessore: frontale più basso.
+ * → [{ xa, xb, ya, yb, dSopra, dSotto, maniglia: { x, y, L, verso, angolo } | null }]   (stesse misure per 3D, disegno e distinta)
+ */
+export const FUGA_CASSETTI = 4;
+export function cassettiDelPezzo(L, h, y0, n, apertura, man) {
+  const N = Math.max(1, Math.round(n));
+  const hF = (h - 4 - (N - 1) * FUGA_CASSETTI) / N;
+  const ap = aperturaDi(apertura), sotto = ap === 'sotto';
+  const r = ap === 'push' || ap === 'fingerpull' ? 0 : riduzioneManigliaModulari(man.def);
+  const xa = 2, xb = L - 2, w = xb - xa, out = [];
+  for (let i = 0; i < N; i++) {
+    const ya = y0 + 2 + i * (hF + FUGA_CASSETTI), yb = ya + hF;
+    if (ap === 'push') { out.push({ xa, xb, ya, yb, dSopra: 0, dSotto: 0, maniglia: null }); continue; }
+    if (ap === 'fingerpull') { const F = fingerpullModulari(); out.push({ xa, xb, ya, yb, dSopra: F.P, dSotto: 0, maniglia: null, fp: F.tipo }); continue; }
+    const dSopra = sotto ? 0 : r, dSotto = sotto ? r : 0, dB = bordoManiglia(man.def);
+    const Lm = lunghezzaManigliaModulare(man.def, w);
+    const y = sotto ? Math.min(yb - dSopra - 10, ya + dSotto + dB) : Math.max(ya + dSotto + 10, yb - dSopra - dB);
+    out.push({ xa, xb, ya, yb, dSopra, dSotto, maniglia: { x: L / 2, y, L: Lm, verso: sotto ? 'sotto' : 'sopra', angolo: 0 } });
+  }
+  return out;
+}
+/** Sistema e guida dei cassetti dei modulari (⚙ Parametri): la guida più lunga che entra nella profondità Pc. */
+export function guidaCassettiModulari(sistemaId, Pc) {
+  const sis = sistemaId ? cassettiDi(sistemaId) : sistemiCassetti()[0];
+  return { sis, ...guidaPerProfondita(sis, Pc) };
 }
 const accessorio = (modulo, nome, quantita, extra = {}) => ({ modulo, nome, larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita, ...extra });
 
@@ -430,6 +525,10 @@ export function pezziChiusura(ch, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEF
   return pz;
 }
 export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFAULT, man = manigliaModulari(null)) {
+  // modulo DIVISO IN ALTEZZA: ogni pezzo è un mobile vero (il suo top, fondo, fianchi e schiena)
+  if (Array.isArray(mod.pezzi) && mod.pezzi.length) {
+    return mod.pezzi.flatMap((p) => pezziModulo({ ...mod, ...p, y0: (mod.y0 || 0) + p.y0, pezzi: null, nome: `${mod.nome} · ${p.nome}` }, P, sp, abb, man));
+  }
   const sC = sp.carcassa, sS = sp.schiena, sA = sp.ante;
   const Pc = P - sA - sS;
   const L = mod.larghezza, hL = mod.hL, hR = mod.hR;
@@ -464,10 +563,35 @@ export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFA
       note: `finito ${fmtMm(fiancoBasso)} mm (spigolo più alto, faccia interna), tagliato +${abb.fianchi} da rifilare · bordo alto: ${noteBisello(ang)}` });
     add('Schiena trapezio', L - 2, hAlto - 2, sS, 'schiena', 1, { note: `lato basso ${r0(hBasso - 2)} mm · ${notePiano(ang)}` });
   }
-  if (mod.ripiani > 0) add('Ripiano', L - 2 * sC, Pc, sC, 'carcassa', mod.ripiani);
+  const nC = cassettiDi0(mod);
+  if (mod.ripiani > 0 && !nC) add('Ripiano', L - 2 * sC, Pc, sC, 'carcassa', mod.ripiani);
+  // CASSETTI a vista (pezzo dritto): frontali come nel 3D, maniglie o push, fondo e trasera (o cassetto su
+  // misura) con la guida più lunga che entra nella profondità del mobile
+  if (nC && !inclinato) {
+    const fr = cassettiDelPezzo(L, hL, mod.y0 || 0, nC, mod.apertura, man);
+    const perH = new Map(), maniglie = new Map();
+    for (const f of fr) {
+      const hf = r0(f.yb - f.ya - f.dSopra - f.dSotto), k = `${r0(f.xb - f.xa)}|${hf}`;
+      perH.set(k, { la: f.xb - f.xa, h: hf, rid: f.dSopra || f.dSotto, fp: f.fp, q: ((perH.get(k) || {}).q || 0) + 1 });
+      if (f.maniglia) maniglie.set(f.maniglia.L, (maniglie.get(f.maniglia.L) || 0) + 1);
+    }
+    for (const { la, h, rid, fp, q } of perH.values()) {
+      add(`Frontale cassetto${fp === 'profilo' ? ` · profilo finger-pull sopra (−${r0(rid)} mm)` : fp ? ' · presa finger-pull da fresare (bordo alto)' : rid ? ` · ${nomeRiduzione(man.def)} (−${r0(rid)} mm)` : ''}`, la, h, sA, 'ante', q);
+      if (fp === 'profilo') pz.push(accessorio(mod.nome, `Profilo finger-pull ${r0(rid)} mm · lungo ${r0(la)} mm`, q));
+    }
+    const push = fr.filter((f) => !f.maniglia && !f.fp).length;
+    if (push) { pz.push(accessorio(mod.nome, 'Push pull', push)); pz.push(accessorio(mod.nome, 'Push pull · base', push)); }
+    for (const [lm, q] of maniglie) pz.push(accessorio(mod.nome, nomeManigliaModulari(man, lm), q));
+    const G = guidaCassettiModulari(mod.sistemaCassetti, Pc);
+    const fondoMeno = cassettieraArmadio('battente').fondoMeno;
+    const perSlot = new Map();
+    for (const f of fr) { const hs = r0(f.yb - f.ya); perSlot.set(hs, (perSlot.get(hs) || 0) + 1); }
+    for (const [hs, q] of perSlot) pezziCassettoInterno(pz, mod.nome, hs, G.guida, q, G.sis && G.sis.id, L - 2 * sC, fondoMeno);
+    if (!G.entra) pz.push(accessorio(mod.nome, `ATTENZIONE: il mobile è profondo dentro solo ${r0(Pc)} mm, non entra neanche la guida da ${G.minima}`, 1));
+  }
   // PERCHERO: la barra con la sua misura (come nel 3D) + 2 ganci
   const per = percheroDi(mod.perchero);
-  if (per) {
+  if (per && !nC) {
     const fin = per === 'nero' ? 'nero' : 'alluminio satinato';
     pz.push(accessorio(mod.nome, `Perchero ${fin} (barra ovale 30×15) · ${lunghezzaPerchero(L, sC)} mm`, 1));
     pz.push(accessorio(mod.nome, `Gancio perchero ${fin}`, 2));
@@ -478,7 +602,7 @@ export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFA
     // ogni anta con la sua maniglia o push (come nel 3D); con il profilo sul bordo l'anta è più stretta
     // dal lato della maniglia
     const hA = (x) => (hL + ((hR - hL) * x) / L) - 4;     // altezza dell'anta = modulo − 4 (come negli armadi)
-    const conta = new Map(), maniglie = new Map();
+    const conta = new Map(), maniglie = new Map(), profiliFp = new Map();
     let cerniere = 0, push = 0;
     for (const d of anteConManiglie(L, hL, hR, mod.y0 || 0, N, mod.lato, mod.apertura, man, mod.maniglieAnte)) {
       const { xa, xb } = d, la = xb - xa;
@@ -488,13 +612,15 @@ export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFA
       const cerDx = d.manSx;
       const latoCer = cerDx ? 'destra' : 'sinistra';
       const dove = d.maniglia ? ({ lato: 'di lato', sopra: 'sopra', sotto: 'sotto' })[d.maniglia.verso] : '';
-      const suff = d.rid ? ` · ${nomeRiduzione(man.def)} (−${d.rid} mm ${dove})` : '';
+      const suff = d.fp === 'profilo' ? ` · profilo finger-pull (−${d.rid} mm sul lato che apre)` : d.fp ? ' · presa finger-pull da fresare (lato che apre)'
+        : d.rid ? ` · ${nomeRiduzione(man.def)} (−${d.rid} mm ${dove})` : '';
       const nome = (!inclinato
         ? (N === 1 ? `Anta (apertura ${mod.lato === 'sx' ? 'sx' : 'dx'})` : `Anta · cerniere a ${latoCer}`)
         : `Anta trapezio · cerniere a ${latoCer} (lato ${cerDx === (hR > hL) ? 'alto' : 'basso'})`) + suff;
       cerniere += cerniereAnta(alta);
       if (d.maniglia) maniglie.set(d.maniglia.L, (maniglie.get(d.maniglia.L) || 0) + 1);
-      else push++;
+      else if (d.fp === 'profilo') profiliFp.set(r0(alta), (profiliFp.get(r0(alta)) || 0) + 1);
+      else if (!d.fp) push++;
       const f = inclinato ? fronteInclinato(la, alta, ang, abb.ante, false, bassa) : null;
       const k = `${nome}|${r0(la)}|${r0(alta)}|${f ? f.note : ''}`;
       if (!conta.has(k)) conta.set(k, { nome, la, alta, f, q: 0 });
@@ -511,6 +637,7 @@ export function pezziModulo(mod, P, sp = SPESSORI_DEFAULT, abb = ABBONDANZA_DEFA
       pz.push(accessorio(mod.nome, 'Push pull · base', push));
     }
     for (const [lm, q] of maniglie) pz.push(accessorio(mod.nome, nomeManigliaModulari(man, lm), q));
+    for (const [lp, q] of profiliFp) pz.push(accessorio(mod.nome, `Profilo finger-pull ${fingerpullModulari().P} mm · lungo ${lp} mm`, q));
   }
   return pz;
 }
@@ -612,6 +739,35 @@ export function abbondanzaDi(stato) {
   return { fianchi: ok(a.fianchi, ABBONDANZA_DEFAULT.fianchi), top: ok(a.top, ABBONDANZA_DEFAULT.top), ante: ok(a.ante, ABBONDANZA_DEFAULT.ante) };
 }
 
+/**
+ * COSTADI e ZOCCOLO della parete a moduli (stesse misure del 3D):
+ *   costado: profondo quanto il mobile (P, a filo delle ante), alto dal pavimento al soffitto, spesso come le ante;
+ *   zoccolo: davanti, arretrato, lungo quanto i moduli (+ il margine dei ⚙ Parametri della cucina, in più pezzi se
+ *   più lungo del pezzo massimo), alto quanto lo zoccolo; piedini e clip sotto ogni modulo.
+ */
+export function pezziCostadiZoccolo(lay, P, sp, stato) {
+  const out = [], mods = lay.moduli || [];
+  const finAnte = (chiave) => finitureDi(stato.materiali, chiave).ante;
+  for (const c of lay.costadi || []) {
+    const vicino = mods.reduce((b, m) => (Math.abs((m.x0 + m.x1) / 2 - (c.x0 + c.x1) / 2) < Math.abs((b.x0 + b.x1) / 2 - (c.x0 + c.x1) / 2) ? m : b), mods[0] || { indice: 0, x0: 0, x1: 0 });
+    out.push({ modulo: 'Costadi', nome: `Costado ${c.lato === 'sx' ? 'sinistro' : 'destro'} (a vista, da terra)`, larghezza: r0(P), altezza: r0(c.h), spessore: sp.ante, materiale: 'ante', quantita: 1, finitura: finAnte(`m${vicino.indice}`) });
+  }
+  const z = lay.zoccolo;
+  if (z) {
+    const K = parametri().cucina, margine = K.margineZoccolo, utile = Math.max(500, K.zoccoloMax - margine);
+    const L = z.x1 - z.x0, n = Math.ceil(L / utile);
+    const nome = 'Zoccolo (frontale)' + (margine ? ` · con ${String(margine / 10).replace('.', ',')} cm di margine` : '')
+      + (n > 1 ? ` · ${String(Math.round(L / 10) / 100).replace('.', ',')} m in ${n} pezzi da giuntare` : '') + ` · arretrato ${z.arretrato} mm`;
+    for (let i = 0; i < n; i++) {
+      const parte = i < n - 1 ? utile : L - utile * (n - 1);
+      out.push({ modulo: 'Zoccolo', nome, larghezza: r0(parte + margine), altezza: z.h, spessore: sp.ante, materiale: 'ante', quantita: 1, finitura: finAnte('m0') });
+    }
+    out.push(accessorio('Zoccolo', `Piedini regolabili per zoccolo da ${z.h} mm`, mods.reduce((t, m) => t + (m.larghezza > 1000 ? 6 : 4), 0)));
+    out.push(accessorio('Zoccolo', 'Clip per zoccolo', mods.length * 2));
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // DISTINTA completa
 // ---------------------------------------------------------------------------
@@ -632,8 +788,9 @@ export function distintaModulari(forma, stato) {
   } else {
     const lay = layoutModuli(forma, stato.moduli || {}, sp);
     errori.push(...lay.errori); avvisi.push(...lay.avvisi);
-    elementi = lay.moduli.map((m) => ({ ...m, chiave: `m${m.indice}`, nome: `Modulo ${m.indice + 1}` }));
+    elementi = lay.moduli.map((m) => ({ ...m, chiave: `m${m.indice}`, nome: `Modulo ${m.indice + 1}`, sistemaCassetti: stato.sistemaCassetti || null }));
     if (lay.chiusura) chiusura = lay.chiusura;
+    pezzi.push(...pezziCostadiZoccolo(lay, P, sp, stato));
   }
   // ogni pezzo con la sua finitura (id): ante → finitura ante, il resto → struttura
   const conFinitura = (pz, chiave) => pz.map((p) => (p.materiale === 'accessorio' ? p : { ...p, finitura: finitureDi(stato.materiali, chiave)[p.materiale === 'ante' ? 'ante' : 'struttura'] }));

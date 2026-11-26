@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { spessoreMateriale, profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261127g';
-import { parametri } from './parametri.js?v=20261127g';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261127g';
-import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261127g';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261127g';
-import { sfondoDi } from './sfondi.js?v=20261127g';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261127g';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261127g';
+import { spessoreMateriale, profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261127h';
+import { parametri } from './parametri.js?v=20261127h';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261127h';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261127h';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261127h';
+import { sfondoDi } from './sfondi.js?v=20261127h';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261127h';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261127h';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta

@@ -4,14 +4,15 @@
 import {
   layoutModuli, layoutCubi, abbondanzaDi, gradi, larghezzaUtileAuto, distintaModulari, posizioneValida,
   primoPostoLibero, agganciaCubo, SPESSORI_DEFAULT, anteConManiglie, manigliaModulari, aperturaDi, maniglieAnteDi,
-  FINITURE_PERCHERO, altezzaPerchero, percheroDi,
-} from './calcoli.js?v=20261127g';
+  FINITURE_PERCHERO, altezzaPerchero, percheroDi, cassettiDelPezzo, cassettiDi0,
+} from './calcoli.js?v=20261127h';
+import { sistemiCassetti, nomeSistemaCassetti } from '../parametri.js?v=20261127h';
 // export Excel (con lo zip, ~115 KB): si scarica dopo l'apertura, quando la pagina è ferma
-const _excel = () => import('../modello-export.js?v=20261127g');
+const _excel = () => import('../modello-export.js?v=20261127h');
 const esportaExcel = (...a) => _excel().then((m) => m.esportaExcel(...a));
 const apriModelloExcel = (...a) => _excel().then((m) => m.apriModelloExcel(...a));
 (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => _excel().catch(() => {}), { timeout: 8000 });
-import { schemaTagliPNG } from './schema-tagli.js?v=20261127g';
+import { schemaTagliPNG } from './schema-tagli.js?v=20261127h';
 
 const FRONTI = [
   { v: 0, l: 'Aperto (a giorno)' },
@@ -55,9 +56,47 @@ function tutto() { ctx.salva(); renderPannello(); ridisegna(); }
 function opzPerchero(sel) {
   return FINITURE_PERCHERO.map(([v, l]) => `<option value="${v}" ${percheroDi(sel) === v ? 'selected' : ''}>${l}</option>`).join('');
 }
-function opzFronte(sel) {
-  return FRONTI.map((f) => `<option value="${f.v}" ${Number(sel) === f.v ? 'selected' : ''}>${f.l}</option>`).join('');
+function opzFronte(sel, cassetti = 0) {
+  const c = cassettiDi0({ cassetti });
+  return FRONTI.map((f) => `<option value="${f.v}" ${!c && Number(sel) === f.v ? 'selected' : ''}>${f.l}</option>`).join('')
+    + `<option value="c" ${c ? 'selected' : ''}>Cassetti</option>`;
 }
+/** Fronte scelto nella tendina: '0' / '1' / '2' ante o 'c' = cassetti (di partenza 3). */
+function scriviFronte(o, v) {
+  if (v === 'c') { o.ante = 0; o.cassetti = cassettiDi0(o) || 3; } else { o.ante = Number(v); o.cassetti = 0; }
+}
+const testoFronte = (p) => (cassettiDi0(p) ? `${cassettiDi0(p)} ${cassettiDi0(p) === 1 ? 'cassetto' : 'cassetti'}` : Number(p.ante) ? `${p.ante} ${Number(p.ante) === 1 ? 'anta' : 'ante'}` : 'aperto');
+/**
+ * DIVISIONE IN ALTEZZA di un modulo (dove = 'c' moduli uguali, o l'indice del modulo): i pezzi sotto, dal
+ * basso, con altezza e fronte; sopra resta il pezzo del modulo fino al soffitto.
+ */
+function htmlPezzi(dove, o) {
+  const { esc } = ctx;
+  const pezzi = Array.isArray(o.pezzi) ? o.pezzi : [];
+  const righe = pezzi.map((p, k) => {
+    const nc = cassettiDi0(p);
+    return `<div class="mod-pezzo" data-pz="${dove}" data-k="${k}">
+      <div class="mod-pezzo-head"><strong>Pezzo ${k + 1} dal basso</strong><button type="button" class="btn-mini" data-pz-del title="Togli il pezzo">×</button></div>
+      <div class="grid-2">
+        <label>Altezza (mm)<input type="number" min="100" step="10" data-pzc="h" value="${esc(p.h)}"></label>
+        <label>Fronte<select data-pzc="fronte">${opzFronte(p.ante, p.cassetti)}</select></label>
+        ${nc ? `<label>Cassetti<input type="number" min="1" max="8" step="1" data-pzc="cassetti" value="${nc}"></label>`
+          : `<label>Ripiani<input type="number" min="0" max="10" step="1" data-pzc="ripiani" value="${esc(p.ripiani ?? 0)}"></label>`}
+        ${!nc && Number(p.ante) === 1 ? `<label>Apertura<select data-pzc="lato"><option value="dx" ${p.lato !== 'sx' ? 'selected' : ''}>a destra</option><option value="sx" ${p.lato === 'sx' ? 'selected' : ''}>a sinistra</option></select></label>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="mod-pezzi">
+      <div class="mod-pezzi-tit">Divisione in altezza</div>
+      ${righe}
+      <button type="button" class="btn-ghost btn-mini" data-pz-add="${dove}" style="width:100%">+ Aggiungi un pezzo sotto</button>
+      <p class="mod-prossimo" style="margin:6px 0 0">${pezzi.length
+        ? 'Sopra i pezzi c\'è il resto fino al soffitto: il suo fronte, i ripiani e il perchero sono quelli scelti qui sopra. Tutti i fronti restano a filo.'
+        : 'Ora è un pezzo solo, da terra al soffitto. Per dividerlo aggiungi i pezzi sotto (es. ante fino a 1 m, un cassetto da 30 cm, sopra ante fino al soffitto).'}</p>
+    </div>`;
+}
+/** Dove sta la divisione: 'c' = moduli uguali (comune), altrimenti il modulo della lista. */
+const oggettoPezzi = (dove) => (dove === 'c' ? ctx.stato.moduli.comune : ctx.stato.moduli.lista[+dove]);
 /**
  * Maniglia (quella scelta al passo 3) o push. Di partenza AUTOMATICA: maniglia all'altezza standard
  * (⚙ Parametri), push sulle ante che non ci arrivano; si può mettere la maniglia lo stesso o il push.
@@ -65,9 +104,11 @@ function opzFronte(sel) {
 function opzApertura(sel) {
   const v = aperturaDi(sel) === 'lato' ? 'auto' : aperturaDi(sel), cm = Math.round(manigliaModulari(ctx.stato).hStd / 10);
   return [['auto', `Di lato a ${cm} cm (o il più vicino possibile)`], ['sopra', 'Sopra, sul bordo alto'],
-    ['sotto', 'Sotto, sul bordo basso'], ['push', 'Push (senza maniglia)']]
+    ['sotto', 'Sotto, sul bordo basso'], ['fingerpull', 'Fingerpull (presa senza maniglia, ⚙ Parametri)'], ['push', 'Push (senza maniglia)']]
     .map(([k, t]) => `<option value="${k}" ${v === k ? 'selected' : ''}>${t}</option>`).join('');
 }
+/** Il modulo (o uno dei suoi pezzi) ha ante o cassetti: serve la scelta della maniglia. */
+const serveManiglia = (o) => [o, ...(Array.isArray(o.pezzi) ? o.pezzi : [])].some((p) => Number(p.ante) > 0 || cassettiDi0(p) > 0);
 /** Quante ante di questo modulo hanno la maniglia più in basso dell'altezza standard (l'anta non ci arriva). */
 function antePushAuto(L, hL, hR, y0, ante, lato, apertura, perAnta = []) {
   if (!['auto', 'lato'].includes(aperturaDi(apertura)) || !(ante > 0)) return 0;
@@ -88,7 +129,7 @@ function righeManiglie(nome, chiave, L, hL, hR, y0, N, lato, apertura, perAnta =
     return `<div class="man-anta" data-ma="${esc(chiave)}" data-ai="${i}">
         <span class="man-anta-nome">${esc(nomeA)}</span>
         ${p ? (lat ? `<label class="man-anta-h">Maniglia a<input type="number" inputmode="numeric" step="10" min="0" data-mah value="${Math.round(p.y)}"><em>mm da terra</em></label>`
-          : `<span class="man-anta-info">maniglia ${p.verso === 'sopra' ? 'sopra' : 'sotto'}</span>`) : '<span class="man-anta-info">senza maniglia (push)</span>'}
+          : `<span class="man-anta-info">maniglia ${p.verso === 'sopra' ? 'sopra' : 'sotto'}</span>`) : d.fp ? '<span class="man-anta-info">presa finger-pull</span>' : '<span class="man-anta-info">senza maniglia (push)</span>'}
         <span class="man-anta-btn">${pa.h ? '<button type="button" class="btn-mini" data-mar title="Torna all\'altezza di tutte">↺</button>' : ''}
           <button type="button" class="btn-mini" data-mav="${p ? 'togli' : 'metti'}">${p ? 'Togli' : 'Metti'}</button></span>
       </div>`;
@@ -127,11 +168,12 @@ function renderPannello() {
           <input type="number" min="1" max="20" step="1" data-k="numero" value="${esc(m.numero)}"></label>
         <label>Larghezza occupata (mm) · vuoto = automatica (${fmt(auto.utile)})
           <input type="number" min="100" step="10" data-k="larghezzaUsata" value="${esc(m.larghezzaUsata ?? '')}" placeholder="${auto.utile}"></label>
-        <label>Fronte di ogni modulo
-          <select data-k="ante">${opzFronte(m.comune.ante)}</select></label>
-        ${Number(m.comune.ante) === 1 ? `<label>Apertura anta
+        <label>Fronte di ogni modulo${(m.comune.pezzi || []).length ? ' (pezzo di sopra)' : ''}
+          <select data-k="ante">${opzFronte(m.comune.ante, m.comune.cassetti)}</select></label>
+        ${cassettiDi0(m.comune) ? `<label>Cassetti<input type="number" min="1" max="8" step="1" data-k="cassetti" value="${cassettiDi0(m.comune)}"></label>` : ''}
+        ${!cassettiDi0(m.comune) && Number(m.comune.ante) === 1 ? `<label>Apertura anta
           <select data-k="lato"><option value="dx" ${m.comune.lato !== 'sx' ? 'selected' : ''}>a destra</option><option value="sx" ${m.comune.lato === 'sx' ? 'selected' : ''}>a sinistra</option></select></label>` : ''}
-        ${Number(m.comune.ante) > 0 ? `<label>Maniglia
+        ${serveManiglia(m.comune) ? `<label>Maniglia
           <select data-k="apertura">${opzApertura(m.comune.apertura)}</select></label>
         ${(() => { const bassi = lay.moduli.filter((x) => antePushAuto(x.larghezza, x.hL, x.hR, 0, Number(x.ante), x.lato, x.apertura, x.maniglieAnte) > 0).map((x) => `M${x.indice + 1}`);
           return bassi.length ? `<p class="mod-prossimo" style="margin-top:-4px">Maniglia più in basso perché l'anta non arriva a ${Math.round(manigliaModulari(stato).hStd / 10)} cm: ${bassi.join(', ')}. Si alza, si abbassa o si toglie anta per anta in «Maniglia di ogni anta».</p>` : ''; })()}` : ''}
@@ -139,6 +181,7 @@ function renderPannello() {
           <input type="number" min="0" max="10" step="1" data-k="ripiani" value="${esc(m.comune.ripiani)}"></label>
         <label>Perchero (barra appendiabiti)
           <select data-k="perchero">${opzPerchero(m.comune.perchero)}</select></label>
+        ${htmlPezzi('c', m.comune)}
         <div class="mod-prossimo">Ogni modulo: ${fmt(lay.moduli[0]?.larghezza ?? 0)} mm.</div>`;
     } else {
       const somma = m.lista.reduce((t, x) => t + (Number(x.larghezza) || 0), 0);
@@ -151,10 +194,12 @@ function renderPannello() {
               <label>Larghezza<input type="number" min="60" step="10" data-i="${i}" data-c="larghezza" value="${esc(x.larghezza)}"></label>
               <label>Ripiani<input type="number" min="0" max="10" step="1" data-i="${i}" data-c="ripiani" value="${esc(x.ripiani ?? 0)}"></label>
             </div>
-            <label>Fronte<select data-i="${i}" data-c="ante">${opzFronte(x.ante)}</select></label>
+            <label>Fronte${(x.pezzi || []).length ? ' (pezzo di sopra)' : ''}<select data-i="${i}" data-c="ante">${opzFronte(x.ante, x.cassetti)}</select></label>
+            ${cassettiDi0(x) ? `<label>Cassetti<input type="number" min="1" max="8" step="1" data-i="${i}" data-c="cassetti" value="${cassettiDi0(x)}"></label>` : ''}
             <label>Perchero<select data-i="${i}" data-c="perchero">${opzPerchero(x.perchero)}</select></label>
-            ${Number(x.ante) === 1 ? `<label>Apertura<select data-i="${i}" data-c="lato"><option value="dx" ${x.lato !== 'sx' ? 'selected' : ''}>a destra</option><option value="sx" ${x.lato === 'sx' ? 'selected' : ''}>a sinistra</option></select></label>` : ''}
-            ${Number(x.ante) > 0 ? `<label>Maniglia<select data-i="${i}" data-c="apertura">${opzApertura(x.apertura)}</select></label>` : ''}
+            ${!cassettiDi0(x) && Number(x.ante) === 1 ? `<label>Apertura<select data-i="${i}" data-c="lato"><option value="dx" ${x.lato !== 'sx' ? 'selected' : ''}>a destra</option><option value="sx" ${x.lato === 'sx' ? 'selected' : ''}>a sinistra</option></select></label>` : ''}
+            ${serveManiglia(x) ? `<label>Maniglia<select data-i="${i}" data-c="apertura">${opzApertura(x.apertura)}</select></label>` : ''}
+            ${htmlPezzi(String(i), x)}
             ${(() => { const md = lay.moduli.find((q) => q.indice === i); const n = md ? antePushAuto(md.larghezza, md.hL, md.hR, 0, Number(md.ante), md.lato, md.apertura, md.maniglieAnte) : 0;
               return n ? `<p class="mod-prossimo" style="margin:-4px 0 0">Qui la maniglia sta più in basso: l'anta non arriva a ${Math.round(manigliaModulari(stato).hStd / 10)} cm.</p>` : ''; })()}
           </div>`).join('')}
@@ -180,9 +225,29 @@ function renderPannello() {
           ? '<p class="mod-prossimo" style="margin-top:-4px">L\'anta triangolare si apre a pressione (push): la punta è troppo stretta per una maniglia.</p>'
           : `<label>Maniglia (chiusura)<select id="mod-chiusura-apertura">${opzApertura(m.chiusuraApertura)}</select></label>`) : ''}` : ''}
       </section>
+      <section>
+        <h3>Zoccolo e costadi</h3>
+        <label class="chk"><input type="checkbox" id="mod-zoc" ${m.zoccolo && m.zoccolo.si ? 'checked' : ''}> Zoccolo sotto i moduli</label>
+        ${m.zoccolo && m.zoccolo.si ? `<div class="grid-2">
+          <label>Altezza zoccolo<input type="number" min="30" step="5" data-zoc="h" value="${esc(m.zoccolo.h ?? 100)}"></label>
+          <label>Arretrato<input type="number" min="0" step="5" data-zoc="arretrato" value="${esc(m.zoccolo.arretrato ?? 50)}"></label>
+        </div>` : ''}
+        <label class="chk"><input type="checkbox" data-cos="sx" ${m.costadi && m.costadi.sx ? 'checked' : ''}> Costado a sinistra</label>
+        <label class="chk"><input type="checkbox" data-cos="dx" ${m.costadi && m.costadi.dx ? 'checked' : ''}> Costado a destra</label>
+        <p class="mod-prossimo" style="margin-top:4px">Il costado va da terra al soffitto, profondo quanto il mobile (a filo delle ante) e spesso come le ante; i moduli si stringono per lasciargli posto. Lo zoccolo è arretrato e alza tutti i moduli.</p>
+      </section>
+      ${lay.moduli.some((x) => (x.pezzi || [x]).some((p) => cassettiDi0(p))) ? `
+      <section>
+        <h3>Cassetti</h3>
+        <label>Sistema di cassetti<select id="mod-sis-cass">${sistemiCassetti().map((c) => `<option value="${esc(c.id)}" ${(stato.sistemaCassetti || sistemiCassetti()[0].id) === c.id ? 'selected' : ''}>${esc(nomeSistemaCassetti(c))}</option>`).join('')}</select></label>
+        <p class="mod-prossimo" style="margin-top:4px">Quelli dei ⚙ Parametri. La guida si sceglie da sola: la più lunga che entra nella profondità del mobile. Frontali a filo delle ante, 4 mm fra uno e l'altro.</p>
+      </section>` : ''}
       ${(() => {
-        const righe = lay.moduli.filter((x) => Number(x.ante) > 0)
-          .map((x) => righeManiglie(`M${x.indice + 1}`, `m:${x.indice}`, x.larghezza, x.hL, x.hR, 0, Number(x.ante), x.lato, x.apertura, x.maniglieAnte)).join('');
+        const righe = lay.moduli.flatMap((x) => (x.pezzi
+          ? x.pezzi.map((p) => ({ ...p, nomeR: `M${x.indice + 1} ${p.nome}`, chiave: p.sopra ? `m:${x.indice}` : `m:${x.indice}:${p.k}`, L: x.larghezza }))
+          : [{ ...x, y0: 0, nomeR: `M${x.indice + 1}`, chiave: `m:${x.indice}`, L: x.larghezza }]).map((p) => ({ ...p, y0: (x.y0 || 0) + (p.y0 || 0) })))
+          .filter((p) => Number(p.ante) > 0 && !cassettiDi0(p))
+          .map((p) => righeManiglie(p.nomeR, p.chiave, p.L, p.hL, p.hR, p.y0 || 0, Number(p.ante), p.lato, p.apertura, p.maniglieAnte)).join('');
         const ch = lay.chiusura, chR = ch && ch.fronte === 'anta' && !ch.triangolare
           ? righeManiglie('Chiusura', 'ch', ch.larghezza, ch.hL, ch.hR, 0, 1, ch.daSinistra ? 'dx' : 'sx', ch.apertura, ch.maniglieAnte) : '';
         return righe || chR ? `
@@ -325,7 +390,8 @@ function agganciaPannello() {
       if (diversi && !m.lista.length) {
         // Parte dalla divisione attuale, così non si riscrive tutto a mano
         const lay = layoutModuli(ctx.forma, { ...m, uguali: true }, sp());
-        m.lista = lay.moduli.map((x) => ({ larghezza: x.larghezza, ante: m.comune.ante, lato: m.comune.lato, apertura: m.comune.apertura, ripiani: m.comune.ripiani, perchero: m.comune.perchero || '' }));
+        m.lista = lay.moduli.map((x) => ({ larghezza: x.larghezza, ante: m.comune.ante, cassetti: cassettiDi0(m.comune), lato: m.comune.lato, apertura: m.comune.apertura, ripiani: m.comune.ripiani, perchero: m.comune.perchero || '',
+          pezzi: (m.comune.pezzi || []).map((p) => ({ ...p })) }));
       }
       m.uguali = !diversi; tutto();
     }));
@@ -334,21 +400,23 @@ function agganciaPannello() {
       if (k === 'larghezzaUsata') { const n = numero(i.value); m.larghezzaUsata = i.value === '' || !(n > 0) ? null : n; }
       else if (k === 'numero') { const n = Math.round(numero(i.value)); if (n >= 1 && n <= 20) m.numero = n; else return; }
       else if (k === 'ripiani') { const n = Math.round(numero(i.value)); if (n >= 0 && n <= 10) m.comune.ripiani = n; else return; }
+      else if (k === 'cassetti') { const n = Math.round(numero(i.value)); if (n >= 1 && n <= 8) m.comune.cassetti = n; else return; }
       ctx.salva(); ridisegna();
     }));
     P.querySelectorAll('select[data-k]').forEach((s) => s.addEventListener('change', () => {
-      if (s.dataset.k === 'ante') m.comune.ante = Number(s.value); else m.comune[s.dataset.k] = s.value;
+      if (s.dataset.k === 'ante') scriviFronte(m.comune, s.value); else m.comune[s.dataset.k] = s.value;
       tutto();
     }));
     P.querySelectorAll('input[data-c]').forEach((i) => i.addEventListener('input', () => {
       const x = m.lista[+i.dataset.i]; const n = numero(i.value);
       if (i.dataset.c === 'larghezza') { if (n > 0) x.larghezza = n; else return; }
+      else if (i.dataset.c === 'cassetti') { const r = Math.round(n); if (r >= 1 && r <= 8) x.cassetti = r; else return; }
       else { const r = Math.round(n); if (r >= 0 && r <= 10) x.ripiani = r; else return; }
       ctx.salva(); ridisegna();
     }));
     P.querySelectorAll('select[data-c]').forEach((s) => s.addEventListener('change', () => {
       const x = m.lista[+s.dataset.i];
-      if (s.dataset.c === 'ante') x.ante = Number(s.value); else x[s.dataset.c] = s.value;
+      if (s.dataset.c === 'ante') scriviFronte(x, s.value); else x[s.dataset.c] = s.value;
       tutto();
     }));
     const ch = P.querySelector('#mod-chiusura');
@@ -357,15 +425,60 @@ function agganciaPannello() {
     if (chA) chA.addEventListener('change', () => { m.chiusuraApertura = chA.value; tutto(); });
     P.querySelectorAll('.mod-del').forEach((b) => b.addEventListener('click', () => {
       const i = +b.dataset.i; m.lista.splice(i, 1);
-      if (m.maniglieAnte) { const n = {}; for (const [k, v] of Object.entries(m.maniglieAnte)) { const j = +k; if (j < i) n[j] = v; else if (j > i) n[j - 1] = v; } m.maniglieAnte = n; }
+      if (m.maniglieAnte) {
+        const n = {};
+        for (const [k, v] of Object.entries(m.maniglieAnte)) {
+          const [a, b] = k.split(':'), j = +a, dopo = b != null ? `:${b}` : '';
+          if (j < i) n[`${j}${dopo}`] = v; else if (j > i) n[`${j - 1}${dopo}`] = v;
+        }
+        m.maniglieAnte = n;
+      }
       tutto();
     }));
     const add = P.querySelector('#mod-add');
     if (add) add.addEventListener('click', () => {
       const somma = m.lista.reduce((t, x) => t + (Number(x.larghezza) || 0), 0);
       const libero = Math.max(0, Math.floor((ctx.forma.larghezza - somma) / 10) * 10);
-      m.lista.push({ larghezza: Math.min(600, libero) || 600, ante: m.comune.ante, lato: m.comune.lato, apertura: m.comune.apertura, ripiani: m.comune.ripiani, perchero: m.comune.perchero || '' });
+      m.lista.push({ larghezza: Math.min(600, libero) || 600, ante: m.comune.ante, cassetti: cassettiDi0(m.comune), lato: m.comune.lato, apertura: m.comune.apertura, ripiani: m.comune.ripiani, perchero: m.comune.perchero || '',
+        pezzi: (m.comune.pezzi || []).map((p) => ({ ...p })) });
       tutto();
+    });
+    // ZOCCOLO e COSTADI
+    P.querySelector('#mod-zoc')?.addEventListener('change', (e) => { m.zoccolo = { h: 100, arretrato: 50, ...(m.zoccolo || {}), si: e.target.checked }; tutto(); });
+    P.querySelectorAll('input[data-zoc]').forEach((inp) => inp.addEventListener('change', () => {
+      const n = Math.round(numero(inp.value)); if (!(n >= 0)) return;
+      m.zoccolo = { ...(m.zoccolo || {}), [inp.dataset.zoc]: inp.dataset.zoc === 'h' ? Math.max(30, n) : n }; tutto();
+    }));
+    P.querySelectorAll('input[data-cos]').forEach((inp) => inp.addEventListener('change', () => { m.costadi = { ...(m.costadi || {}), [inp.dataset.cos]: inp.checked }; tutto(); }));
+    // SISTEMA DEI CASSETTI (⚙ Parametri)
+    P.querySelector('#mod-sis-cass')?.addEventListener('change', (e) => { stato.sistemaCassetti = e.target.value; tutto(); });
+    // DIVISIONE IN ALTEZZA: aggiungi / togli un pezzo sotto, altezza, fronte, cassetti, ripiani, apertura
+    P.querySelectorAll('[data-pz-add]').forEach((b) => b.addEventListener('click', () => {
+      const o = oggettoPezzi(b.dataset.pzAdd); if (!o) return;
+      if (!Array.isArray(o.pezzi)) o.pezzi = [];
+      o.pezzi.push(o.pezzi.length ? { h: 300, ante: 0, cassetti: 1, ripiani: 0 } : { h: 1000, ante: 2, cassetti: 0, ripiani: 1 });
+      tutto();
+    }));
+    P.querySelectorAll('.mod-pezzo').forEach((riga) => {
+      const o = oggettoPezzi(riga.dataset.pz), k = Number(riga.dataset.k);
+      const p = o && o.pezzi && o.pezzi[k]; if (!p) return;
+      riga.querySelector('[data-pz-del]')?.addEventListener('click', () => {
+        o.pezzi.splice(k, 1);
+        // le maniglie scelte anta per anta dei pezzi da qui in su tornano come tutte
+        if (m.maniglieAnte) for (const key of Object.keys(m.maniglieAnte)) { const b = key.split(':')[1]; if (b != null && +b >= k) delete m.maniglieAnte[key]; }
+        tutto();
+      });
+      riga.querySelectorAll('input[data-pzc]').forEach((inp) => inp.addEventListener('change', () => {
+        const c = inp.dataset.pzc, n = Math.round(numero(inp.value));
+        if (c === 'h') { if (n >= 100) p.h = n; else return; }
+        else if (c === 'cassetti') { if (n >= 1 && n <= 8) p.cassetti = n; else return; }
+        else if (c === 'ripiani') { if (n >= 0 && n <= 10) p.ripiani = n; else return; }
+        tutto();
+      }));
+      riga.querySelectorAll('select[data-pzc]').forEach((sel) => sel.addEventListener('change', () => {
+        if (sel.dataset.pzc === 'fronte') scriviFronte(p, sel.value); else p[sel.dataset.pzc] = sel.value;
+        tutto();
+      }));
     });
     return;
   }
@@ -460,26 +573,38 @@ function renderDisegno() {
     const a = p.verso === 'lato' ? Math.PI / 2 : p.angolo || 0, dx = (Math.cos(a) * p.L) / 2, dy = (Math.sin(a) * p.L) / 2;
     return `<line x1="${p.x - dx}" y1="${Y(p.y - dy)}" x2="${p.x + dx}" y2="${Y(p.y + dy)}" stroke="var(--mod-acc)" stroke-width="${sw * 2.4}" stroke-linecap="round"/>`;
   };
-  const disegnaMobile = (x0, x1, hL, hR, ante, lato, ripiani, apertura, extra = '', perAnta = [], perchero = '') => {
+  const disegnaMobile = (x0, x1, hL, hR, ante, lato, ripiani, apertura, extra = '', perAnta = [], perchero = '', y0 = 0, cassetti = 0) => {
     const L = x1 - x0;
-    const top = (x) => hL + ((hR - hL) * (x - x0)) / L;
-    let g = `<path d="M${x0} ${Y(0)} L${x1} ${Y(0)} L${x1} ${Y(hR)} L${x0} ${Y(hL)} Z" fill="${ante > 0 ? 'var(--oro)' : 'var(--bg)'}" fill-opacity="${ante > 0 ? 0.16 : 0.55}" stroke="var(--testo)" stroke-width="${sw * 1.6}" ${extra}/>`;
+    const top = (x) => y0 + hL + ((hR - hL) * (x - x0)) / L;
+    const nC = cassettiDi0({ cassetti }) && Math.abs(hL - hR) < 0.5 ? cassettiDi0({ cassetti }) : 0;
+    const pieno = ante > 0 || nC > 0;
+    let g = `<path d="M${x0} ${Y(y0)} L${x1} ${Y(y0)} L${x1} ${Y(y0 + hR)} L${x0} ${Y(y0 + hL)} Z" fill="${pieno ? 'var(--oro)' : 'var(--bg)'}" fill-opacity="${pieno ? 0.16 : 0.55}" stroke="var(--testo)" stroke-width="${sw * 1.6}" ${extra}/>`;
     // ripiani (sotto il lato basso, così sono interi)
     const hBasso = Math.min(hL, hR);
-    for (let k = 1; k <= ripiani; k++) {
-      const yk = s.carcassa + (k * (hBasso - 2 * s.carcassa)) / (ripiani + 1);
+    const nR = nC ? 0 : ripiani;
+    for (let k = 1; k <= nR; k++) {
+      const yk = y0 + s.carcassa + (k * (hBasso - 2 * s.carcassa)) / (nR + 1);
       g += `<line x1="${x0 + s.carcassa}" y1="${Y(yk)}" x2="${x1 - s.carcassa}" y2="${Y(yk)}" stroke="var(--testo-dim)" stroke-width="${sw * (ante > 0 ? 0.8 : 1.4)}" ${ante > 0 ? `stroke-dasharray="${sw * 4} ${sw * 3}"` : ''}/>`;
     }
     // perchero (alla stessa altezza del 3D)
-    if (percheroDi(perchero)) {
-      const yp = altezzaPerchero(L, hL, hR, s.carcassa, ripiani);
+    if (!nC && percheroDi(perchero)) {
+      const yp = y0 + altezzaPerchero(L, hL, hR, s.carcassa, ripiani);
       g += `<line x1="${x0 + s.carcassa + 2}" y1="${Y(yp)}" x2="${x1 - s.carcassa - 2}" y2="${Y(yp)}" stroke="var(--testo)" stroke-width="${sw * 2.2}" stroke-linecap="round" ${ante > 0 ? `stroke-dasharray="${sw * 5} ${sw * 3}"` : ''}/>`;
     }
-    if (ante > 0) {
-      for (const d of anteConManiglie(L, hL, hR, 0, ante, lato, apertura, man, perAnta)) {
+    if (nC) {
+      // frontali dei cassetti (stesse misure di 3D e distinta) con la loro maniglia
+      for (const f of cassettiDelPezzo(L, hL, y0, nC, apertura, man)) {
+        g += `<rect x="${x0 + f.xa}" y="${Y(f.yb - f.dSopra)}" width="${f.xb - f.xa}" height="${f.yb - f.dSopra - f.ya - f.dSotto}" fill="none" stroke="var(--mod-acc)" stroke-width="${sw}"/>`;
+        if (f.maniglia) g += segnoManiglia({ ...f.maniglia, x: x0 + f.maniglia.x });
+        if (f.fp) g += `<line x1="${x0 + f.xa}" y1="${Y(f.yb - f.dSopra / 2 - (f.dSopra ? 0 : 8))}" x2="${x0 + f.xb}" y2="${Y(f.yb - f.dSopra / 2 - (f.dSopra ? 0 : 8))}" stroke="var(--mod-acc)" stroke-width="${sw * 2.4}"/>`;
+      }
+    } else if (ante > 0) {
+      for (const d of anteConManiglie(L, hL, hR, y0, ante, lato, apertura, man, perAnta)) {
         const xa = x0 + d.xa, xb = x0 + d.xb;
-        g += `<path d="M${xa} ${Y(2 + d.dSotto)} L${xb} ${Y(2 + d.dSotto)} L${xb} ${Y(top(xb) - 2 - d.dSopra)} L${xa} ${Y(top(xa) - 2 - d.dSopra)} Z" fill="none" stroke="var(--mod-acc)" stroke-width="${sw}"/>`;
+        g += `<path d="M${xa} ${Y(y0 + 2 + d.dSotto)} L${xb} ${Y(y0 + 2 + d.dSotto)} L${xb} ${Y(top(xb) - 2 - d.dSopra)} L${xa} ${Y(top(xa) - 2 - d.dSopra)} Z" fill="none" stroke="var(--mod-acc)" stroke-width="${sw}"/>`;
         if (d.maniglia) g += segnoManiglia({ ...d.maniglia, x: x0 + d.maniglia.x });
+        if (d.fp) { const xe = d.manSx ? xa - (d.rid || 0) / 2 - (d.rid ? 0 : -8) : xb + (d.rid || 0) / 2 + (d.rid ? 0 : -8);
+          g += `<line x1="${xe}" y1="${Y(y0 + 2)}" x2="${xe}" y2="${Y(top(d.manSx ? xa : xb) - 2)}" stroke="var(--mod-acc)" stroke-width="${sw * 2.4}"/>`; }
       }
     }
     return g;
@@ -514,15 +639,21 @@ function renderDisegno() {
     let catena = '';
     const qy = Y(0) + fs * 2.4;
     lay.moduli.forEach((md) => {
-      html += disegnaMobile(md.x0, md.x1, md.hL, md.hR, Number(md.ante), md.lato, md.ripiani, md.apertura, '', md.maniglieAnte, md.perchero);
+      const yM = md.y0 || 0;
+      if (md.pezzi) for (const p of md.pezzi) html += disegnaMobile(md.x0, md.x1, p.hL, p.hR, Number(p.ante), p.lato, p.ripiani, p.apertura, '', p.maniglieAnte, p.perchero, yM + p.y0, p.cassetti);
+      else html += disegnaMobile(md.x0, md.x1, md.hL, md.hR, Number(md.ante), md.lato, md.ripiani, md.apertura, '', md.maniglieAnte, md.perchero, yM, md.cassetti);
       const cx = (md.x0 + md.x1) / 2;
-      html += `<text x="${cx}" y="${Y(Math.min(md.hL, md.hR) / 2)}" font-size="${fs * 1.05}" text-anchor="middle" dominant-baseline="central" fill="var(--testo)" font-weight="600">M${md.indice + 1}</text>`;
+      const pS = md.pezzi ? md.pezzi[md.pezzi.length - 1] : { y0: 0, hL: md.hL, hR: md.hR };   // etichetta nel pezzo di sopra
+      html += `<text x="${cx}" y="${Y(yM + pS.y0 + Math.min(pS.hL, pS.hR) / 2)}" font-size="${fs * 1.05}" text-anchor="middle" dominant-baseline="central" fill="var(--testo)" font-weight="600">M${md.indice + 1}</text>`;
       catena += `<line x1="${md.x0}" y1="${qy - fs * 0.5}" x2="${md.x0}" y2="${qy + fs * 0.5}" stroke="var(--testo-dim)" stroke-width="${sw}"/>
         <line x1="${md.x1}" y1="${qy - fs * 0.5}" x2="${md.x1}" y2="${qy + fs * 0.5}" stroke="var(--testo-dim)" stroke-width="${sw}"/>
         <line x1="${md.x0}" y1="${qy}" x2="${md.x1}" y2="${qy}" stroke="var(--testo-dim)" stroke-width="${sw}"/>
         <text x="${cx}" y="${qy + fs * 1.3}" font-size="${fs * 0.9}" text-anchor="middle" fill="var(--testo)">${fmt(md.larghezza)}</text>`;
     });
     if (lay.chiusura) html += disegnaChiusura(lay.chiusura, qy);
+    // costadi (da terra al soffitto) e zoccolo arretrato
+    for (const c of lay.costadi || []) html += `<rect x="${c.x0}" y="${Y(c.h)}" width="${c.x1 - c.x0}" height="${c.h}" fill="var(--oro)" fill-opacity=".45" stroke="var(--testo)" stroke-width="${sw}"/>`;
+    if (lay.zoccolo) html += `<rect x="${lay.zoccolo.x0}" y="${Y(lay.zoccolo.h)}" width="${lay.zoccolo.x1 - lay.zoccolo.x0}" height="${lay.zoccolo.h}" fill="var(--testo-dim)" fill-opacity=".35" stroke="var(--testo)" stroke-width="${sw}"/>`;
     html += catena;
   } else {
     const lc = layoutCubi(r, stato, s);
@@ -635,7 +766,7 @@ function renderRiepilogo() {
     const lay = layoutModuli(ctx.forma, stato.moduli, sp());
     lista = `<table class="tab-pareti">
       <tr><th>Mod.</th><th style="text-align:right">Largh.</th><th style="text-align:right">H sx / dx</th></tr>
-      ${lay.moduli.map((m) => `<tr><td>M${m.indice + 1} · ${Number(m.ante) ? `${m.ante} ${Number(m.ante) === 1 ? 'anta' : 'ante'}` : 'aperto'}</td>
+      ${lay.moduli.map((m) => `<tr><td>M${m.indice + 1} · ${(m.pezzi || [m]).map(testoFronte).join(' / ')}</td>
         <td class="num">${fmt(m.larghezza)}</td><td class="num">${fmt(Math.round(m.hL))} / ${fmt(Math.round(m.hR))}</td></tr>`).join('')}
       ${lay.chiusura ? `<tr><td>C · ${lay.chiusura.fronte === 'fisso' ? 'pannello fisso' : `${lay.chiusura.triangolare ? 'triangolo' : 'chiusura'}, ${lay.chiusura.fronte === 'anta' ? 'anta' : 'aperto'}`}</td>
         <td class="num">${fmt(Math.round(lay.chiusura.larghezza))}</td><td class="num">${fmt(Math.round(lay.chiusura.hL))} / ${fmt(Math.round(lay.chiusura.hR))}</td></tr>` : ''}
@@ -713,7 +844,7 @@ export async function apriDistinta(c) {
   if (c) ctx = c;
   if (!ctx) return;
   if (!nomiFiniture) {
-    try { const { MATERIALI } = await import('../materiali.js?v=20261127g'); nomiFiniture = new Map(MATERIALI.map((m) => [m.id, m.nome])); }
+    try { const { MATERIALI } = await import('../materiali.js?v=20261127h'); nomiFiniture = new Map(MATERIALI.map((m) => [m.id, m.nome])); }
     catch { nomiFiniture = new Map(); }
   }
   const { stato, esc, fmt } = ctx;

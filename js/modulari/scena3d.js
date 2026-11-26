@@ -9,12 +9,12 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261127g';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261127g';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261127g';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261127g';
-import { anteConManiglie, manigliaModulari, altezzaPerchero, lunghezzaPerchero, percheroDi } from './calcoli.js?v=20261127g';
-import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from '../maniglia3d.js?v=20261127g';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261127h';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261127h';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261127h';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261127h';
+import { anteConManiglie, manigliaModulari, altezzaPerchero, lunghezzaPerchero, percheroDi, cassettiDelPezzo, cassettiDi0, guidaCassettiModulari } from './calcoli.js?v=20261127h';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from '../maniglia3d.js?v=20261127h';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -29,6 +29,11 @@ let ultimaVista = null;             // { W, H, P } per le inquadrature
 const ANGOLO_APERTA = (100 * Math.PI) / 180;
 let anteAperte = false;
 let cardini = [];                   // [{ g, verso }] verso = +1/-1
+let cassetti3d = [];                // [{ g, dz }] cassetti: escono di dz quando le ante sono aperte
+// FINGERPULL: presa fresata (scura, nel bordo) o profilo di alluminio
+const matPresaFp = new THREE.MeshStandardMaterial({ color: 0x24211d, roughness: 0.85 });
+const matProfiloFp = new THREE.MeshStandardMaterial({ color: 0xc4c7cb, metalness: 0.85, roughness: 0.35 });
+const matCassetto = new THREE.MeshStandardMaterial({ color: 0xf1efea, roughness: 0.7 });   // melaminico bianco
 // MODULO SCELTO toccandolo nel 3D: ogni modulo è un gruppo con la sua chiave;
 // quello scelto ha un contorno oro (i colori restano veri, niente tinta).
 let padreMobile = null;             // gruppo del modulo che si sta costruendo
@@ -116,6 +121,11 @@ function ciclo() {
     const d = target - c.g.rotation.y;
     if (Math.abs(d) > 0.001) { c.g.rotation.y += d * 0.16; anteInMoto = true; } else c.g.rotation.y = target;
   }
+  for (const c of cassetti3d) {
+    const target = anteAperte ? c.dz : 0;
+    const d = target - c.g.position.z;
+    if (Math.abs(d) > 0.5) { c.g.position.z += d * 0.16; anteInMoto = true; } else c.g.position.z = target;
+  }
   controls.update();
   // disegna solo quando serve; mentre le ante si muovono disegna leggero
   if (resa) resa.tick(anteInMoto); else renderer.render(scene, camera);
@@ -176,13 +186,14 @@ function mobile(e, P, sp, matS, matA) {
   prisma([[x0 + 1, y0 + 1], [x1 - 1, y0 + 1], [x1 - 1, yt(x1) - 1], [x0 + 1, yt(x0) - 1]], 0, sS, matS);
   // Ripiani: sotto il lato basso, così sono interi
   const hBasso = Math.min(hL, hR) - tv;
-  const n = e.ripiani || 0;
+  const nCass = cassettiDi0(e) && Math.abs(hL - hR) < 0.5 ? cassettiDi0(e) : 0;
+  const n = nCass ? 0 : (e.ripiani || 0);
   for (let k = 1; k <= n; k++) {
     const yk = y0 + sC + (k * (hBasso - 2 * sC)) / (n + 1);
     prisma(rett(x0 + sC, yk - sC / 2, x1 - sC, yk + sC / 2), zC, Pc, matS);   // profondi come in distinta
   }
   // PERCHERO (barra ovale 30×15 + 2 ganci), lungo come in distinta, a metà profondità
-  const per = percheroDi(e.perchero);
+  const per = nCass ? '' : percheroDi(e.perchero);
   if (per) {
     const matB = per === 'nero'
       ? new THREE.MeshStandardMaterial({ color: 0x1d1d1d, metalness: 0.45, roughness: 0.42 })
@@ -227,7 +238,38 @@ function mobile(e, P, sp, matS, matA) {
         const rot = M.verso === 'lato' ? (sx ? Math.PI / 2 : -Math.PI / 2) : M.verso === 'sotto' ? Math.PI : M.angolo;
         aggiungiManiglia(g, x0 + M.x - xh, M.y, sA, M.L, rot);
       }
+      // FINGERPULL sul bordo che apre: presa fresata (striscia scura) o profilo di alluminio (l'anta è più stretta)
+      if (d.fp) {
+        const xe = sx ? xa : xb, yTop = yt(xe) - 2;
+        if (d.fp === 'profilo') prisma(rel(rett(sx ? xa - d.rid : xb, yb, sx ? xa : xb + d.rid, yTop)), 0, sA, matProfiloFp, true, g);
+        else prisma(rel(rett(sx ? xa : xb - 14, yb, sx ? xa + 14 : xb, yTop)), sA - 1, 1.4, matPresaFp, false, g);
+      }
       g.rotation.y = anteAperte ? (sx ? 1 : -1) * ANGOLO_APERTA : 0;
+    }
+  }
+  // CASSETTI a vista: frontali a filo delle ante (stesse misure della distinta), dietro la scatola del
+  // cassetto (melaminico bianco) lunga quanto la guida; con le ante aperte escono
+  if (nCass) {
+    const G = guidaCassettiModulari(e.sistemaCassetti, Pc);
+    const prof = Math.min(Pc - 10, G.guida);
+    const zF = zC + Pc;                                  // retro dei frontali
+    for (const f of cassettiDelPezzo(L, hL, y0, nCass, e.apertura, manAttuale)) {
+      const g = new THREE.Group();
+      (padreMobile || gruppo).add(g);
+      const ya = f.ya + f.dSotto, yb = f.yb - f.dSopra;
+      prisma(rett(x0 + f.xa, ya, x0 + f.xb, yb), zF, sA, matA, true, g);
+      // scatola: fianchi, fondo e retro (16 mm), dentro i fianchi del mobile
+      const xi0 = x0 + sC + 13, xi1 = x1 - sC - 13, hS = Math.max(60, Math.min((f.yb - f.ya) - 40, 200)), yS = f.ya + 20;
+      prisma(rett(xi0, yS, xi0 + 16, yS + hS), zF - prof, prof, matCassetto, true, g);
+      prisma(rett(xi1 - 16, yS, xi1, yS + hS), zF - prof, prof, matCassetto, true, g);
+      prisma(rett(xi0, yS, xi1, yS + 16), zF - prof, prof, matCassetto, true, g);
+      prisma(rett(xi0, yS, xi1, yS + hS), zF - prof, 16, matCassetto, true, g);
+      if (f.maniglia) aggiungiManiglia(g, x0 + f.maniglia.x, f.maniglia.y, zF + sA, f.maniglia.L, f.maniglia.verso === 'sotto' ? Math.PI : 0);
+      // FINGERPULL sul bordo alto: profilo di alluminio sopra il frontale (più basso di tanto) o presa fresata
+      if (f.fp === 'profilo') prisma(rett(x0 + f.xa, yb, x0 + f.xb, f.yb), zF, sA, matProfiloFp, true, g);
+      else if (f.fp) prisma(rett(x0 + f.xa, yb - 14, x0 + f.xb, yb), zF + sA - 1, 1.4, matPresaFp, false, g);
+      g.position.z = anteAperte ? prof * 0.7 : 0;
+      cassetti3d.push({ g, dz: prof * 0.7 });
     }
   }
 }
@@ -440,6 +482,7 @@ export function aggiorna(forma, elementi, opz) {
     c.traverse((o) => o.geometry?.dispose());
   }
   cardini = [];
+  cassetti3d = [];
   // texture arrivata: la vista veloce si aggiorna, quella realistica si rifà
   const ridisegna = () => { if (resa) resa.cambiato(); };
   // Texture a specchio (vale per questa pagina: la cache materiali è sua);
@@ -470,8 +513,21 @@ export function aggiorna(forma, elementi, opz) {
   };
   const profiloMobile = (x0, y0, L, hL, hR) => [[x0, y0], [x0 + L, y0], [x0 + L, y0 + hR], [x0, y0 + hL]];
   for (const e of elementi) {
-    nelGruppo(e.chiave, profiloMobile(e.x0, e.y0 || 0, e.L, e.hL, e.hR),
-      () => mobile(e, opz.P, opz.spessori, mat(fin(e).struttura), mat(fin(e).ante)));
+    // modulo diviso in altezza: un mobile per pezzo (uno sopra l'altro), stesso gruppo e stessa finitura
+    nelGruppo(e.chiave, profiloMobile(e.x0, e.y0 || 0, e.L, e.hL, e.hR), () => {
+      if (Array.isArray(e.pezzi) && e.pezzi.length) {
+        for (const p of e.pezzi) mobile({ ...e, ...p, y0: (e.y0 || 0) + p.y0 }, opz.P, opz.spessori, mat(fin(e).struttura), mat(fin(e).ante));
+      } else mobile(e, opz.P, opz.spessori, mat(fin(e).struttura), mat(fin(e).ante));
+    });
+  }
+  // COSTADI a vista (da terra al soffitto, a filo delle ante) e ZOCCOLO arretrato sotto i moduli
+  const fin0 = fin({ mat: null });
+  for (const c of opz.costadi || []) {
+    nelGruppo(null, null, () => prisma(rett(c.x0, 0, c.x1, c.h), 0, opz.P, mat(fin0.ante)));
+  }
+  if (opz.zoccolo) {
+    const z = opz.zoccolo, sA = opz.spessori.ante;
+    nelGruppo(null, null, () => prisma(rett(z.x0, 0, z.x1, z.h), opz.P - z.arretrato - sA, sA, mat(fin0.ante)));   // alto come in distinta
   }
   if (opz.chiusura) {
     const ch = opz.chiusura, f = fin(ch);

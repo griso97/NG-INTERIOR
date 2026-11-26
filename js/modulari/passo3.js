@@ -1,12 +1,12 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
-import { materialiPer, sfondoSwatch } from '../materiali.js?v=20261127g';
-import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261127g';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261127g';
-import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT, manigliaModulari, maniglieAnteDi } from './calcoli.js?v=20261127g';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261127g';
-import { apriDistinta } from './passo2.js?v=20261127g';
+import { materialiPer, sfondoSwatch } from '../materiali.js?v=20261127h';
+import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261127h';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261127h';
+import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT, manigliaModulari, maniglieAnteDi } from './calcoli.js?v=20261127h';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261127h';
+import { apriDistinta } from './passo2.js?v=20261127h';
 
 let FINITURE = materialiPer('legno');          // dal catalogo (si rilegge a ogni pannello)
 export { MATERIALI_DEFAULT };
@@ -44,7 +44,7 @@ function elementi() {
       mat: finitureDi(stato.materiali, `c:${c.id}`) }));
   }
   return layoutModuli(forma, stato.moduli, spessori()).moduli.map((m) => ({ chiave: `m${m.indice}`, nome: `M${m.indice + 1}`,
-    x0: m.x0, y0: 0, L: m.larghezza, hL: m.hL, hR: m.hR, ante: Number(m.ante) || 0, lato: m.lato, apertura: m.apertura, maniglieAnte: m.maniglieAnte, ripiani: m.ripiani || 0, perchero: m.perchero || '',
+    x0: m.x0, y0: m.y0 || 0, L: m.larghezza, hL: m.hL, hR: m.hR, ante: Number(m.ante) || 0, cassetti: m.cassetti || 0, pezzi: m.pezzi || null, sistemaCassetti: stato.sistemaCassetti || null, lato: m.lato, apertura: m.apertura, maniglieAnte: m.maniglieAnte, ripiani: m.ripiani || 0, perchero: m.perchero || '',
     mat: finitureDi(stato.materiali, `m${m.indice}`) }));
 }
 /** Tutti i pezzi a cui si può dare una finitura (per la scelta "diversi"). */
@@ -108,6 +108,8 @@ function disegna(reinquadra) {
     conGradini: conScala(),
     chiusura: chiusura(),
     maniglia: manigliaModulari(stato),
+    // costadi e zoccolo della parete a moduli (stesse misure della distinta)
+    ...(stato.modalita === 'cubi' ? {} : (() => { const l = layoutModuli(forma, stato.moduli, spessori()); return { costadi: l.costadi, zoccolo: l.zoccolo }; })()),
     reinquadra,
   });
 }
@@ -180,7 +182,7 @@ function renderPannello() {
     ev.currentTarget.classList.toggle('attivo', anteSonoAperte());
   });
   P.querySelector('#p3-foto-reale').addEventListener('click', async () => {
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261127g');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261127h');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaModulari(p), tela3d: ctx.canvas, nome: 'mobile' });
   });
   P.querySelector('#p3-foto').addEventListener('click', () => {

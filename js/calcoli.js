@@ -11,8 +11,8 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261127g';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127g';
+import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261127h';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127h';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -526,6 +526,14 @@ function _cassettoMelArmadio(pezzi, nomeModulo, Lm, altF, guida, N, cassettiera 
     larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: N });
 }
 
+/**
+ * CASSETTI di un altro mobile (mobili modulari): stessi pezzi delle cassettiere degli armadi (fondo e trasera
+ * del cassetto a sistema, o tutti i pezzi del cassetto su misura) per N cassetti alti altF nello spazio
+ * «interno» fra i fianchi, con la guida già scelta. sistemaId = sistema dei ⚙ Parametri (vuoto = il primo).
+ */
+export function pezziCassettoInterno(pezzi, nomeModulo, altF, guida, N, sistemaId, interno, fondoMeno = 20) {
+  _cassettoMelArmadio(pezzi, nomeModulo, interno, altF, guida, N, sistemaId ? { sistemaCassetti: sistemaId } : null, interno, fondoMeno);
+}
 /**
  * Pezzi di UNA cassettiera in UN modulo (la cassettiera è globale: si ripete nei moduli del suo campo `moduli`).
  * Frontali, scatola (top e fondo, fianchi fra top e fondo), cornice (fascette laterali e fascetta sotto

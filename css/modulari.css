@@ -83,3 +83,8 @@
 .man-anta-h em { font-style: normal; color: var(--testo-dim); white-space: nowrap; }
 .man-anta-info { font-size: 12px; color: var(--testo-dim); }
 .man-anta-btn { display: flex; gap: 6px; justify-content: flex-end; }
+/* Divisione in altezza di un modulo: i pezzi sotto, dal basso */
+.mod-pezzi { margin: 10px 0 6px; padding-top: 8px; border-top: 1px dashed var(--bordo); }
+.mod-pezzi-tit { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--oro-chiaro); margin-bottom: 6px; }
+.mod-pezzo { border: 1px solid var(--bordo); background: var(--bg-3); padding: 6px 8px 0; margin-bottom: 6px; border-radius: 3px; }
+.mod-pezzo-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: 12px; color: var(--oro-chiaro); }
