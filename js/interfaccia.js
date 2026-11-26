@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261127i';
-import { htmlTendineColori } from './tendine-colori.js?v=20261127i';
-import { misureCostado, piediniArmadio, zoccoloArmadio, binarioArmadio, profonditaBinario, spessoreMateriale, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261127i';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261127i';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261127i';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261127j';
+import { htmlTendineColori } from './tendine-colori.js?v=20261127j';
+import { misureCostado, piediniArmadio, zoccoloArmadio, binarioArmadio, profonditaBinario, spessoreMateriale, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261127j';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261127j';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261127j';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -426,6 +426,9 @@ export function renderPannello(contenitore, config, onChange) {
     if (campi) campi.style.display = e.target.value === 'nessuno' ? 'none' : '';
     renderTamponamenti(config);
     attaccaEventiTamponamenti(contenitore, config, onChange);
+    // piedini e zoccolo: con il costado il fianco non ha zoccolo e lo zoccolo davanti va incassato
+    const pb = contenitore.querySelector('#piedini-box');
+    if (pb) { pb.innerHTML = htmlPiedini(config); attaccaEventiPiedini(contenitore, config, onChange); }
     onChange(config);
   }));
   bind('#cost-sp', (e) => { const v = Math.round(Number(e.target.value)); config.costadi.spessore = v > 0 ? v : null; onChange(config); });
@@ -1313,7 +1316,13 @@ function htmlPiedini(config) {
     ${!pd.zoccolo.auto ? `<div class="grid-2">
       <label>Larghezza zoccolo (mm)<input type="number" id="zoc-L" value="${Math.round(z.larghezza)}" min="50" step="1" /></label>
       <label>Altezza zoccolo (mm)<input type="number" id="zoc-H" value="${Math.round(z.altezza)}" min="10" step="1" /></label>
-    </div>` : ''}` : ''}
+    </div>` : ''}
+    ${(() => { const cos = misureCostado(config); return `
+    <div class="radio-row" style="flex-wrap:wrap;margin-top:6px">
+      <label class="radio"><input type="checkbox" id="zoc-lat-sx" ${pd.zoccolo.latSx && !cos.sx ? 'checked' : ''} ${cos.sx ? 'disabled' : ''} /><span>Zoccolo anche sul fianco sinistro${cos.sx ? ' (c\'è il costado)' : ''}</span></label>
+      <label class="radio"><input type="checkbox" id="zoc-lat-dx" ${pd.zoccolo.latDx && !cos.dx ? 'checked' : ''} ${cos.dx ? 'disabled' : ''} /><span>Zoccolo anche sul fianco destro${cos.dx ? ' (c\'è il costado)' : ''}</span></label>
+    </div>
+    ${z.incassato ? `<p class="hint">Con i costadi fino a terra lo zoccolo va incassato fra i costadi, rientrato di ${z.rientro} mm come in cucina (⚙ Parametri).</p>` : ''}`; })()}` : ''}
     <p class="hint">L'armadio si alza di ${pd.h} mm: altezza totale ${Math.round(config.altezzaEsterna + pd.h)} mm. Automatico = largo quanto l'armadio fuori (con i tamponamenti laterali; i costadi arrivano fino a terra) e alto quanto i piedini.</p>` : ''}`;
 }
 function attaccaEventiPiedini(contenitore, config, onChange) {
@@ -1324,7 +1333,8 @@ function attaccaEventiPiedini(contenitore, config, onChange) {
     const P = parametri().piedini[config.tipoArmadio === 'scorrevole' ? 'scorrevole' : 'battente'];
     const c = config.piedini || {}, zc = c.zoccolo || {};
     const o = { si: c.si != null ? !!c.si : !!P.si, altezza: c.altezza ?? P.altezza,
-      zoccolo: { si: zc.si != null ? !!zc.si : !!P.zoccolo, auto: zc.auto !== false, larghezza: zc.larghezza ?? null, altezza: zc.altezza ?? null } };
+      zoccolo: { si: zc.si != null ? !!zc.si : !!P.zoccolo, auto: zc.auto !== false, larghezza: zc.larghezza ?? null, altezza: zc.altezza ?? null,
+        latSx: zc.latSx != null ? !!zc.latSx : !!P.lateraleSx, latDx: zc.latDx != null ? !!zc.latDx : !!P.lateraleDx } };
     f(o);
     config.piedini = o;
     box.innerHTML = htmlPiedini(config);
@@ -1339,6 +1349,8 @@ function attaccaEventiPiedini(contenitore, config, onChange) {
   })));
   box.querySelectorAll('[data-pdh]').forEach((b) => b.addEventListener('click', () => scrivi((o) => { o.altezza = Number(b.dataset.pdh); })));
   box.querySelector('#pd-h')?.addEventListener('change', (e) => { const v = Math.round(Number(e.target.value)); if (v > 0) scrivi((o) => { o.altezza = v; }); });
+  box.querySelector('#zoc-lat-sx')?.addEventListener('change', (e) => scrivi((o) => { o.zoccolo.latSx = e.target.checked; }));
+  box.querySelector('#zoc-lat-dx')?.addEventListener('change', (e) => scrivi((o) => { o.zoccolo.latDx = e.target.checked; }));
   box.querySelector('#zoc-L')?.addEventListener('change', (e) => { const v = Math.round(Number(e.target.value)); if (v >= 50) scrivi((o) => { o.zoccolo.larghezza = v; }); });
   box.querySelector('#zoc-H')?.addEventListener('change', (e) => { const v = Math.round(Number(e.target.value)); if (v >= 10) scrivi((o) => { o.zoccolo.altezza = v; }); });
 }

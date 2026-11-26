@@ -12,7 +12,7 @@ import {
   categoriaTipo, dimMobile, frigoSottoAltillo, spessorePannelloPonte, pannelliSottoPonte, piediniCucina, zoccoloColonnaDi,
   cimaColonne, cimaCostadoATerra, costadoColonnaATerra, costadoCopreAnte, scendeAntaPensile, apertoDi, altezzaAlzatina,
   sporgenzaPiano, calcolaVertici, PROFONDITA_BASE, PROFONDITA_PENSILE,
-} from './modello.js?v=20261127i';
+} from './modello.js?v=20261127j';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 export const SP_TOP = 40;                // spessore del piano di lavoro di partenza (mm)

@@ -14,9 +14,9 @@
 // Misure in mm. Coordinate: x a destra, y in alto, origine angolo basso-sx.
 // =============================================================================
 
-import { parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, eTirador, guidaPerProfondita, cassettiDi, sistemiCassetti, cassettieraArmadio, profiloFingerPull, piediniDi } from '../parametri.js?v=20261127i';
-import { pezziCassettoInterno } from '../calcoli.js?v=20261127i';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261127i';
+import { parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, eTirador, guidaPerProfondita, cassettiDi, sistemiCassetti, cassettieraArmadio, profiloFingerPull, piediniDi } from '../parametri.js?v=20261127j';
+import { pezziCassettoInterno } from '../calcoli.js?v=20261127j';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261127j';
 
 export const SPESSORI_DEFAULT = { carcassa: 18, schiena: 10, ante: 18 };
 export const H_MINIMA_MODULO = 250;
@@ -186,7 +186,13 @@ export function layoutModuli(forma, cfg, spessori = SPESSORI_DEFAULT) {
   let zoccolo = null;
   if (pd.zoccolo && moduli.length) {
     const a = Math.min(...moduli.map((m) => m.x0)), b = Math.max(...moduli.map((m) => m.x1)), L = pd.zoccolo.L || (b - a);
-    zoccolo = { x0: (a + b) / 2 - L / 2, x1: (a + b) / 2 + L / 2, h: pd.zoccolo.H, arretrato: pd.zoccolo.rientro, auto: pd.zoccolo.auto };
+    // con i COSTADI (da terra) lo zoccolo va incassato fra i costadi, rientrato come in cucina
+    const conCostadi = costadi.length > 0;
+    const xa = (a + b) / 2 - L / 2, xb = (a + b) / 2 + L / 2;
+    const cSx = costadi.some((c) => c.lato === 'sx'), cDx = costadi.some((c) => c.lato === 'dx');
+    zoccolo = { x0: xa, x1: xb, h: pd.zoccolo.H, arretrato: conCostadi ? pd.zoccolo.rientroCostadi : pd.zoccolo.rientro, auto: pd.zoccolo.auto, incassato: conCostadi,
+      // ZOCCOLO LATERALE sul fianco senza costado (dal muro fino a dietro lo zoccolo davanti)
+      latSx: pd.zoccolo.latSx && !cSx, latDx: pd.zoccolo.latDx && !cDx };
   }
   // Spazio rimasto verso il lato basso: lo chiude un modulo finale
   // (triangolare se il soffitto scende quasi a terra).
@@ -768,7 +774,11 @@ export function pezziCostadiZoccolo(lay, P, sp, stato) {
       + (n > 1 ? ` · ${String(Math.round(L / 10) / 100).replace('.', ',')} m in ${n} pezzi da giuntare` : '') + (z.arretrato ? ` · rientrato ${z.arretrato} mm` : '');
     for (let i = 0; i < n; i++) {
       const parte = i < n - 1 ? utile : L - utile * (n - 1);
-      out.push({ modulo: 'Piedini e zoccolo', nome, larghezza: r0(parte + margine), altezza: z.h, spessore: sp.ante, materiale: 'ante', quantita: 1, finitura: finAnte('m0') });
+      out.push({ modulo: 'Piedini e zoccolo', nome: nome + (z.incassato ? ' · incassato fra i costadi' : ''), larghezza: r0(parte + margine), altezza: z.h, spessore: sp.ante, materiale: 'ante', quantita: 1, finitura: finAnte('m0') });
+    }
+    const lungLat = r0(Math.max(0, P - z.arretrato - sp.ante));
+    for (const [on, lato] of [[z.latSx, 'sinistro'], [z.latDx, 'destro']]) if (on) {
+      out.push({ modulo: 'Piedini e zoccolo', nome: `Zoccolo laterale ${lato} (dietro lo zoccolo davanti)`, larghezza: lungLat, altezza: z.h, spessore: sp.ante, materiale: 'ante', quantita: 1, finitura: finAnte('m0') });
     }
     out.push(accessorio('Piedini e zoccolo', 'Clip per zoccolo', mods.length * 2));
   }

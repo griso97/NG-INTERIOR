@@ -123,11 +123,13 @@ export const PARAMETRI_DEFAULT = Object.freeze({
   //   fondo del cassetto = guida − fondoMeno
   // PIEDINI E ZOCCOLO di partenza di ogni armadio / mobile nuovo (nel singolo progetto si cambia):
   //   si = piedini (1 sì · 0 no), altezza dei piedini, zoccolo (1 sì · 0 no, solo con i piedini),
-  //   rientro = quanto lo zoccolo sta indietro rispetto al fronte (0 = a filo)
+  //   rientro = quanto lo zoccolo sta indietro rispetto al fronte (0 = a filo); rientroCostadi = lo stesso quando
+  //   ci sono i costadi fino a terra (lo zoccolo va incassato fra i costadi, come in cucina);
+  //   lateraleSx / lateraleDx = zoccolo anche sul fianco (1 sì · 0 no; dove c'è il costado non serve)
   piedini: {
-    battente:   { si: 0, altezza: 100, zoccolo: 1, rientro: 0 },
-    scorrevole: { si: 0, altezza: 100, zoccolo: 1, rientro: 0 },
-    modulari:   { si: 0, altezza: 100, zoccolo: 1, rientro: 50 },
+    battente:   { si: 0, altezza: 100, zoccolo: 1, rientro: 0, rientroCostadi: 50, lateraleSx: 0, lateraleDx: 0 },
+    scorrevole: { si: 0, altezza: 100, zoccolo: 1, rientro: 0, rientroCostadi: 50, lateraleSx: 0, lateraleDx: 0 },
+    modulari:   { si: 0, altezza: 100, zoccolo: 1, rientro: 50, rientroCostadi: 50, lateraleSx: 0, lateraleDx: 0 },
   },
   cassettieraArmadio: {
     battente:   { fascia: 40, fasciaSotto: 40, ariaDavanti: 2, fuga: 2, ribasso: 30, fondoMeno: 20, pannellino: 30, pannellinoSi: 1, profTaglio: 50 },
@@ -418,7 +420,8 @@ export function piediniDi(o, dove, p = parametri()) {
   if (!zSi) return { si, h, zoccolo: null };
   const auto = zc.auto !== false;
   return { si, h, zoccolo: { auto, L: auto ? null : Math.max(50, Math.round(Number(zc.larghezza) || 0)) || null,
-    H: auto ? h : Math.max(10, Math.round(Number(zc.altezza) || h)), rientro: P.rientro } };
+    H: auto ? h : Math.max(10, Math.round(Number(zc.altezza) || h)), rientro: P.rientro, rientroCostadi: P.rientroCostadi,
+    latSx: zc.latSx != null ? !!zc.latSx : !!P.lateraleSx, latDx: zc.latDx != null ? !!zc.latDx : !!P.lateraleDx } };
 }
 /** Misure della cassettiera dentro l'armadio ('battente' | 'scorrevole'). */
 export function cassettieraArmadio(tipo, p = parametri()) { return p.cassettieraArmadio[tipo === 'scorrevole' ? 'scorrevole' : 'battente']; }

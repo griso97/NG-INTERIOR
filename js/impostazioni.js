@@ -8,23 +8,23 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261127i';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127i';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127i';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127i';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127i';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127i';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127i';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127i';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127i';
-import { agganciaTema } from './tema.js?v=20261127i';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127i';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127i';
-import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261127i';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127i';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127i';
-import { geometriaCassettiera } from './calcoli.js?v=20261127i';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127i';
+} from './catalogo.js?v=20261127j';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127j';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127j';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127j';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127j';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127j';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127j';
+import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127j';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127j';
+import { agganciaTema } from './tema.js?v=20261127j';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127j';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127j';
+import { htmlFotoParametro, agganciaFotoParametri } from './parametri-foto.js?v=20261127j';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127j';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127j';
+import { geometriaCassettiera } from './calcoli.js?v=20261127j';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127j';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1168,9 +1168,12 @@ function renderParametri(S) {
       <p class="imp-desc">Di partenza in ogni progetto nuovo: nel singolo armadio o mobile si cambiano. Con i piedini il mobile si alza di quanto sono alti. Lo zoccolo (solo con i piedini) è automatico, largo quanto il mobile fuori e alto quanto i piedini, oppure con le misure scelte nel progetto.</p>
       <div class="par-scelte">${bott('si', 0, 'Senza piedini', 'appoggiato a terra')}${bott('si', 1, 'Con i piedini', 'regolabili, sotto ogni modulo')}</div>
       <div class="par-scelte" style="margin-top:8px">${bott('zoccolo', 1, 'Con lo zoccolo', 'davanti, quando ci sono i piedini')}${bott('zoccolo', 0, 'Senza zoccolo', 'i piedini restano a vista')}</div>
+      <div class="par-scelte" style="margin-top:8px">${[['0|0', 'Zoccolo solo davanti', 'niente sui fianchi'], ['1|0', 'Anche sul fianco sinistro', ''], ['0|1', 'Anche sul fianco destro', ''], ['1|1', 'Su tutti e due i fianchi', '']]
+        .map(([v, tit, sotto]) => `<button type="button" class="par-scelta ${`${Number(Q.lateraleSx) ? 1 : 0}|${Number(Q.lateraleDx) ? 1 : 0}` === v ? 'sel' : ''}" data-pied-lat="${dove}|${v}"><b>${esc(tit)}</b><small>${esc(sotto || 'dove non c\'è il costado')}</small></button>`).join('')}</div>
       <div class="par-griglia" style="margin-top:10px">
         ${campo(`piedini.${dove}.altezza`, 'Altezza dei piedini', 'es. 30, 40, 50 (piedini nascosti), 100, 150, 200')}
         ${campo(`piedini.${dove}.rientro`, 'Zoccolo: rientro dal fronte', '0 = a filo del fronte')}
+        ${campo(`piedini.${dove}.rientroCostadi`, 'Zoccolo: rientro con i costadi a terra', 'incassato fra i costadi, come in cucina')}
       </div>
     </div>`;
   };
@@ -1533,6 +1536,13 @@ function renderParametri(S) {
   };
   esempi();
   agganciaFotoParametri(el);
+  // zoccolo laterale di partenza: solo davanti / sinistro / destro / tutti e due
+  el.querySelectorAll('[data-pied-lat]').forEach((b) => b.addEventListener('click', () => {
+    const [dove, sx, dx] = b.dataset.piedLat.split('|');
+    const nuovo = JSON.parse(JSON.stringify(parametri())); nuovo.piedini[dove].lateraleSx = Number(sx); nuovo.piedini[dove].lateraleDx = Number(dx);
+    salvaParametri(nuovo);
+    el.querySelectorAll(`[data-pied-lat^="${dove}|"]`).forEach((x) => x.classList.toggle('sel', x.dataset.piedLat === b.dataset.piedLat));
+  }));
   // piedini e zoccolo di partenza: sì / no
   el.querySelectorAll('[data-pied]').forEach((b) => b.addEventListener('click', () => {
     const [dove, campoP, v] = b.dataset.pied.split('|');

@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { spessoreMateriale, piediniArmadio, zoccoloArmadio, profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261127i';
-import { parametri } from './parametri.js?v=20261127i';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261127i';
-import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261127i';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261127i';
-import { sfondoDi } from './sfondi.js?v=20261127i';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261127i';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261127i';
+import { spessoreMateriale, piediniArmadio, zoccoloArmadio, profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261127j';
+import { parametri } from './parametri.js?v=20261127j';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261127j';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261127j';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261127j';
+import { sfondoDi } from './sfondi.js?v=20261127j';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261127j';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261127j';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -580,6 +580,7 @@ export function aggiornaScena(config) {
   if (zoc) {
     const D = config.profonditaEsterna;
     aggiungiBox(zoc.larghezza, zoc.altezza, zoc.spessore, zoc.x0 + zoc.larghezza / 2, -yOffset + zoc.altezza / 2, D - zoc.rientro - zoc.spessore / 2, matDi(config, 'ante'), 'zoccolo');
+    for (const l of zoc.laterali) aggiungiBox(zoc.spessore, zoc.altezza, l.lunghezza, l.x0 + zoc.spessore / 2, -yOffset + zoc.altezza / 2, l.lunghezza / 2, matDi(config, 'ante'), 'zoccolo');
   }
   if (hPiedi) {
     const matP = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.6 });

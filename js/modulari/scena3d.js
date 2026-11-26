@@ -9,12 +9,12 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261127i';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261127i';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261127i';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261127i';
-import { anteConManiglie, manigliaModulari, altezzaPerchero, lunghezzaPerchero, percheroDi, cassettiDelPezzo, cassettiDi0, guidaCassettiModulari } from './calcoli.js?v=20261127i';
-import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from '../maniglia3d.js?v=20261127i';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261127j';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261127j';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261127j';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261127j';
+import { anteConManiglie, manigliaModulari, altezzaPerchero, lunghezzaPerchero, percheroDi, cassettiDelPezzo, cassettiDi0, guidaCassettiModulari } from './calcoli.js?v=20261127j';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from '../maniglia3d.js?v=20261127j';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.
@@ -541,7 +541,13 @@ export function aggiorna(forma, elementi, opz) {
   }
   if (opz.zoccolo) {
     const z = opz.zoccolo, sA = opz.spessori.ante;
-    nelGruppo(null, null, () => prisma(rett(z.x0, 0, z.x1, z.h), opz.P - z.arretrato - sA, sA, mat(fin0.ante)));   // alto come in distinta
+    nelGruppo(null, null, () => {
+      prisma(rett(z.x0, 0, z.x1, z.h), opz.P - z.arretrato - sA, sA, mat(fin0.ante));   // alto come in distinta
+      // zoccolo laterale: dal muro fino a dietro lo zoccolo davanti
+      const lung = Math.max(0, opz.P - z.arretrato - sA);
+      if (z.latSx) prisma(rett(z.x0, 0, z.x0 + sA, z.h), 0, lung, mat(fin0.ante));
+      if (z.latDx) prisma(rett(z.x1 - sA, 0, z.x1, z.h), 0, lung, mat(fin0.ante));
+    });
   }
   if (opz.chiusura) {
     const ch = opz.chiusura, f = fin(ch);

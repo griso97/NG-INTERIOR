@@ -11,8 +11,8 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto, piediniDi } from './parametri.js?v=20261127i';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127i';
+import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto, piediniDi } from './parametri.js?v=20261127j';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127j';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -869,9 +869,16 @@ export function zoccoloArmadio(config) {
   const cos = misureCostado(config), t = config.tamponamenti || {};
   const a = cos.sx ? 0 : -(t.sx && t.sx.attivo ? t.sx.larghezza : 0);
   const b = config.larghezzaTotale + (cos.dx ? 0 : (t.dx && t.dx.attivo ? t.dx.larghezza : 0));
-  const L = pd.zoccolo.L || (b - a);
-  return { larghezza: L, altezza: pd.zoccolo.H, x0: (a + b) / 2 - L / 2, rientro: pd.zoccolo.rientro, auto: pd.zoccolo.auto,
-    spessore: config.spessoreAnte, piedini: pd.h };
+  const L = pd.zoccolo.L || (b - a), x0 = (a + b) / 2 - L / 2, sZ = config.spessoreAnte;
+  // con i COSTADI fino a terra lo zoccolo va INCASSATO fra i costadi, rientrato come in cucina
+  const rientro = cos.sx || cos.dx ? pd.zoccolo.rientroCostadi : pd.zoccolo.rientro;
+  // ZOCCOLO LATERALE sul fianco (dove non c'è il costado): dal muro fino a dietro lo zoccolo davanti
+  const lungLat = Math.max(0, config.profonditaEsterna - rientro - sZ);
+  const laterali = [];
+  if (pd.zoccolo.latSx && !cos.sx) laterali.push({ lato: 'sx', x0, lunghezza: lungLat });
+  if (pd.zoccolo.latDx && !cos.dx) laterali.push({ lato: 'dx', x0: x0 + L - sZ, lunghezza: lungLat });
+  return { larghezza: L, altezza: pd.zoccolo.H, x0, rientro, auto: pd.zoccolo.auto, incassato: !!(cos.sx || cos.dx),
+    spessore: sZ, piedini: pd.h, laterali };
 }
 /** PIEDINI (sotto ogni modulo 4, 6 se è più largo di 1 m) e ZOCCOLO dell'armadio: come nel 3D. */
 export function pezziPiediniZoccolo(config) {
@@ -881,8 +888,10 @@ export function pezziPiediniZoccolo(config) {
   pezzi.push({ modulo: 'Piedini e zoccolo', nome: `Piedini regolabili da ${pd.h} mm`, larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: nP });
   const z = zoccoloArmadio(config);
   if (z) {
-    pezzi.push({ modulo: 'Piedini e zoccolo', nome: `Zoccolo (frontale)${z.auto ? '' : ' · misure personalizzate'}${z.rientro ? ` · rientrato ${z.rientro} mm` : ''}`,
+    pezzi.push({ modulo: 'Piedini e zoccolo', nome: `Zoccolo (frontale)${z.auto ? '' : ' · misure personalizzate'}${z.incassato ? ' · incassato fra i costadi' : ''}${z.rientro ? ` · rientrato ${z.rientro} mm` : ''}`,
       larghezza: z.larghezza, altezza: z.altezza, spessore: z.spessore, materiale: 'ante', quantita: 1 });
+    for (const l of z.laterali) pezzi.push({ modulo: 'Piedini e zoccolo', nome: `Zoccolo laterale ${l.lato === 'sx' ? 'sinistro' : 'destro'} (dietro lo zoccolo davanti)`,
+      larghezza: l.lunghezza, altezza: z.altezza, spessore: z.spessore, materiale: 'ante', quantita: 1 });
     pezzi.push({ modulo: 'Piedini e zoccolo', nome: 'Clip per zoccolo', larghezza: null, altezza: null, spessore: null, materiale: 'accessorio', quantita: (config.moduli || []).length * 2 });
   }
   return pezzi;
