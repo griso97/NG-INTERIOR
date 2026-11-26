@@ -11,8 +11,8 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261127e';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127e';
+import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto } from './parametri.js?v=20261127f';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127f';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.
@@ -418,14 +418,27 @@ export function geometriaCassettiera(config, c, Lm) {
   const sporgenzaScritta = apertura === 'maniglia' && Number(c.sporgenza) > 0 ? Number(c.sporgenza) : 0;
   const sporgenza = apertura === 'maniglia' ? (sporgenzaScritta || sporgenzaDiManiglia(defMan)) : 0;
   const sporgenzaMancante = false;
+  // FASCETTE LATERALI (la «regletta» fra il fianco dell'armadio e la scatola), a filo dei frontali:
+  //   larghe davanti quanto lo spessore → DI TAGLIO (si vede solo il bordo), niente altro;
+  //   più larghe dello spessore → DI PIATTO, e dietro ognuna un PANNELLINO a L (alto come lei, profondo
+  //   «pannellino»: ⚙ Parametri) per fissarla. Battente: larghe «fascia» (di partenza 40, di piatto; di taglio
+  //   profonde «profTaglio»); scorrevole: «vista» (0 = di taglio, profonde «fascia»).
+  let fasciaVista, fasciaProf;
+  if (scorrevole) {
+    const v = Number(P.vista) || 0;
+    if (v > sC) { fasciaVista = v; fasciaProf = sC; } else { fasciaVista = sC; fasciaProf = P.fascia; }
+  } else if (P.fascia > sC) { fasciaVista = P.fascia; fasciaProf = sC; }
+  else { fasciaVista = sC; fasciaProf = Number(P.profTaglio) > 0 ? Number(P.profTaglio) : 50; }   // di taglio
+  const diPiatto = fasciaVista > sC;
+  const pannellinoL = diPiatto && Number(P.pannellino) > 0 ? Number(P.pannellino) : 0;
   let larTF, profScatola, profRipiano;
   if (scorrevole) {
     const Pcas = profonditaDentro(config) - profonditaBinario(config);   // dalla schiena fino al binario
-    larTF = Lm - 4 * sC;
+    larTF = Lm - 2 * sC - 2 * fasciaVista;
     profScatola = Pcas - sC - P.ariaBinario - sporgenza;
     profRipiano = Pcas;                                   // come gli altri ripiani
   } else {
-    larTF = Lm - 2 * sC - 2 * P.fascia;
+    larTF = Lm - 2 * sC - 2 * fasciaVista;
     profScatola = profonditaDentro(config) - P.ariaDavanti - sporgenza - sC;
     const fronte = profScatola + 1 + sC;                  // faccia davanti dei frontali (dalla schiena)
     profRipiano = Math.min(profonditaDentro(config), apertura === 'maniglia' ? fronte + sporgenza : fronte);
@@ -465,7 +478,9 @@ export function geometriaCassettiera(config, c, Lm) {
     spazioCassetti: pers ? spazioCassetti : null, differenza: pers ? Math.round(spazioCassetti - sommaSpazi) : 0,
     altFronte: fronti[0].h0, ribasso, altFrontale: fronti[0].h,
     larFronte: larTF - 2 * fuga, fuga,
-    fascia: P.fascia, fasciaSotto: P.fasciaSotto,
+    fascia: P.fascia, fasciaSotto: P.fasciaSotto, fasciaVista, fasciaProf, diPiatto, pannellinoL,
+    // la fascetta come si taglia: larga quanto si vede (di piatto) o quanto è profonda (di taglio)
+    larFascetta: diPiatto ? fasciaVista : fasciaProf,
     larRipiano: Lm - 2 * sC, interno: larTF - 2 * sC,
   };
 }
@@ -532,7 +547,9 @@ function _pezziCassettiera(config, c, modulo, indiceModulo) {
   pezzi.push(
     { modulo: nomeModulo, nome: 'Cassettiera · Top / Fondo', larghezza: G.larTF, altezza: G.profScatola, ...str, quantita: 2 },
     { modulo: nomeModulo, nome: 'Cassettiera · Fianco', larghezza: G.profScatola, altezza: G.AltMax - 4 * sC, ...str, quantita: 2 },
-    { modulo: nomeModulo, nome: 'Cassettiera · Fascetta laterale', larghezza: G.fascia, altezza: G.AltMax - sC, ...str, quantita: 2 },
+    { modulo: nomeModulo, nome: `Cassettiera · Fascetta laterale (${G.diPiatto ? 'di piatto' : 'di taglio'})`, larghezza: G.larFascetta, altezza: G.AltMax - sC, ...str, quantita: 2 },
+    // fascetta di piatto: dietro ognuna il pannellino che fa la L per fissarla (come la regletta della cucina)
+    ...(G.pannellinoL ? [{ modulo: nomeModulo, nome: 'Cassettiera · Pannellino dietro la fascetta (a L)', larghezza: G.pannellinoL, altezza: G.AltMax - sC, ...str, quantita: 2 }] : []),
     { modulo: nomeModulo, nome: 'Cassettiera · Fascetta sotto', larghezza: G.larTF, altezza: G.fasciaSotto, ...str, quantita: 2 },
     { modulo: nomeModulo, nome: 'Cassettiera · Ripiano sopra (top)', larghezza: G.larRipiano, altezza: G.profRipiano, spessore: sC, materiale: 'carcassa', quantita: 1 },
   );

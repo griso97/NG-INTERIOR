@@ -4,7 +4,7 @@
 //   svgGola(spazio)                → visto DI LATO: piano, profilo L, cassetti, profilo C, spazio per le dita
 //   svgRegletta(vista, spessore)   → visto DA SOPRA: l'angolo di una cucina a L con i due pezzi della regletta
 // =============================================================================
-import { svgAnteInterne } from './disegni-montaggio.js?v=20261127e';
+import { svgAnteInterne } from './disegni-montaggio.js?v=20261127f';
 const t = (s) => (typeof window !== 'undefined' && window.NGI18N ? window.NGI18N.t(s) : s);
 const C = { piano: '#2a2a2c', fianco: '#8d939b', anta: '#e8dcc0', profilo: '#4b4f55', testo: '#e6dcc6', dim: '#e8c25a', muro: '#5a5246', reg: '#e8c25a', cieco: '#cdbf9f' };
 const txt = (x, y, s, opz = '') => `<text x="${x}" y="${y}" ${/fill=/.test(opz) ? '' : `fill="${C.testo}"`} ${/font-size=/.test(opz) ? '' : 'font-size="10"'} font-family="sans-serif" ${opz}>${s}</text>`;
@@ -221,6 +221,10 @@ export function svgCassettieraArmadio(tipo = 'battente', vista = 'davanti', Pc =
   const fascia = Number(Pc.fascia) || 0, fSotto = Number(Pc.fasciaSotto) || 0, fuga = Number(Pc.fuga) || 0;
   const aria = Number(sc ? Pc.ariaBinario : Pc.ariaDavanti) || 0, rib = Number(Pc.ribasso) || 0, fMeno = Number(Pc.fondoMeno) || 0;
   const G0 = (guide && guide.length ? guide : [500]).map(Number).filter((x) => x > 0).sort((a, b) => b - a);
+  // fascette laterali: di piatto se più larghe dello spessore della struttura (qui 18) → pannellino a L dietro
+  const larVista = sc ? (Number(Pc.vista) || 0) : fascia, piatto = larVista > 18, pann = Number(Pc.pannellino) || 0;
+  const profTaglio = sc ? fascia : (Number(Pc.profTaglio) || 50);          // fascette di taglio: profonde così
+  const conL = piatto && pann > 0;
   const COL = { str: '#cdbf9f', fronte: C.anta, fianco: C.fianco, schiena: '#6d6457', guida: '#3c3f44', cass: '#9aa0a8', buio: '#1b1712' };
   const num = (x, y, n) => `<circle cx="${x}" cy="${y}" r="7.5" fill="${C.dim}" stroke="#14110d" stroke-width="1"/>`
     + txt(x, y + 3.5, n, 'text-anchor="middle" fill="#14110d" font-size="10" font-weight="bold"');
@@ -233,7 +237,7 @@ export function svgCassettieraArmadio(tipo = 'battente', vista = 'davanti', Pc =
   const fronti = [0, 1, 2].map((i) => yS + FG + i * (hF + FG));           // bordo alto di ogni frontale
   if (vista === 'davanti') {
     const xa = 60, xb = 280;                                               // fianchi dell'armadio: xa..xa+S e xb−S..xb
-    const xi0 = xa + S, xi1 = xb - S, FL = sc ? S : 24;                    // fascette: di costa (spesse S) o di piatto (larghe 24)
+    const xi0 = xa + S, xi1 = xb - S, FL = piatto ? 24 : S;                // fascette: di taglio (si vede S) o di piatto (larghe 24)
     const t0 = xi0 + FL, t1 = xi1 - FL;                                    // scatola
     p.push(rect(xi0, 20, xi1 - xi0, yC - 20, COL.buio, 'stroke="none"'));
     p.push(rect(xa, 20, S, yC + 10 - 20, COL.fianco), rect(xi1, 20, S, yC + 10 - 20, COL.fianco), rottura(xa, S, 20), rottura(xi1, S, 20));
@@ -259,18 +263,24 @@ export function svgCassettieraArmadio(tipo = 'battente', vista = 'davanti', Pc =
     p.push(lin(xi1, yR + S / 2, 312, yR + S / 2), num(318, yR + S / 2, 6));
     p.push(lin(t1 - FG, fronti[0] + 16, 312, fronti[0] + 16 + 4), num(318, fronti[0] + 20, 7));
     p.push(num((t0 + t1) / 2 + 52, yq, 8));
+    // pannellino a L dietro ogni fascetta di piatto, contro il fianco dell'armadio (tratteggio: è dietro)
+    if (conL) {
+      for (const x of [xi0, xi1 - S]) p.push(`<rect x="${x + 1}" y="${yS + 2}" width="${S - 2}" height="${yC - yS - 4}" fill="none" stroke="${C.dim}" stroke-width="1" stroke-dasharray="4 3"/>`);
+      p.push(num(xi1 - S / 2, 226, 9));
+    }
     leg.push(
       t('Fianchi dell\'armadio (struttura)'),
-      sc ? tf('Fascette laterali: di costa, spesse come la struttura, profonde {0} mm, a filo dei frontali, alte fino sotto il ripiano', fascia)
-        : tf('Fascette laterali: di piatto, larghe {0} mm, a filo dei frontali, alte fino sotto il ripiano', fascia),
+      piatto ? tf('Fascette laterali: di piatto, larghe {0} mm, a filo dei frontali, alte fino sotto il ripiano', larVista)
+        : tf('Fascette laterali: di costa, spesse come la struttura, profonde {0} mm, a filo dei frontali, alte fino sotto il ripiano', profTaglio),
       tf('Fascetta sotto davanti: larga come la scatola, profonda {0} mm, a filo dei frontali (la seconda è dietro: vedi di fianco)', fSotto),
       tf('Frontali: larghi come la scatola − 2 × {0} mm; di partenza con la maniglia incassata (fresata nel frontale)', fuga),
       tf('Fuga dei frontali: {0} mm, fra un frontale e l\'altro, sopra, sotto e ai lati', fuga),
       t('Ripiano sopra (top): largo come lo spazio fra i fianchi dell\'armadio'),
       tf('Frontali ribassati (senza maniglia): {0} mm più bassi, il vuoto resta sopra per la mano', rib),
-      sc ? t('Scatola (top, fondo e fianchi): larga modulo − 4 × struttura (fianchi dell\'armadio + fascette)')
-        : tf('Scatola (top, fondo e fianchi): larga modulo − 2 × struttura − 2 × {0} mm', fascia),
+      !piatto ? t('Scatola (top, fondo e fianchi): larga modulo − 4 × struttura (fianchi dell\'armadio + fascette)')
+        : tf('Scatola (top, fondo e fianchi): larga modulo − 2 × struttura − 2 × {0} mm', larVista),
     );
+    if (conL) leg.push(tf('Pannellino a L dietro ogni fascetta (tratteggio): profondo {0} mm, alto come la fascetta, contro il fianco dell\'armadio; serve per fissarla. Con le fascette di taglio (larghe quanto lo spessore) non serve', pann));
   } else {
     const xs = 30, xi = xs + 7;                                            // schiena e inizio dello spazio dentro
     const xF = sc ? 250 : 262, xFr = xF - S, xSc = xFr - 1;                // davanti dei frontali, frontali, fine della scatola
@@ -295,7 +305,8 @@ export function svgCassettieraArmadio(tipo = 'battente', vista = 'davanti', Pc =
     p.push(rect(xi, yS + S, xSc - xi, yB - yS - 2 * S, '#b3a789'));          // fianco della scatola
     p.push(rect(xi, yB, FS, yC - yB, COL.str), rect(xF - FS, yB, FS, yC - yB, COL.str));   // fascette sotto
     for (const y of fronti) p.push(rect(xFr, y, S, hF, COL.fronte));
-    if (sc) p.push(`<rect x="${xF - 24}" y="${yS}" width="24" height="${yC - yS}" fill="none" stroke="${C.dim}" stroke-width="1" stroke-dasharray="4 3"/>`);
+    if (!piatto) p.push(`<rect x="${xF - 24}" y="${yS}" width="24" height="${yC - yS}" fill="none" stroke="${C.dim}" stroke-width="1" stroke-dasharray="4 3"/>`);
+    if (conL) p.push(`<rect x="${xF - S - 26}" y="${yS}" width="26" height="${yC - yS}" fill="none" stroke="${C.dim}" stroke-width="1" stroke-dasharray="4 3"/>`);   // pannellino a L
     // cassetto (nello spazio di mezzo): guida e fondo
     const yc0 = fronti[1] + 8, yc1 = fronti[1] + hF - 6, xc0 = xi + 40;
     p.push(rect(xc0, yc0, xSc - 3 - xc0, yc1 - yc0, COL.cass));
@@ -308,7 +319,7 @@ export function svgCassettieraArmadio(tipo = 'battente', vista = 'davanti', Pc =
     // numeri
     p.push(num(xs + 3.5, 40, 1), num((xi + xSc) / 2, fronti[2] + hF / 2 - 8, 2), num(xi + FS / 2, yB + 5, 3), num(xF - FS / 2, yB + 5, 3));
     p.push(num(xc0 + 30, (yc0 + yc1) / 2 + 6, 5), num((xi + xRip) / 2, yR + S / 2, 6), num(xFr + S / 2, fronti[0] + hF / 2, 7));
-    if (sc) p.push(num(xF - 17, yS + 128, 8));
+    if (!piatto || conL) p.push(num(conL ? xF - S - 13 : xF - 17, yS + 128, 8));
     leg.push(
       t('Schiena'),
       sc ? tf('Scatola (top, fondo e fianchi): appoggiata alla schiena, profonda (spazio dentro − binario) − struttura − {0} mm (− quanto sporge la maniglia esterna)', aria)
@@ -321,7 +332,8 @@ export function svgCassettieraArmadio(tipo = 'battente', vista = 'davanti', Pc =
         : t('Ripiano sopra (top): a filo dei frontali; con la maniglia esterna arriva fino alla maniglia (tratteggio)'),
       t('Frontali: davanti alla scatola, spessi come la struttura'),
     );
-    if (sc) leg.push(tf('Fascette laterali di costa (tratteggio): profonde {0} mm, a filo dei frontali', fascia));
+    if (!piatto) leg.push(tf('Fascette laterali di costa (tratteggio): profonde {0} mm, a filo dei frontali', profTaglio));
+    else if (conL) leg.push(tf('Pannellino a L dietro la fascetta laterale (tratteggio): profondo {0} mm, alto come la fascetta', pann));
   }
   const svg = `<svg viewBox="0 0 340 ${vista === 'davanti' ? 306 : 312}" width="340" height="${vista === 'davanti' ? 306 : 312}" role="img" aria-label="${t(vista === 'davanti' ? 'Cassettiera vista davanti' : 'Cassettiera vista di fianco')}">${p.join('')}</svg>`;
   return `<div class="par-cass-fig" data-no-i18n>${svg}<ol class="par-legenda">${leg.map((x) => `<li>${x}</li>`).join('')}</ol></div>`;

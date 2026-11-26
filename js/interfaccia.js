@@ -6,11 +6,11 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261127e';
-import { htmlTendineColori } from './tendine-colori.js?v=20261127e';
-import { misureCostado, binarioArmadio, profonditaBinario, spessoreMateriale, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261127e';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261127e';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261127e';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261127f';
+import { htmlTendineColori } from './tendine-colori.js?v=20261127f';
+import { misureCostado, binarioArmadio, profonditaBinario, spessoreMateriale, tiradorArmadio, larghezzaAntaScorrevole, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261127f';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261127f';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261127f';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,

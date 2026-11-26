@@ -11,14 +11,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { spessoreMateriale, profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261127e';
-import { parametri } from './parametri.js?v=20261127e';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261127e';
-import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261127e';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261127e';
-import { sfondoDi } from './sfondi.js?v=20261127e';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261127e';
-import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261127e';
+import { spessoreMateriale, profonditaBinario, profonditaCarcassa, profonditaFiancoInterno, misureCostado, anteInterne, profonditaDentro, profonditaRipiani, misureSchiena, schienaDentro, tiradorArmadio, geometriaCassettiera, lunghezzaManigliaCassetto, riduzioneManigliaArmadio, larghezzaAntaScorrevole, altezzaAntaScorrevole, lunghezzaManiglia as lungManigliaStd, lunghezzaManigliaAnta as lungManigliaAnta } from './calcoli.js?v=20261127f';
+import { parametri } from './parametri.js?v=20261127f';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala, MATERIALI, BINARIO_DEFAULT } from './materiali.js?v=20261127f';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from './maniglia3d.js?v=20261127f';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from './logo.js?v=20261127f';
+import { sfondoDi } from './sfondi.js?v=20261127f';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from './resa.js?v=20261127f';
+import { riprendiRiflessiLaccati } from './riflessi-laccati.js?v=20261127f';
 
 // Scala fisica del tiling della texture legno: 1 "ripetizione" = N mm.
 // Il campione reale è ~400×200mm → uso 300mm come compromesso: su un'anta
@@ -887,7 +887,7 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
     casseDiQuestoModulo.forEach((c) => {
       // stesse misure della distinta (calcoli.js → geometriaCassettiera, ⚙ Parametri → Cassettiera)
       const G = geometriaCassettiera(config, c, W);
-      const { AltMax, larTF, profScatola, As, larFronte, fascia, fasciaSotto } = G;
+      const { AltMax, larTF, profScatola, As, larFronte, fasciaSotto } = G;
       const altFianchi = AltMax - 4 * sC;
       const xCentro = xOffset + W / 2;
       // SCATOLA appoggiata alla schiena, sopra le fascette sotto (sC); sopra la scatola il ripiano (top della cassettiera)
@@ -912,13 +912,15 @@ function costruisciModulo(config, modulo, xOffset, prof, indice = 0, totali = 1)
       // fra il fianco del modulo e la scatola, e la fascetta sotto davanti; più la fascetta sotto dietro.
       const zCornice = zScatolaFronte + 1 + sC;                // faccia davanti dei frontali e della cornice
       const altFL = AltMax - sC;
-      if (G.scorrevole) {
-        for (const lato of [-1, 1]) aggiungiBox(sC, altFL, fascia,
-          xCentro + lato * (larTF / 2 + sC / 2), yCassBase + altFL / 2, zCornice - fascia / 2,
+      // di taglio (si vede lo spessore) o di piatto (larga quanto scritto) + il pannellino a L dietro, contro il
+      // fianco dell'armadio (come in distinta)
+      const { fasciaVista: fV, fasciaProf: fP } = G;
+      for (const lato of [-1, 1]) {
+        aggiungiBox(fV, altFL, fP,
+          xCentro + lato * (larTF / 2 + fV / 2), yCassBase + altFL / 2, zCornice - fP / 2,
           matStr, 'cass-fascetta');
-      } else {
-        for (const lato of [-1, 1]) aggiungiBox(fascia, altFL, sC,
-          xCentro + lato * (larTF / 2 + fascia / 2), yCassBase + altFL / 2, zCornice - sC / 2,
+        if (G.pannellinoL) aggiungiBox(sC, altFL, G.pannellinoL,
+          xCentro + lato * (larTF / 2 + fV - sC / 2), yCassBase + altFL / 2, zCornice - fP - G.pannellinoL / 2,
           matStr, 'cass-fascetta');
       }
       aggiungiBox(larTF, sC, fasciaSotto, xCentro, yCassBase + sC / 2, zCornice - fasciaSotto / 2, matStr, 'cass-fascetta');
