@@ -9,12 +9,12 @@
 // =============================================================================
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261127p';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261127p';
-import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261127p';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261127p';
-import { anteConManiglie, manigliaModulari, altezzaPerchero, lunghezzaPerchero, percheroDi, cassettiDelPezzo, cassettiDi0, guidaCassettiModulari } from './calcoli.js?v=20261127p';
-import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from '../maniglia3d.js?v=20261127p';
+import { getMaterialeTHREE, impostaUnitaUV, taraLuceCatalogo, uvInScala } from '../materiali.js?v=20261127q';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261127q';
+import { creaResa, nearSegueLaVista, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261127q';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261127q';
+import { anteConManiglie, manigliaModulari, altezzaPerchero, lunghezzaPerchero, percheroDi, cassettiDelPezzo, cassettiDi0, guidaCassettiModulari } from './calcoli.js?v=20261127q';
+import { costruisciManiglia, manigliaDaFoto, adattaSporgenza } from '../maniglia3d.js?v=20261127q';
 
 // Venatura: una ripetizione ogni 70 cm in larghezza e 2 m in altezza, a specchio
 // (MirroredRepeat) → niente "scacchiera" di giunte sulle ante grandi.

@@ -14,3 +14,11 @@ Modello di scontorno U²-Net (https://github.com/xuebinqin/U-2-Net), licenza Apa
 Usato sui TELEFONI (lavora a 320 px: poca memoria). Modificato da NG Interior solo nella
 memorizzazione: portato all'opset 13 e pesi delle convoluzioni a 8 bit per canale
 (+ DequantizeLinear); maschera uguale all'originale (4 pixel diversi oltre 64/255 su 1 milione).
+
+FILE A PEZZI
+------------
+Il servizio che ospita il sito accetta file fino a 25 MB: ogni modello è salvato in pezzi da
+20 MB (isnet-ng.onnx.p0, .p1, .p2 · u2net-ng.onnx.p0, .p1, .p2), e così anche il motore
+onnxruntime (vendor/onnxruntime-web/1.31.1/ort-wasm-simd-threaded.asyncify.wasm.p0, .p1).
+js/scontorno-ia.js li scarica e li rimette insieme: il file è identico all'originale
+(per rifarlo: cat nome.p* > nome).

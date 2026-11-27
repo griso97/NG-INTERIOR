@@ -14,7 +14,7 @@
 
 const VENDOR = new URL('../vendor/', import.meta.url).href;
 const ORT_DIR = `${VENDOR}onnxruntime-web/1.31.1/`;
-import { togliRiflesso } from './riflesso.js?v=20261127p';
+import { togliRiflesso } from './riflesso.js?v=20261127q';
 const UA = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
 const TELEFONO = /iPhone|iPad|iPod|Android|Mobile/i.test(UA)
   || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && /Macintosh/.test(UA))   // iPad "da computer"
@@ -23,6 +23,11 @@ const CFG = TELEFONO
   ? { file: `${VENDOR}modelli/u2net-ng.onnx`, mb: 44, lato: 320, media: [0.485, 0.456, 0.406], dev: [0.229, 0.224, 0.225] }
   : { file: `${VENDOR}modelli/isnet-ng.onnx`, mb: 47, lato: 1024, media: [0.5, 0.5, 0.5], dev: [1, 1, 1] };
 const MODELLO = CFG.file, MODELLO_MB = CFG.mb, LATO = CFG.lato, MEDIA = CFG.media, DEV = CFG.dev;
+// MOTORE (WebAssembly) scaricato dal sito stesso, come il modello (così resta anche lui sul dispositivo)
+const MOTORE = `${ORT_DIR}ort-wasm-simd-threaded.asyncify.wasm`, MOTORE_MB = 29;
+// FILE GRANDI A PEZZI: il servizio che ospita il sito accetta file fino a 25 MB; modelli e motore sono
+// spezzati in pezzi da 20 MB (nome.p0, nome.p1, …) e qui si rimettono insieme, identici
+const PEZZI = { 'isnet-ng.onnx': 3, 'u2net-ng.onnx': 3, 'ort-wasm-simd-threaded.asyncify.wasm': 2 };
 // se il calcolo ha già fatto chiudere la pagina su questo dispositivo, non lo rifaccio (si usa lo scontorno classico)
 // (2 chiusure di fila = il dispositivo non ce la fa: per un mese si usa lo scontorno classico)
 const IN_CORSO = 'ng-ia-in-corso', NO_IA = 'ng-ia-no', CHIUSURE = 'ng-ia-chiusure';
@@ -41,29 +46,43 @@ const fineCalcolo = (ok) => { try { localStorage.removeItem(IN_CORSO); if (ok) l
 
 let _sessione = null, _caricamento = null, _ort = null, _dati = null, _soloCpu = false;
 
-/** Scarica il modello (con avanzamento) e lo tiene nella cache del dispositivo. */
-async function scaricaModello(avanza) {
+/**
+ * Scarica un file grande (con avanzamento 0…1), anche spezzato in pezzi, e lo tiene nella cache del
+ * dispositivo con il suo nome intero (chi l'aveva già scaricato intero non lo riscarica).
+ */
+async function scaricaFile(url, mb, avanza) {
   let cache = null;
   try { cache = await caches.open('ng-modelli-ia'); } catch (_) { /* senza cache: si scarica ogni volta */ }
   if (cache) {
-    const vecchia = await cache.match(MODELLO);
+    const vecchia = await cache.match(url);
     if (vecchia) return new Uint8Array(await vecchia.arrayBuffer());
   }
-  const r = await fetch(MODELLO);
-  if (!r.ok || !r.body) throw new Error(`modello non trovato (${r.status})`);
-  const tot = Number(r.headers.get('content-length')) || MODELLO_MB * 1e6;
-  const lettore = r.body.getReader(), pezzi = [];
-  let n = 0;
-  for (;;) {
-    const { done, value } = await lettore.read();
-    if (done) break;
-    pezzi.push(value); n += value.length;
-    if (avanza) avanza({ fase: 'scarico', frazione: Math.min(1, n / tot) });
+  const n = PEZZI[url.split('/').pop()] || 0;
+  const indirizzi = n ? Array.from({ length: n }, (_, i) => `${url}.p${i}`) : [url];
+  const tot = mb * 1e6, pezzi = [];
+  let letti = 0;
+  for (const u of indirizzi) {
+    const r = await fetch(u);
+    if (!r.ok || !r.body) throw new Error(`file non trovato (${r.status})`);
+    const lettore = r.body.getReader();
+    for (;;) {
+      const { done, value } = await lettore.read();
+      if (done) break;
+      pezzi.push(value); letti += value.length;
+      if (avanza) avanza(Math.min(1, letti / tot));
+    }
   }
-  const buf = new Uint8Array(n);
+  const buf = new Uint8Array(letti);
   let o = 0; for (const p of pezzi) { buf.set(p, o); o += p.length; }
-  if (cache) { try { await cache.put(MODELLO, new Response(buf, { headers: { 'content-type': 'application/octet-stream' } })); } catch (_) { /* spazio pieno: pazienza */ } }
+  if (cache) { try { await cache.put(url, new Response(buf, { headers: { 'content-type': 'application/octet-stream' } })); } catch (_) { /* spazio pieno: pazienza */ } }
   return buf;
+}
+/** Motore e modello (con un solo avanzamento «scarico» per tutti e due). */
+async function scaricaModello(avanza) {
+  const parte = MOTORE_MB / (MOTORE_MB + MODELLO_MB);
+  const motore = await scaricaFile(MOTORE, MOTORE_MB, (f) => avanza && avanza({ fase: 'scarico', frazione: f * parte }));
+  const modello = await scaricaFile(MODELLO, MODELLO_MB, (f) => avanza && avanza({ fase: 'scarico', frazione: parte + f * (1 - parte) }));
+  return { motore, modello };
 }
 
 async function sessione(avanza) {
@@ -87,7 +106,12 @@ async function sessione(avanza) {
         _ort.env.wasm.numThreads = (!TELEFONO && typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated) ? Math.min(4, navigator.hardwareConcurrency || 2) : 1;
         _ort.env.wasm.proxy = aParte;
       }
-      const dati = _dati || (_dati = await scaricaModello(avanza));
+      if (!_dati) {
+        const { motore, modello } = await scaricaModello(avanza);
+        _ort.env.wasm.wasmBinary = motore;           // il motore già scaricato (a pezzi), non dal suo indirizzo
+        _dati = modello;
+      }
+      const dati = _dati;
       if (avanza) avanza({ fase: 'preparo', frazione: 1 });
       let ultimo = null;
       for (const ep of prove) {
