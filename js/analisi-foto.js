@@ -483,6 +483,38 @@ function daUnita(quad) {
   return (u, v) => applica(H, u, v);
 }
 
+/** Area di un quadrilatero (pixel²). */
+function areaQuad(q) { let a = 0; for (let k = 0; k < 4; k++) { const [x1, y1] = q[k], [x2, y2] = q[(k + 1) % 4]; a += x1 * y2 - x2 * y1; } return Math.abs(a) / 2; }
+/** La zona scelta è troppo piccola per essere il campione (meno del 4% della foto): selezione sbagliata. */
+export function selezioneTroppoPiccola(img, q) {
+  const W0 = img && (img.naturalWidth || img.width), H0 = img && (img.naturalHeight || img.height);
+  if (!q || q.length !== 4 || !(W0 > 0) || !(H0 > 0)) return false;
+  return areaQuad(q) < W0 * H0 * 0.04;
+}
+/**
+ * FOTO TUTTA CAMPIONE: il legno riempie la foto (niente tavolo o muro intorno). Il «campione trovato»
+ * è allora solo un pezzo del legno stesso: fuori dalla zona c'è lo STESSO colore e la STESSA venatura
+ * (uno sfondo vero è di un altro colore, o liscio). Lavora sui pixel piccoli (P) e sulla zona q in P.
+ */
+function tuttaCampione(P, q) {
+  const { w, h } = P;
+  let o = 0; for (let k = 0; k < 4; k++) { const [x1, y1] = q[k], [x2, y2] = q[(k + 1) % 4]; o += x1 * y2 - x2 * y1; }
+  const verso = o >= 0 ? 1 : -1;
+  const dentro = (x, y) => { for (let k = 0; k < 4; k++) { const [x1, y1] = q[k], [x2, y2] = q[(k + 1) % 4]; if (verso * ((x2 - x1) * (y - y1) - (y2 - y1) * (x - x1)) < 0) return false; } return true; };
+  const L = (x, y) => { const c = px(P, x, y); return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]; };
+  const st = [{ n: 0, c: [0, 0, 0], t: 0 }, { n: 0, c: [0, 0, 0], t: 0 }];        // 0 = fuori, 1 = dentro
+  for (let y = 0; y < h - 1; y++) for (let x = 0; x < w - 1; x++) {
+    const s = st[dentro(x + 0.5, y + 0.5) ? 1 : 0], c = px(P, x, y), l = L(x, y);
+    s.n++; s.c[0] += c[0]; s.c[1] += c[1]; s.c[2] += c[2];
+    s.t += Math.abs(L(x + 1, y) - l) + Math.abs(L(x, y + 1) - l);
+  }
+  const [fu, de] = st;
+  if (fu.n < w * h * 0.05 || de.n < 4) return de.n < 4;            // quasi tutta dentro: va già bene
+  const m = (s) => s.c.map((v) => v / s.n);
+  const tF = fu.t / fu.n, tD = de.t / de.n;
+  return dist(m(fu), m(de)) < 30 && tF > tD * 0.5 && tF < tD * 2;
+}
+
 export function analizzaPorta(img, tipo = 'fp') {
   const P = pixelPiccoli(img);
   const o = trovaOggetto(P);
@@ -515,6 +547,16 @@ export function analizzaPorta(img, tipo = 'fp') {
     qs = A && A.q;
     if (B && (!A || (B.n >= A.n * 0.25 && B.riemp > A.riemp + 0.03))) qs = B.q;
   }
+  // CAMPIONE che riempie tutta la foto (o zona trovata minuscola = sbagliata): si usa TUTTA la foto,
+  // senza cercare bordi o fasce (non ci sono: è tutto legno)
+  let tutta = false;
+  if (qs && ((tipo !== 'fp' && tuttaCampione(P, qs)) || areaQuad(qs) < P.w * P.h * 0.04)) { qs = null; tutta = true; }
+  const fotoIntera = () => {
+    const r = 0.015, W0 = P.W0, H0 = P.H0;
+    return { oggetto: [[0, 0], [W0, 0], [W0, H0], [0, H0]],
+      main: [[W0 * r, H0 * r], [W0 * (1 - r), H0 * r], [W0 * (1 - r), H0 * (1 - r)], [W0 * r, H0 * (1 - r)]],
+      portaFrazione: { w: 1 - 2 * r, h: 1 - 2 * r }, messaggio: 'Il legno riempie tutta la foto: uso tutta la foto come campione.' };
+  };
   const quad = (qs || intera).map(([x, y]) => [x / P.k, y / P.k]);           // pixel originali
   const L = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
   const largh = (L(quad[0], quad[1]) + L(quad[3], quad[2])) / 2, alt = (L(quad[0], quad[3]) + L(quad[1], quad[2])) / 2;
@@ -571,7 +613,13 @@ export function analizzaPorta(img, tipo = 'fp') {
   const spY = (fAlto && !golaSu ? y0 : 0) + (fBasso && !golaGiu ? H - y1 : 0);
   const out = { oggetto: quad, porta: zona(x0 + pw * mx, y0 + ph * m, x1 - pw * mx, y1 - ph * m),
     portaFrazione: { w: Math.min(1, pw / Math.max(1, W - spX)), h: Math.min(1, ph / Math.max(1, H - spY)) } };
-  if (tipo !== 'fp') { out.main = out.porta; delete out.porta; out.messaggio = qs ? 'Campione trovato e raddrizzato.' : 'Campione trovato.'; return out; }
+  if (tipo !== 'fp') {
+    // la zona del campione non può essere minuscola: se lo è, la ricerca ha sbagliato → tutta la foto
+    if (selezioneTroppoPiccola({ width: P.W0, height: P.H0 }, out.porta)) return fotoIntera();
+    out.main = out.porta; delete out.porta;
+    out.messaggio = tutta ? 'Il legno riempie tutta la foto: uso tutta la foto come campione.' : qs ? 'Campione trovato e raddrizzato.' : 'Campione trovato.';
+    return out;
+  }
   // colore della gola: solo i pixel della fascia davvero diversi dalla porta
   const media = (ax, ay, bx, by) => {
     const pts = [];
@@ -753,7 +801,7 @@ export function pulisciRiflessi(src, opz = {}) {
 }
 
 // CAMPIONE CONTINUO: in foto-continua.js (lo usa anche il caricamento dei materiali del sito)
-import { rendiContinua, boxBlur } from './foto-continua.js?v=20261127n';
+import { rendiContinua, boxBlur } from './foto-continua.js?v=20261127o';
 export { rendiContinua };
 
 
@@ -915,8 +963,11 @@ export function analizzaSuperficie(raddrizzata) {
   let gx = 0, gy = 0, n = 0;
   const m = Math.round(Math.min(W, H) * 0.06);
   for (let y = m; y < H - m; y += 2) for (let x = m; x < W - m; x += 2) { gx += Math.abs(L(x + 2, y) - L(x - 2, y)); gy += Math.abs(L(x, y + 2) - L(x, y - 2)); n++; }
-  const grana = (gx + gy) / 2 / Math.max(1, n), aniso = Math.max(gx, gy) / Math.max(1e-6, Math.min(gx, gy));
-  const tintaUnita = aniso < 1.18 || grana < 0.8;
+  const grana = (gx + gy) / 2 / Math.max(1, n);
+  // TINTA UNITA solo se la superficie è davvero LISCIA (laccati, colori pieni: grana ≈ 1–2). Prima bastavano
+  // righe senza una direzione (aniso < 1,18): un legno con la venatura fitta e mossa (es. grigio
+  // invecchiato, grana 19) diventava «tinta unita» e il campione un colore pieno. I legni stanno fra 9 e 20.
+  const tintaUnita = grana < 4.5;
   return { lucido, tintaUnita, colore: P.colore, ral: ralVicini(P.colore, 6), pulita: P.canvas };
 }
 
@@ -928,8 +979,10 @@ export function analizzaSuperficie(raddrizzata) {
 //     solo su grande scala) e i fianchi della porta fuori dal legno.
 // v3: CAMPIONE CONTINUO (legni, pietre, piani, pannelli, zoccoli, pavimenti): luce uniforme
 //     e bordi raccordati, così ripetuto non fa quadrati né fasce (rendiContinua).
+// v4: SELEZIONE minuscola (foto tutta di legno: la ricerca del campione prendeva un puntino e il
+//     campione usciva un colore sfocato) → rifatta dalla foto intera. Gli altri prodotti non cambiano.
 // =============================================================================
-export const VERSIONE_FOTO = 3;
+export const VERSIONE_FOTO = 4;
 /** Sezioni del catalogo con la foto che si RIPETE sui pezzi (campione continuo). */
 export const SEZIONI_CONTINUE = ['legno', 'encimera', 'pannello', 'zoccolo', 'pavimento'];
 function stringiLati(q, f) {
@@ -960,11 +1013,12 @@ export async function aggiornaFotoProdotto(p, leggi, salva) {
   if ((p.versioneFoto || 1) >= VERSIONE_FOTO) return false;
   // la porta finger-pull non si ripete (e ha la gola in alto): dalla v2 non cambia niente
   if (!SEZIONI_CONTINUE.includes(p.sezione) && (p.versioneFoto || 1) >= 2) { p.versioneFoto = VERSIONE_FOTO; return false; }
-  const zona = p.analisi && (p.sezione === 'fingerpull' ? p.analisi.porta : p.analisi.main);
+  const zonaSalvata = p.analisi && (p.sezione === 'fingerpull' ? p.analisi.porta : p.analisi.main);
   const cm = p.campioneCm;
   if (p.tinta && p.tinta.colore != null) { p.versioneFoto = VERSIONE_FOTO; return false; }
-  const orig = zona && zona.length === 4 && cm && cm.w > 0 && cm.h > 0 ? await leggi(p.id, 'orig') : null;
+  const orig = zonaSalvata && zonaSalvata.length === 4 && cm && cm.w > 0 && cm.h > 0 ? await leggi(p.id, 'orig') : null;
   if (!orig) {
+    if ((p.versioneFoto || 1) >= 3) { p.versioneFoto = VERSIONE_FOTO; return false; }   // già continua (v3)
     // senza la foto originale (prodotti salvati prima): si rende continua la foto già salvata
     const ok = SEZIONI_CONTINUE.includes(p.sezione) ? await continuaFotoSalvata(p, leggi, salva) : false;
     p.versioneFoto = VERSIONE_FOTO;
@@ -973,6 +1027,14 @@ export async function aggiornaFotoProdotto(p, leggi, salva) {
   const url = URL.createObjectURL(orig);
   try {
     const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
+    // v4: la SELEZIONE salvata era minuscola (foto tutta di legno, ricerca sbagliata) → di nuovo dalla foto
+    // intera; le altre (già fatte con il trattamento v3) restano come sono
+    let zona = zonaSalvata;
+    if (selezioneTroppoPiccola(img, zona)) {
+      const a = analizzaPorta(img, p.sezione === 'fingerpull' ? 'fp' : 'campione');
+      zona = p.sezione === 'fingerpull' ? a.porta : a.main;
+      p.analisi = { ...p.analisi, oggetto: a.oggetto, portaFrazione: a.portaFrazione, ...(p.sezione === 'fingerpull' ? { porta: a.porta } : { main: a.main }) };
+    } else if ((p.versioneFoto || 1) >= 3) { p.versioneFoto = VERSIONE_FOTO; return false; }
     const asp = cm.w / cm.h;
     const OW = asp >= 1 ? 1600 : Math.max(64, Math.round(1600 * asp));
     const OH = asp >= 1 ? Math.max(64, Math.round(1600 / asp)) : 1600;

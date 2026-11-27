@@ -8,23 +8,23 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261127n';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127n';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127n';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127n';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127n';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127n';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127n';
-import { analizzaFoto, analizzaPorta, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127n';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127n';
-import { agganciaTema } from './tema.js?v=20261127n';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127n';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127n';
-import { htmlFotoParametro, agganciaFotoParametri, htmlFotoVoce } from './parametri-foto.js?v=20261127n';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127n';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127n';
-import { geometriaCassettiera } from './calcoli.js?v=20261127n';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127n';
+} from './catalogo.js?v=20261127o';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127o';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127o';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127o';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127o';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127o';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127o';
+import { analizzaFoto, analizzaPorta, selezioneTroppoPiccola, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127o';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127o';
+import { agganciaTema } from './tema.js?v=20261127o';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127o';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127o';
+import { htmlFotoParametro, agganciaFotoParametri, htmlFotoVoce } from './parametri-foto.js?v=20261127o';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127o';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127o';
+import { geometriaCassettiera } from './calcoli.js?v=20261127o';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127o';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -666,8 +666,10 @@ function thumbDaCanvas(porta, gola, coloreGola) {
  */
 async function analisiAutomatica(img, corpo, tipo, salvata = null) {
   if (tipo === 'man') return analisiManiglia(img, corpo, tipo, salvata);
-  const a = salvata ? JSON.parse(JSON.stringify(salvata)) : analizzaPorta(img, tipo);
   const chiave = tipo === 'fp' ? 'porta' : 'main';
+  // selezione salvata minuscola (foto tutta di legno, ricerca sbagliata): si rifà in automatico
+  if (salvata && selezioneTroppoPiccola(img, salvata[chiave])) salvata = null;
+  const a = salvata ? JSON.parse(JSON.stringify(salvata)) : analizzaPorta(img, tipo);
   // finger-pull "porta tutta uguale": un solo riquadro (porta + gola insieme)
   const trovata = { porta: a.porta, golaZona: a.golaZona, gola: a.gola, portaFrazione: a.portaFrazione };
   corpo._applicaUguale = (uguale) => {

@@ -14,14 +14,14 @@
 //   2) Aggiungere una riga qui sotto
 // =============================================================================
 
-import { rendiContinua, legnoAllungato } from './foto-continua.js?v=20261127n';
+import { rendiContinua, legnoAllungato } from './foto-continua.js?v=20261127o';
 // LEGNO ALLUNGATO: la foto del legno è stirata lungo la venatura fino a questa altezza (mm), così
 // un'anta alta (fino a una tavola intera) è un pezzo solo, senza il legno che «ricomincia»
 const ALTEZZA_LEGNO = 2800;
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261127n';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261127n';
-import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261127n';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261127o';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261127o';
+import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261127o';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -692,12 +692,13 @@ async function applicaCatalogo() {
   statoCatalogo = await leggiCatalogo();
   // prodotti salvati con un trattamento della foto più vecchio: la texture si
   // rifà da sola dalla foto originale (una volta sola), con i colori veri
-  // (v3: i campioni che si ripetono diventano continui, senza quadrati né fasce)
-  const daRifare = statoCatalogo.prodotti.filter((p) => ['legno', 'fingerpull', 'encimera', 'pannello', 'zoccolo', 'pavimento'].includes(p.sezione) && (p.versioneFoto || 1) < 3);
+  // (v3: i campioni che si ripetono diventano continui, senza quadrati né fasce;
+  //  v4: la zona del campione salvata minuscola → rifatta dalla foto intera, gli altri restano uguali)
+  const daRifare = statoCatalogo.prodotti.filter((p) => ['legno', 'fingerpull', 'encimera', 'pannello', 'zoccolo', 'pavimento'].includes(p.sezione) && (p.versioneFoto || 1) < 4);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261127n');
-      for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 3; } }
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261127o');
+      for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 4; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
   }
@@ -841,7 +842,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261127n';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261127o';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
