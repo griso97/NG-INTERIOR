@@ -6,12 +6,12 @@
 // l'esterno (main.js).
 // =============================================================================
 
-import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261127m';
-import { htmlTendineColori } from './tendine-colori.js?v=20261127m';
-import { misureCostado, piediniArmadio, zoccoloArmadio, binarioArmadio, profonditaBinario, spessoreMateriale, tiradorArmadio, larghezzaAntaScorrevole, larghezzaPortaScorrevole, numeroAnteScorrevoli, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261127m';
-import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261127m';
-import { htmlMiniaturaVoce, riempiMiniature } from './parametri-foto.js?v=20261127m';
-import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261127m';
+import { MATERIALI, PARTI, materialiDefault, materialiPer, sfondoSwatch, BINARIO_DEFAULT } from './materiali.js?v=20261127n';
+import { htmlTendineColori } from './tendine-colori.js?v=20261127n';
+import { misureCostado, piediniArmadio, zoccoloArmadio, binarioArmadio, profonditaBinario, spessoreMateriale, tiradorArmadio, larghezzaAntaScorrevole, larghezzaPortaScorrevole, numeroAnteScorrevoli, coloreProfiloScorrevole, misureSchiena, calcolaDistintaCompleta, geometriaCassettiera, spaziCassettiDiPartenza, manigliaCassettiera, sporgenzaDiManiglia } from './calcoli.js?v=20261127n';
+import { htmlMontaggio, agganciaMontaggio } from './scelte-montaggio.js?v=20261127n';
+import { htmlMiniaturaVoce, riempiMiniature } from './parametri-foto.js?v=20261127n';
+import { binariScorrevoli, tiradoriScorrevoli, parametri, montaggioArmadio, sistemiCassetti, nomeSistemaCassetti, cassettieraArmadio } from './parametri.js?v=20261127n';
 
 /**
  * Cambia tipo (battente ↔ scorrevole): se in ⚙ Parametri lo scorrevole si monta in un altro modo,
@@ -1091,7 +1091,7 @@ function renderMateriali(config) {
         <summary>
           <span class="mat-parte">${p.nome}</span>
           <span class="mat-corrente">
-            <img src="${corrente.thumb}" alt="" />
+            ${anteprimaMat(corrente)}
             <span>${corrente.nome}</span>
           </span>
         </summary>
@@ -1100,7 +1100,7 @@ function renderMateriali(config) {
             <button type="button"
               class="mat-swatch ${m.id === corrente.id ? 'sel' : ''}"
               data-mat="${m.id}" title="${m.nome}">
-              <img src="${m.thumb}" alt="" />
+              ${anteprimaMat(m)}
               <span>${m.nome}</span>
             </button>`, { sel: corrente.id, chiave: `armadio-${p.id}`, classeGriglia: 'mat-grid' })}
         </div>
@@ -1367,4 +1367,9 @@ function fotoScelta(select, tipo, id) {
   if (!box) return;
   box.dataset.mini = `voce:${tipo}:${id}`;
   riempiMiniature(box.parentElement);
+}
+
+/** Anteprima di un materiale: la sua foto, o il suo colore (es. MDF bianco: non ha una foto). */
+function anteprimaMat(m) {
+  return m && m.thumb ? `<img src="${m.thumb}" alt="" />` : `<span class="man-tessera" style="background:${sfondoSwatch(m || {})}"></span>`;
 }

@@ -14,11 +14,14 @@
 //   2) Aggiungere una riga qui sotto
 // =============================================================================
 
-import { rendiContinua } from './foto-continua.js?v=20261127m';
+import { rendiContinua, legnoAllungato } from './foto-continua.js?v=20261127n';
+// LEGNO ALLUNGATO: la foto del legno è stirata lungo la venatura fino a questa altezza (mm), così
+// un'anta alta (fino a una tavola intera) è un pezzo solo, senza il legno che «ricomincia»
+const ALTEZZA_LEGNO = 2800;
 import * as THREE from 'three';
-import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261127m';
-import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261127m';
-import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261127m';
+import { leggiCatalogo, leggiFoto, nascosto, salvaFoto, salvaCatalogo } from './catalogo.js?v=20261127n';
+import { LIBRERIA, CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce } from './libreria3d-dati.js?v=20261127n';
+import { aggiungiPavimentoProprio, GRUPPO_PROPRI } from './pavimenti-dati.js?v=20261127n';
 export { CREDITI_LIBRERIA, GRUPPI_OGGETTI, creditoVoce };
 
 /** Voce del catalogo per un prodotto della LIBRERIA 3D (js/libreria3d.js).
@@ -693,7 +696,7 @@ async function applicaCatalogo() {
   const daRifare = statoCatalogo.prodotti.filter((p) => ['legno', 'fingerpull', 'encimera', 'pannello', 'zoccolo', 'pavimento'].includes(p.sezione) && (p.versioneFoto || 1) < 3);
   if (daRifare.length) {
     try {
-      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261127m');
+      const { aggiornaFotoProdotto } = await import('./analisi-foto.js?v=20261127n');
       for (const p of daRifare) { try { await aggiornaFotoProdotto(p, leggiFoto, salvaFoto); } catch (e) { console.warn('Foto del prodotto non aggiornata', p.id, e); p.versioneFoto = 3; } }
       await salvaCatalogo(statoCatalogo);
     } catch (e) { console.warn('Aggiornamento foto catalogo non riuscito', e); }
@@ -838,7 +841,7 @@ function installaSchedaProdotto() {
 }
 
 // TENDINE DEI COLORI (sottocategorie Legni, Mate, Luxe, Finger-pull, Encimere): vedi tendine-colori.js
-export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261127m';
+export { GRUPPI_COLORI, gruppoColore, htmlTendineColori } from './tendine-colori.js?v=20261127n';
 
 // Collezione Moderna / Luxury: in che gruppo della lista «Aggiungi oggetti» e come si posa
 const GRUPPO_COLLEZIONE = { sgabello: 'sgabelli', 'lux-sgabello': 'sgabelli', 'lux-lampada-ottone': 'luci', 'lux-lampada-globo': 'luci',
@@ -1090,9 +1093,13 @@ export function uvInScala(radice) {
     // un punto diverso per ogni pezzo, ma sempre tutto DENTRO la tavola (niente giunte a specchio
     // in mezzo a un'anta); solo un pezzo più grande della tavola continua a specchio ai bordi
     const tav = !!mc.userData.tavola;
+    // LEGNO ALLUNGATO: a sinistra/destra il legno continua (un punto qualsiasi), in altezza il pezzo
+    // resta DENTRO la foto stirata (un'anta intera non incontra mai la fine della foto)
+    const all = !tav && !!mc.userData.allungato;
     const ex = bb.max.x - bb.min.x, ey = bb.max.y - bb.min.y, ez = bb.max.z - bb.min.z;
-    const r1 = tav ? caso(12.9898, 78.233) : 0.5, r2 = tav ? caso(39.346, 11.135) : 0.5;
-    const taglio = (eU, eV) => tav ? [(r1 - 0.5) * Math.max(0, wMm - eU), (r2 - 0.5) * Math.max(0, hMm - eV)] : [ox, oy];
+    const r1 = tav ? caso(12.9898, 78.233) : 0.5, r2 = tav || all ? caso(39.346, 11.135) : 0.5;
+    const taglio = (eU, eV) => tav ? [(r1 - 0.5) * Math.max(0, wMm - eU), (r2 - 0.5) * Math.max(0, hMm - eV)]
+      : all ? [ox, (r2 - 0.5) * Math.max(0, hMm - eV)] : [ox, oy];
     const tX = taglio(ez, ey), tY = taglio(ex, ez), tZ = taglio(ex, ey);   // facce girate verso x, y, z
     for (let i = 0; i < pos.count; i++) {
       const ax = Math.abs(nor.getX(i)), ay = Math.abs(nor.getY(i)), az = Math.abs(nor.getZ(i));
@@ -1521,7 +1528,14 @@ export function getMaterialeTHREE(id, onPronto) {
   // foto a specchio fa disegni simmetrici (a "farfalla") che si notano subito.
   // (le TAVOLE INTERE no: la foto resta com'è e ogni pezzo ne è un ritaglio)
   const continuo = !!campione && !def.tavola && (def.categoria === 'legno' || def.categoria === 'encimera');
-  if (campione) { mat.userData.campioneMm = campione; if (continuo) mat.userData.continuo = true; }
+  // LEGNI: la foto continua a sinistra/destra con un taglio pulito e STIRATA lungo la venatura fino
+  // all'altezza di un'anta intera (foto-continua.js → legnoAllungato); i piani di lavoro no
+  const allungato = continuo && def.categoria === 'legno';
+  if (campione) {
+    mat.userData.campioneMm = allungato ? { wMm: campione.wMm, hMm: Math.max(ALTEZZA_LEGNO, campione.hMm) } : campione;
+    if (continuo) mat.userData.continuo = true;
+    if (allungato) mat.userData.allungato = true;
+  }
   if (def.campione) mat.userData.campioneVero = true;     // misura VERA data dal prodotto (non quella di ripiego)
   if (def.tavola) { mat.userData.tavola = true; if (def.ruota) mat.userData.ruota = true; }
   if (def.proprio && def.lucido) mat.userData.ngSpec = 1;   // foto lucida: riflessi veri nel 3D
@@ -1543,7 +1557,7 @@ export function getMaterialeTHREE(id, onPronto) {
       // campione) con luce e colore uniformi e bordi raccordati, così ripetuti sulle ante grandi non
       // fanno quadrati né fasce. (I prodotti aggiunti dal falegname sono già fatti così quando si
       // caricano; le tavole intere restano esattamente come la foto.)
-      if (!def.proprio && !def.tavola && (def.categoria === 'legno' || def.categoria === 'tinta') && tex0.image) {
+      if (!def.proprio && !def.tavola && ((def.categoria === 'legno' && !allungato) || def.categoria === 'tinta') && tex0.image) {
         try { const t2 = new THREE.CanvasTexture(rendiContinua(tex0.image)); tex0.dispose(); tex = t2; } catch (_) { /* resta la foto */ }
       }
       tex.colorSpace = THREE.SRGBColorSpace;
@@ -1571,8 +1585,17 @@ export function getMaterialeTHREE(id, onPronto) {
       } else if (campione) {
         // LEGNO CONTINUO: dalla foto un legno che prosegue senza specchi né
         // giunte, alla misura reale del campione (i marmi non si raddrizzano: venature come nella foto)
-        const lc = continuo ? legnoContinuo(tex.image, { raddrizza: def.categoria !== 'encimera' }) : null;
-        if (lc) {
+        const la = allungato ? legnoAllungato(tex.image) : null;
+        const lc = la || !continuo ? null : legnoContinuo(tex.image, { raddrizza: def.categoria !== 'encimera' });
+        if (la) {
+          // un giro in larghezza = il campione (meno la parte sovrapposta al taglio); in altezza la
+          // foto intera = ALTEZZA_LEGNO (stirata); oltre (pezzi più alti) continua a specchio
+          const t2 = new THREE.CanvasTexture(la.canvas);
+          t2.colorSpace = THREE.SRGBColorSpace; t2.anisotropy = 16;
+          t2.wrapS = THREE.RepeatWrapping; t2.wrapT = THREE.MirroredRepeatWrapping;
+          t2.repeat.set(unitaUV.u / (campione.wMm * la.fx), unitaUV.v / mat.userData.campioneMm.hMm);
+          tex.dispose(); tex = t2;
+        } else if (lc) {
           const t2 = new THREE.CanvasTexture(lc.canvas);
           t2.colorSpace = THREE.SRGBColorSpace; t2.anisotropy = 16;
           t2.wrapS = t2.wrapT = THREE.RepeatWrapping;
