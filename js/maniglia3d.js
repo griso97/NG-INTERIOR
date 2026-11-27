@@ -8,7 +8,7 @@
 // Assi (mm): x = lunghezza (−L/2..L/2) · y = altezza · z = sporgenza (0 = anta)
 // =============================================================================
 import * as THREE from 'three';
-import { FINITURE_MANIGLIA } from './finiture-maniglia.js?v=20261127o';
+import { FINITURE_MANIGLIA } from './finiture-maniglia.js?v=20261127p';
 
 export const FORME_MANIGLIA = [
   { id: 'foto', nome: 'La mia forma (dalla foto)', svg: '<svg viewBox="0 0 48 24"><rect x="9" y="5" width="30" height="16" rx="3" fill="none"/><circle cx="24" cy="13" r="4.5" fill="none"/><rect x="17" y="2" width="9" height="4" rx="1"/></svg>' },

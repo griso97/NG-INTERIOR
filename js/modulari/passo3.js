@@ -1,12 +1,12 @@
 // =============================================================================
 // MOBILI MODULARI — Passo 3: Rendering 3D (finiture, viste, salva immagine)
 // =============================================================================
-import { materialiPer, sfondoSwatch } from '../materiali.js?v=20261127o';
-import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261127o';
-import { htmlTendineColori } from '../tendine-colori.js?v=20261127o';
-import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT, manigliaModulari, maniglieAnteDi } from './calcoli.js?v=20261127o';
-import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261127o';
-import { apriDistinta } from './passo2.js?v=20261127o';
+import { materialiPer, sfondoSwatch } from '../materiali.js?v=20261127p';
+import { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261127p';
+import { htmlTendineColori } from '../tendine-colori.js?v=20261127p';
+import { layoutModuli, layoutCubi, finitureDi, MATERIALI_DEFAULT, SPESSORI_DEFAULT, manigliaModulari, maniglieAnteDi } from './calcoli.js?v=20261127p';
+import { monta, aggiorna, attivaRendering, inquadra, salvaImmagine, impostaAnte, anteSonoAperte, fotoRealisticaModulari, pickModulo, evidenziaModulo } from './scena3d.js?v=20261127p';
+import { apriDistinta } from './passo2.js?v=20261127p';
 
 let FINITURE = materialiPer('legno');          // dal catalogo (si rilegge a ogni pannello)
 export { MATERIALI_DEFAULT };
@@ -182,7 +182,7 @@ function renderPannello() {
     ev.currentTarget.classList.toggle('attivo', anteSonoAperte());
   });
   P.querySelector('#p3-foto-reale').addEventListener('click', async () => {
-    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261127o');
+    const { apriFotoRealistica } = await import('../foto-dialogo.js?v=20261127p');
     apriFotoRealistica({ calcola: (p) => fotoRealisticaModulari(p), tela3d: ctx.canvas, nome: 'mobile' });
   });
   P.querySelector('#p3-foto').addEventListener('click', () => {

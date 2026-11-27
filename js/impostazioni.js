@@ -8,23 +8,24 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261127o';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127o';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127o';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127o';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127o';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127o';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127o';
-import { analizzaFoto, analizzaPorta, selezioneTroppoPiccola, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127o';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127o';
-import { agganciaTema } from './tema.js?v=20261127o';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127o';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127o';
-import { htmlFotoParametro, agganciaFotoParametri, htmlFotoVoce } from './parametri-foto.js?v=20261127o';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127o';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127o';
-import { geometriaCassettiera } from './calcoli.js?v=20261127o';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127o';
+} from './catalogo.js?v=20261127p';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127p';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127p';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127p';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127p';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127p';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127p';
+import { analizzaFoto, analizzaPorta, selezioneTroppoPiccola, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127p';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127p';
+import { GRUPPI_COLORI, gruppoColore } from './tendine-colori.js?v=20261127p';
+import { agganciaTema } from './tema.js?v=20261127p';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127p';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127p';
+import { htmlFotoParametro, agganciaFotoParametri, htmlFotoVoce } from './parametri-foto.js?v=20261127p';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127p';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127p';
+import { geometriaCassettiera } from './calcoli.js?v=20261127p';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127p';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -48,6 +49,11 @@ document.getElementById('imp-indietro').addEventListener('click', (e) => {
 });
 
 function vaiSezione(id) { sezione = id; history.replaceState(null, '', `#${id}`); render(); }
+// GRUPPI del catalogo (Legni, Mate, Luxe, MDF…): ognuno per conto suo, si vede solo quello scelto.
+// Il gruppo scelto resta (per sezione); un prodotto appena salvato apre il suo gruppo e ci si arriva sopra.
+const _gruppoImp = (() => { try { return JSON.parse(localStorage.getItem('ng-imp-gruppo') || '{}') || {}; } catch (_) { return {}; } })();
+function scegliGruppoImp(sez, id) { _gruppoImp[sez] = id; try { localStorage.setItem('ng-imp-gruppo', JSON.stringify(_gruppoImp)); } catch (_) { /* niente */ } }
+let _appenaSalvato = (() => { try { const v = sessionStorage.getItem('ng-imp-salvato'); sessionStorage.removeItem('ng-imp-salvato'); return v; } catch (_) { return null; } })();
 async function salvaERicarica() {
   await salvaCatalogo(stato);
   location.reload();            // i materiali si rileggono dal catalogo aggiornato
@@ -86,6 +92,13 @@ function render() {
 
   const lista = materialiPer(sezione, { tutti: true });
   const visibili = lista.filter((m) => !nascosto(stato, sezione, m.id)).length;
+  // divisi per gruppo (se la sezione ne ha più d'uno): si vedono solo i prodotti del gruppo scelto
+  const gruppi = GRUPPI_COLORI.map((g) => ({ ...g, voci: lista.filter((m) => gruppoColore(m) === g.id) })).filter((g) => g.voci.length);
+  const conGruppi = gruppi.length > 1;
+  const salvato = _appenaSalvato && lista.find((m) => m.id === _appenaSalvato);
+  if (salvato && conGruppi) scegliGruppoImp(sezione, gruppoColore(salvato));
+  const gSel = conGruppi ? (gruppi.find((g) => g.id === _gruppoImp[sezione]) || gruppi[0]) : null;
+  const mostrati = gSel ? gSel.voci : lista;
   const puoAggiungere = CON_AGGIUNTA.includes(sezione);
   const el = document.getElementById('imp-sezione');
   const campoBin = (i, k, et, aiuto) => `<label class="par-campo"><span class="par-et">${esc(et)}</span>
@@ -112,15 +125,16 @@ function render() {
       <span class="imp-conta">${visibili} di ${lista.length} visibili</span>
       ${puoAggiungere ? `<button type="button" class="btn-oro" id="imp-aggiungi">+ Aggiungi prodotto</button>` : ''}
     </div>
+    ${conGruppi ? `<div class="imp-gruppi">${gruppi.map((g) => `<button type="button" class="btn-ghost btn-mini ${g === gSel ? 'attivo' : ''}" data-imp-gruppo="${g.id}">${esc(tr(g.nome))} <span class="imp-gruppo-n" data-no-i18n>${g.voci.length}</span></button>`).join('')}</div>` : ''}
     <div class="imp-griglia">
-      ${lista.map((m) => {
+      ${mostrati.map((m) => {
         const vis = !nascosto(stato, sezione, m.id);
         return `
-        <div class="imp-card ${vis ? '' : 'spento'}" data-id="${esc(m.id)}">
+        <div class="imp-card ${vis ? '' : 'spento'}${salvato && m.id === salvato.id ? ' imp-salvato' : ''}" data-id="${esc(m.id)}">
           <div class="imp-foto" style="background:${sfondoSwatch(m)}"></div>
           <div class="imp-info">
             <span class="imp-badge ${m.proprio ? 'tuo' : ''}">${m.derivato ? 'Dal finger-pull (senza gola)' : m.pronto ? 'Oggetto 3D pronto' : m.proprio ? 'Aggiunto da te' : 'Predefinito'}</span>
-            <span class="imp-nome">${esc(m.nome)}</span>
+            <span class="imp-nome"${m.proprio ? ' data-no-i18n' : ''}>${esc(m.nome)}</span>
             <span class="imp-dett">${dettagli(m)}</span>
             <label class="imp-vis"><input type="checkbox" data-vis="${esc(m.id)}" ${vis ? 'checked' : ''}> Visibile in questa sezione</label>
           </div>
@@ -131,6 +145,13 @@ function render() {
         </div>`;
       }).join('')}
     </div>`;
+  el.querySelectorAll('[data-imp-gruppo]').forEach((b) => b.addEventListener('click', () => { scegliGruppoImp(sezione, b.dataset.impGruppo); render(); }));
+  // il prodotto appena salvato: ci si arriva sopra (una volta sola)
+  if (salvato) {
+    _appenaSalvato = null;
+    const c = el.querySelector('.imp-salvato');
+    if (c) requestAnimationFrame(() => c.scrollIntoView({ block: 'center' }));
+  }
   el.querySelectorAll('[data-vis]').forEach((c) => c.addEventListener('change', async () => {
     impostaNascosto(stato, sezione, c.dataset.vis, !c.checked);
     await salvaCatalogo(stato);
@@ -500,6 +521,7 @@ function apriScheda(m) {
         ...(analisi && (corpo._file || corpo._fotoId === 'salvata') ? { analisi } : {}) };
       if (nuovo) stato.prodotti.push({ ...dati, creato: Date.now() });
       else stato.prodotti = stato.prodotti.map((x) => (x.id === id ? { ...x, ...dati } : x));
+      try { sessionStorage.setItem('ng-imp-salvato', id); } catch (_) { /* niente */ }   // dopo: il suo gruppo, lui in vista
       await salvaERicarica();
     } catch (err) {
       console.error(err);

@@ -11,8 +11,8 @@
 // materiale.
 // =============================================================================
 
-import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto, piediniDi } from './parametri.js?v=20261127o';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127o';
+import { binarioScorrevole, tiradorScorrevole, parametri, spessoreTirador, nomeTirador, lunghezzaSulBordo, guidaPerProfondita, cassettiDi, sistemiCassetti, pezziCassettoNostro, cassettieraArmadio, tipoCassetto, piediniDi } from './parametri.js?v=20261127p';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127p';
 
 /**
  * Profondità dei pezzi "esterni" della carcassa.

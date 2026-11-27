@@ -8,10 +8,10 @@
 // è un file del sito, resta sempre com'è).
 // =============================================================================
 
-import { nuovoDaEsempio, modificaEsempio } from './preventivi.js?v=20261127o';
-import { esempioModificato, fotoEsempioModificato, ripristinaEsempio, progettiPredefiniti, eliminaProgettoPredefinito } from './esempi-dati.js?v=20261127o';
+import { nuovoDaEsempio, modificaEsempio } from './preventivi.js?v=20261127p';
+import { esempioModificato, fotoEsempioModificato, ripristinaEsempio, progettiPredefiniti, eliminaProgettoPredefinito } from './esempi-dati.js?v=20261127p';
 
-const VER = '20261127o';
+const VER = '20261127p';
 const CARTELLA = 'esempi/cucine/';
 const t = (x) => (window.NGI18N ? window.NGI18N.t(x) : x);
 const lingua = () => (window.NGI18N && window.NGI18N.lingua === 'es' ? 'es' : 'it');
