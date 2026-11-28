@@ -5,8 +5,8 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261127q';
-import { sporgenzaDef } from '../finiture-maniglia.js?v=20261127q';
+import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261127r';
+import { sporgenzaDef } from '../finiture-maniglia.js?v=20261127r';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -45,6 +45,7 @@ export function progettoDefault() {
     // piano di lavoro: profondità dal muro (di serie 625); alzatina sul muro (⚙ Parametri)
     pianoLavoro: { profondita: parametri().cucina.profonditaPiano },
     ...(parametri().cucina.alzatina ? { schienale: { attivo: true, altezza: parametri().cucina.altezzaAlzatina } } : {}),
+    ...(parametri().cucina.copete ? { copete: { attivo: true, colore: parametri().cucina.copeteColore } } : {}),   // copete (⚙ Parametri)
     autoRegletta: true,          // regletta d'angolo automatica (3×3 cm) on/off
     // Stile anta pensili: 'standard' (−2 alt / −3 largh come i bassi),
     // 'sporg70' (pensili 70 → anta 72, sporge 2cm sotto),
@@ -3827,6 +3828,15 @@ export function sporgenzaPiano(progetto) {
   return { profondita, davanti: profondita - PROFONDITA_BASE, lati: 0, dietro: 0 };
 }
 /** Pannello dietro il piano: null = fino ai pensili; un numero = ALZATINA alta tanto (mm). */
+/** COPETE (profilo triangolare fra piano di lavoro e muro): i colori che si trovano di solito. */
+export const COLORI_COPETE = [['bianco', 'Bianco', 0xf2f2ef], ['nero', 'Nero', 0x161616], ['acciaio', 'Acciaio satinato', 0xc2c5c8]];
+export function nomeColoreCopete(id) { return (COLORI_COPETE.find((c) => c[0] === id) || COLORI_COPETE[0])[1]; }
+/** Il copete di questa cucina: sì/no e colore (di partenza da ⚙ Parametri → Cucina), lato e barra dai Parametri. */
+export function copeteProgetto(progetto) {
+  const P = parametri().cucina, c = (progetto && progetto.copete) || null;
+  return { attivo: !!(c && c.attivo), colore: c && COLORI_COPETE.some((x) => x[0] === c.colore) ? c.colore : P.copeteColore,
+    lato: P.copeteLato, barra: P.copeteBarra };
+}
 export function altezzaAlzatina(progetto) {
   const h = Number(progetto && progetto.schienale && progetto.schienale.altezza);
   return Number.isFinite(h) && h > 0 ? h : null;

@@ -214,3 +214,5 @@
 .imp-gruppi .btn-ghost.attivo { border-color: var(--oro-chiaro, #e6c76b); color: var(--oro-chiaro, #e6c76b); }
 .imp-gruppo-n { opacity: .7; margin-left: 4px; font-size: 11px; }
 .imp-card.imp-salvato { border-color: var(--oro-chiaro, #e6c76b); box-shadow: 0 0 0 2px rgba(230, 199, 107, .35); }
+/* sotto-titolo dentro un gruppo dei Parametri (es. Copete nel Piano di lavoro) */
+.par-sotto { margin: 18px 0 6px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--oro, #c9a94a); }

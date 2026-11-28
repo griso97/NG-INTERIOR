@@ -76,6 +76,11 @@ export const PARAMETRI_DEFAULT = Object.freeze({
     ],
     alzatina: false,
     altezzaAlzatina: 100,
+    // COPETE: profilo triangolare fra piano di lavoro e muro (lato × lato, in barre); sì/no e colore di partenza
+    copete: false,
+    copeteLato: 27,
+    copeteBarra: 3000,
+    copeteColore: 'bianco',
   },
   // BINARI degli armadi scorrevoli: ognuno con i suoi numeri per calcolare le ante.
   //   porta (finita, con i tiradores) = larghezza esterna ÷ n° ante − larghezzaMeno; anta (pannello) = porta − 2 × tirador per lato
@@ -309,6 +314,10 @@ function completa(s) {
       profonditaPiano: Math.max(500, Math.min(1200, num(k.profonditaPiano, d.profonditaPiano))),
       alzatina: k.alzatina === true,
       altezzaAlzatina: Math.max(20, Math.min(600, num(k.altezzaAlzatina, d.altezzaAlzatina))),
+      copete: k.copete === true,
+      copeteLato: Math.max(10, Math.min(60, num(k.copeteLato, d.copeteLato))),
+      copeteBarra: Math.max(1000, Math.min(6000, num(k.copeteBarra, d.copeteBarra))),
+      copeteColore: ['bianco', 'nero', 'acciaio'].includes(k.copeteColore) ? k.copeteColore : d.copeteColore,
       // (prima c'era un numero solo per sopra e sotto: vale per tutti e due)
       cernieraSopra: Math.max(20, Math.min(300, num(k.cernieraSopra, num(k.cerniera, d.cernieraSopra)))),
       cernieraSotto: Math.max(20, Math.min(300, num(k.cernieraSotto, num(k.cerniera, d.cernieraSotto)))),

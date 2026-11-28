@@ -12,12 +12,12 @@
 // =============================================================================
 
 import {
-  altezzeCassettiDi, cassettoSopraDi, infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
+  altezzeCassettiDi, cassettoSopraDi, infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, copeteProgetto, nomeColoreCopete, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi, zoccoliContinui, angoliZoccolo,
-  altezzaAlzatina, antePensileAngolo, antaCiaflan, MODULI_SPECIALI, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261127q';
-import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull, spessoreTirador, nomeTirador } from '../parametri.js?v=20261127q';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261127q';
-import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261127q';
+  altezzaAlzatina, antePensileAngolo, antaCiaflan, MODULI_SPECIALI, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261127r';
+import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull, spessoreTirador, nomeTirador } from '../parametri.js?v=20261127r';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261127r';
+import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261127r';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const round = (n) => Math.round(n);
@@ -725,9 +725,43 @@ export function calcolaDistintaCucina(progetto) {
         }
       }
     } }
+  // COPETE: profilo triangolare fra piano e muro, in barre (tagli = i tratti del 3D; tratti uno dopo l'altro
+  // sullo stesso muro = un pezzo solo), tappi sui capi liberi, angoli interni dove due muri si incontrano
+  { const cp = copeteProgetto(progetto);
+    if (cp.attivo) {
+      const tr = [];
+      for (const L of lastrePiano(progetto, spessorePianoDi(progetto, defPiano(progetto))).lastre) tr.push(...L.copete.map((t) => ({ a: t.a, b: t.b })));
+      const d2 = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
+      const dir = (t) => { const l = d2(t.a, t.b) || 1; return { x: (t.b.x - t.a.x) / l, y: (t.b.y - t.a.y) / l }; };
+      const paralleli = (t, q) => { const u = dir(t), v = dir(q); return Math.abs(u.x * v.y - u.y * v.x) < 0.03; };
+      for (let unito = true; unito;) {
+        unito = false;
+        for (let i = 0; i < tr.length && !unito; i++) for (let j = i + 1; j < tr.length && !unito; j++) {
+          if (!paralleli(tr[i], tr[j])) continue;
+          for (const [p, q, r, w] of [['a', 'a', 'b', 'b'], ['a', 'b', 'b', 'a'], ['b', 'a', 'a', 'b'], ['b', 'b', 'a', 'a']]) {
+            if (d2(tr[i][p], tr[j][q]) > 15) continue;
+            tr[i] = { a: tr[i][r], b: tr[j][w] }; tr.splice(j, 1); unito = true; break;
+          }
+        }
+      }
+      if (tr.length) {
+        const col = nomeColoreCopete(cp.colore), mB = String(Math.round(cp.barra) / 1000).replace('.', ',');
+        const b = barreGola(tr.map((t) => d2(t.a, t.b)), cp.barra);
+        aggiungi(`Copete triangolare ${cp.lato}×${cp.lato} mm · ${col} · barre da ${mB} m (tagli ${b.tagli.join(' + ')} mm)`, b.barre);
+        const capi = tr.flatMap((t, i) => [{ p: t.a, i }, { p: t.b, i }]), usato = capi.map(() => false);
+        let angoli = 0;
+        for (let i = 0; i < capi.length; i++) for (let j = i + 1; j < capi.length; j++) {
+          if (usato[i] || usato[j] || capi[i].i === capi[j].i || d2(capi[i].p, capi[j].p) > 60) continue;
+          if (paralleli(tr[capi[i].i], tr[capi[j].i])) continue;
+          usato[i] = usato[j] = true; angoli++;
+        }
+        aggiungi(`Tappi copete · ${col}`, capi.length - 2 * angoli);
+        aggiungi(`Angoli interni copete · ${col}`, angoli);
+      }
+    } }
   // ANGOLARI dello zoccolo: uno per ogni angolo a 90° (cucina a L 1, a U 2…), alti come lo zoccolo (10 o 15)
   for (const a of angoliZoccolo(trattiZoccolo)) aggiungi(`Angolari zoccolo 90° da ${String(a.zocc / 10).replace('.', ',')} cm`, 1);
-  const ORDINE_ACC = ['Cerniere', 'Cassetti', 'Maniglie', 'Push', 'Profilo gola', 'Tappi gola', 'Angoli interni gola', 'Angoli esterni gola', 'Supporti fissaggio gola', 'Kit', 'Piedini', 'Grappe', 'Angolari', 'Griglia'];
+  const ORDINE_ACC = ['Cerniere', 'Cassetti', 'Maniglie', 'Push', 'Profilo gola', 'Tappi gola', 'Angoli interni gola', 'Angoli esterni gola', 'Supporti fissaggio gola', 'Copete', 'Tappi copete', 'Angoli interni copete', 'Kit', 'Piedini', 'Grappe', 'Angolari', 'Griglia'];
   const pos = (n) => { const i = ORDINE_ACC.findIndex((k) => n.startsWith(k)); return i < 0 ? 99 : i; };
   const accessori = [...acc.entries()].map(([nome, quantita]) => ({ nome, quantita })).sort((x, y) => pos(x.nome) - pos(y.nome));
 

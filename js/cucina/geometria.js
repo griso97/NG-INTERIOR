@@ -11,8 +11,8 @@
 import {
   categoriaTipo, dimMobile, frigoSottoAltillo, spessorePannelloPonte, pannelliSottoPonte, piediniCucina, zoccoloColonnaDi,
   cimaColonne, cimaCostadoATerra, costadoColonnaATerra, costadoCopreAnte, scendeAntaPensile, apertoDi, altezzaAlzatina,
-  sporgenzaPiano, calcolaVertici, PROFONDITA_BASE, PROFONDITA_PENSILE,
-} from './modello.js?v=20261127q';
+  sporgenzaPiano, calcolaVertici, PROFONDITA_BASE, PROFONDITA_PENSILE, copeteProgetto,
+} from './modello.js?v=20261127r';
 
 export const MONTAGGIO_PENSILE = 1400;   // altezza da terra del basso dei pensili
 export const SP_TOP = 40;                // spessore del piano di lavoro di partenza (mm)
@@ -325,6 +325,7 @@ export function lastrePiano(progetto, spTop, extra = {}) {
     ? { altezza: altezzaAlzatina(progetto), pensili: I.pensili, muri: I.muri } : null;
   const lavelli = I.lavelli.filter((a) => a.lavello || a.placca);
   const tagli = I.tavoli.map((t) => ({ angoli: t.angoli, y0: t.y0, y1: t.y1 }));
+  const cop = copeteProgetto(progetto);
   const muriPiano = I.muri, fianchi = I.fianchi;
   const gruppi = {};
   for (const b of I.basiTop) {
@@ -504,7 +505,7 @@ export function lastrePiano(progetto, spTop, extra = {}) {
       }
     }
     const L = { rotN, c, s, k, topY, spessore: thickness, len, depth, centerAlong, perpTop, cx, cy, fori, tagli: tagliQui, pezzi,
-      retro: null, fianchiSchienale: [], schienaleH: null };
+      retro: null, fianchiSchienale: [], schienaleH: null, copete: [] };
     // PANNELLO DIETRO IL PIANO (aplacado / alzatina): ovunque il piano tocca un muro, dietro la fila e sui
     // fianchi del piano che finiscono contro un muro (negli angoli della cucina a L / U)
     if (schienale) {
@@ -539,6 +540,38 @@ export function lastrePiano(progetto, spTop, extra = {}) {
         const xE = k * (e - centerAlong), dentro = -Math.sign(xE) || 1;
         const prof = Math.abs(zFronte - zMuro) + SD - SP_SCHIENALE;   // fino al bordo davanti del piano
         L.fianchiSchienale.push({ prof, H, x: xE + dentro * SP_SCHIENALE / 2, y: thickness / 2 + H / 2, z: zMuro + dz * (SP_SCHIENALE + prof / 2) });
+      }
+    }
+    // COPETE: il profilo triangolare (lato × lato) nell'angolo fra piano e muro, dietro la fila e sui fianchi del
+    // piano contro un muro; se c'è il pannello dietro, davanti al pannello. Ogni tratto: angolo retto sul piano
+    // (p0 → p1, coordinate della lastra), u = verso la stanza; a, b = i due capi in pianta (per angoli e tappi)
+    if (cop.attivo) {
+      const perpMuro = perp + k * G.d / 2;
+      const Pp = (al, pp) => ({ x: c * al - s * pp, y: s * al + c * pp });
+      const suMuro = (pts) => muriPiano.some((w) => pts.filter((q) => distSegmento(q, w.a, w.b) < 90).length >= 2);
+      const inPianta = (x, z) => Pp(centerAlong + k * x, perpTop - k * z);
+      const zMuro = -k * (perpMuro - perpTop);
+      const zFronte = -k * ((perp - k * G.d / 2) - perpTop);
+      const dz = Math.sign(zFronte - zMuro) || 1, yP = thickness / 2;     // faccia sopra del piano
+      const zB = zMuro + dz * (L.retro ? SP_SCHIENALE : 0);               // muro, o faccia del pannello dietro
+      const zF = zMuro + dz * (Math.abs(zFronte - zMuro) + SD);           // bordo davanti del piano
+      const fianchiC = [];
+      for (const e of [endLo, endHi]) {
+        const pts = [Pp(e, perpMuro - k * 100), Pp(e, perpMuro - k * (G.d / 2)), Pp(e, perpMuro - k * (G.d - 100))];
+        if (!suMuro(pts)) continue;
+        const xE = k * (e - centerAlong), dentro = -Math.sign(xE) || 1;
+        const sF = L.fianchiSchienale.some((F) => Math.sign(F.x) === Math.sign(xE)) ? SP_SCHIENALE : 0;
+        fianchiC.push({ xF: xE + dentro * sF, dentro });
+      }
+      const tratto = (tipo, p0, p1, u) => ({ tipo, p0, p1, u, lato: cop.lato, colore: cop.colore,
+        len: Math.hypot(p1.x - p0.x, p1.z - p0.z), a: inPianta(p0.x, p0.z), b: inPianta(p1.x, p1.z) });
+      if (suMuro([Pp(centerAlong, perpMuro), Pp(lo + 50, perpMuro), Pp(hi - 50, perpMuro)])) {
+        let x0 = -len / 2, x1 = len / 2;
+        for (const f of fianchiC) { if (f.dentro > 0) x0 = f.xF; else x1 = f.xF; }   // fino al muro (o pannello) di fianco
+        if (x1 - x0 > 20) L.copete.push(tratto('retro', { x: x0, y: yP, z: zB }, { x: x1, y: yP, z: zB }, { x: 0, y: 0, z: dz }));
+      }
+      for (const f of fianchiC) {
+        if (Math.abs(zF - zB) > 20) L.copete.push(tratto('fianco', { x: f.xF, y: yP, z: zB }, { x: f.xF, y: yP, z: zF }, { x: f.dentro, y: 0, z: 0 }));
       }
     }
     lastre.push(L);
