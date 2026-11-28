@@ -14,10 +14,10 @@
 import {
   altezzeCassettiDi, cassettoSopraDi, infoTavolo, spessoreTavolo, moduloDaOrdinare, PROFONDITA_PENSILE, categoriaTipo, dimMobile, nomeTipo, anteDiMobile, infoAngoloCieco, portaBassaColonna, frontiCassetti, anteBaseAngolo, fasceCierreTecho, pannelliSottoPonte, spessorePannelloPonte, pontiSopra, sceltePorte, sceltePorteGruppo, golaSuMobile, golaProgetto, altezzaAntaGola, spazioGola, profiliGola, barreGola, nomeColoreGola, copeteProgetto, nomeColoreCopete, pezziColonnaMisura, ripianiColonnaMisura, pezziCorniceVano, altezzaVanoColonna, apertoDi, pezziMobileAperto, latoApertoDi, coloreParteAperto, ledStrisceAperto,
   costadoCopreAnte, costadoColonnaATerra, cimaColonne, fronteCieco, piediniCucina, zoccoloColonnaDi, zoccoliContinui, angoliZoccolo,
-  altezzaAlzatina, antePensileAngolo, antaCiaflan, MODULI_SPECIALI, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261127r';
-import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull, spessoreTirador, nomeTirador } from '../parametri.js?v=20261127r';
-import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261127r';
-import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261127r';
+  altezzaAlzatina, antePensileAngolo, antaCiaflan, MODULI_SPECIALI, scendeAntaPensile, golaColonna, goleDiColonna, goleVerticali, golaScelta, cassettiDelMobile, impostaProgettoFerramenta } from './modello.js?v=20261127s';
+import { parametri, tipoCassetto, pezziCassettoNostro, profiloFingerPull, spessoreTirador, nomeTirador } from '../parametri.js?v=20261127s';
+import { nomeFinituraManiglia } from '../finiture-maniglia.js?v=20261127s';
+import { lastrePiano, ledCucina, spessorePianoDi, spessorePannelloPiano, defPiano, SP_SCHIENALE } from './geometria.js?v=20261127s';
 
 const SP = 18;        // ante/fronti e pannelli (mm)
 const round = (n) => Math.round(n);
@@ -745,7 +745,10 @@ export function calcolaDistintaCucina(progetto) {
         }
       }
       if (tr.length) {
-        const col = nomeColoreCopete(cp.colore), mB = String(Math.round(cp.barra) / 1000).replace('.', ',');
+        const col = cp.colore === 'piano'
+          ? `rivestito come il piano (${nomeMateriale(progetto.encimera && progetto.encimera.materiale, 'Nero standard')}), bordi in alluminio`
+          : nomeColoreCopete(cp.colore);
+        const mB = String(Math.round(cp.barra) / 1000).replace('.', ',');
         const b = barreGola(tr.map((t) => d2(t.a, t.b)), cp.barra);
         aggiungi(`Copete triangolare ${cp.lato}×${cp.lato} mm · ${col} · barre da ${mB} m (tagli ${b.tagli.join(' + ')} mm)`, b.barre);
         const capi = tr.flatMap((t, i) => [{ p: t.a, i }, { p: t.b, i }]), usato = capi.map(() => false);
@@ -755,8 +758,9 @@ export function calcolaDistintaCucina(progetto) {
           if (paralleli(tr[capi[i].i], tr[capi[j].i])) continue;
           usato[i] = usato[j] = true; angoli++;
         }
-        aggiungi(`Tappi copete · ${col}`, capi.length - 2 * angoli);
-        aggiungi(`Angoli interni copete · ${col}`, angoli);
+        const colB = cp.colore === 'piano' ? `come il piano (${nomeMateriale(progetto.encimera && progetto.encimera.materiale, 'Nero standard')})` : col;
+        aggiungi(`Tappi copete · ${colB}`, capi.length - 2 * angoli);
+        aggiungi(`Angoli interni copete · ${colB}`, angoli);
       }
     } }
   // ANGOLARI dello zoccolo: uno per ogni angolo a 90° (cucina a L 1, a U 2…), alti come lo zoccolo (10 o 15)

@@ -3449,4 +3449,6 @@ window.NG_I18N_ES = {
  "Angoli interni copete": "Rinconeras interiores copete",
  "Piano di lavoro, pannello dietro e copete": "Encimera, panel trasero y copete",
  "Vale per le cucine nuove; in una cucina già fatta la cambi nel Rendering → Piano di lavoro, pannello dietro e copete. Dove c'è un costado il piano finisce a filo del costado.": "Vale para las cocinas nuevas; en una cocina ya hecha lo cambias en Renderizado → Encimera, panel trasero y copete. Donde hay un costado la encimera termina enrasada con el costado.",
+ "rivestito come il piano ({0}), bordi in alluminio": "revestido como la encimera ({0}), cantos de aluminio",
+ "come il piano ({0})": "como la encimera ({0})",
 };

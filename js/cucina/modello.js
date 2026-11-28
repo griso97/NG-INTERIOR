@@ -5,8 +5,8 @@
 // questo stesso oggetto senza duplicare dati.
 // Tutte le misure sono in MILLIMETRI.
 // =============================================================================
-import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261127r';
-import { sporgenzaDef } from '../finiture-maniglia.js?v=20261127r';
+import { parametri, golaSistema, cassettiDi } from '../parametri.js?v=20261127s';
+import { sporgenzaDef } from '../finiture-maniglia.js?v=20261127s';
 
 /**
  * Costruisce un progetto cucina vuoto (default = lineare 3000 mm).
@@ -3829,7 +3829,8 @@ export function sporgenzaPiano(progetto) {
 }
 /** Pannello dietro il piano: null = fino ai pensili; un numero = ALZATINA alta tanto (mm). */
 /** COPETE (profilo triangolare fra piano di lavoro e muro): i colori che si trovano di solito. */
-export const COLORI_COPETE = [['bianco', 'Bianco', 0xf2f2ef], ['nero', 'Nero', 0x161616], ['acciaio', 'Acciaio satinato', 0xc2c5c8]];
+// ('piano' = la faccia rivestita con lo stesso materiale del piano di lavoro, bordi in alluminio)
+export const COLORI_COPETE = [['piano', 'Come il piano di lavoro', 0xb9b3a9], ['bianco', 'Bianco', 0xf2f2ef], ['nero', 'Nero', 0x161616], ['acciaio', 'Acciaio satinato', 0xc2c5c8]];
 export function nomeColoreCopete(id) { return (COLORI_COPETE.find((c) => c[0] === id) || COLORI_COPETE[0])[1]; }
 /** Il copete di questa cucina: sì/no e colore (di partenza da ⚙ Parametri → Cucina), lato e barra dai Parametri. */
 export function copeteProgetto(progetto) {

@@ -18,35 +18,35 @@ import {
   costadoCopreAnte, fronteCieco, piediniCucina, zoccoloColonnaDi, scendeAntaPensile,
   golaColonna, goleDiColonna, impostaProgettoFerramenta, spazioGola, golaScelta, zoccoliContinui, antePensileAngolo, antaCiaflan,
   COLORI_COPETE,
-} from './modello.js?v=20261127r';
+} from './modello.js?v=20261127s';
 import {
   MONTAGGIO_PENSILE, SP_TOP, SP_SCHIENALE, spessorePianoDi, baseAltillo, siSovrappongono, fondoPonteSopra, quoteAlte,
   dimVasca, dimPlacca, fuochiPerLarghezza, distSegmento, basePensile, cimePensili as cimeDeiPensili, quoteCostado,
   lastrePiano, ledCucina,
-} from './geometria.js?v=20261127r';
-import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261127r';
-import { oggettoDaFoto } from '../oggetto3d.js?v=20261127r';
-import { oggettoPronto } from '../oggetti-pronti.js?v=20261127r';
+} from './geometria.js?v=20261127s';
+import { getMaterialeTHREE, MATERIALI, impostaUnitaUV, taraLuceCatalogo, pianoComeFoto, pannelloComeFoto, materialiPer, sfondoSwatch, uvInScala, uvContinue, impostaTintaLed } from '../materiali.js?v=20261127s';
+import { oggettoDaFoto } from '../oggetto3d.js?v=20261127s';
+import { oggettoPronto } from '../oggetti-pronti.js?v=20261127s';
 // la COLLEZIONE (il codice degli oggetti disegnati da noi: lampade, fruttiere, tavoli…) si scarica
 // solo quando nella cucina c'è almeno uno di quegli oggetti: averne tanti nel catalogo non pesa
 let _collezione = null, _collezioneP = null;
 function oggettoModerno(id, misure, quandoPronto, soffitto, colore) {
   if (_collezione) return _collezione.oggettoModerno(id, misure, quandoPronto, soffitto, colore);
-  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261127r').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
+  if (!_collezioneP) _collezioneP = import('../collezione-moderna.js?v=20261127s').then((m) => (_collezione = m)).catch((e) => { _collezioneP = null; throw e; });
   _collezioneP.then((m) => { if (m.oggettoModerno(id, misure, quandoPronto, soffitto, colore) && quandoPronto) quandoPronto(); }).catch(() => {});
   return null;
 }
-import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261127r';
-import { costruisciManiglia, manigliaDaFoto, materialeFinitura, adattaSporgenza } from '../maniglia3d.js?v=20261127r';
-export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261127r';
-import { parametri, profiloFingerPull, spessoreTirador, lunghezzaSulBordo } from '../parametri.js?v=20261127r';
-import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261127r';
-import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261127r';
-import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261127r';
+import { oggettoLibreria, Y_QUADRO } from '../libreria3d.js?v=20261127s';
+import { costruisciManiglia, manigliaDaFoto, materialeFinitura, adattaSporgenza } from '../maniglia3d.js?v=20261127s';
+export { FINITURE_MANIGLIA } from '../finiture-maniglia.js?v=20261127s';
+import { parametri, profiloFingerPull, spessoreTirador, lunghezzaSulBordo } from '../parametri.js?v=20261127s';
+import { componiConLogo, salvaImmagineCanvas, latoMaxExport } from '../logo.js?v=20261127s';
+import { creaResa, nearSegueLaVista, preparaOmbre, inquadraOmbre, ombreSuTutto, pavimentoVero } from '../resa.js?v=20261127s';
+import { riprendiRiflessiLaccati } from '../riflessi-laccati.js?v=20261127s';
 import { sfondoDi } from '../sfondi.js?v=20261111x';
-export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261127r';
+export { MATERIALI, materialiPer, sfondoSwatch } from '../materiali.js?v=20261127s';
 export { SFONDI_LISTA } from '../sfondi.js?v=20261111x';
-export { telaPavimento } from '../resa.js?v=20261127r';
+export { telaPavimento } from '../resa.js?v=20261127s';
 
 export { MONTAGGIO_PENSILE };              // altezza da terra del basso dei pensili (geometria.js)
 // Zoccolo (piedini) in base all'altezza della porta:
@@ -2413,7 +2413,7 @@ function lucieStrisciaPronte() {
   if (_rectLib) return true;
   if (!_rectLibCaricando) {
     _rectLibCaricando = true;
-    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261127r')
+    import('three/addons/lights/RectAreaLightUniformsLib.js?v=20261127s')
       .then((mod) => { mod.RectAreaLightUniformsLib.init(); _rectLib = mod; if (_reRenderMan) _reRenderMan(); })
       .catch((e) => { _rectLibCaricando = false; console.warn('Luce a striscia non disponibile', e); });
   }
@@ -3607,10 +3607,23 @@ function renderTopContinui(lastre, mat = null, matSchienale = null) {
     }
     // COPETE: profilo triangolare fra piano e muro (gli stessi tratti della distinta)
     for (const T of L.copete || []) {
-      const m = new THREE.Mesh(prismaCopete(T), materialeCopete(T.colore));
+      const l = T.lato, r2 = Math.SQRT1_2, w = Math.min(4, l * 0.15), t = 1;
+      // corpo: triangolo con l'angolo retto nell'angolo piano–muro; la faccia inclinata è quella che si vede
+      const m = new THREE.Mesh(prismaSezione(T, [[0, 0], [l, 0], [0, l]]), T.colore === 'piano' ? materialeCopetePiano(matTop) : materialeCopete(T.colore));
       m.userData.copete = T.tipo;
       m.castShadow = true; m.receiveShadow = true;
       slab.add(m);
+      // BORDINI IN ALLUMINIO lungo la faccia, sotto (sul piano) e sopra (contro il muro), come i copete veri
+      if (T.colore !== 'acciaio') {
+        for (const sez of [
+          [[l, 0], [l - w * r2, w * r2], [l - w * r2 + t * r2, w * r2 + t * r2], [l + t * r2, t * r2]],
+          [[0, l], [w * r2, l - w * r2], [w * r2 + t * r2, l - w * r2 + t * r2], [t * r2, l + t * r2]],
+        ]) {
+          const bm = new THREE.Mesh(prismaSezione(T, sez), materialeCopete('acciaio'));
+          bm.userData.copeteBordo = true;
+          slab.add(bm);
+        }
+      }
     }
     // pietra vera: niente contorni da disegno tecnico sul piano e sull'aplacado (sull'isola il bordo
     // di una metà si vedeva come una riga sopra l'altra metà)
@@ -3620,16 +3633,17 @@ function renderTopContinui(lastre, mat = null, matSchienale = null) {
 }
 
 /**
- * COPETE: prisma triangolare. Angolo retto sul piano contro il muro, da p0 a p1 (coordinate della lastra);
- * un lato di T.lato verso la stanza (u), l'altro di T.lato in su lungo il muro. Facce girate verso fuori.
+ * COPETE: una sezione (poligono convesso, punti [a, b]: a verso la stanza lungo T.u, b in su) tirata da p0 a
+ * p1 (coordinate della lastra). Facce girate verso fuori; le UV le mette poi uvInScala (venatura del piano).
  */
-function prismaCopete(T) {
-  const l = T.lato, su = { x: 0, y: 1, z: 0 };
-  const pt = (p, v, k) => [p.x + v.x * k, p.y + v.y * k, p.z + v.z * k];
-  const A0 = pt(T.p0, su, 0), B0 = pt(T.p0, T.u, l), C0 = pt(T.p0, su, l);
-  const A1 = pt(T.p1, su, 0), B1 = pt(T.p1, T.u, l), C1 = pt(T.p1, su, l);
-  const tri = [[A0, C0, B0], [A1, B1, C1], [A0, B0, B1], [A0, B1, A1], [A0, A1, C1], [A0, C1, C0], [B0, C0, C1], [B0, C1, B1]];
-  const cen = [0, 1, 2].map((i) => (A0[i] + B0[i] + C0[i] + A1[i] + B1[i] + C1[i]) / 6);
+function prismaSezione(T, sez) {
+  const P = (p, [a, b]) => [p.x + T.u.x * a, p.y + b, p.z + T.u.z * a];
+  const S0 = sez.map((q) => P(T.p0, q)), S1 = sez.map((q) => P(T.p1, q)), n = sez.length;
+  const tri = [];
+  for (let i = 1; i < n - 1; i++) { tri.push([S0[0], S0[i], S0[i + 1]]); tri.push([S1[0], S1[i + 1], S1[i]]); }
+  for (let i = 0; i < n; i++) { const j = (i + 1) % n; tri.push([S0[i], S0[j], S1[j]]); tri.push([S0[i], S1[j], S1[i]]); }
+  const tutti = [...S0, ...S1];
+  const cen = [0, 1, 2].map((i) => tutti.reduce((t, q) => t + q[i], 0) / tutti.length);
   const pos = [];
   for (let [a, b, c] of tri) {
     const n = [(b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]), (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]), (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])];
@@ -3639,8 +3653,21 @@ function prismaCopete(T) {
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array((pos.length / 3) * 2), 2));
   g.computeVertexNormals();
   return g;
+}
+/** Copete rivestito come il piano: lo stesso materiale (foto, venatura, riflessi) senza lo «spingi avanti» del piano. */
+const _matCopetePiano = new WeakMap();
+function materialeCopetePiano(matTop) {
+  if (!matTop || !matTop.isMaterial) return new THREE.MeshStandardMaterial({ color: COL.top, roughness: 0.55, metalness: 0.05 });
+  let m = _matCopetePiano.get(matTop);
+  if (!m) {
+    m = matTop.clone(); m.polygonOffset = false;
+    m.onBeforeCompile = matTop.onBeforeCompile;          // colori come la foto (clone() non lo copia)
+    _matCopetePiano.set(matTop, m);
+  }
+  return m;
 }
 const _matCopete = new Map();
 function materialeCopete(id) {

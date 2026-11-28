@@ -8,24 +8,24 @@
 import {
   SEZIONI, leggiCatalogo, salvaCatalogo, salvaFoto, leggiFoto, eliminaFoto, eliminaFotoTipo, impostaNascosto, nascosto,
   nuovoId, preparaFoto, ritaglioBlob,
-} from './catalogo.js?v=20261127r';
-import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127r';
-import { sporgenzaDef } from './finiture-maniglia.js?v=20261127r';
-import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127r';
-import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127r';
-import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127r';
-import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127r';
-import { analizzaFoto, analizzaPorta, selezioneTroppoPiccola, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127r';
-import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127r';
-import { GRUPPI_COLORI, gruppoColore } from './tendine-colori.js?v=20261127r';
-import { agganciaTema } from './tema.js?v=20261127r';
-import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127r';
-import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127r';
-import { htmlFotoParametro, agganciaFotoParametri, htmlFotoVoce } from './parametri-foto.js?v=20261127r';
-import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127r';
-import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127r';
-import { geometriaCassettiera } from './calcoli.js?v=20261127r';
-import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127r';
+} from './catalogo.js?v=20261127s';
+import { FORME_MANIGLIA, FINITURE_MANIGLIA, FINITURA_FOTO, anteprimaManiglia } from './maniglia3d.js?v=20261127s';
+import { sporgenzaDef } from './finiture-maniglia.js?v=20261127s';
+import { anteprimaOggetto, riconosciViste, orientaSopra, ruotaCanvas, controllaMisure, assegnaViste } from './oggetto3d.js?v=20261127s';
+import { segmentaManiglia, canvasPng } from './segmenta-maniglia.js?v=20261127s';
+import { scontornaIA, scontornoIaPossibile, chiusaDuranteIA } from './scontorno-ia.js?v=20261127s';
+import { salvaBozza, leggiBozza, cancellaBozza } from './bozza-oggetto.js?v=20261127s';
+import { analizzaFoto, analizzaPorta, selezioneTroppoPiccola, raddrizza, coloreMedio, pulisciRiflessi, analizzaSuperficie, ralVicini, VERSIONE_FOTO, rendiContinua } from './analisi-foto.js?v=20261127s';
+import { materialiPer, sfondoSwatch } from './materiali.js?v=20261127s';
+import { GRUPPI_COLORI, gruppoColore } from './tendine-colori.js?v=20261127s';
+import { agganciaTema } from './tema.js?v=20261127s';
+import { scaricaCopiaCompleta, caricaCopiaCompleta } from './copia-completa.js?v=20261127s';
+import { parametri, salvaParametri, ripristinaParametri, daImpostare, segnaImpostato, GRUPPI_DA_IMPOSTARE, pezziCassettoNostro, spessoreTirador, nomeAntaScende } from './parametri.js?v=20261127s';
+import { htmlFotoParametro, agganciaFotoParametri, htmlFotoVoce } from './parametri-foto.js?v=20261127s';
+import { htmlMontaggio, agganciaMontaggio, valoriDaParametri, scriviParametri, htmlUguale, valoriScorrevoli, scriviScorrevoli } from './scelte-montaggio.js?v=20261127s';
+import { svgParametro, svgBinario } from './disegni-cucina.js?v=20261127s';
+import { geometriaCassettiera } from './calcoli.js?v=20261127s';
+import { CATEGORIE as CAT_PRONTI, CREDITO as CREDITO_PRONTI, cerca as cercaPronti, miniatura as miniPronto, caricaModello as modelloPronto, anteprimaPronto } from './oggetti-pronti.js?v=20261127s';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tr = (s) => (window.NGI18N ? window.NGI18N.t(s) : s);
@@ -1331,7 +1331,7 @@ function renderParametri(S) {
         ${campo('cucina.copeteBarra', 'Copete: lunghezza della barra', 'come lo vendono (es. 3000 = barre da 3 m): in distinta le barre da comprare')}
       </div>
       <div class="par-et" style="margin-top:8px">${esc('Colore di partenza')}</div>
-      <div class="par-scelte">${[['bianco', 'Bianco'], ['nero', 'Nero'], ['acciaio', 'Acciaio satinato']].map(([v, tit]) => `<button type="button" class="par-scelta ${P.cucina.copeteColore === v ? 'sel' : ''}" data-copcol="${v}"><b>${esc(tit)}</b></button>`).join('')}</div>
+      <div class="par-scelte">${[['piano', 'Come il piano di lavoro'], ['bianco', 'Bianco'], ['nero', 'Nero'], ['acciaio', 'Acciaio satinato']].map(([v, tit]) => `<button type="button" class="par-scelta ${P.cucina.copeteColore === v ? 'sel' : ''}" data-copcol="${v}"><b>${esc(tit)}</b></button>`).join('')}</div>
     </div>
     <div class="par-gruppo">
       <h3>Cerniere dei pensili</h3>

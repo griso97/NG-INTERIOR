@@ -317,7 +317,7 @@ function completa(s) {
       copete: k.copete === true,
       copeteLato: Math.max(10, Math.min(60, num(k.copeteLato, d.copeteLato))),
       copeteBarra: Math.max(1000, Math.min(6000, num(k.copeteBarra, d.copeteBarra))),
-      copeteColore: ['bianco', 'nero', 'acciaio'].includes(k.copeteColore) ? k.copeteColore : d.copeteColore,
+      copeteColore: ['piano', 'bianco', 'nero', 'acciaio'].includes(k.copeteColore) ? k.copeteColore : d.copeteColore,
       // (prima c'era un numero solo per sopra e sotto: vale per tutti e due)
       cernieraSopra: Math.max(20, Math.min(300, num(k.cernieraSopra, num(k.cerniera, d.cernieraSopra)))),
       cernieraSotto: Math.max(20, Math.min(300, num(k.cernieraSotto, num(k.cerniera, d.cernieraSotto)))),
