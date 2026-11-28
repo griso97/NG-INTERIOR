@@ -21,7 +21,7 @@
   // si carica già (resta l'animazione che sfuma finché la nuova pagina è pronta: niente schermo nero).
   // Se l'animazione non parte (niente 3D, «riduci movimento», logo che non si carica) si entra subito.
   let partito = false;
-  const entra = () => { if (partito) return; partito = true; location.replace('./scegli.html'); };
+  const entra = () => { if (partito) return; partito = true; location.replace('./scegli.html' + (/[?&]diretto\b/.test(location.search) ? '?diretto' : '')); };   // ?diretto: senza configurazione guidata
   const box = document.getElementById('ng-intro');
   if (!box) entra();
   else {
